@@ -33,7 +33,8 @@ class Scoreboard extends StatelessWidget {
 
     return Container(
         color: backgroundColor,
-        child: Column(children: [
+        child: Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20), child: Column(children: [
           Text(game.gameStatus.display,
               style: TextStyle(
                   color: color, fontSize: 24, fontWeight: FontWeight.bold)),
@@ -61,6 +62,6 @@ class Scoreboard extends StatelessWidget {
                           fontWeight: FontWeight.bold)),
                 ]))
           ]),
-        ]));
+        ])));
   }
 }

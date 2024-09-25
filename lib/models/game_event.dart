@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
@@ -346,6 +348,57 @@ class GameCard extends GameEvent {
       required super.eventData});
 }
 
+class Period extends GameEvent {
+  GameStatus get status => GameStatus.fromString(eventData.toString());
+
+  @override
+  Widget get image {
+    return const Icon(Icons.timer, size: 48, color: Colors.grey);
+  }
+
+  @override
+  String get display {
+    switch (status) {
+      case GameStatus.notStarted:
+        return '';
+      case GameStatus.firstHalf:
+        return 'Game Started';
+      case GameStatus.halftime:
+        return 'Halftime';
+      case GameStatus.secondHalf:
+        return '2nd Half Started';
+      case GameStatus.overtimeNotStarted:
+        return 'Headed to Overtime';
+      case GameStatus.firstHalfOvertime:
+        return 'Overtime Started';
+      case GameStatus.overtimeHalftime:
+        return 'Overtime Halftime';
+      case GameStatus.secondHalfOvertime:
+        return '2nd Half Overtime Started';
+      case GameStatus.shootout:
+        return 'Shootout';
+      case GameStatus.gameFinal:
+        return 'Game Over';
+      case GameStatus.gameFinalOT:
+        return 'Game Over - Overtime';
+      case GameStatus.gameFinalPKs:
+        return 'Game Over - PKs';
+    }
+  }
+
+  Period(
+      {required super.id,
+      required super.player,
+      required super.team,
+      required super.game,
+      required super.seasonId,
+      required super.whichTeam,
+      required super.eventType,
+      required super.eventMinute,
+      required super.eventPeriod,
+      required super.eventData});
+}
+
 class GameEvent {
   final int id;
   Player? player;
@@ -366,12 +419,19 @@ class GameEvent {
     return 'assets/images/pngs/empty.png';
   }
 
+  Widget get image {
+    return Image.asset(imageAsset,
+        width: 48, height: 48);
+  }
+
   bool get shouldTweet {
-    return eventType == 'Shot' && eventData == 0;
+    return (eventType == 'Period') || (eventType == 'Shot' && eventData == 0);
   }
 
   String tweetText(Game game) {
-    if (eventType == 'Shot' && eventData == 0) {
+    if (eventType == 'Period') {
+      return (this as Period).display;
+    } else if (eventType == 'Shot' && eventData == 0) {
       String tweetText;
       if (player != null) {
         tweetText = '($eventMinute\') Goal by ${player!.displayName}';
@@ -428,7 +488,19 @@ class GameEvent {
     final game = await Game.fromId(db, map['gameId']);
 
     final eventType = map['eventType'];
-    if (eventType == 'Shot') {
+    if (eventType == 'Period') {
+      return Period(
+          id: map['id'],
+          player: player,
+          team: team,
+          game: game!,
+          seasonId: map['seasonId'],
+          whichTeam: map['whichTeam'],
+          eventType: map['eventType'],
+          eventMinute: map['eventMinute'],
+          eventPeriod: map['eventPeriod'],
+          eventData: map['eventData']);
+    } else if (eventType == 'Shot') {
       return Shot(
           id: map['id'],
           player: player,

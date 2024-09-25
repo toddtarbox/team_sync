@@ -38,10 +38,10 @@ class _GamePageState extends State<GamePage> {
     _twitterAPI = TwitterApi(
         bearerToken: '',
         oauthTokens: const OAuthTokens(
-          consumerKey: 'YOUR_CONSUMER_KEY_HERE',
-          consumerSecret: 'YOUR_CONSUMER_SECRET_HERE',
-          accessToken: 'YOUR_ACCESS_TOKEN_HERE',
-          accessTokenSecret: 'YOUR_ACCESS_TOKEN_SECRET_HERE',
+          consumerKey: 'QwM9RNgW2q9yWlnRPc6B9sZcQ',
+          consumerSecret: 'hkbNUSiuUo0CBwMpgseqpp88MvNuTRqawnNO9iliE5aFTGMlTq',
+          accessToken: '2694291734-bt3lNQjkOpq2OQbgVxGJbNZkAVcWVWXUQ4g80By',
+          accessTokenSecret: 'Oh7UzuPkIcKBgu2eWwdc5oE6YeMmJyTUhiClhMxwozuuA',
         ));
 
     super.initState();
@@ -90,8 +90,7 @@ class _GamePageState extends State<GamePage> {
                                   child: const Text("Continue"),
                                   onPressed: () async {
                                     Navigator.pop(context, true);
-                                    await _game.advanceGame(widget.database);
-                                    setState(() {});
+                                    await _advanceGame();
                                   },
                                 ),
                                 TextButton(
@@ -198,9 +197,7 @@ class _GamePageState extends State<GamePage> {
               ],
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(100.0),
-            child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
-                child: Scoreboard(_game, widget.season))),
+            child: Scoreboard(_game, widget.season)),
       ),
       floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
@@ -262,8 +259,7 @@ class _GamePageState extends State<GamePage> {
                         });
                       },
                       child: ListTile(
-                          leading: Image.asset(event.imageAsset,
-                              width: 48, height: 48),
+                          leading: event.image,
                           title: Text(event.display),
                           subtitle: event.eventMinute > 0
                               ? Text('Minute: ${event.eventMinute.toString()}')
@@ -290,6 +286,10 @@ class _GamePageState extends State<GamePage> {
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
+    if (event?.eventType == 'Period') {
+      return;
+    }
+
     final eventEntries = [
       'Shot',
       'Assist',
@@ -578,6 +578,25 @@ class _GamePageState extends State<GamePage> {
         });
   }
 
+  Future<void> _advanceGame() async {
+    await _game.advanceGame(widget.database);
+
+    final periodEvent = Period(
+        id: -1,
+        player: null,
+        team: _game.homeTeam,
+        game: _game,
+        seasonId: _game.seasonId,
+        whichTeam: 0,
+        eventType: 'Period',
+        eventMinute: -1,
+        eventPeriod: _game.gameStatus.index,
+        eventData: _game.gameStatus.index);
+    await _saveEvent(periodEvent);
+
+    setState(() {});
+  }
+
   Future<bool> _saveEvent(GameEvent event) async {
     if (event.eventType == 'Shot' &&
         event.eventData == 0 &&
@@ -608,9 +627,12 @@ class _GamePageState extends State<GamePage> {
 
       try {
         if (event.shouldTweet) {
-          await _twitterAPI.tweets.createTweet(
-            text: event.tweetText(_game),
-          );
+          final tweetText = event.tweetText(_game);
+          if (tweetText.isNotEmpty) {
+            // await _twitterAPI.tweets.createTweet(
+            //   text: tweetText,
+            // );
+          }
         }
       } catch (e) {}
 
