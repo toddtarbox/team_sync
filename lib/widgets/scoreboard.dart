@@ -33,34 +33,40 @@ class Scoreboard extends StatelessWidget {
 
     return Container(
         color: backgroundColor,
-        child: Column(children: [
-          Text(game.gameStatus.display,
-              style: TextStyle(
-                  color: color, fontSize: 24, fontWeight: FontWeight.bold)),
-          Stack(children: [
-            Column(children: [
-              Text(teamName,
+        child: Padding(
+            padding: const EdgeInsets.only(left: 20, right: 20),
+            child: Column(children: [
+              Text(game.gameStatus.display,
                   style: TextStyle(
                       color: color, fontSize: 24, fontWeight: FontWeight.bold)),
-              Text('$teamScore',
-                  style: TextStyle(
-                      color: color, fontSize: 24, fontWeight: FontWeight.bold)),
-            ]),
-            Align(
-                alignment: Alignment.centerRight,
-                child: Column(children: [
-                  Text(opponentName,
+              Stack(children: [
+                Column(children: [
+                  Text(teamName,
                       style: TextStyle(
                           color: color,
                           fontSize: 24,
                           fontWeight: FontWeight.bold)),
-                  Text('$opponentScore',
+                  Text('$teamScore',
                       style: TextStyle(
                           color: color,
                           fontSize: 24,
                           fontWeight: FontWeight.bold)),
-                ]))
-          ]),
-        ]));
+                ]),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: Column(children: [
+                      Text(opponentName,
+                          style: TextStyle(
+                              color: color,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                      Text('$opponentScore',
+                          style: TextStyle(
+                              color: color,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                    ]))
+              ]),
+            ])));
   }
 }

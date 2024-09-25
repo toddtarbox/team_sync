@@ -7,6 +7,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/game_stats_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:twitter_api_v2/twitter_api_v2.dart';
 
 class GamePage extends StatefulWidget {
   final Database database;
@@ -28,15 +29,36 @@ class _GamePageState extends State<GamePage> {
 
   late Game _game;
 
+  late TwitterApi _twitterAPI;
+
+  Save? _autoCreateSave;
+
   @override
   void initState() {
     _game = widget.game;
+
+    _twitterAPI = TwitterApi(
+        bearerToken: '',
+        oauthTokens: const OAuthTokens(
+          consumerKey: 'QwM9RNgW2q9yWlnRPc6B9sZcQ',
+          consumerSecret: 'hkbNUSiuUo0CBwMpgseqpp88MvNuTRqawnNO9iliE5aFTGMlTq',
+          accessToken: '2694291734-bt3lNQjkOpq2OQbgVxGJbNZkAVcWVWXUQ4g80By',
+          accessTokenSecret: 'Oh7UzuPkIcKBgu2eWwdc5oE6YeMmJyTUhiClhMxwozuuA',
+        ));
 
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_autoCreateSave != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) async {
+            await _editEvent(event: _autoCreateSave);
+            _autoCreateSave = null;
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -78,8 +100,7 @@ class _GamePageState extends State<GamePage> {
                                   child: const Text("Continue"),
                                   onPressed: () async {
                                     Navigator.pop(context, true);
-                                    await _game.advanceGame(widget.database);
-                                    setState(() {});
+                                    await _advanceGame();
                                   },
                                 ),
                                 TextButton(
@@ -186,13 +207,18 @@ class _GamePageState extends State<GamePage> {
               ],
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(100.0),
-            child: Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
-                child: Scoreboard(_game, widget.season))),
+            child: Scoreboard(_game, widget.season)),
       ),
       floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
-          onPressed: () {
+          onPressed: () async {
+            if (_game.gameStatus == GameStatus.notStarted ||
+                _game.gameStatus == GameStatus.halftime ||
+                _game.gameStatus == GameStatus.overtimeNotStarted ||
+                _game.gameStatus == GameStatus.overtimeHalftime) {
+              await _game.advanceGame(widget.database);
+              setState(() {});
+            }
             _editEvent();
           }),
       body: FutureBuilder(
@@ -243,8 +269,7 @@ class _GamePageState extends State<GamePage> {
                         });
                       },
                       child: ListTile(
-                          leading: Image.asset(event.imageAsset,
-                              width: 48, height: 48),
+                          leading: event.image,
                           title: Text(event.display),
                           subtitle: event.eventMinute > 0
                               ? Text('Minute: ${event.eventMinute.toString()}')
@@ -271,7 +296,12 @@ class _GamePageState extends State<GamePage> {
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
+    if (event?.eventType == 'Period') {
+      return;
+    }
+
     final eventEntries = [
+      'Save',
       'Shot',
       'Assist',
       'Foul',
@@ -300,13 +330,13 @@ class _GamePageState extends State<GamePage> {
         widget.database, _game.homeTeam.id, _game.seasonId);
 
     event ??= GameEvent.initial(
-        team: _game.awayTeam,
+        team: event?.team ?? _game.awayTeam,
         game: _game,
         seasonId: _game.seasonId,
         whichTeam: 0,
         eventType: event?.eventType ?? 'Shot',
         eventMinute: event?.eventMinute ?? -1,
-        eventPeriod: event?.eventPeriod ?? 1,
+        eventPeriod: event?.eventPeriod ?? -1,
         eventData: event?.eventData ?? 0);
 
     int? team = event.team.id == _game.awayTeam.id ? 0 : 1;
@@ -323,13 +353,16 @@ class _GamePageState extends State<GamePage> {
                         : ''
         : event.eventPeriod == 1
             ? '1st Half'
-            : event.eventPeriod == 2
+            : event.eventPeriod == 3
                 ? '2nd Half'
-                : event.eventPeriod == 3
+                : event.eventPeriod == 5
                     ? '1st Half Overtime'
-                    : event.eventPeriod == 4
+                    : event.eventPeriod == 7
                         ? '2nd Half Overtime'
                         : '';
+
+    event.eventPeriod =
+        event.eventPeriod == -1 ? _game.gameStatus.index : event.eventPeriod;
 
     List<DropdownMenuEntry> playerEntries = team == 0
         ? awayTeamPlayers
@@ -467,7 +500,7 @@ class _GamePageState extends State<GamePage> {
                           initialValue: event.eventMinute.toString(),
                           keyboardType: TextInputType.number,
                           decoration:
-                              const InputDecoration(labelText: 'Game Minute'),
+                              const InputDecoration(labelText: 'Game Minute (Goals Only)'),
                           onChanged: (minute) =>
                               event!.eventMinute = int.parse(minute)),
                       const Spacer(),
@@ -559,6 +592,25 @@ class _GamePageState extends State<GamePage> {
         });
   }
 
+  Future<void> _advanceGame() async {
+    await _game.advanceGame(widget.database);
+
+    final periodEvent = Period(
+        id: -1,
+        player: null,
+        team: _game.homeTeam,
+        game: _game,
+        seasonId: _game.seasonId,
+        whichTeam: 0,
+        eventType: 'Period',
+        eventMinute: -1,
+        eventPeriod: _game.gameStatus.index,
+        eventData: _game.gameStatus.index);
+    await _saveEvent(periodEvent);
+
+    setState(() {});
+  }
+
   Future<bool> _saveEvent(GameEvent event) async {
     if (event.eventType == 'Shot' &&
         event.eventData == 0 &&
@@ -585,9 +637,30 @@ class _GamePageState extends State<GamePage> {
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
 
-      setState(() {
-        _game.updateScore(widget.database);
-      });
+      await _game.updateScore(widget.database);
+
+      try {
+        if (event.shouldTweet) {
+          final tweetText = event.tweetText(_game);
+          if (tweetText.isNotEmpty) {
+            // await _twitterAPI.tweets.createTweet(
+            //   text: tweetText,
+            // );
+          }
+        }
+      } catch (e) {}
+
+      if (event.eventType == 'Shot' && event.eventData == ShotResult.onTargetSave.index) {
+        // Auto-create a Save event
+        final team = event.team.id == _game.homeTeam.id ? _game.awayTeam : _game.homeTeam;
+        final saveEvent = Save(id: -1, player: null, team: team, game: _game, seasonId: _game.seasonId, whichTeam: 0, eventType: 'Save', eventMinute: event.eventMinute, eventPeriod: event.eventPeriod, eventData: 0);
+        setState(() {
+          _autoCreateSave = saveEvent;
+        });
+      } else {
+        setState(() {});
+      }
+
       return true;
     }
 
