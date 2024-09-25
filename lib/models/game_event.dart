@@ -168,7 +168,7 @@ class Save extends GameEvent {
 
   @override
   String get imageAsset {
-    return 'assets/images/pngs/saved.png';
+    return 'assets/images/pngs/gloves.png';
   }
 
   Save(
@@ -420,8 +420,7 @@ class GameEvent {
   }
 
   Widget get image {
-    return Image.asset(imageAsset,
-        width: 48, height: 48);
+    return Image.asset(imageAsset, width: 48, height: 48);
   }
 
   bool get shouldTweet {

@@ -31,6 +31,8 @@ class _GamePageState extends State<GamePage> {
 
   late TwitterApi _twitterAPI;
 
+  Save? _autoCreateSave;
+
   @override
   void initState() {
     _game = widget.game;
@@ -49,6 +51,14 @@ class _GamePageState extends State<GamePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_autoCreateSave != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) async {
+            await _editEvent(event: _autoCreateSave);
+            _autoCreateSave = null;
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -291,6 +301,7 @@ class _GamePageState extends State<GamePage> {
     }
 
     final eventEntries = [
+      'Save',
       'Shot',
       'Assist',
       'Foul',
@@ -319,12 +330,12 @@ class _GamePageState extends State<GamePage> {
         widget.database, _game.homeTeam.id, _game.seasonId);
 
     event ??= GameEvent.initial(
-        team: _game.awayTeam,
+        team: event?.team ?? _game.awayTeam,
         game: _game,
         seasonId: _game.seasonId,
         whichTeam: 0,
         eventType: event?.eventType ?? 'Shot',
-        eventMinute: event?.eventMinute ?? 1,
+        eventMinute: event?.eventMinute ?? -1,
         eventPeriod: event?.eventPeriod ?? -1,
         eventData: event?.eventData ?? 0);
 
@@ -342,13 +353,16 @@ class _GamePageState extends State<GamePage> {
                         : ''
         : event.eventPeriod == 1
             ? '1st Half'
-            : event.eventPeriod == 2
+            : event.eventPeriod == 3
                 ? '2nd Half'
-                : event.eventPeriod == 3
+                : event.eventPeriod == 5
                     ? '1st Half Overtime'
-                    : event.eventPeriod == 4
+                    : event.eventPeriod == 7
                         ? '2nd Half Overtime'
                         : '';
+
+    event.eventPeriod =
+        event.eventPeriod == -1 ? _game.gameStatus.index : event.eventPeriod;
 
     List<DropdownMenuEntry> playerEntries = team == 0
         ? awayTeamPlayers
@@ -486,7 +500,7 @@ class _GamePageState extends State<GamePage> {
                           initialValue: event.eventMinute.toString(),
                           keyboardType: TextInputType.number,
                           decoration:
-                              const InputDecoration(labelText: 'Game Minute'),
+                              const InputDecoration(labelText: 'Game Minute (Goals Only)'),
                           onChanged: (minute) =>
                               event!.eventMinute = int.parse(minute)),
                       const Spacer(),
@@ -636,7 +650,16 @@ class _GamePageState extends State<GamePage> {
         }
       } catch (e) {}
 
-      setState(() {});
+      if (event.eventType == 'Shot' && event.eventData == ShotResult.onTargetSave.index) {
+        // Auto-create a Save event
+        final team = event.team.id == _game.homeTeam.id ? _game.awayTeam : _game.homeTeam;
+        final saveEvent = Save(id: -1, player: null, team: team, game: _game, seasonId: _game.seasonId, whichTeam: 0, eventType: 'Save', eventMinute: event.eventMinute, eventPeriod: event.eventPeriod, eventData: 0);
+        setState(() {
+          _autoCreateSave = saveEvent;
+        });
+      } else {
+        setState(() {});
+      }
 
       return true;
     }
