@@ -232,8 +232,8 @@ class GameStatsPage extends StatelessWidget {
         'data': 0
       },
       {
-        'name': '2md Yellow Cards',
-        'dialogName': '2md Yellow Cards',
+        'name': '2nd Yellow Cards',
+        'dialogName': '2nd Yellow Cards',
         'category': 'Card',
         'data': 1
       },

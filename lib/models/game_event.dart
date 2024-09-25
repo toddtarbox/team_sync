@@ -135,6 +135,11 @@ class Shot extends GameEvent {
 
 class Assist extends GameEvent {
   @override
+  String get imageAsset {
+    return 'assets/images/pngs/cleat.png';
+  }
+
+  @override
   String get display {
     if (player != null) {
       return 'Assisted by ${player!.displayName}';
@@ -270,7 +275,7 @@ class Foul extends GameEvent {
 
   @override
   String get imageAsset {
-    return 'assets/images/pngs/cleat.png';
+    return 'assets/images/pngs/foul.png';
   }
 
   Foul(
