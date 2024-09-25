@@ -7,6 +7,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/game_stats_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:twitter_api_v2/twitter_api_v2.dart';
 
 class GamePage extends StatefulWidget {
   final Database database;
@@ -28,9 +29,20 @@ class _GamePageState extends State<GamePage> {
 
   late Game _game;
 
+  late TwitterApi _twitterAPI;
+
   @override
   void initState() {
     _game = widget.game;
+
+    _twitterAPI = TwitterApi(
+        bearerToken: '',
+        oauthTokens: const OAuthTokens(
+          consumerKey: 'YOUR_CONSUMER_KEY_HERE',
+          consumerSecret: 'YOUR_CONSUMER_SECRET_HERE',
+          accessToken: 'YOUR_ACCESS_TOKEN_HERE',
+          accessTokenSecret: 'YOUR_ACCESS_TOKEN_SECRET_HERE',
+        ));
 
     super.initState();
   }
@@ -192,7 +204,14 @@ class _GamePageState extends State<GamePage> {
       ),
       floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
-          onPressed: () {
+          onPressed: () async {
+            if (_game.gameStatus == GameStatus.notStarted ||
+                _game.gameStatus == GameStatus.halftime ||
+                _game.gameStatus == GameStatus.overtimeNotStarted ||
+                _game.gameStatus == GameStatus.overtimeHalftime) {
+              await _game.advanceGame(widget.database);
+              setState(() {});
+            }
             _editEvent();
           }),
       body: FutureBuilder(
@@ -305,8 +324,8 @@ class _GamePageState extends State<GamePage> {
         seasonId: _game.seasonId,
         whichTeam: 0,
         eventType: event?.eventType ?? 'Shot',
-        eventMinute: event?.eventMinute ?? -1,
-        eventPeriod: event?.eventPeriod ?? 1,
+        eventMinute: event?.eventMinute ?? 1,
+        eventPeriod: event?.eventPeriod ?? -1,
         eventData: event?.eventData ?? 0);
 
     int? team = event.team.id == _game.awayTeam.id ? 0 : 1;
@@ -585,9 +604,18 @@ class _GamePageState extends State<GamePage> {
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
 
-      setState(() {
-        _game.updateScore(widget.database);
-      });
+      await _game.updateScore(widget.database);
+
+      try {
+        if (event.shouldTweet) {
+          await _twitterAPI.tweets.createTweet(
+            text: event.tweetText(_game),
+          );
+        }
+      } catch (e) {}
+
+      setState(() {});
+
       return true;
     }
 

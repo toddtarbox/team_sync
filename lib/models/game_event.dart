@@ -366,6 +366,27 @@ class GameEvent {
     return 'assets/images/pngs/empty.png';
   }
 
+  bool get shouldTweet {
+    return eventType == 'Shot' && eventData == 0;
+  }
+
+  String tweetText(Game game) {
+    if (eventType == 'Shot' && eventData == 0) {
+      String tweetText;
+      if (player != null) {
+        tweetText = '($eventMinute\') Goal by ${player!.displayName}';
+      } else {
+        tweetText = '($eventMinute\') Goal by ${team.fullName}';
+      }
+
+      tweetText = '$tweetText\n\n${game.tweetStatus()}';
+
+      return tweetText;
+    }
+
+    return '';
+  }
+
   GameEvent(
       {required this.id,
       required this.player,

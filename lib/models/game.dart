@@ -347,4 +347,8 @@ class Game {
 
     return stat;
   }
+
+  String tweetStatus() {
+    return '${homeTeam.shortName}: $homeTeamScore - ${awayTeam.shortName}: $awayTeamScore';
+  }
 }
