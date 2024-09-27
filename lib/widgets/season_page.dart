@@ -52,7 +52,7 @@ class _SeasonPageState extends State<SeasonPage> {
                     database: widget.database, season: widget.season),
               ),
             );
-          }, child: const Padding(padding: EdgeInsets.only(right: 10), child: Icon(Icons.person, color: Colors.black)))
+          }, child: const Padding(padding: EdgeInsets.only(right: 10), child: Icon(Icons.person, color: Colors.white)))
         ],
       ),
       floatingActionButton: FloatingActionButton(

@@ -42,8 +42,8 @@ class _HomePageState extends State<HomePage> {
               onTap: () async {
                 await _exportDB(_database.path.split('/').last);
               },
-              child: const Icon(Icons.import_export,
-                  size: 32, color: Colors.white))
+              child: const Padding(padding: EdgeInsets.only(right: 10), child: Icon(Icons.import_export,
+                  size: 32, color: Colors.white)))
         ],
       ),
       floatingActionButton: FloatingActionButton(
