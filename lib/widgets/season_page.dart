@@ -56,7 +56,7 @@ class _SeasonPageState extends State<SeasonPage> {
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.person, color: Colors.white)))
+                  child: Icon(Icons.person, color: Colors.white70)))
         ],
       ),
       floatingActionButton: FloatingActionButton(

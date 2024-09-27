@@ -200,7 +200,7 @@ class _GamePageState extends State<GamePage> {
                               game: _game)));
                     },
                     child: const Padding(
-                        padding: EdgeInsets.all(5),
+                        padding: EdgeInsets.only(right: 10),
                         child: Icon(Icons.paste,
                             size: 24, color: Colors.white70))),
               ],
