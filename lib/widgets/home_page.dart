@@ -4,6 +4,7 @@ import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/season_page.dart';
@@ -241,10 +242,7 @@ class _HomePageState extends State<HomePage> {
                                     if (selectedTeam != null &&
                                         seasonName != null &&
                                         seasonName!.isNotEmpty) {
-                                      await _database.insert('Seasons', {
-                                        'name': seasonName,
-                                        'teamId': selectedTeam!
-                                      });
+                                      await _saveSeason(seasonName!, selectedTeam!);
 
                                       if (mounted) {
                                         Navigator.pop(context);
@@ -261,5 +259,38 @@ class _HomePageState extends State<HomePage> {
                             ]))
                   ])));
         });
+  }
+
+  Future<void> _saveSeason(String seasonName, int teamId) async {
+    final allTeamSeasons = await _database.query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
+    int prevSeasonId = 0;
+    for (var s in allTeamSeasons) {
+      final season = Season.fromMap(s);
+      if (season.id > prevSeasonId) {
+        prevSeasonId = season.id;
+      }
+    }
+
+    final newSeasonId = await _database.insert('Seasons', {
+      'name': seasonName,
+      'teamId': teamId
+    });
+
+    final teamPlayers = await _database.query('Players', where: 'teamId=? AND seasonId=?', whereArgs: [teamId, prevSeasonId]);
+    for (var p in teamPlayers) {
+      final player = Player.fromMap(p);
+
+      await _database.insert(
+          'Players',
+          {
+            'id': player.id,
+            'teamId': teamId,
+            'seasonId': newSeasonId,
+            'firstName': player.firstName,
+            'lastName': player.lastName,
+            'number': player.number
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 }
