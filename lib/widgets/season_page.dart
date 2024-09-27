@@ -6,6 +6,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/game_page.dart';
 import 'package:team_sync/widgets/game_result.dart';
+import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/season_record.dart';
 
@@ -43,6 +44,16 @@ class _SeasonPageState extends State<SeasonPage> {
                 color: Colors.white70,
                 fontSize: 24,
                 fontWeight: FontWeight.bold)),
+        actions: [
+          GestureDetector(onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => PlayersPage(
+                    database: widget.database, season: widget.season),
+              ),
+            );
+          }, child: const Padding(padding: EdgeInsets.only(right: 10), child: Icon(Icons.person, color: Colors.black)))
+        ],
       ),
       floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.add),
@@ -58,11 +69,9 @@ class _SeasonPageState extends State<SeasonPage> {
                 itemCount: season.games.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    if (index == 0) {
-                      return ListTile(
-                          tileColor: Colors.black,
-                          title: Center(child: SeasonRecord([widget.season])));
-                    }
+                    return ListTile(
+                        tileColor: Colors.black,
+                        title: Center(child: SeasonRecord([widget.season])));
                   }
 
                   final game = season.games[index - 1];

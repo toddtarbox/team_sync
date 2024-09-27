@@ -4,9 +4,9 @@ class Player {
   final int id;
   final int teamId;
   final int seasonId;
-  final String firstName;
-  final String lastName;
-  final int number;
+  String firstName;
+  String lastName;
+  int number;
 
   String get displayName {
     return '$firstName $lastName';
