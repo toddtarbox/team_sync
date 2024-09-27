@@ -42,8 +42,10 @@ class _HomePageState extends State<HomePage> {
               onTap: () async {
                 await _exportDB(_database.path.split('/').last);
               },
-              child: const Icon(Icons.import_export,
-                  size: 32, color: Colors.white))
+              child: const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child:
+                      Icon(Icons.import_export, size: 32, color: Colors.white)))
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -242,7 +244,8 @@ class _HomePageState extends State<HomePage> {
                                     if (selectedTeam != null &&
                                         seasonName != null &&
                                         seasonName!.isNotEmpty) {
-                                      await _saveSeason(seasonName!, selectedTeam!);
+                                      await _saveSeason(
+                                          seasonName!, selectedTeam!);
 
                                       if (mounted) {
                                         Navigator.pop(context);
@@ -262,7 +265,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _saveSeason(String seasonName, int teamId) async {
-    final allTeamSeasons = await _database.query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
+    final allTeamSeasons = await _database
+        .query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
     int prevSeasonId = 0;
     for (var s in allTeamSeasons) {
       final season = Season.fromMap(s);
@@ -271,12 +275,11 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    final newSeasonId = await _database.insert('Seasons', {
-      'name': seasonName,
-      'teamId': teamId
-    });
+    final newSeasonId = await _database
+        .insert('Seasons', {'name': seasonName, 'teamId': teamId});
 
-    final teamPlayers = await _database.query('Players', where: 'teamId=? AND seasonId=?', whereArgs: [teamId, prevSeasonId]);
+    final teamPlayers = await _database.query('Players',
+        where: 'teamId=? AND seasonId=?', whereArgs: [teamId, prevSeasonId]);
     for (var p in teamPlayers) {
       final player = Player.fromMap(p);
 

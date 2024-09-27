@@ -52,10 +52,9 @@ class _GamePageState extends State<GamePage> {
   @override
   Widget build(BuildContext context) {
     if (_autoCreateSave != null) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) async {
-            await _editEvent(event: _autoCreateSave);
-            _autoCreateSave = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _editEvent(event: _autoCreateSave);
+        _autoCreateSave = null;
       });
     }
 
@@ -499,8 +498,8 @@ class _GamePageState extends State<GamePage> {
                       TextFormField(
                           initialValue: event.eventMinute.toString(),
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: 'Game Minute (Goals Only)'),
+                          decoration: const InputDecoration(
+                              labelText: 'Game Minute (Goals Only)'),
                           onChanged: (minute) =>
                               event!.eventMinute = int.parse(minute)),
                       const Spacer(),
@@ -650,10 +649,23 @@ class _GamePageState extends State<GamePage> {
         }
       } catch (e) {}
 
-      if (event.eventType == 'Shot' && event.eventData == ShotResult.onTargetSave.index) {
+      if (event.eventType == 'Shot' &&
+          event.eventData == ShotResult.onTargetSave.index) {
         // Auto-create a Save event
-        final team = event.team.id == _game.homeTeam.id ? _game.awayTeam : _game.homeTeam;
-        final saveEvent = Save(id: -1, player: null, team: team, game: _game, seasonId: _game.seasonId, whichTeam: 0, eventType: 'Save', eventMinute: event.eventMinute, eventPeriod: event.eventPeriod, eventData: 0);
+        final team = event.team.id == _game.homeTeam.id
+            ? _game.awayTeam
+            : _game.homeTeam;
+        final saveEvent = Save(
+            id: -1,
+            player: null,
+            team: team,
+            game: _game,
+            seasonId: _game.seasonId,
+            whichTeam: 0,
+            eventType: 'Save',
+            eventMinute: event.eventMinute,
+            eventPeriod: event.eventPeriod,
+            eventData: 0);
         setState(() {
           _autoCreateSave = saveEvent;
         });
