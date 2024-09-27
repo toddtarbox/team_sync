@@ -17,8 +17,11 @@ class SeasonRecord extends StatelessWidget {
         .where((g) => g.gameStatus.index >= 9 && !g.isWin(teamId) && !g.isTie)
         .length;
 
-    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [Image.asset('assets/images/jpgs/sa-crest.jpg', width: 42, height: 42), Text('Record ($wins - $losses)',
-        style: const TextStyle(
-            color: Colors.white70, fontSize: 24, fontWeight: FontWeight.bold))]);
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Image.asset('assets/images/jpgs/sa-crest.jpg', width: 42, height: 42),
+      Text('Record ($wins - $losses)',
+          style: const TextStyle(
+              color: Colors.white70, fontSize: 24, fontWeight: FontWeight.bold))
+    ]);
   }
 }

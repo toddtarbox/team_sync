@@ -80,7 +80,8 @@ class _PlayersPageState extends State<PlayersPage> {
                       },
                       onDismissed: (direction) async {
                         await widget.database.delete('Players',
-                            where: 'id=? AND teamId=? AND seasonId=?', whereArgs: [player.id, season.teamId, season.id]);
+                            where: 'id=? AND teamId=? AND seasonId=?',
+                            whereArgs: [player.id, season.teamId, season.id]);
                         setState(() {});
                       },
                       child: ListTile(
@@ -107,7 +108,13 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   void _showPlayer({Player? player}) {
-    player ??= Player(id: -1, teamId: widget.season.teamId, seasonId: widget.season.id, firstName: '', lastName: '', number: 0);
+    player ??= Player(
+        id: -1,
+        teamId: widget.season.teamId,
+        seasonId: widget.season.id,
+        firstName: '',
+        lastName: '',
+        number: 0);
 
     showModalBottomSheet(
         context: context,
@@ -118,32 +125,42 @@ class _PlayersPageState extends State<PlayersPage> {
                 child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Column(children: [
-                      TextFormField(autofocus: true, decoration:
-                        const InputDecoration(labelText: 'First Name'), initialValue: player!.firstName,
-                        onChanged: (name) => player!.firstName = name),
-                      TextFormField(decoration:
-                      const InputDecoration(labelText: 'Last Name'), initialValue: player.lastName,
+                      TextFormField(
+                          autofocus: true,
+                          decoration:
+                              const InputDecoration(labelText: 'First Name'),
+                          initialValue: player!.firstName,
+                          onChanged: (name) => player!.firstName = name),
+                      TextFormField(
+                          decoration:
+                              const InputDecoration(labelText: 'Last Name'),
+                          initialValue: player.lastName,
                           onChanged: (name) => player!.lastName = name),
                       const Spacer(),
                       Row(
-                          mainAxisAlignment: player!.firstName.isNotEmpty && player.lastName.isNotEmpty
+                          mainAxisAlignment: player!.firstName.isNotEmpty &&
+                                  player.lastName.isNotEmpty
                               ? MainAxisAlignment.spaceEvenly
                               : MainAxisAlignment.center,
                           children: [
-                            player.firstName.isNotEmpty && player.lastName.isNotEmpty
+                            player.firstName.isNotEmpty &&
+                                    player.lastName.isNotEmpty
                                 ? GestureDetector(
                                     onTap: () async {
                                       await widget.database.insert(
                                           'Players',
                                           {
-                                            'id': player!.id == -1 ? null : player.id,
+                                            'id': player!.id == -1
+                                                ? null
+                                                : player.id,
                                             'teamId': widget.season.teamId,
                                             'seasonId': widget.season.id,
                                             'firstName': player.firstName,
                                             'lastName': player.lastName,
                                             'number': player.number
                                           },
-                                          conflictAlgorithm: ConflictAlgorithm.replace);
+                                          conflictAlgorithm:
+                                              ConflictAlgorithm.replace);
 
                                       if (mounted) {
                                         Navigator.pop(context);

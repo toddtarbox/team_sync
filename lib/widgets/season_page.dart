@@ -45,14 +45,18 @@ class _SeasonPageState extends State<SeasonPage> {
                 fontSize: 24,
                 fontWeight: FontWeight.bold)),
         actions: [
-          GestureDetector(onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PlayersPage(
-                    database: widget.database, season: widget.season),
-              ),
-            );
-          }, child: const Padding(padding: EdgeInsets.only(right: 10), child: Icon(Icons.person, color: Colors.white)))
+          GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PlayersPage(
+                        database: widget.database, season: widget.season),
+                  ),
+                );
+              },
+              child: const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(Icons.person, color: Colors.white)))
         ],
       ),
       floatingActionButton: FloatingActionButton(
