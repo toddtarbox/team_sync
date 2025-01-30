@@ -352,7 +352,7 @@ class _GamePageState extends State<GamePage> {
                         : ''
         : event.eventPeriod == 1
             ? '1st Half'
-            : event.eventPeriod == 3
+            : event.eventPeriod == 2
                 ? '2nd Half'
                 : event.eventPeriod == 5
                     ? '1st Half Overtime'

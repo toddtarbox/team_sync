@@ -44,8 +44,8 @@ class _HomePageState extends State<HomePage> {
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
-                  child:
-                      Icon(Icons.import_export, size: 32, color: Colors.white70)))
+                  child: Icon(Icons.import_export,
+                      size: 32, color: Colors.white70)))
         ],
       ),
       floatingActionButton: FloatingActionButton(

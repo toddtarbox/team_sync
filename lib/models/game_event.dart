@@ -623,6 +623,10 @@ class GameEvent {
         .map((g) async => await GameEvent.fromMap(db, g))
         .toList(growable: false));
 
+    events.sort((a, b) {
+      return a.eventMinute.compareTo(b.eventMinute);
+    });
+
     return events;
   }
 }

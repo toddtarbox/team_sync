@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 
@@ -10,7 +9,9 @@ class GameResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (game.gameStatus.index < 9) {
+    if (game.gameStatus == GameStatus.notStarted) {
+      return const Text('Not Played');
+    } else if (game.gameStatus.index < 9) {
       return const Text('');
     }
 
