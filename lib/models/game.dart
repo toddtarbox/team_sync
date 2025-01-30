@@ -209,7 +209,7 @@ class Game {
     events =
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
     shootoutEvents =
-        allGameEvents.where((e) => e.eventMinute < -2).toList(growable: false);
+        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false).reversed.toList(growable: false);
   }
 
   Future<void> updateScore(Database db) async {
@@ -270,20 +270,20 @@ class Game {
   }
 
   Future<GameStat> getStats(Database db, String name, String dialogName,
-      String category, int data, int teamId) async {
+      String category, List<int> data, int teamId) async {
     GameStat stat;
-    if (data != -1) {
+    if (!data.contains(-1)) {
       int teamStat = allGameEvents
           .where((e) =>
               e.eventType == category &&
-              e.eventData == data &&
+              data.contains(e.eventData) &&
               e.team.id == teamId &&
               e.eventMinute > 0)
           .length;
       int opponentStat = allGameEvents
           .where((e) =>
               e.eventType == category &&
-              e.eventData == data &&
+              data.contains(e.eventData) &&
               e.team.id != teamId &&
               e.eventMinute > 0)
           .length;
@@ -303,7 +303,7 @@ class Game {
                   e.player?.id == id &&
                   e.eventType == category &&
                   e.eventMinute > 0 &&
-                  e.eventData == data)
+                  data.contains(e.eventData))
               .toList(growable: false)
               .length;
         }

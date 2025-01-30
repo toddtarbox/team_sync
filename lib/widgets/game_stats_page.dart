@@ -17,7 +17,6 @@ class GameStatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gameEvents = game.allGameEvents;
     final scoringEvents = game.allGameEvents
         .where((e) =>
             e.eventType == 'Shot' && e.eventData == 0 ||
@@ -25,7 +24,11 @@ class GameStatsPage extends StatelessWidget {
                 e.eventData == 0 &&
                 e.eventMinute > 0))
         .toList(growable: false)
-        .reversed
+        .toList(growable: false);
+
+    final assistEvents = game.allGameEvents
+        .where((e) => e.eventType == 'Assist')
+        .toList(growable: false)
         .toList(growable: false);
 
     return Scaffold(
@@ -123,9 +126,9 @@ class GameStatsPage extends StatelessWidget {
                                         fontWeight: FontWeight.bold))));
                       } else if (index <= scoringEvents.length + 1) {
                         final event = scoringEvents[index - 2];
-                        final assistEvent = gameEvents
+                        final assistEvent = assistEvents
                             .where((e) =>
-                                e.id == event.id + 1 && e.eventType == 'Assist')
+                            (e.id == event.id + 1 && e.eventType == 'Assist') || e.eventData == event.id)
                             .firstOrNull;
 
                         return ListTile(
@@ -147,8 +150,8 @@ class GameStatsPage extends StatelessWidget {
                                 : const SizedBox(width: 50),
                             trailing: event.team.id != season.team.id
                                 ? SizedBox(
-                                    width: 50,
-                                    child: Text('${event.eventMinute}\'',
+                                    width: 300,
+                                    child: Text('${event.eventMinute}\' ${event.team.shortName}',
                                         textAlign: TextAlign.end,
                                         style: const TextStyle(
                                             fontSize: 20,
@@ -203,45 +206,52 @@ class GameStatsPage extends StatelessWidget {
 
   Future<List<GameStat>> _loadStats() async {
     return Future.wait([
-      {'name': 'Goals', 'dialogName': 'Goals', 'category': 'Shot', 'data': 0},
+      {'name': 'Goals', 'dialogName': 'Goals', 'category': 'Shot', 'data': [0]},
       {
         'name': 'Penalty Kicks Goals',
         'dialogName': 'Penalty Kicks Goals',
         'category': 'PenaltyKick',
-        'data': 0
+        'data': [0]
       },
-      {'name': 'Shots', 'dialogName': 'Shots', 'category': 'Shot', 'data': -1},
+      {
+        'name': 'Penalty Kicks Taken',
+        'dialogName': 'Penalty Kicks Taken',
+        'category': 'PenaltyKick',
+        'data': [-1]
+      },
+      {'name': 'Total Shots', 'dialogName': 'Total Shots', 'category': 'Shot', 'data': [-1]},
+      {'name': 'Shots on Goal', 'dialogName': 'Shots on Goal', 'category': 'Shot', 'data': [0, 1]},
       {
         'name': 'Assists',
         'dialogName': 'Assists',
         'category': 'Assist',
-        'data': -1
+        'data': [-1]
       },
-      {'name': 'Saves', 'dialogName': 'Saves', 'category': 'Save', 'data': -1},
-      {'name': 'Fouls', 'dialogName': 'Fouls', 'category': 'Foul', 'data': -1},
+      {'name': 'Saves', 'dialogName': 'Saves', 'category': 'Save', 'data': [-1]},
+      {'name': 'Fouls', 'dialogName': 'Fouls', 'category': 'Foul', 'data': [-1]},
       {
         'name': 'Corners',
         'dialogName': 'Shots off corners',
         'category': 'Corner',
-        'data': -1
+        'data': [-1]
       },
       {
         'name': 'Yellow Cards',
         'dialogName': 'Yellow Cards',
         'category': 'Card',
-        'data': 0
+        'data': [0]
       },
       {
         'name': '2nd Yellow Cards',
         'dialogName': '2nd Yellow Cards',
         'category': 'Card',
-        'data': 1
+        'data': [1]
       },
       {
         'name': 'Red Cards',
         'dialogName': 'Red Cards',
         'category': 'Card',
-        'data': 2
+        'data': [2]
       },
     ].map((stat) async {
       return await game.getStats(
@@ -249,7 +259,7 @@ class GameStatsPage extends StatelessWidget {
           stat['name'].toString(),
           stat['dialogName'].toString(),
           stat['category'].toString(),
-          stat['data'] as int,
+          stat['data'] as List<int>,
           season.teamId);
     }).toList(growable: false));
   }

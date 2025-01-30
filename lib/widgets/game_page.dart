@@ -226,11 +226,26 @@ class _GamePageState extends State<GamePage> {
           if (snapshot.hasData && snapshot.data != null) {
             final game = snapshot.data!;
             return ListView.builder(
-                itemCount: _game.events.length | _game.shootoutEvents.length,
+                itemCount: _game.events.length + _game.shootoutEvents.length + 1,
                 itemBuilder: (context, index) {
-                  final event = index < _game.shootoutEvents.length
-                      ? game.shootoutEvents[index]
-                      : game.events[index - _game.shootoutEvents.length];
+                  if (_game.shootoutEvents.isNotEmpty) {
+                    if (index == _game.events.length) {
+                      return const ListTile(title: Text('End of Regulation'),
+                          tileColor: Colors.black12);
+                    } else if (index == _game.events.length + _game.shootoutEvents.length) {
+                      return const ListTile(title: Text('End of Game'),
+                          tileColor: Colors.black12);
+                    }
+                  }
+
+                  if (index == _game.events.length + _game.shootoutEvents.length) {
+                    return const ListTile(title: Text('End of Game'),
+                          tileColor: Colors.black12);
+                  }
+
+                  final event = index < _game.events.length
+                      ? game.events[index]
+                      : game.shootoutEvents[index - _game.events.length];
                   return Dismissible(
                       key: UniqueKey(),
                       background: Container(color: Colors.red),
