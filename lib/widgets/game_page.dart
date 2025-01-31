@@ -225,74 +225,70 @@ class _GamePageState extends State<GamePage> {
         builder: (BuildContext context, AsyncSnapshot<Game> snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
             final game = snapshot.data!;
+            var itemCount = _game.scoringEvents.length +
+                _game.gameEvents.length +
+                _game.shootoutEvents.length +
+                3;
+            if (_game.shootoutEvents.isNotEmpty) {
+              itemCount += 1;
+            }
+
             return ListView.builder(
-                itemCount: _game.events.length + _game.shootoutEvents.length + 1,
+                itemCount: itemCount,
                 itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return const ListTile(
+                        title: Center(child: Text('Scoring Events')),
+                        tileColor: Colors.black12);
+                  }
+
+                  if (index <= _game.scoringEvents.length) {
+                    final event = _game.scoringEvents[index - 1];
+                    return _getEventTile(event);
+                  }
+
+                  if (index == _game.scoringEvents.length + 1) {
+                    return const ListTile(
+                        title: Center(child: Text('All Game Events')),
+                        tileColor: Colors.black12);
+                  }
+
+                  if (index >= _game.scoringEvents.length - 2 &&
+                      index <
+                          _game.gameEvents.length +
+                              _game.scoringEvents.length +
+                              2) {
+                    final event =
+                        game.gameEvents[index - _game.scoringEvents.length - 2];
+                    return _getEventTile(event);
+                  }
+
                   if (_game.shootoutEvents.isNotEmpty) {
-                    if (index == _game.events.length) {
-                      return const ListTile(title: Text('End of Regulation'),
+                    if (index == _game.gameEvents.length + 2) {
+                      return const ListTile(
+                          title: Center(child: Text('End of Regulation')),
                           tileColor: Colors.black12);
-                    } else if (index == _game.events.length + _game.shootoutEvents.length) {
-                      return const ListTile(title: Text('End of Game'),
-                          tileColor: Colors.black12);
+                    }
+
+                    if (index >=
+                            _game.scoringEvents.length +
+                                1 +
+                                _game.gameEvents.length +
+                                1 +
+                                1 &&
+                        index < itemCount - 1) {
+                      final event = _game.shootoutEvents[index -
+                          _game.scoringEvents.length -
+                          2 -
+                          _game.gameEvents.length -
+                          1];
+                      return _getEventTile(event);
                     }
                   }
 
-                  if (index == _game.events.length + _game.shootoutEvents.length) {
-                    return const ListTile(title: Text('End of Game'),
-                          tileColor: Colors.black12);
-                  }
-
-                  final event = index < _game.events.length
-                      ? game.events[index]
-                      : game.shootoutEvents[index - _game.events.length];
-                  return Dismissible(
-                      key: UniqueKey(),
-                      background: Container(color: Colors.red),
-                      confirmDismiss: (_) {
-                        return showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: const Text("Confirm Delete"),
-                              content: const Text(
-                                  "Are you sure you want to delete this Event? All data associated with this Event will be deleted. This cannot be undone."),
-                              actions: [
-                                TextButton(
-                                  child: const Text("Continue"),
-                                  onPressed: () {
-                                    Navigator.pop(context, true);
-                                  },
-                                ),
-                                TextButton(
-                                  child: const Text("Cancel"),
-                                  onPressed: () {
-                                    Navigator.pop(context, false);
-                                  },
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      onDismissed: (direction) async {
-                        await widget.database.delete('Events',
-                            where: 'id=?', whereArgs: [event.id]);
-                        setState(() {
-                          _game.updateScore(widget.database);
-                        });
-                      },
-                      child: ListTile(
-                          leading: event.image,
-                          title: Text(event.display),
-                          subtitle: event.eventMinute > 0
-                              ? Text('Minute: ${event.eventMinute.toString()}')
-                              : event.eventMinute == -2
-                                  ? const Text('Penalties')
-                                  : null,
-                          onTap: () {
-                            _editEvent(event: event);
-                          }));
+                  return const ListTile(
+                      title: Center(child: Text('End of Game')),
+                      tileColor: Colors.black12);
                 });
           } else if (snapshot.hasError) {
             return const Center(child: Text('Error loading Game Events'));
@@ -302,6 +298,67 @@ class _GamePageState extends State<GamePage> {
         },
       ),
     );
+  }
+
+  Widget _getEventTile(GameEvent event) {
+    final eventMinuteWidget = SizedBox(
+        width: 48,
+        child: Center(
+            child: Text(
+                event.eventMinute > 0
+                    ? '${event.eventMinute.toString()}\''
+                    : '',
+                style: const TextStyle(fontSize: 20))));
+
+    return Dismissible(
+        key: UniqueKey(),
+        background: Container(color: Colors.red),
+        confirmDismiss: (_) {
+          return showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("Confirm Delete"),
+                content: const Text(
+                    "Are you sure you want to delete this Event? All data associated with this Event will be deleted. This cannot be undone."),
+                actions: [
+                  TextButton(
+                    child: const Text("Continue"),
+                    onPressed: () {
+                      Navigator.pop(context, true);
+                    },
+                  ),
+                  TextButton(
+                    child: const Text("Cancel"),
+                    onPressed: () {
+                      Navigator.pop(context, false);
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        },
+        onDismissed: (direction) async {
+          await widget.database
+              .delete('Events', where: 'id=?', whereArgs: [event.id]);
+          setState(() {
+            _game.updateScore(widget.database);
+          });
+        },
+        child: ListTile(
+            leading: event.eventType == 'Period' ||
+                    event.team.id == _game.homeTeam.id
+                ? event.image
+                : eventMinuteWidget,
+            trailing: event.eventType == 'Period' ||
+                    event.team.id == _game.awayTeam.id
+                ? event.image
+                : eventMinuteWidget,
+            title: Center(child: Text(event.display)),
+            onTap: () {
+              _editEvent(event: event);
+            }));
   }
 
   Future<Game> _loadGame() async {
@@ -318,6 +375,7 @@ class _GamePageState extends State<GamePage> {
       'Save',
       'Shot',
       'Assist',
+      'Offsides',
       'Foul',
       'Corner',
       'Penalty Kick',
@@ -378,6 +436,18 @@ class _GamePageState extends State<GamePage> {
     event.eventPeriod =
         event.eventPeriod == -1 ? _game.gameStatus.index : event.eventPeriod;
 
+    final initialShotResult = event.eventData == 0
+        ? 'Goal'
+        : event.eventData == 1
+            ? 'Saved'
+            : event.eventData == 2
+                ? 'Post'
+                : event.eventData == 3
+                    ? 'Off Target'
+                    : event.eventData == 4
+                        ? 'Blocked'
+                        : '';
+
     List<DropdownMenuEntry> playerEntries = team == 0
         ? awayTeamPlayers
             .map((p) =>
@@ -390,6 +460,10 @@ class _GamePageState extends State<GamePage> {
 
     bool canSave = playerEntries.isEmpty || event.player != null;
 
+    final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
+        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .toList(growable: false);
+
     showModalBottomSheet(
         context: context,
         builder: (context) {
@@ -397,7 +471,7 @@ class _GamePageState extends State<GamePage> {
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
                 child: Padding(
-                    padding: const EdgeInsets.all(25),
+                    padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Column(children: [
                       Row(children: [
                         Expanded(
@@ -460,28 +534,34 @@ class _GamePageState extends State<GamePage> {
                             event.eventData = data;
 
                             setModalState(() {
-                              canSave = playerEntries.isEmpty ||
-                                  event!.player != null;
+                              canSave = event!.eventType == 'Corner' ||
+                                  playerEntries.isEmpty ||
+                                  event.player != null;
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Team'),
+                          label: const Text('Select Event Type'),
                           dropdownMenuEntries: eventEntries),
                       const SizedBox(height: 30),
-                      DropdownMenu(
-                          enabled: playerEntries.isNotEmpty,
-                          initialSelection: event.player,
-                          onSelected: (player) async {
-                            event!.player = player;
+                      Visibility(
+                          visible: playerEntries.isNotEmpty,
+                          child: DropdownMenu(
+                              enabled: event.eventType != 'Corner' &&
+                                  playerEntries.isNotEmpty,
+                              initialSelection: event.player,
+                              onSelected: (player) async {
+                                event!.player = player;
 
-                            setModalState(() {
-                              canSave = true;
-                            });
-                          },
-                          width: double.infinity,
-                          label: const Text('Select Player'),
-                          dropdownMenuEntries: playerEntries),
-                      const SizedBox(height: 30),
+                                setModalState(() {
+                                  canSave = true;
+                                });
+                              },
+                              width: double.infinity,
+                              label: const Text('Select Player'),
+                              dropdownMenuEntries: playerEntries)),
+                      Visibility(
+                          visible: playerEntries.isNotEmpty,
+                          child: const SizedBox(height: 30)),
                       DropdownMenu(
                           initialSelection: initialStatus,
                           onSelected: (eventPeriod) async {
@@ -510,14 +590,42 @@ class _GamePageState extends State<GamePage> {
                           label: const Text('Select Period'),
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
-                      TextFormField(
-                          initialValue: event.eventMinute.toString(),
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Game Minute (Goals Only)'),
-                          onChanged: (minute) =>
-                              event!.eventMinute = int.parse(minute)),
-                      const Spacer(),
+                      Visibility(
+                          visible: event.eventType == 'Shot',
+                          child: DropdownMenu(
+                              initialSelection: initialShotResult,
+                              onSelected: (shotResult) async {
+                                int result = -1;
+
+                                if (shotResult == 'Goal') {
+                                  result = 0;
+                                } else if (shotResult == 'Saved') {
+                                  result = 1;
+                                } else if (shotResult == 'Post') {
+                                  result = 2;
+                                } else if (shotResult == 'Off Target') {
+                                  result = 3;
+                                } else if (shotResult == 'Blocked') {
+                                  result = 4;
+                                }
+
+                                event!.eventData = result;
+                              },
+                              width: double.infinity,
+                              label: const Text('Shot Result'),
+                              dropdownMenuEntries: shotResultEntries)),
+                      const SizedBox(height: 20),
+                      Visibility(
+                          visible:
+                              event.eventType == 'Shot' && event.eventData == 0,
+                          child: TextFormField(
+                              initialValue: event.eventMinute.toString(),
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                  labelText: 'Game Minute (Goals Only)'),
+                              onChanged: (minute) =>
+                                  event!.eventMinute = int.parse(minute))),
+                      const SizedBox(height: 20),
                       Row(
                           mainAxisAlignment: canSave
                               ? MainAxisAlignment.spaceEvenly
@@ -526,18 +634,7 @@ class _GamePageState extends State<GamePage> {
                             canSave
                                 ? GestureDetector(
                                     onTap: () async {
-                                      bool doSave = true;
-                                      if (event!.eventType == 'Shot') {
-                                        int? result =
-                                            await _promptForShotResult();
-                                        if (result != null) {
-                                          event.eventData = result;
-                                        } else {
-                                          doSave = false;
-                                        }
-                                      }
-
-                                      if (doSave && await _saveEvent(event)) {
+                                      if (await _saveEvent(event!)) {
                                         if (mounted) {
                                           Navigator.pop(context);
                                           setState(() {});
@@ -556,53 +653,6 @@ class _GamePageState extends State<GamePage> {
                           ])
                     ])));
           });
-        });
-  }
-
-  Future<int?> _promptForShotResult() async {
-    int? selectedResult;
-
-    final resultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
-        .toList(growable: false);
-
-    return showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text("Shot Result"),
-            content: DropdownMenu(
-                onSelected: (result) async {
-                  if (result == 'Goal') {
-                    selectedResult = 0;
-                  } else if (result == 'Saved') {
-                    selectedResult = 1;
-                  } else if (result == 'Post') {
-                    selectedResult = 2;
-                  } else if (result == 'Off Target') {
-                    selectedResult = 3;
-                  } else if (result == 'Blocked') {
-                    selectedResult = 4;
-                  }
-                },
-                width: double.infinity,
-                label: const Text('Select Result'),
-                dropdownMenuEntries: resultEntries),
-            actions: [
-              TextButton(
-                child: const Text("Continue"),
-                onPressed: () {
-                  Navigator.pop(context, selectedResult);
-                },
-              ),
-              TextButton(
-                child: const Text("Cancel"),
-                onPressed: () {
-                  Navigator.pop(context, null);
-                },
-              ),
-            ],
-          );
         });
   }
 

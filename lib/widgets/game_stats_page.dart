@@ -56,13 +56,13 @@ class GameStatsPage extends StatelessWidget {
                     leadingAndTrailingTextStyle: const TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
-                        fontSize: 20),
+                        fontSize: 24),
                     title: Center(
                         child: Text(stat.name,
                             style: const TextStyle(
                                 color: Colors.black,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 20))),
+                                fontSize: 24))),
                     leading: GestureDetector(
                         onTap: () {
                           if (stat.playerStats.isNotEmpty) {
@@ -91,11 +91,11 @@ class GameStatsPage extends StatelessWidget {
                                         return ListTile(
                                           leading: Text(player.displayName,
                                               style: const TextStyle(
-                                                  fontSize: 20,
+                                                  fontSize: 24,
                                                   fontWeight: FontWeight.bold)),
                                           title: Text(count.toString(),
                                               style: const TextStyle(
-                                                  fontSize: 20,
+                                                  fontSize: 24,
                                                   fontWeight: FontWeight.bold)),
                                         );
                                       });
@@ -103,8 +103,8 @@ class GameStatsPage extends StatelessWidget {
                           }
                         },
                         child: Text(stat.teamStat.toString(),
-                            style: const TextStyle(
-                                decoration: TextDecoration.underline))),
+                            style: TextStyle(
+                                decoration: stat.teamStat > 0 ? TextDecoration.underline : null))),
                     trailing: Text(stat.opponentStat.toString()),
                   );
                 }).toList(growable: false);
@@ -231,8 +231,14 @@ class GameStatsPage extends StatelessWidget {
       {'name': 'Fouls', 'dialogName': 'Fouls', 'category': 'Foul', 'data': [-1]},
       {
         'name': 'Corners',
-        'dialogName': 'Shots off corners',
+        'dialogName': 'Corners',
         'category': 'Corner',
+        'data': [-1]
+      },
+      {
+        'name': 'Offsides',
+        'dialogName': 'Offsides',
+        'category': 'Offsides',
         'data': [-1]
       },
       {

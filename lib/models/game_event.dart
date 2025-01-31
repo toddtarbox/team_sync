@@ -114,7 +114,14 @@ class Shot extends GameEvent {
   @override
   String get display {
     if (player != null) {
+      if (result == ShotResult.goal) {
+        return 'Goal by ${player!.displayName}';
+      }
       return 'Shot by ${player!.displayName} - ${result.display}';
+    }
+
+    if (result == ShotResult.goal) {
+      return 'Goal by ${team.fullName}';
     }
 
     return 'Shot by ${team.fullName} - ${result.display}';
@@ -242,7 +249,7 @@ class Corner extends GameEvent {
 
   @override
   String get display {
-    return 'Corner kick for ${team.fullName} - ${result.display}';
+    return 'Corner kick for ${team.fullName} ${result == CornerResult.none ? '' : ' - ${result.display}'}';
   }
 
   @override
@@ -295,10 +302,10 @@ class Offsides extends GameEvent {
   @override
   String get display {
     if (player != null) {
-      return 'Foul by ${player!.displayName}';
+      return 'Offsides on ${player!.displayName}';
     }
 
-    return 'Foul by ${team.fullName}';
+    return 'Offsides on ${team.fullName}';
   }
 
   @override
@@ -617,15 +624,11 @@ class GameEvent {
 
   static Future<List<GameEvent>> listFromGameId(Database db, int gameId) async {
     final results = await db.query('Events',
-        where: 'gameId=?', whereArgs: [gameId], orderBy: 'id DESC');
+        where: 'gameId=?', whereArgs: [gameId], orderBy: 'id ASC');
 
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(db, g))
         .toList(growable: false));
-
-    events.sort((a, b) {
-      return a.eventMinute.compareTo(b.eventMinute);
-    });
 
     return events;
   }

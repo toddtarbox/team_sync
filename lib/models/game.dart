@@ -107,12 +107,13 @@ class Game {
   Player? awayKeeper;
 
   List<GameEvent> allGameEvents = [];
-  List<GameEvent> events = [];
+  List<GameEvent> scoringEvents = [];
+  List<GameEvent> gameEvents = [];
   List<GameEvent> shootoutEvents = [];
 
   String displayName(int teamId) {
     if (teamId == homeTeam.id) {
-      return 'vs ${awayTeam.fullName}';
+      return 'Home vs ${awayTeam.fullName}';
     } else {
       return '@ ${homeTeam.fullName}';
     }
@@ -206,25 +207,21 @@ class Game {
 
   Future<void> loadGameEvents(Database db) async {
     allGameEvents = await GameEvent.listFromGameId(db, id);
-    events =
+    scoringEvents =
+        allGameEvents.where((e) => e.eventMinute > -2 && e.eventType == 'Shot' && e.eventData == 0).toList(growable: false);
+    gameEvents =
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
     shootoutEvents =
-        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false).reversed.toList(growable: false);
+        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false).toList(growable: false);
   }
 
   Future<void> updateScore(Database db) async {
     await loadGameEvents(db);
-    awayTeamScore = events
-        .where((e) =>
-            e.eventType == 'Shot' &&
-            e.eventData == 0 &&
-            e.team.id == awayTeam.id)
+    awayTeamScore = scoringEvents
+        .where((e) => e.team.id == awayTeam.id)
         .length;
-    homeTeamScore = events
-        .where((e) =>
-            e.eventType == 'Shot' &&
-            e.eventData == 0 &&
-            e.team.id == homeTeam.id)
+    homeTeamScore = scoringEvents
+        .where((e) => e.team.id == homeTeam.id)
         .length;
 
     saveGame(db);
@@ -278,14 +275,14 @@ class Game {
               e.eventType == category &&
               data.contains(e.eventData) &&
               e.team.id == teamId &&
-              e.eventMinute > 0)
+              e.eventMinute > -2)
           .length;
       int opponentStat = allGameEvents
           .where((e) =>
               e.eventType == category &&
               data.contains(e.eventData) &&
               e.team.id != teamId &&
-              e.eventMinute > 0)
+              e.eventMinute > -2)
           .length;
 
       stat = GameStat(name, dialogName, category, teamStat, opponentStat);
@@ -302,7 +299,7 @@ class Game {
               .where((e) =>
                   e.player?.id == id &&
                   e.eventType == category &&
-                  e.eventMinute > 0 &&
+                  e.eventMinute > -2 &&
                   data.contains(e.eventData))
               .toList(growable: false)
               .length;
@@ -313,13 +310,13 @@ class Game {
           .where((e) =>
               e.eventType == category &&
               e.team.id == teamId &&
-              e.eventMinute > 0)
+              e.eventMinute > -2)
           .length;
       int opponentStat = allGameEvents
           .where((e) =>
               e.eventType == category &&
               e.team.id != teamId &&
-              e.eventMinute > 0)
+              e.eventMinute > -2)
           .length;
 
       stat = GameStat(name, dialogName, category, teamStat, opponentStat);
@@ -336,7 +333,7 @@ class Game {
               .where((e) =>
                   e.player?.id == id &&
                   e.eventType == category &&
-                  e.eventMinute > 0)
+                  e.eventMinute > -2)
               .toList(growable: false)
               .length;
         }
