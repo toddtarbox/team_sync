@@ -299,13 +299,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                     },
                                     child: const Text('Save',
                                         style: TextStyle(fontSize: 20)))
-                                : Container(),
-                            GestureDetector(
-                                child: const Text('Cancel',
-                                    style: TextStyle(fontSize: 20)),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                })
+                                : Container()
                           ])
                     ])));
           });
