@@ -707,9 +707,9 @@ class _GamePageState extends State<GamePage> {
         if (event.shouldTweet) {
           final tweetText = event.tweetText(_game);
           if (tweetText.isNotEmpty) {
-            // await _twitterAPI.tweets.createTweet(
-            //   text: tweetText,
-            // );
+            await _twitterAPI.tweets.createTweet(
+              text: tweetText,
+            );
           }
         }
       } catch (e) {}
