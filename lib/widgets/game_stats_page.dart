@@ -104,7 +104,9 @@ class GameStatsPage extends StatelessWidget {
                         },
                         child: Text(stat.teamStat.toString(),
                             style: TextStyle(
-                                decoration: stat.teamStat > 0 ? TextDecoration.underline : null))),
+                                decoration: stat.teamStat > 0
+                                    ? TextDecoration.underline
+                                    : null))),
                     trailing: Text(stat.opponentStat.toString()),
                   );
                 }).toList(growable: false);
@@ -128,7 +130,9 @@ class GameStatsPage extends StatelessWidget {
                         final event = scoringEvents[index - 2];
                         final assistEvent = assistEvents
                             .where((e) =>
-                            (e.id == event.id + 1 && e.eventType == 'Assist') || e.eventData == event.id)
+                                (e.id == event.id + 1 &&
+                                    e.eventType == 'Assist') ||
+                                e.eventData == event.id)
                             .firstOrNull;
 
                         return ListTile(
@@ -136,38 +140,44 @@ class GameStatsPage extends StatelessWidget {
                             tileColor: Colors.black45,
                             titleTextStyle:
                                 const TextStyle(color: Colors.white),
-                            leadingAndTrailingTextStyle:
-                                const TextStyle(color: Colors.white),
+                            leadingAndTrailingTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
                             subtitleTextStyle:
                                 const TextStyle(color: Colors.white70),
                             leading: event.team.id == season.team.id
                                 ? SizedBox(
-                                    width: 50,
-                                    child: Text('${event.eventMinute}\'',
-                                        style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold)))
-                                : const SizedBox(width: 50),
+                                    width: 48,
+                                    child: Text('${event.eventMinute}\''))
+                                : const SizedBox(width: 48),
                             trailing: event.team.id != season.team.id
                                 ? SizedBox(
-                                    width: 300,
-                                    child: Text('${event.eventMinute}\' ${event.team.shortName}',
+                                    width: 48,
+                                    child: Text('${event.eventMinute}\'',
                                         textAlign: TextAlign.end,
                                         style: const TextStyle(
                                             fontSize: 20,
                                             fontWeight: FontWeight.bold)))
-                                : const SizedBox(width: 50),
+                                : const SizedBox(width: 48),
                             title: event.team.id == season.team.id &&
                                     event.player != null
-                                ? Text(event.player!.displayName,
-                                    style: const TextStyle(fontSize: 24))
-                                : event.team.id == season.team.id
-                                    ? const Text('Own goal')
-                                    : Container(),
+                                ? Center(
+                                    child: Text(event.player!.displayName,
+                                        style: const TextStyle(fontSize: 24)))
+                                : event.team.id != season.team.id
+                                    ? Center(
+                                        child: Text(event.team.shortName,
+                                            style:
+                                                const TextStyle(fontSize: 24)))
+                                    : event.team.id == season.team.id
+                                        ? const Text('Own goal')
+                                        : Container(),
                             subtitle: event.team.id == season.team.id &&
                                     assistEvent != null
-                                ? Text(assistEvent.display,
-                                    style: const TextStyle(fontSize: 18))
+                                ? Center(
+                                    child: Text(assistEvent.display,
+                                        style: const TextStyle(fontSize: 18)))
                                 : event.eventType == 'PenaltyKick'
                                     ? Text('PK',
                                         style: const TextStyle(fontSize: 18),
@@ -178,8 +188,7 @@ class GameStatsPage extends StatelessWidget {
                                     : event.team.id == season.team.id
                                         ? const Text('No assist',
                                             style: TextStyle(fontSize: 18))
-                                        : Container(),
-                            onTap: () {});
+                                        : Container());
                       } else if (index == scoringEvents.length + 2) {
                         return const ListTile(
                             tileColor: Colors.black,
@@ -206,7 +215,12 @@ class GameStatsPage extends StatelessWidget {
 
   Future<List<GameStat>> _loadStats() async {
     return Future.wait([
-      {'name': 'Goals', 'dialogName': 'Goals', 'category': 'Shot', 'data': [0]},
+      {
+        'name': 'Goals',
+        'dialogName': 'Goals',
+        'category': 'Shot',
+        'data': [0]
+      },
       {
         'name': 'Penalty Kicks Goals',
         'dialogName': 'Penalty Kicks Goals',
@@ -219,16 +233,36 @@ class GameStatsPage extends StatelessWidget {
         'category': 'PenaltyKick',
         'data': [-1]
       },
-      {'name': 'Total Shots', 'dialogName': 'Total Shots', 'category': 'Shot', 'data': [-1]},
-      {'name': 'Shots on Goal', 'dialogName': 'Shots on Goal', 'category': 'Shot', 'data': [0, 1]},
+      {
+        'name': 'Total Shots',
+        'dialogName': 'Total Shots',
+        'category': 'Shot',
+        'data': [-1]
+      },
+      {
+        'name': 'Shots on Goal',
+        'dialogName': 'Shots on Goal',
+        'category': 'Shot',
+        'data': [0, 1]
+      },
       {
         'name': 'Assists',
         'dialogName': 'Assists',
         'category': 'Assist',
         'data': [-1]
       },
-      {'name': 'Saves', 'dialogName': 'Saves', 'category': 'Save', 'data': [-1]},
-      {'name': 'Fouls', 'dialogName': 'Fouls', 'category': 'Foul', 'data': [-1]},
+      {
+        'name': 'Saves',
+        'dialogName': 'Saves',
+        'category': 'Save',
+        'data': [-1]
+      },
+      {
+        'name': 'Fouls',
+        'dialogName': 'Fouls',
+        'category': 'Foul',
+        'data': [-1]
+      },
       {
         'name': 'Corners',
         'dialogName': 'Corners',
