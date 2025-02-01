@@ -201,10 +201,10 @@ class PenaltyKick extends GameEvent {
   @override
   String get display {
     if (player != null) {
-      return '${result.display} - Penalty Kick taken by ${player!.displayName}';
+      return '${result.display} - Penalty Kick (${player!.displayName})';
     }
 
-    return '${result.display} - Penalty Kick taken by ${team.fullName}';
+    return '${result.display} - Penalty Kick (${team.fullName})';
   }
 
   @override

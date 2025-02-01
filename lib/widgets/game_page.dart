@@ -52,10 +52,15 @@ class _GamePageState extends State<GamePage> {
   @override
   Widget build(BuildContext context) {
     if (_autoCreateSave != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await _editEvent(event: _autoCreateSave);
+      if (_autoCreateSave!.team.id == widget.season.teamId) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          await _editEvent(event: _autoCreateSave);
+          _autoCreateSave = null;
+        });
+      } else {
+        _saveEvent(_autoCreateSave!);
         _autoCreateSave = null;
-      });
+      }
     }
 
     return Scaffold(
@@ -436,15 +441,15 @@ class _GamePageState extends State<GamePage> {
     event.eventPeriod =
         event.eventPeriod == -1 ? _game.gameStatus.index : event.eventPeriod;
 
-    final initialShotResult = event.eventData == 0
+    final initialShotResult = event.eventData == ShotResult.goal.index
         ? 'Goal'
-        : event.eventData == 1
+        : event.eventData == ShotResult.onTargetSave.index
             ? 'Saved'
-            : event.eventData == 2
+            : event.eventData == ShotResult.offTargetPost.index
                 ? 'Post'
-                : event.eventData == 3
+                : event.eventData == ShotResult.offTarget.index
                     ? 'Off Target'
-                    : event.eventData == 4
+                    : event.eventData == ShotResult.onTargetBlock.index
                         ? 'Blocked'
                         : '';
 
@@ -530,10 +535,10 @@ class _GamePageState extends State<GamePage> {
                               data = 2;
                             }
 
-                            event!.eventType = type;
-                            event.eventData = data;
-
                             setModalState(() {
+                              event!.eventType = type;
+                              event.eventData = data;
+
                               canSave = event!.eventType == 'Corner' ||
                                   playerEntries.isEmpty ||
                                   event.player != null;
@@ -550,9 +555,9 @@ class _GamePageState extends State<GamePage> {
                                   playerEntries.isNotEmpty,
                               initialSelection: event.player,
                               onSelected: (player) async {
-                                event!.player = player;
-
                                 setModalState(() {
+                                  event!.player = player;
+
                                   canSave = true;
                                 });
                               },
@@ -578,12 +583,11 @@ class _GamePageState extends State<GamePage> {
                             } else if (eventPeriod == 'Penalty Kicks') {
                               period = 5;
                             }
-
-                            event!.eventPeriod = period;
-
                             setModalState(() {
-                              canSave = playerEntries.isEmpty ||
-                                  event!.player != null;
+                              event!.eventPeriod = period;
+
+                              canSave =
+                                  playerEntries.isEmpty || event.player != null;
                             });
                           },
                           width: double.infinity,
@@ -591,7 +595,8 @@ class _GamePageState extends State<GamePage> {
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
                       Visibility(
-                          visible: event.eventType == 'Shot',
+                          visible: event.eventType == 'Shot' ||
+                              event.eventType == 'PenaltyKick',
                           child: DropdownMenu(
                               initialSelection: initialShotResult,
                               onSelected: (shotResult) async {
@@ -609,15 +614,18 @@ class _GamePageState extends State<GamePage> {
                                   result = 4;
                                 }
 
-                                event!.eventData = result;
+                                setModalState(() {
+                                  event!.eventData = result;
+                                });
                               },
                               width: double.infinity,
                               label: const Text('Shot Result'),
                               dropdownMenuEntries: shotResultEntries)),
                       const SizedBox(height: 20),
                       Visibility(
-                          visible:
-                              event.eventType == 'Shot' && event.eventData == 0,
+                          visible: (event.eventType == 'Shot' ||
+                                  event.eventType == 'PenaltyKick') &&
+                              event.eventData == ShotResult.goal.index,
                           child: TextFormField(
                               initialValue: event.eventMinute.toString(),
                               keyboardType: TextInputType.number,
@@ -677,7 +685,7 @@ class _GamePageState extends State<GamePage> {
 
   Future<bool> _saveEvent(GameEvent event) async {
     if (event.eventType == 'Shot' &&
-        event.eventData == 0 &&
+        event.eventData == ShotResult.goal.index &&
         event.eventMinute <= 0) {
       return false;
     }
@@ -729,7 +737,7 @@ class _GamePageState extends State<GamePage> {
             whichTeam: 0,
             eventType: 'Save',
             eventMinute: event.eventMinute,
-            eventPeriod: event.eventPeriod,
+            eventPeriod: -1,
             eventData: 0);
         setState(() {
           _autoCreateSave = saveEvent;
