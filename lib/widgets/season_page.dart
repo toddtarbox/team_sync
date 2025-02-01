@@ -269,9 +269,9 @@ class _SeasonPageState extends State<SeasonPage> {
                                       color: Colors.white70,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 20)),
-                              onPressed: () {
+                              onPressed: () async {
                                 Navigator.of(context).pop();
-                                Navigator.of(context).push(
+                                await Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (context) => GamePage(
                                         database: widget.database,
@@ -279,6 +279,8 @@ class _SeasonPageState extends State<SeasonPage> {
                                         game: game!),
                                   ),
                                 );
+
+                                _loadSeason();
                               })
                           : Container(),
                       const Spacer(),
