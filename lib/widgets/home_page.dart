@@ -138,17 +138,6 @@ class _HomePageState extends State<HomePage> {
           await ExternalPath.getExternalStoragePublicDirectory(
               ExternalPath.DIRECTORY_DOWNLOADS);
       final path = '$databasesPath/MobileSoccer/$dbName';
-
-      final File file = File(path);
-      if (!file.existsSync()) {
-        if (await Permission.manageExternalStorage.request().isGranted) {
-          final data = File(path).readAsBytesSync();
-          List<int> bytes =
-              data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-          await file.writeAsBytes(bytes, flush: true);
-        }
-      }
-
       _database = await openDatabase(path);
     } catch (e) {
       debugPrint(e.toString());
