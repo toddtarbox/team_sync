@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -276,9 +275,8 @@ class _SeasonPageState extends State<SeasonPage> {
                               onPressed: () async {
                                 Navigator.of(context).pop();
 
-                                if (!kIsWeb &&
-                                    !ResponsiveBreakpoints.of(context)
-                                        .isTablet) {
+                                if (ResponsiveBreakpoints.of(context)
+                                    .largerThan(MOBILE)) {
                                   await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (context) => TabletGamePage(

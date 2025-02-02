@@ -134,11 +134,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openDatabase(String dbName) async {
     try {
-      final databasesPath =
-          await ExternalPath.getExternalStoragePublicDirectory(
-              ExternalPath.DIRECTORY_DOWNLOADS);
-      final path = '$databasesPath/MobileSoccer/$dbName';
-      _database = await openDatabase(path);
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        final databasesPath =
+            await ExternalPath.getExternalStoragePublicDirectory(
+                ExternalPath.DIRECTORY_DOWNLOADS);
+        final path = '$databasesPath/MobileSoccer/$dbName';
+        _database = await openDatabase(path);
+      }
     } catch (e) {
       debugPrint(e.toString());
     }
