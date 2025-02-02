@@ -1,12 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:responsive_framework/responsive_framework.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/game_page.dart';
 import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/players_page.dart';
+import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
+import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/season_record.dart';
 
@@ -160,6 +163,7 @@ class _SeasonPageState extends State<SeasonPage> {
 
     showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
@@ -271,14 +275,28 @@ class _SeasonPageState extends State<SeasonPage> {
                                       fontSize: 20)),
                               onPressed: () async {
                                 Navigator.of(context).pop();
-                                await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => GamePage(
-                                        database: widget.database,
-                                        season: widget.season,
-                                        game: game!),
-                                  ),
-                                );
+
+                                if (!kIsWeb &&
+                                    !ResponsiveBreakpoints.of(context)
+                                        .isTablet) {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => TabletGamePage(
+                                          database: widget.database,
+                                          season: widget.season,
+                                          game: game!),
+                                    ),
+                                  );
+                                } else {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => MobileGamePage(
+                                          database: widget.database,
+                                          season: widget.season,
+                                          game: game!),
+                                    ),
+                                  );
+                                }
 
                                 _loadSeason();
                               })

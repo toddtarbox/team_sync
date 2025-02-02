@@ -41,6 +41,9 @@ dependencies:
   external_path: ^2.0.1
   permission_handler: ^11.3.1
   twitter_api_v2: ^4.9.4
+  responsive_framework: ^1.5.1
+  eventify: ^1.0.1
+  auto_size_text: ^3.0.0
 
 dev_dependencies:
   flutter_test:

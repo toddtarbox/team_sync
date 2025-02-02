@@ -119,6 +119,23 @@ class Game {
     }
   }
 
+  String getScore(int minute) {
+    int teamScore = 0;
+    int opponentScore = 0;
+
+    for (final event in scoringEvents) {
+      if (event.eventMinute <= minute) {
+        if (event.team.id == homeTeam.id) {
+          teamScore++;
+        } else {
+          opponentScore++;
+        }
+      }
+    }
+
+    return '$teamScore - $opponentScore';
+  }
+
   bool isHomeTeam(int teamId) {
     return teamId == homeTeam.id;
   }
@@ -207,22 +224,24 @@ class Game {
 
   Future<void> loadGameEvents(Database db) async {
     allGameEvents = await GameEvent.listFromGameId(db, id);
-    scoringEvents =
-        allGameEvents.where((e) => e.eventMinute > -2 && e.eventType == 'Shot' && e.eventData == 0).toList(growable: false);
+    scoringEvents = allGameEvents
+        .where((e) =>
+            e.eventMinute > -2 &&
+            (e.eventType == 'Shot' || e.eventType == 'PenaltyKick') &&
+            e.eventData == ShotResult.goal.index)
+        .toList(growable: false);
     gameEvents =
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
-    shootoutEvents =
-        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false).toList(growable: false);
+    shootoutEvents = allGameEvents
+        .where((e) => e.eventMinute == -2)
+        .toList(growable: false)
+        .toList(growable: false);
   }
 
   Future<void> updateScore(Database db) async {
     await loadGameEvents(db);
-    awayTeamScore = scoringEvents
-        .where((e) => e.team.id == awayTeam.id)
-        .length;
-    homeTeamScore = scoringEvents
-        .where((e) => e.team.id == homeTeam.id)
-        .length;
+    awayTeamScore = scoringEvents.where((e) => e.team.id == awayTeam.id).length;
+    homeTeamScore = scoringEvents.where((e) => e.team.id == homeTeam.id).length;
 
     saveGame(db);
   }

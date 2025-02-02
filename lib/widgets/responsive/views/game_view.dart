@@ -1,3 +1,4 @@
+import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
@@ -5,26 +6,26 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/game_stats_page.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:twitter_api_v2/twitter_api_v2.dart';
 
-class GamePage extends StatefulWidget {
+class GameView extends StatefulWidget {
   final Database database;
   final Season season;
   final Game game;
+  final EventEmitter eventEmitter;
 
-  const GamePage(
+  const GameView(
       {super.key,
       required this.database,
       required this.season,
-      required this.game});
+      required this.game,
+      required this.eventEmitter});
 
   @override
-  State<GamePage> createState() => _GamePageState();
+  State<GameView> createState() => _GameViewState();
 }
 
-class _GamePageState extends State<GamePage> {
+class _GameViewState extends State<GameView> {
   final format = DateFormat('E MMM dd, yyyy');
 
   late Game _game;
@@ -63,245 +64,90 @@ class _GamePageState extends State<GamePage> {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        leading: GestureDetector(
-            onTap: () {
-              Navigator.of(context).pop();
-            },
-            child: const Icon(Icons.arrow_back, color: Colors.white70)),
-        title: Text(_game.displayName(widget.season.teamId),
-            style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 24,
-                fontWeight: FontWeight.bold)),
-        actions: _game.gameStatus.index < 9
-            ? [
-                GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                          builder: (context) => GameStatsPage(
-                              database: widget.database,
-                              season: widget.season,
-                              game: _game)));
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.all(5),
-                        child: Icon(Icons.paste,
-                            size: 24, color: Colors.white70))),
-                GestureDetector(
-                    onTap: () async {
-                      await showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text("Advance Game"),
-                              content: const Text(
-                                  "Are you sure you want to advance to the next period?"),
-                              actions: [
-                                TextButton(
-                                  child: const Text("Continue"),
-                                  onPressed: () async {
-                                    Navigator.pop(context, true);
-                                    await _advanceGame();
-                                  },
-                                ),
-                                TextButton(
-                                  child: const Text("Cancel"),
-                                  onPressed: () {
-                                    Navigator.pop(context, false);
-                                  },
-                                ),
-                              ],
-                            );
-                          });
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.all(5),
-                        child:
-                            Icon(Icons.add, size: 24, color: Colors.white70))),
-                GestureDetector(
-                    onTap: () async {
-                      final selectedStatus = await showDialog<int>(
-                          context: context,
-                          builder: (context) {
-                            int? status = 9;
+    widget.eventEmitter.on('createEvent', context, (event, eventContext) async {
+      await _editEvent();
+    });
 
-                            return StatefulBuilder(builder:
-                                (BuildContext context,
-                                    StateSetter setModalState) {
-                              return AlertDialog(
-                                title: const Text('End Game'),
-                                content: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      RadioListTile(
-                                        title: const Text('Final'),
-                                        value: 9,
-                                        groupValue: status,
-                                        onChanged: (i) {
-                                          setModalState(() {
-                                            status = i;
-                                          });
-                                        },
-                                      ),
-                                      RadioListTile(
-                                        title: const Text('Final OT'),
-                                        value: 10,
-                                        groupValue: status,
-                                        onChanged: (i) {
-                                          setModalState(() {
-                                            status = i;
-                                          });
-                                        },
-                                      ),
-                                      RadioListTile(
-                                        title: const Text('Final PKs'),
-                                        value: 11,
-                                        groupValue: status,
-                                        onChanged: (i) {
-                                          setModalState(() {
-                                            status = i;
-                                          });
-                                        },
-                                      )
-                                    ]),
-                                actions: [
-                                  TextButton(
-                                    child: const Text("Continue"),
-                                    onPressed: () {
-                                      Navigator.pop(context, status);
-                                    },
-                                  ),
-                                  TextButton(
-                                    child: const Text("Cancel"),
-                                    onPressed: () {
-                                      Navigator.pop(context, null);
-                                    },
-                                  ),
-                                ],
-                              );
-                            });
-                          });
+    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+      await _advanceGame();
+    });
 
-                      if (selectedStatus != null) {
-                        _game.endGame(widget.database, selectedStatus);
-                        setState(() {});
-                      }
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.all(5),
-                        child:
-                            Icon(Icons.close, size: 24, color: Colors.white70)))
-              ]
-            : [
-                GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                          builder: (context) => GameStatsPage(
-                              database: widget.database,
-                              season: widget.season,
-                              game: _game)));
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.only(right: 10),
-                        child: Icon(Icons.paste,
-                            size: 24, color: Colors.white70))),
-              ],
-        bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(100.0),
-            child: Scoreboard(_game, widget.season)),
-      ),
-      floatingActionButton: FloatingActionButton(
-          child: const Icon(Icons.add),
-          onPressed: () async {
-            if (_game.gameStatus == GameStatus.notStarted ||
-                _game.gameStatus == GameStatus.halftime ||
-                _game.gameStatus == GameStatus.overtimeNotStarted ||
-                _game.gameStatus == GameStatus.overtimeHalftime) {
-              await _game.advanceGame(widget.database);
-              setState(() {});
-            }
-            _editEvent();
-          }),
-      body: FutureBuilder(
-        future: _loadGame(),
-        builder: (BuildContext context, AsyncSnapshot<Game> snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            final game = snapshot.data!;
-            var itemCount = _game.scoringEvents.length +
-                _game.gameEvents.length +
-                _game.shootoutEvents.length +
-                3;
-            if (_game.shootoutEvents.isNotEmpty) {
-              itemCount += 1;
-            }
-
-            return ListView.builder(
-                itemCount: itemCount,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return const ListTile(
-                        title: Center(child: Text('Scoring Events')),
-                        tileColor: Colors.black12);
-                  }
-
-                  if (index <= _game.scoringEvents.length) {
-                    final event = _game.scoringEvents[index - 1];
-                    return _getEventTile(event);
-                  }
-
-                  if (index == _game.scoringEvents.length + 1) {
-                    return const ListTile(
-                        title: Center(child: Text('All Game Events')),
-                        tileColor: Colors.black12);
-                  }
-
-                  if (index >= _game.scoringEvents.length - 2 &&
-                      index <
-                          _game.gameEvents.length +
-                              _game.scoringEvents.length +
-                              2) {
-                    final event =
-                        game.gameEvents[index - _game.scoringEvents.length - 2];
-                    return _getEventTile(event);
-                  }
-
-                  if (_game.shootoutEvents.isNotEmpty) {
-                    if (index == _game.gameEvents.length + 2) {
-                      return const ListTile(
-                          title: Center(child: Text('End of Regulation')),
-                          tileColor: Colors.black12);
-                    }
-
-                    if (index >=
-                            _game.scoringEvents.length +
-                                1 +
-                                _game.gameEvents.length +
-                                1 +
-                                1 &&
-                        index < itemCount - 1) {
-                      final event = _game.shootoutEvents[index -
-                          _game.scoringEvents.length -
-                          2 -
-                          _game.gameEvents.length -
-                          1];
-                      return _getEventTile(event);
-                    }
-                  }
-
-                  return const ListTile(
-                      title: Center(child: Text('End of Game')),
-                      tileColor: Colors.black12);
-                });
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading Game Events'));
-          } else {
-            return const Center(child: CircularProgressIndicator());
+    return FutureBuilder(
+      future: _loadGame(),
+      builder: (BuildContext context, AsyncSnapshot<Game> snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          final game = snapshot.data!;
+          var itemCount = _game.scoringEvents.length +
+              _game.gameEvents.length +
+              _game.shootoutEvents.length +
+              3;
+          if (_game.shootoutEvents.isNotEmpty) {
+            itemCount += 1;
           }
-        },
-      ),
+
+          return ListView.builder(
+              itemCount: itemCount,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return const ListTile(
+                      title: Center(child: Text('Scoring Events')),
+                      tileColor: Colors.black12);
+                }
+
+                if (index <= _game.scoringEvents.length) {
+                  final event = _game.scoringEvents[index - 1];
+                  return _getEventTile(event);
+                }
+
+                if (index == _game.scoringEvents.length + 1) {
+                  return const ListTile(
+                      title: Center(child: Text('All Game Events')),
+                      tileColor: Colors.black12);
+                }
+
+                if (index >= _game.scoringEvents.length - 2 &&
+                    index <
+                        _game.gameEvents.length +
+                            _game.scoringEvents.length +
+                            2) {
+                  final event =
+                      game.gameEvents[index - _game.scoringEvents.length - 2];
+                  return _getEventTile(event);
+                }
+
+                if (_game.shootoutEvents.isNotEmpty) {
+                  if (index == _game.gameEvents.length + 2) {
+                    return const ListTile(
+                        title: Center(child: Text('End of Regulation')),
+                        tileColor: Colors.black12);
+                  }
+
+                  if (index >=
+                          _game.scoringEvents.length +
+                              1 +
+                              _game.gameEvents.length +
+                              1 +
+                              1 &&
+                      index < itemCount - 1) {
+                    final event = _game.shootoutEvents[index -
+                        _game.scoringEvents.length -
+                        2 -
+                        _game.gameEvents.length -
+                        1];
+                    return _getEventTile(event);
+                  }
+                }
+
+                return const ListTile(
+                    title: Center(child: Text('End of Game')),
+                    tileColor: Colors.black12);
+              });
+        } else if (snapshot.hasError) {
+          return const Center(child: Text('Error loading Game Events'));
+        } else {
+          return const Center(child: CircularProgressIndicator());
+        }
+      },
     );
   }
 
@@ -312,6 +158,18 @@ class _GamePageState extends State<GamePage> {
             child: Text(
                 event.eventMinute > 0
                     ? '${event.eventMinute.toString()}\''
+                    : '',
+                style: const TextStyle(fontSize: 20))));
+
+    final scoreWidget = SizedBox(
+        width: 75,
+        child: Center(
+            child: Text(
+                event.eventMinute > 0 &&
+                        (event.eventType == 'Shot' ||
+                            event.eventType == 'PenaltyKick') &&
+                        event.eventData == ShotResult.goal.index
+                    ? _game.getScore(event.eventMinute)
                     : '',
                 style: const TextStyle(fontSize: 20))));
 
@@ -352,15 +210,13 @@ class _GamePageState extends State<GamePage> {
           });
         },
         child: ListTile(
-            leading: event.eventType == 'Period' ||
-                    event.team.id == _game.homeTeam.id
-                ? event.image
-                : eventMinuteWidget,
-            trailing: event.eventType == 'Period' ||
-                    event.team.id == _game.awayTeam.id
-                ? event.image
-                : eventMinuteWidget,
-            title: Center(child: Text(event.display)),
+            leading: eventMinuteWidget,
+            trailing: scoreWidget,
+            title: Row(children: [
+              event.image,
+              const SizedBox(width: 20),
+              Text(event.display)
+            ]),
             onTap: () {
               _editEvent(event: event);
             }));
@@ -470,7 +326,9 @@ class _GamePageState extends State<GamePage> {
         .toList(growable: false);
 
     showModalBottomSheet(
+        // ignore: use_build_context_synchronously
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
@@ -539,7 +397,7 @@ class _GamePageState extends State<GamePage> {
                               event!.eventType = type;
                               event.eventData = data;
 
-                              canSave = event!.eventType == 'Corner' ||
+                              canSave = event.eventType == 'Corner' ||
                                   playerEntries.isEmpty ||
                                   event.player != null;
                             });
