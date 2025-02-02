@@ -328,6 +328,7 @@ class _GameViewState extends State<GameView> {
     showModalBottomSheet(
         // ignore: use_build_context_synchronously
         context: context,
+        showDragHandle: true,
         isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(

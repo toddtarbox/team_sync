@@ -162,6 +162,7 @@ class _SeasonPageState extends State<SeasonPage> {
 
     showModalBottomSheet(
         context: context,
+        showDragHandle: true,
         isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
