@@ -1,3 +1,4 @@
+import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
@@ -10,7 +11,9 @@ class MobileGameStatsPage extends StatelessWidget {
   final Season season;
   final Game game;
 
-  const MobileGameStatsPage(
+  final EventEmitter _eventEmitter = EventEmitter();
+
+  MobileGameStatsPage(
       {required this.database,
       required this.season,
       required this.game,
@@ -36,6 +39,10 @@ class MobileGameStatsPage extends StatelessWidget {
           bottom: PreferredSize(
               preferredSize: Size(width, 100), child: Scoreboard(game, season)),
         ),
-        body: GameStatsView(database: database, season: season, game: game));
+        body: GameStatsView(
+            database: database,
+            season: season,
+            game: game,
+            eventEmitter: _eventEmitter));
   }
 }

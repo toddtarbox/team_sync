@@ -38,6 +38,14 @@ class _GameViewState extends State<GameView> {
   void initState() {
     _game = widget.game;
 
+    widget.eventEmitter.on('createEvent', context, (event, eventContext) async {
+      await _editEvent();
+    });
+
+    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+      await _advanceGame();
+    });
+
     _twitterAPI = TwitterApi(
         bearerToken: '',
         oauthTokens: const OAuthTokens(
@@ -63,14 +71,6 @@ class _GameViewState extends State<GameView> {
         _autoCreateSave = null;
       }
     }
-
-    widget.eventEmitter.on('createEvent', context, (event, eventContext) async {
-      await _editEvent();
-    });
-
-    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
-      await _advanceGame();
-    });
 
     return FutureBuilder(
       future: _loadGame(),
@@ -603,6 +603,8 @@ class _GameViewState extends State<GameView> {
       } else {
         setState(() {});
       }
+
+      widget.eventEmitter.emit('eventCreated');
 
       return true;
     }

@@ -1,19 +1,46 @@
 import 'package:auto_size_text/auto_size_text.dart';
+import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 
-class GameStatsView extends StatelessWidget {
+class GameStatsView extends StatefulWidget {
   final Database database;
   final Season season;
   final Game game;
+  final EventEmitter eventEmitter;
 
   const GameStatsView(
-      {required this.database,
+      {super.key,
+      required this.database,
       required this.season,
       required this.game,
-      super.key});
+      required this.eventEmitter});
+
+  @override
+  State<GameStatsView> createState() => _GameStatsViewState();
+}
+
+class _GameStatsViewState extends State<GameStatsView> {
+  late Game _game;
+
+  @override
+  void initState() {
+    _game = widget.game;
+
+    widget.eventEmitter.on('eventCreated', context,
+        (event, eventContext) async {
+      await _loadStats();
+      setState(() {});
+    });
+
+    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+      setState(() {});
+    });
+
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +49,7 @@ class GameStatsView extends StatelessWidget {
         builder:
             (BuildContext context, AsyncSnapshot<List<GameStat>> snapshot) {
           if (snapshot.hasData) {
-            final scoringEvents = game.allGameEvents
+            final scoringEvents = _game.allGameEvents
                 .where((e) =>
                     e.eventType == 'Shot' && e.eventData == 0 ||
                     (e.eventType == 'PenaltyKick' &&
@@ -31,7 +58,7 @@ class GameStatsView extends StatelessWidget {
                 .toList(growable: false)
                 .toList(growable: false);
 
-            final assistEvents = game.allGameEvents
+            final assistEvents = _game.allGameEvents
                 .where((e) => e.eventType == 'Assist')
                 .toList(growable: false)
                 .toList(growable: false);
@@ -119,7 +146,7 @@ class GameStatsView extends StatelessWidget {
                     return ListTile(
                       tileColor: Colors.black45,
                       titleTextStyle: const TextStyle(color: Colors.white),
-                      leading: event.team.id == season.team.id
+                      leading: event.team.id == widget.season.team.id
                           ? SizedBox(
                               width: 200,
                               child: Column(
@@ -131,13 +158,14 @@ class GameStatsView extends StatelessWidget {
                                             color: Colors.white),
                                         minFontSize: 16),
                                     AutoSizeText(
-                                        event.team.id == season.team.id &&
+                                        event.team.id ==
+                                                    widget.season.team.id &&
                                                 assistEvent != null
                                             ? assistEvent.display
                                             : event.eventType == 'PenaltyKick'
                                                 ? 'PK'
                                                 : event.team.id ==
-                                                        season.team.id
+                                                        widget.season.team.id
                                                     ? event.player == null
                                                         ? 'Own goal'
                                                         : 'No assist'
@@ -147,10 +175,10 @@ class GameStatsView extends StatelessWidget {
                                   ]))
                           : const SizedBox(width: 200),
                       title: Center(
-                          child: Text(game.getScore(event.eventMinute),
+                          child: Text(_game.getScore(event.eventMinute),
                               style: const TextStyle(
                                   fontSize: 18, fontWeight: FontWeight.bold))),
-                      trailing: event.team.id != season.team.id
+                      trailing: event.team.id != widget.season.team.id
                           ? SizedBox(
                               width: 200,
                               child: Column(
@@ -194,7 +222,7 @@ class GameStatsView extends StatelessWidget {
   }
 
   Future<List<GameStat>> _loadStats() async {
-    await game.loadGameEvents(database);
+    await _game.loadGameEvents(widget.database);
 
     return Future.wait([
       {
@@ -276,13 +304,13 @@ class GameStatsView extends StatelessWidget {
         'data': [2]
       },
     ].map((stat) async {
-      return await game.getStats(
-          database,
+      return await _game.getStats(
+          widget.database,
           stat['name'].toString(),
           stat['dialogName'].toString(),
           stat['category'].toString(),
           stat['data'] as List<int>,
-          season.teamId);
+          widget.season.teamId);
     }).toList(growable: false));
   }
 }

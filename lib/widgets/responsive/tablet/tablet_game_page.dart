@@ -25,8 +25,12 @@ class TabletGamePage extends StatefulWidget {
 class _TabletGamePageState extends State<TabletGamePage> {
   final EventEmitter _eventEmitter = EventEmitter();
 
+  late Game _game;
+
   @override
   void initState() {
+    _game = widget.game;
+
     super.initState();
   }
 
@@ -37,11 +41,14 @@ class _TabletGamePageState extends State<TabletGamePage> {
     final gameView = GameView(
         database: widget.database,
         season: widget.season,
-        game: widget.game,
+        game: _game,
         eventEmitter: _eventEmitter);
 
     final gameStatsView = GameStatsView(
-        database: widget.database, season: widget.season, game: widget.game);
+        database: widget.database,
+        season: widget.season,
+        game: _game,
+        eventEmitter: _eventEmitter);
 
     return Scaffold(
         appBar: AppBar(
@@ -51,12 +58,12 @@ class _TabletGamePageState extends State<TabletGamePage> {
                 Navigator.of(context).pop();
               },
               child: const Icon(Icons.arrow_back, color: Colors.white70)),
-          title: Text(widget.game.displayName(widget.season.teamId),
+          title: Text(_game.displayName(widget.season.teamId),
               style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 24,
                   fontWeight: FontWeight.bold)),
-          actions: widget.game.gameStatus.index < 9
+          actions: _game.gameStatus.index < 9
               ? [
                   GestureDetector(
                       onTap: () async {
@@ -73,6 +80,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                                     onPressed: () async {
                                       Navigator.pop(context, true);
                                       _eventEmitter.emit('advanceGame');
+                                      setState(() {});
                                     },
                                   ),
                                   TextButton(
@@ -154,7 +162,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                             });
 
                         if (selectedStatus != null) {
-                          widget.game.endGame(widget.database, selectedStatus);
+                          _game.endGame(widget.database, selectedStatus);
                           setState(() {});
                         }
                       },
@@ -166,13 +174,48 @@ class _TabletGamePageState extends State<TabletGamePage> {
               : [],
           bottom: PreferredSize(
               preferredSize: Size(width, 100),
-              child: Scoreboard(widget.game, widget.season)),
+              child: Scoreboard(_game, widget.season)),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         floatingActionButton: FloatingActionButton(
             child: const Icon(Icons.add),
-            onPressed: () {
+            onPressed: () async {
+              final promptToAdvance = _game.gameStatus.index < 9 &&
+                  (_game.gameStatus == GameStatus.notStarted ||
+                      _game.gameStatus == GameStatus.halftime ||
+                      _game.gameStatus == GameStatus.overtimeNotStarted ||
+                      _game.gameStatus == GameStatus.overtimeHalftime);
+              if (promptToAdvance) {
+                final shouldAdvance = await showDialog<bool>(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                          title: const Text("Advance Game"),
+                          content: const Text(
+                              "Do you want to advance to the next period?"),
+                          actions: [
+                            TextButton(
+                              child: const Text("Advance"),
+                              onPressed: () async {
+                                Navigator.pop(context, true);
+                              },
+                            ),
+                            TextButton(
+                              child: const Text("Cancel"),
+                              onPressed: () {
+                                Navigator.pop(context, false);
+                              },
+                            ),
+                          ]);
+                    });
+
+                if (shouldAdvance == true) {
+                  _eventEmitter.emit('advanceGame');
+                }
+              }
+
               _eventEmitter.emit('createEvent');
+              setState(() {});
             }),
         body: Row(children: [
           SizedBox(width: width * .55, child: gameView),
