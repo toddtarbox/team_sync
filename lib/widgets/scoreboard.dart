@@ -22,7 +22,7 @@ class Scoreboard extends StatelessWidget {
         !game.isHomeTeam(season.teamId) ? game.homeTeam : game.awayTeam;
 
     final teamName = shortName ? team.shortName : team.fullName;
-    final opponentName = shortName ? opponent.shortName : opponent.fullName;
+    final opponentName = shortName ? opponent.shortName : opponent.shortName;
 
     final teamScore = game.isHomeTeam(season.teamId)
         ? game.homeTeamScore

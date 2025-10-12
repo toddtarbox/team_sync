@@ -113,19 +113,27 @@ class Game {
 
   String displayName(int teamId) {
     if (teamId == homeTeam.id) {
-      return 'Home vs ${awayTeam.fullName}';
+      return 'vs ${awayTeam.shortName}';
     } else {
-      return '@ ${homeTeam.fullName}';
+      return '@ ${homeTeam.shortName}';
     }
   }
 
-  String getScore(int minute) {
+  String getScore(int teamId, {int? minute}) {
     int teamScore = 0;
     int opponentScore = 0;
 
     for (final event in scoringEvents) {
-      if (event.eventMinute <= minute) {
-        if (event.team.id == homeTeam.id) {
+      if (minute != null) {
+        if (event.eventMinute <= minute) {
+          if (event.team.id == teamId) {
+            teamScore++;
+          } else {
+            opponentScore++;
+          }
+        }
+      } else {
+        if (event.team.id == teamId) {
           teamScore++;
         } else {
           opponentScore++;
@@ -222,7 +230,19 @@ class Game {
     return games;
   }
 
-  Future<void> loadGameEvents(Database db) async {
+  static Future<List<Game>> listFromTeamId(Database db, int teamId) async {
+    final results = await db.query('Games',
+        where: 'homeTeamId=? OR awayTeamId=?', whereArgs: [teamId, teamId]);
+
+    final games = await Future.wait(results
+        .map((g) async => await Game.fromMap(db, g))
+        .toList(growable: false));
+    games.sort((a, b) => a.date.compareTo(b.date));
+
+    return games;
+  }
+
+  Future<List<GameEvent>> loadGameEvents(Database db) async {
     allGameEvents = await GameEvent.listFromGameId(db, id);
     scoringEvents = allGameEvents
         .where((e) =>
@@ -232,10 +252,14 @@ class Game {
         .toList(growable: false);
     gameEvents =
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
-    shootoutEvents = allGameEvents
-        .where((e) => e.eventMinute == -2)
-        .toList(growable: false)
-        .toList(growable: false);
+    gameEvents.sort((a, b) => a.eventPeriod.compareTo(b.eventPeriod));
+    gameEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
+    gameEvents.sort((a, b) => a.id.compareTo(b.id));
+
+    shootoutEvents =
+        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false);
+
+    return allGameEvents;
   }
 
   Future<void> updateScore(Database db) async {

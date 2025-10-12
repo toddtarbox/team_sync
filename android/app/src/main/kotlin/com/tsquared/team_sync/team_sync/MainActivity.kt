@@ -1,4 +1,4 @@
-package com.tsquared.team_sync.team_sync
+package com.tsquared.team_sync.soccer
 
 import io.flutter.embedding.android.FlutterActivity
 
