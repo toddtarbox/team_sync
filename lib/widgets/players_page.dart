@@ -29,7 +29,7 @@ class _PlayersPageState extends State<PlayersPage> {
               Navigator.of(context).pop();
             },
             child: const Icon(Icons.arrow_back, color: Colors.white70)),
-        title: Text(widget.season.name,
+        title: Text('${widget.season.name} - Players',
             style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 24,
@@ -50,7 +50,7 @@ class _PlayersPageState extends State<PlayersPage> {
                 itemBuilder: (context, index) {
                   final player = season.players[index];
                   return Dismissible(
-                      key: UniqueKey(),
+                      key: Key(player.id.toString()),
                       background: Container(color: Colors.red),
                       confirmDismiss: (_) {
                         return showDialog(
@@ -125,6 +125,11 @@ class _PlayersPageState extends State<PlayersPage> {
                 child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Column(children: [
+                      const Text(
+                        'Edit Player',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Container(height: 20),
                       TextFormField(
                           autofocus: true,
                           decoration:
@@ -138,38 +143,47 @@ class _PlayersPageState extends State<PlayersPage> {
                           onChanged: (name) => player!.lastName = name),
                       const Spacer(),
                       Row(
-                          mainAxisAlignment: player!.firstName.isNotEmpty &&
-                                  player.lastName.isNotEmpty
-                              ? MainAxisAlignment.spaceEvenly
-                              : MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            player.firstName.isNotEmpty &&
-                                    player.lastName.isNotEmpty
-                                ? GestureDetector(
-                                    onTap: () async {
-                                      await widget.database.insert(
-                                          'Players',
-                                          {
-                                            'id': player!.id == -1
-                                                ? null
-                                                : player.id,
-                                            'teamId': widget.season.teamId,
-                                            'seasonId': widget.season.id,
-                                            'firstName': player.firstName,
-                                            'lastName': player.lastName,
-                                            'number': player.number
-                                          },
-                                          conflictAlgorithm:
-                                              ConflictAlgorithm.replace);
+                            GestureDetector(
+                                onTap: () async {
+                                  if (player!.firstName.isEmpty ||
+                                      player.lastName.isEmpty) {
+                                    return;
+                                  }
 
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                        setState(() {});
-                                      }
-                                    },
-                                    child: const Text('Save',
-                                        style: TextStyle(fontSize: 20)))
-                                : Container(),
+                                  final rowId = await widget.database.insert(
+                                      'Players',
+                                      {
+                                        'id': player!.id,
+                                        'teamId': widget.season.teamId,
+                                        'seasonId': widget.season.id,
+                                        'firstName': player.firstName,
+                                        'lastName': player.lastName,
+                                        'number': player.number
+                                      },
+                                      conflictAlgorithm:
+                                          ConflictAlgorithm.replace);
+
+                                  await widget.database.update(
+                                      'Players',
+                                      {
+                                        'id': rowId,
+                                      },
+                                      where: 'id=? AND teamId=? AND seasonId=?',
+                                      whereArgs: [
+                                        -1,
+                                        widget.season.teamId,
+                                        widget.season.id
+                                      ]);
+
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    setState(() {});
+                                  }
+                                },
+                                child: const Text('Save',
+                                    style: TextStyle(fontSize: 20))),
                             GestureDetector(
                                 child: const Text('Cancel',
                                     style: TextStyle(fontSize: 20)),

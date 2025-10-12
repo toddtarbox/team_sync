@@ -11,6 +11,7 @@ import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
 import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/season_record.dart';
+import 'package:team_sync/widgets/season_stats_page.dart';
 
 class SeasonPage extends StatefulWidget {
   final Database database;
@@ -51,6 +52,18 @@ class _SeasonPageState extends State<SeasonPage> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
+                    builder: (context) => SeasonStatsPage(
+                        database: widget.database, season: widget.season),
+                  ),
+                );
+              },
+              child: const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(Icons.paste, color: Colors.white70))),
+          GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
                     builder: (context) => PlayersPage(
                         database: widget.database, season: widget.season),
                   ),
@@ -71,8 +84,27 @@ class _SeasonPageState extends State<SeasonPage> {
         builder: (BuildContext context, AsyncSnapshot<Season> snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
             final season = snapshot.data!;
+            final games = season.games;
+
+            if (games.isEmpty) {
+              return Center(
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    const Text('No Games Found',
+                        style: TextStyle(fontSize: 24)),
+                    GestureDetector(
+                        onTap: () {
+                          _showGame();
+                        },
+                        child: const Text('Create a new Game to start',
+                            style:
+                                TextStyle(fontSize: 18, color: Colors.blue))),
+                  ]));
+            }
+
             return ListView.builder(
-                itemCount: season.games.length + 1,
+                itemCount: games.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return ListTile(
@@ -80,9 +112,9 @@ class _SeasonPageState extends State<SeasonPage> {
                         title: Center(child: SeasonRecord([widget.season])));
                   }
 
-                  final game = season.games[index - 1];
+                  final game = games[index - 1];
                   return Dismissible(
-                      key: UniqueKey(),
+                      key: Key(game.id.toString()),
                       background: Container(color: Colors.red),
                       confirmDismiss: (_) {
                         return showDialog(
@@ -163,7 +195,7 @@ class _SeasonPageState extends State<SeasonPage> {
     showModalBottomSheet(
         context: context,
         showDragHandle: true,
-        isScrollControlled: true,
+        scrollControlDisabledMaxHeightRatio: .75,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
@@ -171,6 +203,11 @@ class _SeasonPageState extends State<SeasonPage> {
                 child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Column(children: [
+                      const Text(
+                        'Edit Game',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Container(height: 20),
                       Row(children: [
                         Expanded(
                             child: RadioListTile(
@@ -300,7 +337,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                 _loadSeason();
                               })
                           : Container(),
-                      const Spacer(),
+                      const SizedBox(height: 30),
                       Row(
                           mainAxisAlignment: canSave
                               ? MainAxisAlignment.spaceEvenly
@@ -318,7 +355,13 @@ class _SeasonPageState extends State<SeasonPage> {
                                     },
                                     child: const Text('Save',
                                         style: TextStyle(fontSize: 20)))
-                                : Container()
+                                : Container(),
+                            GestureDetector(
+                                onTap: () {
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('Cancel',
+                                    style: TextStyle(fontSize: 20)))
                           ])
                     ])));
           });

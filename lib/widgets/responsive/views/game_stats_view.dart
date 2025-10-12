@@ -79,11 +79,14 @@ class _GameStatsViewState extends State<GameStatsView> {
                 leading: GestureDetector(
                     onTap: () {
                       if (stat.playerStats.isNotEmpty) {
+                        final sortedStats = List.from(stat.playerStats.entries);
+                        sortedStats.sort((a, b) => b.value.compareTo(a.value));
+
                         showModalBottomSheet(
                             context: context,
                             builder: (context) {
                               return ListView.builder(
-                                  itemCount: stat.playerStats.length + 1,
+                                  itemCount: sortedStats.length + 1,
                                   itemBuilder: (context, index) {
                                     if (index == 0) {
                                       return ListTile(
@@ -97,10 +100,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                                                           FontWeight.bold))));
                                     }
 
-                                    final player = stat.playerStats.keys
-                                        .toList()[index - 1];
-                                    final count = stat.playerStats.values
-                                        .toList()[index - 1];
+                                    final player = sortedStats[index - 1].key;
+                                    final count = sortedStats[index - 1].value;
                                     return ListTile(
                                       leading: Text(player.displayName,
                                           style: const TextStyle(
@@ -117,9 +118,10 @@ class _GameStatsViewState extends State<GameStatsView> {
                     },
                     child: Text(stat.teamStat.toString(),
                         style: TextStyle(
-                            decoration: stat.teamStat > 0
-                                ? TextDecoration.underline
-                                : null))),
+                            decoration:
+                                stat.name != 'Corners' && stat.teamStat > 0
+                                    ? TextDecoration.underline
+                                    : null))),
                 trailing: Text(stat.opponentStat.toString()),
               );
             }).toList(growable: false);
@@ -143,61 +145,42 @@ class _GameStatsViewState extends State<GameStatsView> {
                             e.eventData == event.id)
                         .firstOrNull;
 
+                    final opponent =
+                        !widget.game.isHomeTeam(widget.season.teamId)
+                            ? widget.game.homeTeam
+                            : widget.game.awayTeam;
+
                     return ListTile(
-                      tileColor: Colors.black45,
-                      titleTextStyle: const TextStyle(color: Colors.white),
-                      leading: event.team.id == widget.season.team.id
-                          ? SizedBox(
-                              width: 200,
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    AutoSizeText(
-                                        '${event.eventMinute}\'  ${event.player?.displayName ?? ''}',
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                        minFontSize: 16),
-                                    AutoSizeText(
-                                        event.team.id ==
-                                                    widget.season.team.id &&
-                                                assistEvent != null
-                                            ? assistEvent.display
-                                            : event.eventType == 'PenaltyKick'
-                                                ? 'PK'
-                                                : event.team.id ==
-                                                        widget.season.team.id
-                                                    ? event.player == null
-                                                        ? 'Own goal'
-                                                        : 'No assist'
-                                                    : '',
-                                        style: const TextStyle(
-                                            color: Colors.white70))
-                                  ]))
-                          : const SizedBox(width: 200),
-                      title: Center(
-                          child: Text(_game.getScore(event.eventMinute),
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold))),
-                      trailing: event.team.id != widget.season.team.id
-                          ? SizedBox(
-                              width: 200,
-                              child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    AutoSizeText(
-                                        '${event.team.shortName} ${event.eventMinute}\'',
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                        minFontSize: 16),
-                                    AutoSizeText(
-                                        event.eventType == 'PenaltyKick'
-                                            ? 'PK'
-                                            : '',
-                                        style: const TextStyle(
-                                            color: Colors.white70))
-                                  ]))
-                          : const SizedBox(width: 200),
-                    );
+                        tileColor: Colors.black45,
+                        titleTextStyle: const TextStyle(color: Colors.white),
+                        leading: AutoSizeText('${event.eventMinute}\'',
+                            style: const TextStyle(color: Colors.white),
+                            minFontSize: 14),
+                        title: event.team.id == widget.season.team.id
+                            ? AutoSizeText(event.player?.displayName ?? '',
+                                style: const TextStyle(color: Colors.white),
+                                minFontSize: 14)
+                            : AutoSizeText(event.team.shortName,
+                                style: const TextStyle(color: Colors.white),
+                                minFontSize: 14),
+                        subtitle: AutoSizeText(
+                            event.team.id == widget.season.team.id &&
+                                    assistEvent != null
+                                ? assistEvent.display
+                                : event.eventType == 'PenaltyKick'
+                                    ? 'PK'
+                                    : event.team.id == widget.season.team.id
+                                        ? event.player == null
+                                            ? 'Own goal by ${opponent.shortName}'
+                                            : 'No assist'
+                                        : '',
+                            style: const TextStyle(color: Colors.white70)),
+                        trailing: Text(
+                            maxLines: 1,
+                            _game.getScore(widget.season.teamId,
+                                minute: event.eventMinute),
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.bold)));
                   } else if (index == scoringEvents.length + 1) {
                     return const ListTile(
                         tileColor: Colors.black,
@@ -274,12 +257,6 @@ class _GameStatsViewState extends State<GameStatsView> {
         'data': [-1]
       },
       {
-        'name': 'Corners',
-        'dialogName': 'Corners',
-        'category': 'Corner',
-        'data': [-1]
-      },
-      {
         'name': 'Offsides',
         'dialogName': 'Offsides',
         'category': 'Offsides',
@@ -303,6 +280,12 @@ class _GameStatsViewState extends State<GameStatsView> {
         'category': 'Card',
         'data': [2]
       },
+      {
+        'name': 'Corners',
+        'dialogName': 'Corners',
+        'category': 'Corner',
+        'data': [-1]
+      }
     ].map((stat) async {
       return await _game.getStats(
           widget.database,

@@ -114,16 +114,16 @@ class Shot extends GameEvent {
   String get display {
     if (player != null) {
       if (result == ShotResult.goal) {
-        return 'Goal by ${player!.displayName}';
+        return 'Goal';
       }
-      return 'Shot by ${player!.displayName} - ${result.display}';
+      return 'Shot - ${result.display}';
     }
 
     if (result == ShotResult.goal) {
-      return 'Goal by ${team.fullName}';
+      return 'Goal';
     }
 
-    return 'Shot by ${team.fullName} - ${result.display}';
+    return 'Shot - ${result.display}';
   }
 
   Shot(
@@ -148,7 +148,7 @@ class Assist extends GameEvent {
   @override
   String get display {
     if (player != null) {
-      return 'Assisted by ${player!.displayName}';
+      return 'Assist: ${player!.displayName}';
     }
 
     return 'Assist';
@@ -174,7 +174,7 @@ class Save extends GameEvent {
       return 'Save by ${player!.displayName}';
     }
 
-    return 'Save by ${team.fullName}';
+    return 'Save by ${team.shortName}';
   }
 
   @override
@@ -201,10 +201,10 @@ class PenaltyKick extends GameEvent {
   @override
   String get display {
     if (player != null) {
-      return '${result.display} - Penalty Kick (${player!.displayName})';
+      return '${result.display} - ${player!.displayName} (PK)';
     }
 
-    return '${result.display} - Penalty Kick (${team.fullName})';
+    return '${result.display} - ${team.shortName} (PK)';
   }
 
   @override
@@ -248,7 +248,7 @@ class Corner extends GameEvent {
 
   @override
   String get display {
-    return 'Corner kick for ${team.fullName} ${result == CornerResult.none ? '' : ' - ${result.display}'}';
+    return 'Corner kick for ${team.shortName} ${result == CornerResult.none ? '' : ' - ${result.display}'}';
   }
 
   @override
@@ -276,7 +276,7 @@ class Foul extends GameEvent {
       return 'Foul by ${player!.displayName}';
     }
 
-    return 'Foul by ${team.fullName}';
+    return 'Foul by ${team.shortName}';
   }
 
   @override
@@ -304,7 +304,7 @@ class Offsides extends GameEvent {
       return 'Offsides on ${player!.displayName}';
     }
 
-    return 'Offsides on ${team.fullName}';
+    return 'Offsides on ${team.shortName}';
   }
 
   @override
@@ -332,7 +332,7 @@ class GameCard extends GameEvent {
       return 'Card by ${player!.displayName}';
     }
 
-    return 'Card for ${team.fullName}';
+    return 'Card for ${team.shortName}';
   }
 
   @override
@@ -423,7 +423,7 @@ class GameEvent {
   int eventData;
 
   String get display {
-    return '$eventType';
+    return eventType;
   }
 
   String get imageAsset {
@@ -431,22 +431,25 @@ class GameEvent {
   }
 
   Widget get image {
-    return Image.asset(imageAsset, width: 48, height: 48);
+    return Image.asset(imageAsset, width: 36, height: 36);
   }
 
   bool get shouldTweet {
-    return (eventType == 'Period') || (eventType == 'Shot' && eventData == 0);
+    return (eventType == 'Period') ||
+        ((eventType == 'Shot' || eventType == 'PenaltyKick') &&
+            eventData == ShotResult.goal.index);
   }
 
   String tweetText(Game game) {
     if (eventType == 'Period') {
       return (this as Period).display;
-    } else if (eventType == 'Shot' && eventData == 0) {
+    } else if ((eventType == 'Shot' || eventType == 'PenaltyKick') &&
+        eventData == ShotResult.goal.index) {
       String tweetText;
       if (player != null) {
         tweetText = '($eventMinute\') Goal by ${player!.displayName}';
       } else {
-        tweetText = '($eventMinute\') Goal by ${team.fullName}';
+        tweetText = '($eventMinute\') Goal by ${team.shortName}';
       }
 
       tweetText = '$tweetText\n\n${game.tweetStatus()}';
@@ -623,7 +626,9 @@ class GameEvent {
 
   static Future<List<GameEvent>> listFromGameId(Database db, int gameId) async {
     final results = await db.query('Events',
-        where: 'gameId=?', whereArgs: [gameId], orderBy: 'id ASC');
+        where: 'gameId=? AND teamId<>-1',
+        whereArgs: [gameId],
+        orderBy: 'id ASC');
 
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(db, g))
