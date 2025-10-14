@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/career_stats_page.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
+import 'package:team_sync/widgets/rounded_appbar.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
@@ -37,8 +37,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
+      backgroundColor: Theme.of(context).secondaryHeaderColor,
+      appBar: RoundedAppBar(
         title: const Text('Team Sync - Soccer',
             style: TextStyle(
                 color: Colors.white70,
@@ -49,11 +49,11 @@ class _HomePageState extends State<HomePage> {
             child: Visibility(
                 visible: _database != null || _team != null,
                 child: Padding(
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(20),
                     child: Text(
                         '${_team?.fullName ?? ''} (${_database?.path.split('/').last ?? ''})',
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 20))))),
+                            color: Colors.white70, fontSize: 24))))),
         actions: [
           Visibility(
               visible: _team != null,
@@ -102,104 +102,136 @@ class _HomePageState extends State<HomePage> {
           onPressed: () async {
             await _showCreateOptions(context);
           }),
-      body: Builder(
-        builder: (BuildContext context) {
-          if (_database == null) {
-            return const Center(
-                child: Text('Please create or open a database',
-                    style: TextStyle(fontSize: 24)));
-          }
+      body: FutureBuilder(
+        future: _load(),
+        builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else {
+            if (_database == null) {
+              return const Center(
+                  child: Text('Please create or open a database',
+                      style: TextStyle(fontSize: 24)));
+            }
 
-          if (_team == null) {
-            return Center(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  const Text('No Team Found', style: TextStyle(fontSize: 24)),
-                  GestureDetector(
-                      onTap: () {
-                        _handleSelection(context, 'team');
-                      },
-                      child: const Text('Create a new Team to start',
-                          style: TextStyle(fontSize: 18, color: Colors.blue))),
-                ]));
-          }
-
-          if (_seasons.isEmpty) {
-            return Center(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                  const Text('No Seasons Found',
-                      style: TextStyle(fontSize: 24)),
-                  GestureDetector(
-                      onTap: () {
-                        _handleSelection(context, 'season');
-                      },
-                      child: const Text('Create a new Season to start',
-                          style: TextStyle(fontSize: 18, color: Colors.blue))),
-                ]));
-          }
-
-          return ListView.builder(
-              itemCount: _seasons.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return ListTile(
-                      tileColor: Colors.black,
-                      title: Center(child: SeasonRecord(_seasons)));
-                }
-
-                final season = _seasons[index - 1];
-                return Dismissible(
-                    key: Key(season.id.toString()),
-                    background: Container(color: Colors.red),
-                    behavior: HitTestBehavior.translucent,
-                    confirmDismiss: (_) {
-                      return showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text("Confirm Delete"),
-                            content: const Text(
-                                "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone."),
-                            actions: [
-                              TextButton(
-                                child: const Text("Continue"),
-                                onPressed: () {
-                                  Navigator.pop(context, true);
-                                },
-                              ),
-                              TextButton(
-                                child: const Text("Cancel"),
-                                onPressed: () {
-                                  Navigator.pop(context, false);
-                                },
-                              ),
-                            ],
-                          );
+            if (_team == null) {
+              return Center(
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    const Text('No Team Found', style: TextStyle(fontSize: 24)),
+                    GestureDetector(
+                        onTap: () {
+                          _handleSelection(context, 'team');
                         },
-                      );
-                    },
-                    onDismissed: (direction) async {
-                      await _database!.delete('Seasons',
-                          where: 'id=?', whereArgs: [season.id]);
-                      setState(() {});
-                    },
-                    child: ListTile(
-                      title: Text(season.name,
-                          style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold)),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => SeasonPage(
-                                database: _database!, season: season),
-                          ),
-                        );
-                      },
-                    ));
-              });
+                        child: const Text('Create a new Team to start',
+                            style:
+                                TextStyle(fontSize: 18, color: Colors.blue))),
+                  ]));
+            }
+
+            if (_seasons.isEmpty) {
+              return Center(
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                    const Text('No Seasons Found',
+                        style: TextStyle(fontSize: 24)),
+                    GestureDetector(
+                        onTap: () {
+                          _handleSelection(context, 'season');
+                        },
+                        child: const Text('Create a new Season to start',
+                            style:
+                                TextStyle(fontSize: 18, color: Colors.blue))),
+                  ]));
+            }
+
+            return Column(children: [
+              Card(
+                  child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(20),
+                        ),
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Center(child: SeasonRecord(_seasons)))),
+              Expanded(
+                  child: Card(
+                      child: ListView.separated(
+                          separatorBuilder: (BuildContext context, int index) {
+                            return Container(height: 2, color: Colors.grey);
+                          },
+                          itemCount: _seasons.length,
+                          itemBuilder: (context, index) {
+                            final season = _seasons[index];
+                            return Dismissible(
+                                key: Key(season.id.toString()),
+                                background: Container(color: Colors.red),
+                                behavior: HitTestBehavior.translucent,
+                                confirmDismiss: (_) {
+                                  return showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: const Text("Confirm Delete"),
+                                        content: const Text(
+                                            "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone."),
+                                        actions: [
+                                          TextButton(
+                                            child: const Text("Continue"),
+                                            onPressed: () {
+                                              Navigator.pop(context, true);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: const Text("Cancel"),
+                                            onPressed: () {
+                                              Navigator.pop(context, false);
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                                onDismissed: (direction) async {
+                                  await _database!.delete('Seasons',
+                                      where: 'id=?', whereArgs: [season.id]);
+                                  setState(() {});
+                                },
+                                child: ListTile(
+                                  title: Text(season.name,
+                                      style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.grey,
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(20),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(10),
+                                      child: Center(
+                                          child: SeasonRecord([season]))),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => SeasonPage(
+                                            database: _database!,
+                                            season: season),
+                                      ),
+                                    );
+                                  },
+                                ));
+                          })))
+            ]);
+          }
         },
       ),
     );
@@ -239,6 +271,18 @@ class _HomePageState extends State<HomePage> {
                 _handleSelection(context, 'database');
               },
             ),
+            Visibility(
+                visible: _database != null,
+                child: ListTile(
+                  leading: Icon(Icons.save, color: Colors.green.shade700),
+                  title: const Text('Export Current Database'),
+                  onTap: () {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    _handleSelection(context, 'exportDB');
+                  },
+                )),
             Visibility(
                 visible: _database != null && _team == null,
                 child: ListTile(
@@ -287,6 +331,11 @@ class _HomePageState extends State<HomePage> {
         if (saveDir != null) {
           await _createDatabase(saveDir);
         }
+        break;
+      case 'exportDB':
+        await FilePicker.platform.saveFile(
+            fileName: _database!.path.split('/').last,
+            bytes: File(_database!.path).readAsBytesSync());
         break;
       case 'team':
         _createTeam();
@@ -359,7 +408,15 @@ class _HomePageState extends State<HomePage> {
 
         _database = await openDatabase(databasePath,
             version: 1, onCreate: _createDatabaseFile);
-        _team = null;
+
+        final teamResult = await _database!.query('Teams', where: 'id=1');
+        if (teamResult.isNotEmpty) {
+          _team = Team.fromMap(teamResult.first);
+          await _loadSeasons();
+        } else {
+          _team = null;
+        }
+
         setState(() {});
       }
     } catch (e) {
@@ -375,14 +432,6 @@ class _HomePageState extends State<HomePage> {
         await _showCreateOptions(context);
       } else {
         await _openDatabase();
-
-        final teamResult = await _database!.query('Teams', where: 'id=1');
-        if (teamResult.isEmpty) {
-          return;
-        }
-        _team = Team.fromMap(teamResult.first);
-
-        await _loadSeasons();
       }
     }
   }
@@ -400,7 +449,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<String?> _pickLocation() async {
     // 1. Request storage permission
-    var status = await Platform.isIOS
+    var status = Platform.isIOS
         ? await Permission.storage.request()
         : await Permission.manageExternalStorage.request();
     if (!status.isGranted) {
@@ -513,7 +562,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _createSeason() async {
-    String? seasonName;
+    late String seasonName;
 
     showModalBottomSheet(
         context: context,
@@ -522,125 +571,89 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text(
-                      'New Season',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Container(height: 20),
+                    const Text('New Season'),
                     TextField(
                         autofocus: true,
                         decoration:
                             const InputDecoration(labelText: 'Season Name'),
                         onChanged: (name) => seasonName = name),
-                    const Spacer(),
-                    TextButton(
-                        onPressed: () {},
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              GestureDetector(
-                                  child: const Text('Save',
-                                      style: TextStyle(fontSize: 20)),
-                                  onTap: () async {
-                                    if (seasonName != null &&
-                                        seasonName!.isNotEmpty) {
-                                      await _saveSeason(seasonName!);
-                                      await _loadSeasons();
-                                      Navigator.pop(context);
-                                    }
-                                  }),
-                              GestureDetector(
-                                  child: const Text('Cancel',
-                                      style: TextStyle(fontSize: 20)),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                  })
-                            ]))
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          GestureDetector(
+                              child: const Text('Save',
+                                  style: TextStyle(fontSize: 20)),
+                              onTap: () async {
+                                await _database!.insert('Seasons',
+                                    {'name': seasonName, 'teamId': _team!.id});
+
+                                await _loadSeasons();
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                }
+                              }),
+                          GestureDetector(
+                              child: const Text('Cancel',
+                                  style: TextStyle(fontSize: 20)),
+                              onTap: () {
+                                Navigator.pop(context);
+                              })
+                        ])
                   ])));
         });
   }
 
-  Future<void> _saveSeason(String seasonName) async {
-    final teamId = _team!.id;
-    final allTeamSeasons = await _database!
-        .query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
-    int prevSeasonId = 0;
-    for (var s in allTeamSeasons) {
-      final season = Season.fromMap(s);
-      if (season.id > prevSeasonId) {
-        prevSeasonId = season.id;
-      }
-    }
+  Future<void> _createDatabaseFile(Database db, int version) async {
+    await db.execute('''
+    CREATE TABLE Teams (
+      id INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      shortName TEXT NOT NULL
+    )
+  ''');
 
-    final newSeasonId = await _database!
-        .insert('Seasons', {'name': seasonName, 'teamId': teamId});
+    await db.execute('''
+    CREATE TABLE Seasons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      teamId INTEGER NOT NULL,
+      FOREIGN KEY (teamId) REFERENCES Teams (id) ON DELETE CASCADE
+    )
+  ''');
 
-    final teamPlayers = await _database!.query('Players',
-        where: 'teamId=? AND seasonId=?', whereArgs: [teamId, prevSeasonId]);
-    for (var p in teamPlayers) {
-      final player = Player.fromMap(p);
+    await db.execute('''
+    CREATE TABLE Players (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      number INTEGER
+    )
+  ''');
 
-      await _database!.insert(
-          'Players',
-          {
-            'id': player.id,
-            'teamId': teamId,
-            'seasonId': newSeasonId,
-            'firstName': player.firstName,
-            'lastName': player.lastName,
-            'number': player.number
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace);
-    }
-  }
+    await db.execute('''
+    CREATE TABLE Games (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      seasonId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      opponent TEXT NOT NULL,
+      isHomeGame INTEGER NOT NULL,
+      goalsFor INTEGER,
+      goalsAgainst INTEGER,
+      notes TEXT,
+      FOREIGN KEY (seasonId) REFERENCES Seasons (id) ON DELETE CASCADE
+    )
+  ''');
 
-  Future<void> _createDatabaseFile(Database database, int version) async {
-    _team = null;
-
-    database.execute(
-        "create table Seasons (id integer primary key autoincrement, " +
-            "name text not null, " +
-            "teamId integer not null);");
-
-    database.execute(
-        "create table Teams (id integer primary key autoincrement, " +
-            "fullName text not null, " +
-            "shortName text not null, " +
-            "color1 integer not null, " +
-            "color2 integer not null);");
-
-    database.execute(
-        "create table Games (id integer primary key autoincrement, " +
-            "seasonId integer not null, " +
-            "homeTeamId integer not null, " +
-            "awayTeamId integer not null, " +
-            "homeTeamScore integer not null, " +
-            "awayTeamScore integer not null, " +
-            "date text not null, " +
-            "gameStatus text not null, " +
-            "milliSecondsLeft long not null, " +
-            "homeKeeperId integer not null, " +
-            "awayKeeperId integer not null);");
-
-    database.execute("create table Players (id integer not null, " +
-        "teamId integer not null, " +
-        "seasonId integer not null, " +
-        "firstName string not null, " +
-        "lastName string not null, " +
-        "number integer not null, primary key(id, teamId, seasonId));");
-
-    database.execute(
-        "create table Events (id integer primary key autoincrement, " +
-            "playerId integer not null, " +
-            "teamId integer not null, " +
-            "gameId integer not null, " +
-            "seasonId integer not null, " +
-            "whichTeam integer not null, " +
-            "eventType text not null, " +
-            "eventLocation text not null, " +
-            "eventMinute integer not null, " +
-            "eventPeriod integer not null, " +
-            "eventData integer not null, " +
-            "eventTextData text);");
+    await db.execute('''
+    CREATE TABLE GameStats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      gameId INTEGER NOT NULL,
+      playerId INTEGER NOT NULL,
+      goals INTEGER,
+      assists INTEGER,
+      saves INTEGER,
+      FOREIGN KEY (gameId) REFERENCES Games (id) ON DELETE CASCADE,
+      FOREIGN KEY (playerId) REFERENCES Players (id) ON DELETE CASCADE
+    )
+  ''');
   }
 }

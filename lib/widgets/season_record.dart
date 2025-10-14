@@ -19,12 +19,14 @@ class SeasonRecord extends StatelessWidget {
         .length;
     int ties = games.where((g) => g.isTie).length;
 
+    final String leading = seasons.length > 1 ? 'Overall' : 'Season';
+
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
       team.fullName == 'Saint Albert'
           ? Image.asset('assets/images/jpgs/sa-crest.jpg',
               width: 42, height: 42)
           : Container(),
-      Text('Record ($wins - $losses - $ties)',
+      Text('$leading Record ($wins - $losses - $ties)',
           style: const TextStyle(
               color: Colors.white70, fontSize: 24, fontWeight: FontWeight.bold))
     ]);
