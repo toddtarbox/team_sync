@@ -17,8 +17,23 @@ class MyApp extends StatelessWidget {
       title: 'TeamSync',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightGreenAccent),
         useMaterial3: true,
+        // A deep, professional blue is used to generate a full color scheme.
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color.fromRGBO(22, 148, 123, 0),
+        ),
+        // Define a consistent card theme for a modern look.
+        cardTheme: const CardThemeData(
+          elevation: 4.0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+        ),
+        // Define a theme for the app bar to be used throughout the app.
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.grey.shade900,
+          elevation: 0,
+        ),
       ),
       builder: (context, child) => ResponsiveBreakpoints.builder(
         breakpoints: [

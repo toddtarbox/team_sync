@@ -22,7 +22,7 @@ class SeasonRecord extends StatelessWidget {
     final String leading = seasons.length > 1 ? 'Overall' : 'Season';
 
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      team.fullName == 'Saint Albert'
+      team.fullName == 'Saint Albert' && seasons.length > 1
           ? Image.asset('assets/images/jpgs/sa-crest.jpg',
               width: 42, height: 42)
           : Container(),

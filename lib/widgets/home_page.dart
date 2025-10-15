@@ -8,8 +8,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/career_stats_page.dart';
+import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/rounded_appbar.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
     _load().then((_) {
       setState(() {});
     });
@@ -37,12 +38,12 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).secondaryHeaderColor,
-      appBar: RoundedAppBar(
-        title: const Text('Team Sync - Soccer',
+      backgroundColor: Theme.of(context).colorScheme.background,
+      appBar: CustomAppBar(
+        title: const Text('Soccer Analytics',
             style: TextStyle(
-                color: Colors.white70,
                 fontSize: 24,
+                color: Colors.white70,
                 fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
@@ -57,8 +58,9 @@ class _HomePageState extends State<HomePage> {
         actions: [
           Visibility(
               visible: _team != null,
-              child: GestureDetector(
-                  onTap: () {
+              child: IconButton(
+                  color: Colors.white70,
+                  onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) =>
@@ -66,13 +68,12 @@ class _HomePageState extends State<HomePage> {
                       ),
                     );
                   },
-                  child: const Padding(
-                      padding: EdgeInsets.only(right: 10),
-                      child: Icon(Icons.leaderboard, color: Colors.white70)))),
+                  icon: const Icon(Icons.leaderboard))),
           Visibility(
               visible: _team != null,
-              child: GestureDetector(
-                  onTap: () {
+              child: IconButton(
+                  color: Colors.white70,
+                  onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => HistoryVersusPage(
@@ -80,21 +81,17 @@ class _HomePageState extends State<HomePage> {
                       ),
                     );
                   },
-                  child: const Padding(
-                      padding: EdgeInsets.only(right: 10),
-                      child: Icon(Icons.manage_history_outlined,
-                          color: Colors.white70)))),
-          GestureDetector(
-              onTap: () {
+                  icon: const Icon(Icons.manage_history_outlined))),
+          IconButton(
+              color: Colors.white70,
+              onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const TwitterSettingsPage(),
                   ),
                 );
               },
-              child: const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.settings, color: Colors.white70)))
+              icon: const Icon(Icons.settings))
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -126,9 +123,11 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           _handleSelection(context, 'team');
                         },
-                        child: const Text('Create a new Team to start',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.blue))),
+                        child: Text('Create a new Team to start',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color:
+                                    Theme.of(context).colorScheme.secondary))),
                   ]));
             }
 
@@ -143,35 +142,38 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           _handleSelection(context, 'season');
                         },
-                        child: const Text('Create a new Season to start',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.blue))),
+                        child: Text('Create a new Season to start',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color:
+                                    Theme.of(context).colorScheme.secondary))),
                   ]));
             }
 
             return Column(children: [
-              Card(
-                  child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.all(
-                          Radius.circular(20),
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Center(child: SeasonRecord(_seasons)))),
+              Container(
+                  decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(25),
+                        bottomRight: Radius.circular(25),
+                      )),
+                  child: Card(
+                      color: Colors.black,
+                      child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Center(child: SeasonRecord(_seasons))))),
               Expanded(
                   child: Card(
-                      child: ListView.separated(
-                          separatorBuilder: (BuildContext context, int index) {
-                            return Container(height: 2, color: Colors.grey);
-                          },
+                      color: Colors.white70,
+                      child: ListView.builder(
                           itemCount: _seasons.length,
                           itemBuilder: (context, index) {
                             final season = _seasons[index];
                             return Dismissible(
                                 key: Key(season.id.toString()),
-                                background: Container(color: Colors.red),
+                                background: Container(
+                                    color: Theme.of(context).colorScheme.error),
                                 behavior: HitTestBehavior.translucent,
                                 confirmDismiss: (_) {
                                   return showDialog(
@@ -204,31 +206,32 @@ class _HomePageState extends State<HomePage> {
                                       where: 'id=?', whereArgs: [season.id]);
                                   setState(() {});
                                 },
-                                child: ListTile(
-                                  title: Text(season.name,
-                                      style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold)),
-                                  subtitle: Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.grey,
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(20),
+                                child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) => SeasonPage(
+                                              database: _database!,
+                                              season: season),
                                         ),
-                                      ),
-                                      padding: const EdgeInsets.all(10),
-                                      child: Center(
-                                          child: SeasonRecord([season]))),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => SeasonPage(
-                                            database: _database!,
-                                            season: season),
-                                      ),
-                                    );
-                                  },
-                                ));
+                                      );
+                                    },
+                                    child: Card(
+                                        child: Column(children: [
+                                      Text(season.name,
+                                          style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold)),
+                                      Container(
+                                          decoration: BoxDecoration(
+                                              color: Colors.grey[500],
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          padding: const EdgeInsets.all(5),
+                                          margin: const EdgeInsets.all(10),
+                                          child: Center(
+                                              child: SeasonRecord([season]))),
+                                    ]))));
                           })))
             ]);
           }
@@ -251,7 +254,8 @@ class _HomePageState extends State<HomePage> {
         return Wrap(
           children: <Widget>[
             ListTile(
-              leading: Icon(Icons.folder_open, color: Colors.green.shade700),
+              leading: Icon(Icons.folder_open,
+                  color: Theme.of(context).colorScheme.secondary),
               title: const Text('Open Existing Database'),
               onTap: () {
                 // Close the bottom sheet first
@@ -261,8 +265,8 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading:
-                  Icon(Icons.storage_rounded, color: Colors.green.shade700),
+              leading: Icon(Icons.storage_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
               title: const Text('Create New Database'),
               onTap: () {
                 // Close the bottom sheet first
@@ -274,7 +278,8 @@ class _HomePageState extends State<HomePage> {
             Visibility(
                 visible: _database != null,
                 child: ListTile(
-                  leading: Icon(Icons.save, color: Colors.green.shade700),
+                  leading: Icon(Icons.save,
+                      color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Export Current Database'),
                   onTap: () {
                     // Close the bottom sheet first
@@ -287,7 +292,7 @@ class _HomePageState extends State<HomePage> {
                 visible: _database != null && _team == null,
                 child: ListTile(
                   leading: Icon(Icons.plus_one_rounded,
-                      color: Colors.green.shade700),
+                      color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create Team'),
                   onTap: () {
                     // Close the bottom sheet first
@@ -300,7 +305,7 @@ class _HomePageState extends State<HomePage> {
                 visible: _team != null,
                 child: ListTile(
                   leading: Icon(Icons.filter_1_rounded,
-                      color: Colors.green.shade700),
+                      color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create New Season'),
                   onTap: () {
                     // Close the bottom sheet first
@@ -366,10 +371,10 @@ class _HomePageState extends State<HomePage> {
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          GestureDetector(
+                          TextButton(
                               child: const Text('Save',
                                   style: TextStyle(fontSize: 20)),
-                              onTap: () async {
+                              onPressed: () async {
                                 if (databaseName.isNotEmpty) {
                                   const storage = FlutterSecureStorage();
                                   await storage.write(
@@ -380,10 +385,10 @@ class _HomePageState extends State<HomePage> {
                                   Navigator.pop(context);
                                 }
                               }),
-                          GestureDetector(
+                          TextButton(
                               child: const Text('Cancel',
                                   style: TextStyle(fontSize: 20)),
-                              onTap: () {
+                              onPressed: () {
                                 Navigator.pop(context);
                               })
                         ])
@@ -433,6 +438,8 @@ class _HomePageState extends State<HomePage> {
       } else {
         await _openDatabase();
       }
+    } else {
+      await _loadSeasons();
     }
   }
 
@@ -444,7 +451,6 @@ class _HomePageState extends State<HomePage> {
     final results = await _database!.query('Seasons', orderBy: 'name DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList(growable: false);
     await Future.wait(_seasons.map((s) async => await s.load(_database!)));
-    setState(() {});
   }
 
   Future<String?> _pickLocation() async {
@@ -481,7 +487,8 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 2. Pick a file
-      FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
+      FilePickerResult? pickResult = await FilePicker.platform
+          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
       if (pickResult == null) {
         return null;
       }
@@ -580,10 +587,10 @@ class _HomePageState extends State<HomePage> {
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          GestureDetector(
+                          TextButton(
                               child: const Text('Save',
                                   style: TextStyle(fontSize: 20)),
-                              onTap: () async {
+                              onPressed: () async {
                                 await _database!.insert('Seasons',
                                     {'name': seasonName, 'teamId': _team!.id});
 
@@ -592,10 +599,10 @@ class _HomePageState extends State<HomePage> {
                                   Navigator.pop(context);
                                 }
                               }),
-                          GestureDetector(
+                          TextButton(
                               child: const Text('Cancel',
                                   style: TextStyle(fontSize: 20)),
-                              onTap: () {
+                              onPressed: () {
                                 Navigator.pop(context);
                               })
                         ])
