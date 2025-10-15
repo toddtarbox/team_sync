@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "542457934179",
+    "project_id": "team-sync-soccer",
+    "storage_bucket": "team-sync-soccer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:542457934179:android:fc3f9989d51f9e2cc52356",
+        "android_client_info": {
+          "package_name": "com.tsquared.team_sync.soccer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBflWvgLKjvXjmRAYw0HpQyLfSXbhm2sEg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

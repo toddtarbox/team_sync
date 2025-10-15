@@ -1,9 +1,11 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/widgets/home_page.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
 
   runApp(const MyApp());
 }
@@ -20,7 +22,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         // A deep, professional blue is used to generate a full color scheme.
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromRGBO(22, 148, 123, 0),
+          seedColor: const Color.fromRGBO(22, 148, 123, 1),
         ),
         // Define a consistent card theme for a modern look.
         cardTheme: const CardThemeData(

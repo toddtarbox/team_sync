@@ -24,6 +24,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
+  bool _isFirebase = false;
 
   @override
   void initState() {
@@ -55,6 +56,17 @@ class _HomePageState extends State<HomePage> {
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 24))))),
         actions: [
+          IconButton(
+            icon: Icon(_isFirebase ? Icons.cloud_off : Icons.cloud),
+            onPressed: () {
+              setState(() {
+                _isFirebase = !_isFirebase;
+                DatabaseService.instance.setProvider(_isFirebase
+                    ? FirebaseDBProvider()
+                    : LocalDatabaseProvider());
+              });
+            },
+          ),
           Visibility(
               visible: _team != null,
               child: IconButton(
