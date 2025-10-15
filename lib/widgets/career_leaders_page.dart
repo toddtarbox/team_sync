@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/responsive/views/career_stats_view.dart';
 
 class CareerLeadersPage extends StatelessWidget {
-  final Database database;
   final Team team;
 
-  const CareerLeadersPage(
-      {required this.database, required this.team, super.key});
+  const CareerLeadersPage({required this.team, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +23,6 @@ class CareerLeadersPage extends StatelessWidget {
                   fontSize: 24,
                   fontWeight: FontWeight.bold)),
         ),
-        body: CareerStatsView(database: database, team: team));
+        body: CareerStatsView(team: team));
   }
 }

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class PlayersPage extends StatefulWidget {
-  final Database database;
   final Season season;
 
-  const PlayersPage({super.key, required this.database, required this.season});
+  const PlayersPage({super.key, required this.season});
 
   @override
   State<PlayersPage> createState() => _PlayersPageState();
@@ -79,7 +79,7 @@ class _PlayersPageState extends State<PlayersPage> {
                         );
                       },
                       onDismissed: (direction) async {
-                        await widget.database.delete('Players',
+                        await DatabaseService.instance.delete('Players',
                             where: 'id=? AND teamId=? AND seasonId=?',
                             whereArgs: [player.id, season.teamId, season.id]);
                         setState(() {});
@@ -103,7 +103,7 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   Future<Season> _loadSeasonPlayers() async {
-    await widget.season.load(widget.database);
+    await widget.season.load();
     return widget.season;
   }
 
@@ -152,20 +152,21 @@ class _PlayersPageState extends State<PlayersPage> {
                                     return;
                                   }
 
-                                  final rowId = await widget.database.insert(
-                                      'Players',
-                                      {
-                                        'id': player!.id,
-                                        'teamId': widget.season.teamId,
-                                        'seasonId': widget.season.id,
-                                        'firstName': player.firstName,
-                                        'lastName': player.lastName,
-                                        'number': player.number
-                                      },
-                                      conflictAlgorithm:
-                                          ConflictAlgorithm.replace);
+                                  final rowId = await DatabaseService.instance
+                                      .insert(
+                                          'Players',
+                                          {
+                                            'id': player.id,
+                                            'teamId': widget.season.teamId,
+                                            'seasonId': widget.season.id,
+                                            'firstName': player.firstName,
+                                            'lastName': player.lastName,
+                                            'number': player.number
+                                          },
+                                          conflictAlgorithm:
+                                              ConflictAlgorithm.replace);
 
-                                  await widget.database.update(
+                                  await DatabaseService.instance.update(
                                       'Players',
                                       {
                                         'id': rowId,

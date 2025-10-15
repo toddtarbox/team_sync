@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 
 enum ShotResult {
   goal,
@@ -494,11 +494,10 @@ class GameEvent {
         eventData: eventData);
   }
 
-  static Future<GameEvent> fromMap(
-      Database db, Map<String, dynamic> map) async {
-    final team = await Team.fromId(db, map['teamId']);
-    final player = await Player.fromId(db, map['playerId']);
-    final game = await Game.fromId(db, map['gameId']);
+  static Future<GameEvent> fromMap(Map<String, dynamic> map) async {
+    final team = await Team.fromId(map['teamId']);
+    final player = await Player.fromId(map['playerId']);
+    final game = await Game.fromId(map['gameId']);
 
     final eventType = map['eventType'];
     if (eventType == 'Period') {
@@ -624,14 +623,14 @@ class GameEvent {
         eventData: map['eventData']);
   }
 
-  static Future<List<GameEvent>> listFromGameId(Database db, int gameId) async {
-    final results = await db.query('Events',
+  static Future<List<GameEvent>> listFromGameId(int gameId) async {
+    final results = await DatabaseService.instance.query('Events',
         where: 'gameId=? AND teamId<>-1',
         whereArgs: [gameId],
         orderBy: 'id ASC');
 
     final events = await Future.wait(results
-        .map((g) async => await GameEvent.fromMap(db, g))
+        .map((g) async => await GameEvent.fromMap(g))
         .toList(growable: false));
 
     return events;

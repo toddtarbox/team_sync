@@ -1,16 +1,13 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/team.dart';
 
 class HistoryVersusView extends StatefulWidget {
-  final Database database;
   final Team team;
 
-  const HistoryVersusView(
-      {super.key, required this.database, required this.team});
+  const HistoryVersusView({super.key, required this.team});
 
   @override
   State<HistoryVersusView> createState() => _HistoryVersusViewState();
@@ -60,8 +57,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                             });
 
                         await Future.wait(games
-                            .map((g) async =>
-                                await g.loadGameEvents(widget.database))
+                            .map((g) async => await g.loadGameEvents())
                             .toList(growable: false));
 
                         // Dismiss the dialog
@@ -117,8 +113,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
   }
 
   Future<SplayTreeMap<Team, List<Game>>?> _loadHistory() async {
-    final allGames =
-        await widget.team.getGameHistory(widget.database, widget.team.id);
+    final allGames = await widget.team.getGameHistory(widget.team.id);
 
     final gameHistory = SplayTreeMap<Team, List<Game>>(
         (a, b) => a.fullName.compareTo(b.fullName));

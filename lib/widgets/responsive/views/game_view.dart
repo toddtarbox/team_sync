@@ -8,17 +8,16 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:twitter_api_v2/twitter_api_v2.dart';
 
 class GameView extends StatefulWidget {
-  final Database database;
   final Season season;
   final Game game;
   final EventEmitter eventEmitter;
 
   const GameView(
       {super.key,
-      required this.database,
       required this.season,
       required this.game,
       required this.eventEmitter});
@@ -222,10 +221,10 @@ class _GameViewState extends State<GameView> {
           );
         },
         onDismissed: (direction) async {
-          await widget.database
+          await DatabaseService.instance
               .delete('Events', where: 'id=?', whereArgs: [event.id]);
           setState(() {
-            _game.updateScore(widget.database);
+            _game.updateScore();
           });
         },
         child: ListTile(
@@ -251,7 +250,7 @@ class _GameViewState extends State<GameView> {
   }
 
   Future<List<GameEvent>> _loadGameEvents() async {
-    return await _game.loadGameEvents(widget.database);
+    return await _game.loadGameEvents();
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
@@ -284,10 +283,10 @@ class _GameViewState extends State<GameView> {
         .map((t) => DropdownMenuEntry<String>(value: t, label: t))
         .toList(growable: false);
 
-    List<Player> awayTeamPlayers = await Player.listFromTeamIdSeasonId(
-        widget.database, _game.awayTeam.id, _game.seasonId);
-    List<Player> homeTeamPlayers = await Player.listFromTeamIdSeasonId(
-        widget.database, _game.homeTeam.id, _game.seasonId);
+    List<Player> awayTeamPlayers =
+        await Player.listFromTeamIdSeasonId(_game.awayTeam.id, _game.seasonId);
+    List<Player> homeTeamPlayers =
+        await Player.listFromTeamIdSeasonId(_game.homeTeam.id, _game.seasonId);
 
     event ??= GameEvent.initial(
         team: event?.team ?? _game.awayTeam,
@@ -562,7 +561,7 @@ class _GameViewState extends State<GameView> {
   }
 
   Future<void> _advanceGame() async {
-    await _game.advanceGame(widget.database);
+    await _game.advanceGame();
 
     final periodEvent = Period(
         id: -1,
@@ -588,7 +587,7 @@ class _GameViewState extends State<GameView> {
     }
 
     if (event.eventPeriod >= 0) {
-      await widget.database.insert(
+      await DatabaseService.instance.insert(
           'Events',
           {
             'id': event.id == -1 ? null : event.id,
@@ -606,7 +605,7 @@ class _GameViewState extends State<GameView> {
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
 
-      await _game.updateScore(widget.database);
+      await _game.updateScore();
 
       try {
         if (event.shouldTweet) {

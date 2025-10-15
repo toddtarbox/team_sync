@@ -48,6 +48,7 @@ dependencies:
   equatable: ^2.0.7
   flutter_secure_storage: ^9.2.4
   file_picker: ^10.3.3
+  cloud_firestore: ^6.0.3
 
 dev_dependencies:
   flutter_test:

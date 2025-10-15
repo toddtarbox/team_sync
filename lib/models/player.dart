@@ -1,4 +1,4 @@
-import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class Player {
   final int id;
@@ -40,8 +40,9 @@ class Player {
         number: map['number']);
   }
 
-  static Future<Player?> fromId(Database db, int id) async {
-    final results = await db.query('Players', where: 'id=?', whereArgs: [id]);
+  static Future<Player?> fromId(int id) async {
+    final results = await DatabaseService.instance
+        .query('Players', where: 'id=?', whereArgs: [id]);
     if (results.isNotEmpty) {
       return Player.fromMap(results.first);
     } else {
@@ -50,8 +51,8 @@ class Player {
   }
 
   static Future<List<Player>> listFromTeamIdSeasonId(
-      Database db, int teamId, int seasonId) async {
-    final results = await db.query('Players',
+      int teamId, int seasonId) async {
+    final results = await DatabaseService.instance.query('Players',
         where: 'teamId=? AND seasonId=?', whereArgs: [teamId, seasonId]);
 
     final players =

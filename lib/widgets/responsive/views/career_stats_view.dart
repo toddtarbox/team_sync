@@ -1,16 +1,13 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
 
 class CareerStatsView extends StatefulWidget {
-  final Database database;
   final Team team;
 
-  const CareerStatsView(
-      {super.key, required this.database, required this.team});
+  const CareerStatsView({super.key, required this.team});
 
   @override
   State<CareerStatsView> createState() => _CareerStatsViewState();
@@ -38,8 +35,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
               return ListTile(
                   title: GestureDetector(
                       onTap: () async {
-                        final stat = await stats.getStatPlayers(
-                            widget.database, category);
+                        final stat = await stats.getStatPlayers(category);
                         if (stat.isNotEmpty) {
                           final sortedStats = List.from(stat.entries);
                           sortedStats
@@ -87,6 +83,6 @@ class _CareerStatsViewState extends State<CareerStatsView> {
   }
 
   Future<CareerStats?> _loadCareerStats() async {
-    return await widget.team.getCareerStats(widget.database, widget.team.id);
+    return await widget.team.getCareerStats(widget.team.id);
   }
 }

@@ -1,6 +1,5 @@
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
@@ -8,15 +7,10 @@ import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 
 class TabletGamePage extends StatefulWidget {
-  final Database database;
   final Season season;
   final Game game;
 
-  const TabletGamePage(
-      {super.key,
-      required this.database,
-      required this.season,
-      required this.game});
+  const TabletGamePage({super.key, required this.season, required this.game});
 
   @override
   State<TabletGamePage> createState() => _TabletGamePageState();
@@ -39,16 +33,10 @@ class _TabletGamePageState extends State<TabletGamePage> {
     final width = MediaQuery.of(context).size.width;
 
     final gameView = GameView(
-        database: widget.database,
-        season: widget.season,
-        game: _game,
-        eventEmitter: _eventEmitter);
+        season: widget.season, game: _game, eventEmitter: _eventEmitter);
 
     final gameStatsView = GameStatsView(
-        database: widget.database,
-        season: widget.season,
-        game: _game,
-        eventEmitter: _eventEmitter);
+        season: widget.season, game: _game, eventEmitter: _eventEmitter);
 
     return Scaffold(
         appBar: AppBar(
@@ -162,7 +150,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                             });
 
                         if (selectedStatus != null) {
-                          _game.endGame(widget.database, selectedStatus);
+                          _game.endGame(selectedStatus);
                           setState(() {});
                         }
                       },

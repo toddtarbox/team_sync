@@ -1,7 +1,6 @@
 import 'dart:collection';
 import 'dart:core';
 
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 
@@ -377,8 +376,7 @@ class SeasonStats {
     }
   }
 
-  Future<HashMap<Player, int>> getStatPlayers(
-      Database db, LeaderCategory category) async {
+  Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
     HashMap<int, int> sourceTable;
     final HashMap<Player, int> players = HashMap<Player, int>();
 
@@ -442,7 +440,7 @@ class SeasonStats {
 
     for (int playerId in sourceTable.keys) {
       if (playerId != -1) {
-        Player? player = await Player.fromId(db, playerId);
+        Player? player = await Player.fromId(playerId);
         if (player != null) {
           players[player] = sourceTable[playerId] ?? 0;
         }

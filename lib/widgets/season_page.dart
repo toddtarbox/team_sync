@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/players_page.dart';
@@ -15,10 +15,9 @@ import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 
 class SeasonPage extends StatefulWidget {
-  final Database database;
   final Season season;
 
-  const SeasonPage({super.key, required this.database, required this.season});
+  const SeasonPage({super.key, required this.season});
 
   @override
   State<SeasonPage> createState() => _SeasonPageState();
@@ -53,8 +52,8 @@ class _SeasonPageState extends State<SeasonPage> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => SeasonStatsPage(
-                        database: widget.database, season: widget.season),
+                    builder: (context) =>
+                        SeasonStatsPage(season: widget.season),
                   ),
                 );
               },
@@ -65,8 +64,7 @@ class _SeasonPageState extends State<SeasonPage> {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => PlayersPage(
-                        database: widget.database, season: widget.season),
+                    builder: (context) => PlayersPage(season: widget.season),
                   ),
                 );
               },
@@ -155,7 +153,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                   );
                                 },
                                 onDismissed: (direction) async {
-                                  await widget.database.delete('Games',
+                                  await DatabaseService.instance.delete('Games',
                                       where: 'id=?', whereArgs: [game.id]);
                                   setState(() {});
                                 },
@@ -184,7 +182,7 @@ class _SeasonPageState extends State<SeasonPage> {
   }
 
   Future<Season> _loadSeason() async {
-    await widget.season.load(widget.database);
+    await widget.season.load();
     return widget.season;
   }
 
@@ -273,11 +271,9 @@ class _SeasonPageState extends State<SeasonPage> {
                               isHomeTeam ? game.awayTeam.id : game.homeTeam.id,
                           onSelected: (teamId) async {
                             if (location == 0) {
-                              game!.awayTeam =
-                                  await Team.fromId(widget.database, teamId!);
+                              game!.awayTeam = await Team.fromId(teamId!);
                             } else {
-                              game!.homeTeam =
-                                  await Team.fromId(widget.database, teamId!);
+                              game!.homeTeam = await Team.fromId(teamId!);
                             }
 
                             setModalState(() {
@@ -345,7 +341,7 @@ class _SeasonPageState extends State<SeasonPage> {
                             canSave
                                 ? GestureDetector(
                                     onTap: () async {
-                                      await game!.saveGame(widget.database);
+                                      await game!.saveGame();
 
                                       if (mounted) {
                                         Navigator.pop(context);
@@ -371,15 +367,15 @@ class _SeasonPageState extends State<SeasonPage> {
     if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => TabletGamePage(
-              database: widget.database, season: widget.season, game: game!),
+          builder: (context) =>
+              TabletGamePage(season: widget.season, game: game),
         ),
       );
     } else {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => MobileGamePage(
-              database: widget.database, season: widget.season, game: game!),
+          builder: (context) =>
+              MobileGamePage(season: widget.season, game: game),
         ),
       );
     }
@@ -442,11 +438,11 @@ class _SeasonPageState extends State<SeasonPage> {
   Future<void> _saveTeam(String teamName, String teamShortName,
       {Color color1 = Colors.transparent,
       Color color2 = Colors.transparent}) async {
-    await widget.database!.insert('Teams', {
+    await DatabaseService.instance.insert('Teams', {
       'fullName': teamName,
       'shortName': teamShortName,
-      'color1': color1.toARGB32(),
-      'color2': color2.toARGB32()
+      'color1': color1.value,
+      'color2': color2.value
     });
   }
 }

@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class Team extends Equatable {
   final int id;
@@ -16,29 +16,30 @@ class Team extends Equatable {
         id: map['id'], fullName: map['fullName'], shortName: map['shortName']);
   }
 
-  static Future<Team> fromId(Database db, int id) async {
-    final results = await db.query('Teams', where: 'id=?', whereArgs: [id]);
+  static Future<Team> fromId(int id) async {
+    final results = await DatabaseService.instance
+        .query('Teams', where: 'id=?', whereArgs: [id]);
     return Team.fromMap(results.first);
   }
 
-  static Future<List<Team>> all(Database db) async {
-    final results = await db.query('Teams');
+  static Future<List<Team>> all() async {
+    final results = await DatabaseService.instance.query('Teams');
     return results.map((t) => Team.fromMap(t)).toList(growable: false);
   }
 
-  Future<CareerStats?> getCareerStats(Database db, int teamId) async {
+  Future<CareerStats?> getCareerStats(int teamId) async {
     try {
-      final results =
-          await db.query('Events', where: 'teamId=?', whereArgs: [teamId]);
+      final results = await DatabaseService.instance
+          .query('Events', where: 'teamId=?', whereArgs: [teamId]);
       return CareerStats.fromMap(id, results);
     } catch (ex) {
       return null;
     }
   }
 
-  Future<List<Game>> getGameHistory(Database db, int teamId) async {
+  Future<List<Game>> getGameHistory(int teamId) async {
     try {
-      return Game.listFromTeamId(db, teamId);
+      return Game.listFromTeamId(teamId);
     } catch (ex) {
       return [];
     }

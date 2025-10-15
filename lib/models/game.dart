@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class GameStat {
   final String name;
@@ -186,14 +187,14 @@ class Game {
         awayKeeper: Player.initial(teamId: awayTeam.id, seasonId: seasonId));
   }
 
-  static Future<Game> fromMap(Database db, Map<String, dynamic> map) async {
+  static Future<Game> fromMap(Map<String, dynamic> map) async {
     final date = DateFormat('MM.dd.yyyy').parse(map['date']);
 
-    final homeTeam = await Team.fromId(db, map['homeTeamId']);
-    final awayTeam = await Team.fromId(db, map['awayTeamId']);
+    final homeTeam = await Team.fromId(map['homeTeamId']);
+    final awayTeam = await Team.fromId(map['awayTeamId']);
 
-    final homeTeamKeeper = await Player.fromId(db, map['homeKeeperId']);
-    final awayTeamKeeper = await Player.fromId(db, map['awayKeeperId']);
+    final homeTeamKeeper = await Player.fromId(map['homeKeeperId']);
+    final awayTeamKeeper = await Player.fromId(map['awayKeeperId']);
 
     return Game(
         id: map['id'],
@@ -209,41 +210,42 @@ class Game {
         awayKeeper: awayTeamKeeper);
   }
 
-  static Future<Game?> fromId(Database db, int id) async {
-    final results = await db.query('Games', where: 'id=?', whereArgs: [id]);
+  static Future<Game?> fromId(int id) async {
+    final results = await DatabaseService.instance
+        .query('Games', where: 'id=?', whereArgs: [id]);
     if (results.isNotEmpty) {
-      return Game.fromMap(db, results.first);
+      return Game.fromMap(results.first);
     } else {
       return null;
     }
   }
 
-  static Future<List<Game>> listFromSeasonId(Database db, int seasonId) async {
-    final results =
-        await db.query('Games', where: 'seasonId=?', whereArgs: [seasonId]);
+  static Future<List<Game>> listFromSeasonId(int seasonId) async {
+    final results = await DatabaseService.instance
+        .query('Games', where: 'seasonId=?', whereArgs: [seasonId]);
 
     final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(db, g))
+        .map((g) async => await Game.fromMap(g))
         .toList(growable: false));
     games.sort((a, b) => a.date.compareTo(b.date));
 
     return games;
   }
 
-  static Future<List<Game>> listFromTeamId(Database db, int teamId) async {
-    final results = await db.query('Games',
+  static Future<List<Game>> listFromTeamId(int teamId) async {
+    final results = await DatabaseService.instance.query('Games',
         where: 'homeTeamId=? OR awayTeamId=?', whereArgs: [teamId, teamId]);
 
     final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(db, g))
+        .map((g) async => await Game.fromMap(g))
         .toList(growable: false));
     games.sort((a, b) => a.date.compareTo(b.date));
 
     return games;
   }
 
-  Future<List<GameEvent>> loadGameEvents(Database db) async {
-    allGameEvents = await GameEvent.listFromGameId(db, id);
+  Future<List<GameEvent>> loadGameEvents() async {
+    allGameEvents = await GameEvent.listFromGameId(id);
     scoringEvents = allGameEvents
         .where((e) =>
             e.eventMinute > -2 &&
@@ -262,32 +264,32 @@ class Game {
     return allGameEvents;
   }
 
-  Future<void> updateScore(Database db) async {
-    await loadGameEvents(db);
+  Future<void> updateScore() async {
+    await loadGameEvents();
     awayTeamScore = scoringEvents.where((e) => e.team.id == awayTeam.id).length;
     homeTeamScore = scoringEvents.where((e) => e.team.id == homeTeam.id).length;
 
-    saveGame(db);
+    saveGame();
   }
 
-  Future<void> advanceGame(Database db) async {
+  Future<void> advanceGame() async {
     final newIndex = gameStatus.index + 1;
     if (newIndex < 9) {
       gameStatus = GameStatus.fromString((newIndex).toString());
-      saveGame(db);
+      saveGame();
     }
   }
 
-  Future<void> endGame(Database db, int status) async {
+  Future<void> endGame(int status) async {
     gameStatus = GameStatus.fromString(status.toString());
-    saveGame(db);
+    saveGame();
   }
 
-  Future<bool> saveGame(Database db) async {
+  Future<bool> saveGame() async {
     if (homeTeam.id > 0 && awayTeam.id > 0) {
       final saveFormat = DateFormat('MM.dd.yyyy');
 
-      await db.insert(
+      await DatabaseService.instance.insert(
           'Games',
           {
             'id': id == -1 ? null : id,
@@ -309,8 +311,8 @@ class Game {
     return false;
   }
 
-  Future<GameStat> getStats(Database db, String name, String dialogName,
-      String category, List<int> data, int teamId) async {
+  Future<GameStat> getStats(String name, String dialogName, String category,
+      List<int> data, int teamId) async {
     GameStat stat;
     if (!data.contains(-1)) {
       int teamStat = allGameEvents
@@ -337,7 +339,7 @@ class Game {
           .toSet();
       for (final id in playerSet) {
         if (id != null && id != -1) {
-          final player = await Player.fromId(db, id);
+          final player = await Player.fromId(id);
           stat.playerStats[player!] = allGameEvents
               .where((e) =>
                   e.player?.id == id &&
@@ -371,7 +373,7 @@ class Game {
           .toSet();
       for (final id in playerSet) {
         if (id != null && id != -1) {
-          final player = await Player.fromId(db, id);
+          final player = await Player.fromId(id);
           stat.playerStats[player!] = allGameEvents
               .where((e) =>
                   e.player?.id == id &&

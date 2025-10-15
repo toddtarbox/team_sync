@@ -1,15 +1,12 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 
 class SeasonStatsView extends StatefulWidget {
-  final Database database;
   final Season season;
 
-  const SeasonStatsView(
-      {super.key, required this.database, required this.season});
+  const SeasonStatsView({super.key, required this.season});
 
   @override
   State<SeasonStatsView> createState() => _SeasonStatsViewState();
@@ -42,8 +39,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                             fontSize: 24))),
                 leading: GestureDetector(
                     onTap: () async {
-                      final stat =
-                          await stats.getStatPlayers(widget.database, category);
+                      final stat = await stats.getStatPlayers(category);
                       if (stat.isNotEmpty) {
                         final sortedStats = List.from(stat.entries);
                         sortedStats.sort((a, b) => b.value.compareTo(a.value));
@@ -126,6 +122,6 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }
 
   Future<SeasonStats?> _loadSeasonStats() async {
-    return await widget.season.getSeasonStats(widget.database);
+    return await widget.season.getSeasonStats();
   }
 }

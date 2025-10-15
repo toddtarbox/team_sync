@@ -1,6 +1,5 @@
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
@@ -8,15 +7,10 @@ import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 
 class MobileGamePage extends StatefulWidget {
-  final Database database;
   final Season season;
   final Game game;
 
-  const MobileGamePage(
-      {super.key,
-      required this.database,
-      required this.season,
-      required this.game});
+  const MobileGamePage({super.key, required this.season, required this.game});
 
   @override
   State<MobileGamePage> createState() => _MobileGamePageState();
@@ -53,9 +47,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       onTap: () {
                         Navigator.of(context).push(MaterialPageRoute(
                             builder: (context) => MobileGameStatsPage(
-                                database: widget.database,
-                                season: widget.season,
-                                game: widget.game)));
+                                season: widget.season, game: widget.game)));
                       },
                       child: const Padding(
                           padding: EdgeInsets.all(5),
@@ -157,7 +149,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                             });
 
                         if (selectedStatus != null) {
-                          widget.game.endGame(widget.database, selectedStatus);
+                          widget.game.endGame(selectedStatus);
                           setState(() {});
                         }
                       },
@@ -171,9 +163,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       onTap: () {
                         Navigator.of(context).push(MaterialPageRoute(
                             builder: (context) => MobileGameStatsPage(
-                                database: widget.database,
-                                season: widget.season,
-                                game: widget.game)));
+                                season: widget.season, game: widget.game)));
                       },
                       child: const Padding(
                           padding: EdgeInsets.only(right: 10),
@@ -224,7 +214,6 @@ class _MobileGamePageState extends State<MobileGamePage> {
               _eventEmitter.emit('createEvent');
             }),
         body: GameView(
-            database: widget.database,
             season: widget.season,
             game: widget.game,
             eventEmitter: _eventEmitter));

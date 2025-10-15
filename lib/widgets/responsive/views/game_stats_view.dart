@@ -1,19 +1,16 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 
 class GameStatsView extends StatefulWidget {
-  final Database database;
   final Season season;
   final Game game;
   final EventEmitter eventEmitter;
 
   const GameStatsView(
       {super.key,
-      required this.database,
       required this.season,
       required this.game,
       required this.eventEmitter});
@@ -205,7 +202,7 @@ class _GameStatsViewState extends State<GameStatsView> {
   }
 
   Future<List<GameStat>> _loadStats() async {
-    await _game.loadGameEvents(widget.database);
+    await _game.loadGameEvents();
 
     return Future.wait([
       {
@@ -288,7 +285,6 @@ class _GameStatsViewState extends State<GameStatsView> {
       }
     ].map((stat) async {
       return await _game.getStats(
-          widget.database,
           stat['name'].toString(),
           stat['dialogName'].toString(),
           stat['category'].toString(),

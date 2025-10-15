@@ -4,9 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/career_stats_page.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
@@ -22,14 +22,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Database? _database;
   Team? _team;
   List<Season> _seasons = [];
 
   @override
   void initState() {
     super.initState();
-
     _load().then((_) {
       setState(() {});
     });
@@ -38,7 +36,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
         title: const Text('Soccer Analytics',
             style: TextStyle(
@@ -48,11 +46,12 @@ class _HomePageState extends State<HomePage> {
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
-                visible: _database != null || _team != null,
+                visible:
+                    DatabaseService.instance.path.isNotEmpty || _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                        '${_team?.fullName ?? ''} (${_database?.path.split('/').last ?? ''})',
+                        '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 24))))),
         actions: [
@@ -63,8 +62,7 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) =>
-                            CareerStatsPage(database: _database!, team: _team!),
+                        builder: (context) => CareerStatsPage(team: _team!),
                       ),
                     );
                   },
@@ -76,8 +74,7 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => HistoryVersusPage(
-                            database: _database!, team: _team!),
+                        builder: (context) => HistoryVersusPage(team: _team!),
                       ),
                     );
                   },
@@ -107,7 +104,7 @@ class _HomePageState extends State<HomePage> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else {
-            if (_database == null) {
+            if (DatabaseService.instance.path.isEmpty) {
               return const Center(
                   child: Text('Please create or open a database',
                       style: TextStyle(fontSize: 24)));
@@ -202,17 +199,18 @@ class _HomePageState extends State<HomePage> {
                                   );
                                 },
                                 onDismissed: (direction) async {
-                                  await _database!.delete('Seasons',
-                                      where: 'id=?', whereArgs: [season.id]);
+                                  await DatabaseService.instance.delete(
+                                      'Seasons',
+                                      where: 'id=?',
+                                      whereArgs: [season.id]);
                                   setState(() {});
                                 },
                                 child: GestureDetector(
                                     onTap: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (context) => SeasonPage(
-                                              database: _database!,
-                                              season: season),
+                                          builder: (context) =>
+                                              SeasonPage(season: season),
                                         ),
                                       );
                                     },
@@ -276,7 +274,7 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             Visibility(
-                visible: _database != null,
+                visible: DatabaseService.instance.path.isNotEmpty,
                 child: ListTile(
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
@@ -289,7 +287,8 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
             Visibility(
-                visible: _database != null && _team == null,
+                visible:
+                    DatabaseService.instance.path.isNotEmpty && _team == null,
                 child: ListTile(
                   leading: Icon(Icons.plus_one_rounded,
                       color: Theme.of(context).colorScheme.secondary),
@@ -339,8 +338,8 @@ class _HomePageState extends State<HomePage> {
         break;
       case 'exportDB':
         await FilePicker.platform.saveFile(
-            fileName: _database!.path.split('/').last,
-            bytes: File(_database!.path).readAsBytesSync());
+            fileName: DatabaseService.instance.path.split('/').last,
+            bytes: File(DatabaseService.instance.path).readAsBytesSync());
         break;
       case 'team':
         _createTeam();
@@ -411,10 +410,10 @@ class _HomePageState extends State<HomePage> {
           databasePath += '.db';
         }
 
-        _database = await openDatabase(databasePath,
-            version: 1, onCreate: _createDatabaseFile);
+        await DatabaseService.instance.open(databasePath);
 
-        final teamResult = await _database!.query('Teams', where: 'id=1');
+        final teamResult =
+            await DatabaseService.instance.query('Teams', where: 'id=1');
         if (teamResult.isNotEmpty) {
           _team = Team.fromMap(teamResult.first);
           await _loadSeasons();
@@ -430,7 +429,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    if (_database == null) {
+    if (DatabaseService.instance.path.isEmpty) {
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used_path');
       if (lastDBUsed == null) {
@@ -444,13 +443,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadSeasons() async {
-    if (_database == null) {
+    if (DatabaseService.instance.path.isEmpty) {
       return;
     }
 
-    final results = await _database!.query('Seasons', orderBy: 'name DESC');
+    final results =
+        await DatabaseService.instance.query('Seasons', orderBy: 'name DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList(growable: false);
-    await Future.wait(_seasons.map((s) async => await s.load(_database!)));
+    await Future.wait(_seasons.map((s) async => await s.load()));
   }
 
   Future<String?> _pickLocation() async {
@@ -558,14 +558,14 @@ class _HomePageState extends State<HomePage> {
   Future<Team> _saveTeam(String teamName, String teamShortName,
       {Color color1 = Colors.transparent,
       Color color2 = Colors.transparent}) async {
-    final teamId = await _database!.insert('Teams', {
+    final teamId = await DatabaseService.instance.insert('Teams', {
       'fullName': teamName,
       'shortName': teamShortName,
-      'color1': color1.toARGB32(),
-      'color2': color2.toARGB32()
+      'color1': color1.value,
+      'color2': color2.value
     });
 
-    return await Team.fromId(_database!, teamId);
+    return await Team.fromId(teamId);
   }
 
   Future<void> _createSeason() async {
@@ -591,7 +591,7 @@ class _HomePageState extends State<HomePage> {
                               child: const Text('Save',
                                   style: TextStyle(fontSize: 20)),
                               onPressed: () async {
-                                await _database!.insert('Seasons',
+                                await DatabaseService.instance.insert('Seasons',
                                     {'name': seasonName, 'teamId': _team!.id});
 
                                 await _loadSeasons();
@@ -608,59 +608,5 @@ class _HomePageState extends State<HomePage> {
                         ])
                   ])));
         });
-  }
-
-  Future<void> _createDatabaseFile(Database db, int version) async {
-    await db.execute('''
-    CREATE TABLE Teams (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      shortName TEXT NOT NULL
-    )
-  ''');
-
-    await db.execute('''
-    CREATE TABLE Seasons (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      teamId INTEGER NOT NULL,
-      FOREIGN KEY (teamId) REFERENCES Teams (id) ON DELETE CASCADE
-    )
-  ''');
-
-    await db.execute('''
-    CREATE TABLE Players (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      number INTEGER
-    )
-  ''');
-
-    await db.execute('''
-    CREATE TABLE Games (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      seasonId INTEGER NOT NULL,
-      date TEXT NOT NULL,
-      opponent TEXT NOT NULL,
-      isHomeGame INTEGER NOT NULL,
-      goalsFor INTEGER,
-      goalsAgainst INTEGER,
-      notes TEXT,
-      FOREIGN KEY (seasonId) REFERENCES Seasons (id) ON DELETE CASCADE
-    )
-  ''');
-
-    await db.execute('''
-    CREATE TABLE GameStats (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      gameId INTEGER NOT NULL,
-      playerId INTEGER NOT NULL,
-      goals INTEGER,
-      assists INTEGER,
-      saves INTEGER,
-      FOREIGN KEY (gameId) REFERENCES Games (id) ON DELETE CASCADE,
-      FOREIGN KEY (playerId) REFERENCES Players (id) ON DELETE CASCADE
-    )
-  ''');
   }
 }
