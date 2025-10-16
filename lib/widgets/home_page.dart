@@ -293,23 +293,21 @@ class _HomePageState extends State<HomePage> {
                     _handleSelection(context, 'existingCloudDatabase');
                   },
                 )),
-            Visibility(
-                visible: !_isSubscribed,
-                child: ListTile(
-                  leading: Icon(Icons.folder_open,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Open Existing Local Database'),
-                  onTap: () {
-                    // Close the bottom sheet first
-                    Navigator.of(builderContext).pop();
-                    // Then perform the action and show feedback
-                    _handleSelection(context, 'existingLocalDatabase');
-                  },
-                )),
+            ListTile(
+              leading: Icon(Icons.folder_open,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: const Text('Open Existing Local Database'),
+              onTap: () {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                _handleSelection(context, 'existingLocalDatabase');
+              },
+            ),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
-                  leading: Icon(Icons.cloud_upload_rounded,
+                  leading: Icon(Icons.cloud_rounded,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create New Cloud Database'),
                   onTap: () {
@@ -320,25 +318,38 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
             Visibility(
-                visible: !_isSubscribed,
+                visible: _isSubscribed,
                 child: ListTile(
-                  leading: Icon(Icons.storage_rounded,
+                  leading: Icon(Icons.cloud_upload_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Create New Local Database'),
+                  title: const Text(
+                      'Convert a Local Database to a Cloud Database'),
                   onTap: () {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'newLocalDatabase');
+                    _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
+            ListTile(
+              leading: Icon(Icons.storage_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: const Text('Create New Local Database'),
+              onTap: () {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                _handleSelection(context, 'newLocalDatabase');
+              },
+            ),
             Visibility(
-                visible:
-                    !_isSubscribed && DatabaseService.instance.path.isNotEmpty,
+                visible: !_isSubscribed &&
+                    DatabaseService.instance.path.isNotEmpty &&
+                    DatabaseService.instance.isLocalDatabase,
                 child: ListTile(
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Export Current Database'),
+                  title: const Text('Backup Current Local Database'),
                   onTap: () {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -383,11 +394,21 @@ class _HomePageState extends State<HomePage> {
   Future<void> _handleSelection(BuildContext context, String option) async {
     switch (option) {
       case 'existingCloudDatabase':
+        if (DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(FirebaseDBProvider());
+        }
+
         if (await _pickCloudDatabase()) {
           await _openDatabase();
         }
         return;
       case 'existingLocalDatabase':
+        if (!DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(LocalDatabaseProvider());
+        }
+
         final existingDB = await _pickFile();
         if (existingDB != null) {
           const storage = FlutterSecureStorage();
@@ -396,9 +417,34 @@ class _HomePageState extends State<HomePage> {
         }
         return;
       case 'newCloudDatabase':
+        if (DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(FirebaseDBProvider());
+        }
+
         await _createDatabase();
         break;
+      case 'importCloudDatabase':
+        if (DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(FirebaseDBProvider());
+        }
+
+        final existingDB = await _pickFile();
+        if (existingDB != null) {
+          final dbName = existingDB.split('/').last;
+          await DatabaseService.instance.importLocalToCloud(existingDB, dbName);
+          const storage = FlutterSecureStorage();
+          await storage.write(key: 'last_db_used_path', value: dbName);
+          await _openDatabase();
+        }
+        break;
       case 'newLocalDatabase':
+        if (!DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(LocalDatabaseProvider());
+        }
+
         final saveDir = await _pickLocation();
         if (saveDir != null) {
           await _createDatabase(saveDir: saveDir);
@@ -486,8 +532,8 @@ class _HomePageState extends State<HomePage> {
 
         await DatabaseService.instance.open(databasePath);
 
-        final teamResult =
-            await DatabaseService.instance.query('Teams', where: 'id=1');
+        final teamResult = await DatabaseService.instance
+            .query('Teams', where: 'id=?', whereArgs: [1]);
         if (teamResult.isNotEmpty) {
           _team = Team.fromMap(teamResult.first);
           await _loadSeasons();

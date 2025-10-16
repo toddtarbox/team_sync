@@ -43,56 +43,45 @@ class LocalDatabaseProvider implements DatabaseProvider {
   Future<void> open(String path) async {
     _database =
         await openDatabase(path, version: 1, onCreate: (db, version) async {
-      await db.execute('''
-    CREATE TABLE Teams (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      shortName TEXT NOT NULL
-    )
-  ''');
-      await db.execute('''
-    CREATE TABLE Seasons (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      teamId INTEGER NOT NULL,
-      FOREIGN KEY (teamId) REFERENCES Teams (id) ON DELETE CASCADE
-    )
-  ''');
+      db.execute(
+          "create table Seasons (id integer primary key autoincrement, " +
+              "name text not null, " +
+              "teamId integer not null);");
 
-      await db.execute('''
-    CREATE TABLE Players (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      number INTEGER
-    )
-  ''');
+      db.execute("create table Teams (id integer primary key autoincrement, " +
+          "fullName text not null, " +
+          "shortName text not null, " +
+          "color1 integer not null, " +
+          "color2 integer not null);");
 
-      await db.execute('''
-    CREATE TABLE Games (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      seasonId INTEGER NOT NULL,
-      date TEXT NOT NULL,
-      opponent TEXT NOT NULL,
-      isHomeGame INTEGER NOT NULL,
-      goalsFor INTEGER,
-      goalsAgainst INTEGER,
-      notes TEXT,
-      FOREIGN KEY (seasonId) REFERENCES Seasons (id) ON DELETE CASCADE
-    )
-  ''');
+      db.execute("create table Games (id integer primary key autoincrement, " +
+          "seasonId integer not null, " +
+          "homeTeamId integer not null, " +
+          "awayTeamId integer not null, " +
+          "homeTeamScore integer not null, " +
+          "awayTeamScore integer not null, " +
+          "date text not null, " +
+          "gameStatus text not null, " +
+          "milliSecondsLeft long not null);");
 
-      await db.execute('''
-    CREATE TABLE GameStats (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      gameId INTEGER NOT NULL,
-      playerId INTEGER NOT NULL,
-      goals INTEGER,
-      assists INTEGER,
-      saves INTEGER,
-      FOREIGN KEY (gameId) REFERENCES Games (id) ON DELETE CASCADE,
-      FOREIGN KEY (playerId) REFERENCES Players (id) ON DELETE CASCADE
-    )
-  ''');
+      db.execute("create table Players (id integer not null, " +
+          "teamId integer not null, " +
+          "seasonId integer not null, " +
+          "firstName string not null, " +
+          "lastName string not null, " +
+          "number integer not null, primary key(id, teamId, seasonId));");
+
+      db.execute("create table Events (id integer primary key autoincrement, " +
+          "playerId integer not null, " +
+          "teamId integer not null, " +
+          "gameId integer not null, " +
+          "seasonId integer not null, " +
+          "eventType text not null, " +
+          "eventLocation text not null, " +
+          "eventMinute integer not null, " +
+          "eventPeriod integer not null, " +
+          "eventData integer not null, " +
+          "eventTextData text);");
     });
   }
 
@@ -183,14 +172,22 @@ class FirebaseDBProvider implements DatabaseProvider {
   Future<List<Map<String, dynamic>>> query(String table,
       {String? where, List<dynamic>? whereArgs, String? orderBy}) async {
     Query q = _dbDocumentSnapshot.reference.collection(table);
-    if (where != null && whereArgs != null) {
-      q = q.where(where.replaceAll('=?', ''), isEqualTo: whereArgs.first);
+    if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
+      final fields = where.split(' AND ');
+      int index = 0;
+
+      for (var arg in whereArgs) {
+        final field = fields[index++].replaceAll('=?', '');
+        q = q.where(field, isEqualTo: arg);
+      }
     }
+
     if (orderBy != null) {
       if (orderBy.contains('DESC')) {
         orderBy = orderBy.replaceAll('DESC', '').trim();
         q = q.orderBy(orderBy, descending: true);
       } else {
+        orderBy = orderBy.replaceAll('ASC', '').trim();
         q = q.orderBy(orderBy);
       }
     }
@@ -205,15 +202,25 @@ class FirebaseDBProvider implements DatabaseProvider {
       {ConflictAlgorithm? conflictAlgorithm}) async {
     final collectionRef = _dbDocumentSnapshot.reference.collection(table);
 
-    AggregateQuery aggregateQuery = collectionRef.count();
-    AggregateQuerySnapshot snapshot = await aggregateQuery.get();
-    int existingRows = snapshot.count ?? 0;
-    existingRows++;
+    // For importing data, we must preserve the original ID.
+    // We check if the incoming data already has an ID.
+    if (data.containsKey('id') && data['id'] != null) {
+      final id = data['id'];
+      // Use the existing ID as the document ID in Firestore.
+      // .set() will create or overwrite the document, which is perfect for an import.
+      await collectionRef.doc(id.toString()).set(data);
+      return id;
+    } else {
+      AggregateQuery aggregateQuery = collectionRef.count();
+      AggregateQuerySnapshot snapshot = await aggregateQuery.get();
+      int existingRows = snapshot.count ?? 0;
+      existingRows++;
 
-    data['id'] = existingRows;
-    await collectionRef.doc(existingRows.toString()).set(data);
+      data['id'] = existingRows;
+      await collectionRef.doc(existingRows.toString()).set(data);
 
-    return existingRows;
+      return existingRows;
+    }
   }
 
   @override
@@ -254,7 +261,7 @@ class DatabaseService {
   // The internal provider for database operations.
   late DatabaseProvider _provider;
 
-  // Factory constructor is not needed for this singleton pattern.
+  bool get isLocalDatabase => _provider is LocalDatabaseProvider;
 
   // A private constructor.
   DatabaseService._internal() {
@@ -266,6 +273,33 @@ class DatabaseService {
   /// This allows for swapping the database implementation (e.g., for testing).
   void setProvider(DatabaseProvider provider) {
     _provider = provider;
+  }
+
+  /// Imports a local SQLite database into a specified Firestore database.
+  ///
+  /// This method reads all data from the tables in the local database
+  /// and writes them to the corresponding collections in Firestore.
+  /// It respects table dependencies to ensure data integrity.
+  Future<void> importLocalToCloud(String localPath, String cloudDbName) async {
+    final localProvider = LocalDatabaseProvider();
+    final cloudProvider = FirebaseDBProvider();
+
+    // Open connections to both the source (local) and destination (cloud) databases.
+    await localProvider.open(localPath);
+    await cloudProvider.open(cloudDbName);
+
+    // Define the order of table migration to respect foreign key constraints.
+    const tablesToMigrate = ['Teams', 'Seasons', 'Players', 'Games', 'Events'];
+
+    for (final table in tablesToMigrate) {
+      final dataToMigrate = await localProvider.query(table);
+
+      for (final row in dataToMigrate) {
+        // Our updated `insert` method on the cloud provider will use the
+        // existing ID from the row, preserving data integrity.
+        await cloudProvider.insert(table, row);
+      }
+    }
   }
 
   Future<void> open(String path) => _provider.open(path);
