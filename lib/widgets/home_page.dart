@@ -520,10 +520,9 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final granted = _isSubscribed ||
-          (Platform.isIOS
-              ? await Permission.storage.request().isGranted
-              : await Permission.manageExternalStorage.request().isGranted);
+      final granted = Platform.isIOS
+          ? await Permission.storage.request().isGranted
+          : await Permission.manageExternalStorage.request().isGranted;
 
       if (granted) {
         if (!databasePath.endsWith('.db')) {

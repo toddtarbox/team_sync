@@ -12,7 +12,28 @@
           "package_name": "com.tsquared.team_sync.soccer"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "542457934179-7l4c1l8galtjfi36vob54gj1rp7q2530.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tsquared.team_sync.soccer",
+            "certificate_hash": "05cbfd904d14609894647125e5b65dde055b0154"
+          }
+        },
+        {
+          "client_id": "542457934179-ec5qhcqu80j9e8fi5t6paanabk02siqh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tsquared.team_sync.soccer",
+            "certificate_hash": "fa5bc0d1c844e1883e6f20a5c34d0cbaea00a0e4"
+          }
+        },
+        {
+          "client_id": "542457934179-i5h5d289decqgjfqeajfjc64eud81brt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBflWvgLKjvXjmRAYw0HpQyLfSXbhm2sEg"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "542457934179-i5h5d289decqgjfqeajfjc64eud81brt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tsquared.teamsync.soccer"
+              }
+            }
+          ]
         }
       }
     }
