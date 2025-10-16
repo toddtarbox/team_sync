@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/career_stats_page.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
@@ -24,14 +26,30 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
-  bool _isFirebase = false;
+  late bool _isSubscribed;
 
   @override
   void initState() {
-    super.initState();
+    SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
+      setState(() {
+        _isSubscribed = isSubscribed;
+      });
+    });
+    _isSubscribed = SubscriptionService.instance.isSubscribed;
+
+    DatabaseService.instance.setProvider(
+        _isSubscribed ? FirebaseDBProvider() : LocalDatabaseProvider());
+
     _load().then((_) {
       setState(() {});
     });
+
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -56,16 +74,15 @@ class _HomePageState extends State<HomePage> {
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 24))))),
         actions: [
-          IconButton(
-            icon: Icon(_isFirebase ? Icons.cloud_off : Icons.cloud),
-            onPressed: () {
-              setState(() {
-                _isFirebase = !_isFirebase;
-                DatabaseService.instance.setProvider(_isFirebase
-                    ? FirebaseDBProvider()
-                    : LocalDatabaseProvider());
-              });
-            },
+          Visibility(
+            visible: !_isSubscribed,
+            child: TextButton(
+              onPressed: () async {
+                await SubscriptionService.instance.purchaseSubscription();
+              },
+              child:
+                  const Text('Go Pro', style: TextStyle(color: Colors.white)),
+            ),
           ),
           Visibility(
               visible: _team != null,
@@ -263,30 +280,61 @@ class _HomePageState extends State<HomePage> {
         // won't overflow if the options are too tall.
         return Wrap(
           children: <Widget>[
-            ListTile(
-              leading: Icon(Icons.folder_open,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Open Existing Database'),
-              onTap: () {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                _handleSelection(context, 'existingDatabase');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.storage_rounded,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Create New Database'),
-              onTap: () {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                _handleSelection(context, 'database');
-              },
-            ),
             Visibility(
-                visible: DatabaseService.instance.path.isNotEmpty,
+                visible: _isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.cloud_sync_rounded,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: const Text('Open Existing Cloud Database'),
+                  onTap: () {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    _handleSelection(context, 'existingCloudDatabase');
+                  },
+                )),
+            Visibility(
+                visible: !_isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.folder_open,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: const Text('Open Existing Local Database'),
+                  onTap: () {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    _handleSelection(context, 'existingLocalDatabase');
+                  },
+                )),
+            Visibility(
+                visible: _isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.cloud_upload_rounded,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: const Text('Create New Cloud Database'),
+                  onTap: () {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    _handleSelection(context, 'newCloudDatabase');
+                  },
+                )),
+            Visibility(
+                visible: !_isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.storage_rounded,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: const Text('Create New Local Database'),
+                  onTap: () {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    _handleSelection(context, 'newLocalDatabase');
+                  },
+                )),
+            Visibility(
+                visible:
+                    !_isSubscribed && DatabaseService.instance.path.isNotEmpty,
                 child: ListTile(
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
@@ -334,7 +382,12 @@ class _HomePageState extends State<HomePage> {
   // Helper function to handle the action and show a SnackBar
   Future<void> _handleSelection(BuildContext context, String option) async {
     switch (option) {
-      case 'existingDatabase':
+      case 'existingCloudDatabase':
+        if (await _pickCloudDatabase()) {
+          await _openDatabase();
+        }
+        return;
+      case 'existingLocalDatabase':
         final existingDB = await _pickFile();
         if (existingDB != null) {
           const storage = FlutterSecureStorage();
@@ -342,10 +395,13 @@ class _HomePageState extends State<HomePage> {
           await _openDatabase();
         }
         return;
-      case 'database':
+      case 'newCloudDatabase':
+        await _createDatabase();
+        break;
+      case 'newLocalDatabase':
         final saveDir = await _pickLocation();
         if (saveDir != null) {
-          await _createDatabase(saveDir);
+          await _createDatabase(saveDir: saveDir);
         }
         break;
       case 'exportDB':
@@ -362,7 +418,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _createDatabase(String saveDir) async {
+  Future<void> _createDatabase({String? saveDir}) async {
     String databaseName = '';
     showModalBottomSheet(
         context: context,
@@ -390,7 +446,10 @@ class _HomePageState extends State<HomePage> {
                                   const storage = FlutterSecureStorage();
                                   await storage.write(
                                       key: 'last_db_used_path',
-                                      value: '$saveDir/$databaseName');
+                                      value: saveDir != null
+                                          ? '$saveDir/$databaseName'
+                                          : databaseName);
+                                  await _openDatabase();
 
                                   setState(() {});
                                   Navigator.pop(context);
@@ -415,9 +474,12 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      if (Platform.isIOS
-          ? await Permission.storage.request().isGranted
-          : await Permission.manageExternalStorage.request().isGranted) {
+      final granted = _isSubscribed ||
+          (Platform.isIOS
+              ? await Permission.storage.request().isGranted
+              : await Permission.manageExternalStorage.request().isGranted);
+
+      if (granted) {
         if (!databasePath.endsWith('.db')) {
           databasePath += '.db';
         }
@@ -444,9 +506,7 @@ class _HomePageState extends State<HomePage> {
     if (DatabaseService.instance.path.isEmpty) {
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used_path');
-      if (lastDBUsed == null) {
-        await _showCreateOptions(context);
-      } else {
+      if (lastDBUsed != null) {
         await _openDatabase();
       }
     } else {
@@ -460,7 +520,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     final results =
-        await DatabaseService.instance.query('Seasons', orderBy: 'name DESC');
+        await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList(growable: false);
     await Future.wait(_seasons.map((s) async => await s.load()));
   }
@@ -485,6 +545,35 @@ class _HomePageState extends State<HomePage> {
       debugPrint(e.toString());
     }
     return null;
+  }
+
+  Future<bool> _pickCloudDatabase() async {
+    final entries = await DatabaseService.instance.getAvailableDatabases();
+
+    return await showModalBottomSheet(
+            context: context,
+            builder: (BuildContext context) {
+              return Card(
+                  child: Padding(
+                      padding: const EdgeInsets.all(50),
+                      child: Column(children: [
+                        const Text(
+                          'Select a Cloud Database',
+                        ),
+                        DropdownMenu(
+                            onSelected: (value) async {
+                              const storage = FlutterSecureStorage();
+                              await storage.write(
+                                  key: 'last_db_used_path', value: value);
+                              Navigator.pop(context, true);
+                            },
+                            dropdownMenuEntries: entries
+                                .map((e) =>
+                                    DropdownMenuEntry(value: e, label: e))
+                                .toList())
+                      ])));
+            }) ??
+        false;
   }
 
   Future<String?> _pickFile() async {
@@ -606,7 +695,7 @@ class _HomePageState extends State<HomePage> {
                                 await DatabaseService.instance.insert('Seasons',
                                     {'name': seasonName, 'teamId': _team!.id});
 
-                                await _loadSeasons();
+                                setState(() {});
                                 if (mounted) {
                                   Navigator.pop(context);
                                 }

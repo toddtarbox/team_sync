@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/services/subscription_service.dart';
 
 /// An abstract class that defines the interface for database operations.
 /// This allows for interchangeable implementations (e.g., local, cloud).
@@ -12,6 +13,8 @@ abstract class DatabaseProvider {
 
   /// Closes the database connection.
   Future<void> close();
+
+  Future<List<String>> getAvailableDatabases();
 
   /// Executes a raw SQL query.
   Future<List<Map<String, dynamic>>> query(String table,
@@ -32,6 +35,9 @@ abstract class DatabaseProvider {
 /// A concrete implementation of [DatabaseProvider] for a local sqflite database.
 class LocalDatabaseProvider implements DatabaseProvider {
   Database? _database;
+
+  @override
+  Future<List<String>> getAvailableDatabases() => Future.value([]);
 
   @override
   Future<void> open(String path) async {
@@ -128,13 +134,45 @@ class LocalDatabaseProvider implements DatabaseProvider {
 class FirebaseDBProvider implements DatabaseProvider {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  late String _subscriptionId;
+  String _path = '';
+  late DocumentSnapshot _dbDocumentSnapshot;
+
   @override
-  Future<void> open(String path) async {
-    // Firebase is initialized in main.dart, so this is a no-op.
+  Future<List<String>> getAvailableDatabases() async {
+    _subscriptionId =
+        SubscriptionService.instance.customerInfo.originalAppUserId;
+
+    final databases = await _firestore
+        .collection('subscriptionIds')
+        .doc(_subscriptionId)
+        .collection('databases')
+        .get();
+
+    return databases.docs.map((doc) => doc.id).toList();
   }
 
   @override
-  String get path => _firestore.app.options.projectId;
+  Future<void> open(String path) async {
+    _subscriptionId =
+        SubscriptionService.instance.customerInfo.originalAppUserId;
+
+    _path = path;
+
+    final dbDocument = _firestore
+        .collection('subscriptionIds')
+        .doc(_subscriptionId)
+        .collection('databases')
+        .doc(_path);
+
+    _dbDocumentSnapshot = await dbDocument.get();
+    if (!_dbDocumentSnapshot.exists) {
+      await dbDocument.set({'version': 1});
+    }
+  }
+
+  @override
+  String get path => _path;
 
   @override
   Future<void> close() async {
@@ -144,12 +182,17 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<List<Map<String, dynamic>>> query(String table,
       {String? where, List<dynamic>? whereArgs, String? orderBy}) async {
-    Query q = _firestore.collection(table);
+    Query q = _dbDocumentSnapshot.reference.collection(table);
     if (where != null && whereArgs != null) {
-      q = q.where(where, isEqualTo: whereArgs.first);
+      q = q.where(where.replaceAll('=?', ''), isEqualTo: whereArgs.first);
     }
     if (orderBy != null) {
-      q = q.orderBy(orderBy);
+      if (orderBy.contains('DESC')) {
+        orderBy = orderBy.replaceAll('DESC', '').trim();
+        q = q.orderBy(orderBy, descending: true);
+      } else {
+        q = q.orderBy(orderBy);
+      }
     }
     final snapshot = await q.get();
     return snapshot.docs
@@ -160,14 +203,23 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> insert(String table, Map<String, dynamic> data,
       {ConflictAlgorithm? conflictAlgorithm}) async {
-    await _firestore.collection(table).add(data);
-    return 1; // Indicate success
+    final collectionRef = _dbDocumentSnapshot.reference.collection(table);
+
+    AggregateQuery aggregateQuery = collectionRef.count();
+    AggregateQuerySnapshot snapshot = await aggregateQuery.get();
+    int existingRows = snapshot.count ?? 0;
+    existingRows++;
+
+    data['id'] = existingRows;
+    await collectionRef.doc(existingRows.toString()).set(data);
+
+    return existingRows;
   }
 
   @override
   Future<int> update(String table, Map<String, dynamic> data,
       {String? where, List<dynamic>? whereArgs}) async {
-    final snapshot = await _firestore
+    final snapshot = await _dbDocumentSnapshot.reference
         .collection(table)
         .where(where!, isEqualTo: whereArgs!.first)
         .get();
@@ -180,7 +232,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> delete(String table,
       {String? where, List<dynamic>? whereArgs}) async {
-    final snapshot = await _firestore
+    final snapshot = await _dbDocumentSnapshot.reference
         .collection(table)
         .where(where!, isEqualTo: whereArgs!.first)
         .get();
@@ -221,6 +273,10 @@ class DatabaseService {
   String get path => _provider.path;
 
   Future<void> close() => _provider.close();
+
+  Future<List<String>> getAvailableDatabases() {
+    return _provider.getAvailableDatabases();
+  }
 
   Future<List<Map<String, dynamic>>> query(String table,
           {String? where, List<dynamic>? whereArgs, String? orderBy}) =>

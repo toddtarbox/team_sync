@@ -1,11 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await SubscriptionService.instance.initialize();
 
   runApp(const MyApp());
 }
