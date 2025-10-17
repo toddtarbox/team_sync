@@ -1,3 +1,4 @@
+import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -9,7 +10,6 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
-import 'package:twitter_api_v2/twitter_api_v2.dart';
 
 class GameView extends StatefulWidget {
   final Season season;
@@ -51,15 +51,13 @@ class _GameViewState extends State<GameView> {
         (event, eventContext) async {
       const storage = FlutterSecureStorage();
       _twitterAPI = TwitterApi(
-          bearerToken: '',
-          oauthTokens: OAuthTokens(
-            consumerKey: await storage.read(key: 'twitter_consumer_key') ?? '',
-            consumerSecret:
-                await storage.read(key: 'twitter_consumer_secret') ?? '',
-            accessToken: await storage.read(key: 'twitter_access_token') ?? '',
-            accessTokenSecret:
-                await storage.read(key: 'twitter_access_token_secret') ?? '',
-          ));
+          client: TwitterClient(
+        consumerKey: await storage.read(key: 'twitter_consumer_key') ?? '',
+        consumerSecret:
+            await storage.read(key: 'twitter_consumer_secret') ?? '',
+        token: await storage.read(key: 'twitter_access_token') ?? '',
+        secret: await storage.read(key: 'twitter_access_token_secret') ?? '',
+      ));
     });
     widget.eventEmitter.emit('loadSettings');
 
@@ -608,8 +606,8 @@ class _GameViewState extends State<GameView> {
         if (event.shouldTweet) {
           final tweetText = event.tweetText(_game);
           if (tweetText.isNotEmpty) {
-            await _twitterAPI.tweets.createTweet(
-              text: tweetText,
+            await _twitterAPI.tweetService.update(
+              status: tweetText,
             );
           }
         }

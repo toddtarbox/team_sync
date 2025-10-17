@@ -61,7 +61,9 @@ class SubscriptionService {
     try {
       AuthProvider provider;
       if (Platform.isIOS) {
-        provider = AppleAuthProvider();
+        provider = AppleAuthProvider()
+            .addScope('ASAuthorizationScopeFullName')
+            .addScope('ASAuthorizationScopeEmail');
       } else {
         provider = GoogleAuthProvider();
       }
@@ -71,11 +73,7 @@ class SubscriptionService {
       if (firebaseUser == null) {
         final userCredential =
             await FirebaseAuth.instance.signInWithProvider(provider);
-        if (firebaseUser != null) {
-          firebaseUser = userCredential.user;
-        } else {
-          return;
-        }
+        firebaseUser = userCredential.user;
       }
 
       // Log in to RevenueCat with the Firebase user's UID.

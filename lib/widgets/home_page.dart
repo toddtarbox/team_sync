@@ -146,8 +146,8 @@ class _HomePageState extends State<HomePage> {
                       children: [
                     const Text('No Team Found', style: TextStyle(fontSize: 24)),
                     GestureDetector(
-                        onTap: () {
-                          _handleSelection(context, 'team');
+                        onTap: () async {
+                          await _handleSelection(context, 'team');
                         },
                         child: Text('Create a new Team to start',
                             style: TextStyle(
@@ -165,8 +165,8 @@ class _HomePageState extends State<HomePage> {
                     const Text('No Seasons Found',
                         style: TextStyle(fontSize: 24)),
                     GestureDetector(
-                        onTap: () {
-                          _handleSelection(context, 'season');
+                        onTap: () async {
+                          await _handleSelection(context, 'season');
                         },
                         child: Text('Create a new Season to start',
                             style: TextStyle(
@@ -286,11 +286,11 @@ class _HomePageState extends State<HomePage> {
                   leading: Icon(Icons.cloud_sync_rounded,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Open Existing Cloud Database'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'existingCloudDatabase');
+                    await _handleSelection(context, 'existingCloudDatabase');
                   },
                 )),
             ListTile(
@@ -343,8 +343,7 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             Visibility(
-                visible: !_isSubscribed &&
-                    DatabaseService.instance.path.isNotEmpty &&
+                visible: DatabaseService.instance.path.isNotEmpty &&
                     DatabaseService.instance.isLocalDatabase,
                 child: ListTile(
                   leading: Icon(Icons.save,
@@ -394,22 +393,21 @@ class _HomePageState extends State<HomePage> {
   Future<void> _handleSelection(BuildContext context, String option) async {
     switch (option) {
       case 'existingCloudDatabase':
-        if (DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(FirebaseDBProvider());
-        }
-
         if (await _pickCloudDatabase()) {
+          if (DatabaseService.instance.isLocalDatabase) {
+            await DatabaseService.instance.close();
+            DatabaseService.instance.setProvider(FirebaseDBProvider());
+          }
           await _openDatabase();
         }
         return;
       case 'existingLocalDatabase':
+        final existingDB = await _pickFile();
         if (!DatabaseService.instance.isLocalDatabase) {
           await DatabaseService.instance.close();
           DatabaseService.instance.setProvider(LocalDatabaseProvider());
         }
 
-        final existingDB = await _pickFile();
         if (existingDB != null) {
           const storage = FlutterSecureStorage();
           await storage.write(key: 'last_db_used_path', value: existingDB);
@@ -430,18 +428,19 @@ class _HomePageState extends State<HomePage> {
           final dbName = existingDB.split('/').last;
           const storage = FlutterSecureStorage();
           await storage.write(key: 'last_db_used_path', value: dbName);
-          DatabaseService.instance.importLocalToCloud(existingDB, dbName);
+          await DatabaseService.instance.importLocalToCloud(existingDB, dbName);
+          await _openDatabase();
           setState(() {});
         }
         break;
       case 'newLocalDatabase':
-        if (!DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(LocalDatabaseProvider());
-        }
-
         final saveDir = await _pickLocation();
         if (saveDir != null) {
+          if (!DatabaseService.instance.isLocalDatabase) {
+            await DatabaseService.instance.close();
+            DatabaseService.instance.setProvider(LocalDatabaseProvider());
+          }
+
           await _createDatabase(saveDir: saveDir);
         }
         break;
@@ -451,10 +450,10 @@ class _HomePageState extends State<HomePage> {
             bytes: File(DatabaseService.instance.path).readAsBytesSync());
         break;
       case 'team':
-        _createTeam();
+        await _createTeam();
         break;
       case 'season':
-        _createSeason();
+        await _createSeason();
         break;
     }
   }
@@ -629,7 +628,7 @@ class _HomePageState extends State<HomePage> {
     try {
       // 2. Pick a file
       FilePickerResult? pickResult = await FilePicker.platform
-          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
+          .pickFiles(allowMultiple: false, type: FileType.any);
       if (pickResult == null) {
         return null;
       }
