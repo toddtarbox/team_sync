@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:team_sync/services/subscription_service.dart';
 
 /// An abstract class that defines the interface for database operations.
 /// This allows for interchangeable implementations (e.g., local, cloud).
@@ -129,8 +129,7 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<List<String>> getAvailableDatabases() async {
-    _subscriptionId =
-        SubscriptionService.instance.customerInfo.originalAppUserId;
+    _subscriptionId = FirebaseAuth.instance.currentUser!.uid;
 
     final databases = await _firestore
         .collection('subscriptionIds')
@@ -143,8 +142,7 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<void> open(String path) async {
-    _subscriptionId =
-        SubscriptionService.instance.customerInfo.originalAppUserId;
+    _subscriptionId = FirebaseAuth.instance.currentUser!.uid;
 
     _path = path;
 

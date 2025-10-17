@@ -23,7 +23,6 @@ class SubscriptionService {
   Stream<bool> get subscriptionState => _subscriptionStateController.stream;
 
   late CustomerInfo _customerInfo;
-  CustomerInfo get customerInfo => _customerInfo;
 
   bool _isSubscribed = false;
   bool get isSubscribed => _isSubscribed;
@@ -31,6 +30,14 @@ class SubscriptionService {
   Future<void> initialize() async {
     await Purchases.setLogLevel(LogLevel.debug);
     await Purchases.configure(PurchasesConfiguration(_apiKey));
+
+    var firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      final loginResult = await Purchases.logIn(firebaseUser.uid);
+      _customerInfo = loginResult.customerInfo;
+      _updateSubscriptionStatus();
+    }
+
     Purchases.addCustomerInfoUpdateListener(_onCustomerInfoUpdated);
     _customerInfo = await Purchases.getCustomerInfo();
     _updateSubscriptionStatus();
@@ -64,8 +71,11 @@ class SubscriptionService {
       if (firebaseUser == null) {
         final userCredential =
             await FirebaseAuth.instance.signInWithProvider(provider);
-        firebaseUser = userCredential.user;
-        debugPrint("User logged in anonymously: \${firebaseUser!.uid}");
+        if (firebaseUser != null) {
+          firebaseUser = userCredential.user;
+        } else {
+          return;
+        }
       }
 
       // Log in to RevenueCat with the Firebase user's UID.

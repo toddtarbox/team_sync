@@ -297,11 +297,11 @@ class _HomePageState extends State<HomePage> {
               leading: Icon(Icons.folder_open,
                   color: Theme.of(context).colorScheme.secondary),
               title: const Text('Open Existing Local Database'),
-              onTap: () {
+              onTap: () async {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
                 // Then perform the action and show feedback
-                _handleSelection(context, 'existingLocalDatabase');
+                await _handleSelection(context, 'existingLocalDatabase');
               },
             ),
             Visibility(
@@ -310,11 +310,11 @@ class _HomePageState extends State<HomePage> {
                   leading: Icon(Icons.cloud_rounded,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create New Cloud Database'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'newCloudDatabase');
+                    await _handleSelection(context, 'newCloudDatabase');
                   },
                 )),
             Visibility(
@@ -324,22 +324,22 @@ class _HomePageState extends State<HomePage> {
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text(
                       'Convert a Local Database to a Cloud Database'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'importCloudDatabase');
+                    await _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
             ListTile(
               leading: Icon(Icons.storage_rounded,
                   color: Theme.of(context).colorScheme.secondary),
               title: const Text('Create New Local Database'),
-              onTap: () {
+              onTap: () async {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
                 // Then perform the action and show feedback
-                _handleSelection(context, 'newLocalDatabase');
+                await _handleSelection(context, 'newLocalDatabase');
               },
             ),
             Visibility(
@@ -350,11 +350,11 @@ class _HomePageState extends State<HomePage> {
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Backup Current Local Database'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'exportDB');
+                    await _handleSelection(context, 'exportDB');
                   },
                 )),
             Visibility(
@@ -364,11 +364,11 @@ class _HomePageState extends State<HomePage> {
                   leading: Icon(Icons.plus_one_rounded,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create Team'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'team');
+                    await _handleSelection(context, 'team');
                   },
                 )),
             Visibility(
@@ -377,11 +377,11 @@ class _HomePageState extends State<HomePage> {
                   leading: Icon(Icons.filter_1_rounded,
                       color: Theme.of(context).colorScheme.secondary),
                   title: const Text('Create New Season'),
-                  onTap: () {
+                  onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    _handleSelection(context, 'season');
+                    await _handleSelection(context, 'season');
                   },
                 )),
           ],
@@ -425,18 +425,13 @@ class _HomePageState extends State<HomePage> {
         await _createDatabase();
         break;
       case 'importCloudDatabase':
-        if (DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(FirebaseDBProvider());
-        }
-
         final existingDB = await _pickFile();
         if (existingDB != null) {
           final dbName = existingDB.split('/').last;
-          await DatabaseService.instance.importLocalToCloud(existingDB, dbName);
           const storage = FlutterSecureStorage();
           await storage.write(key: 'last_db_used_path', value: dbName);
-          await _openDatabase();
+          DatabaseService.instance.importLocalToCloud(existingDB, dbName);
+          setState(() {});
         }
         break;
       case 'newLocalDatabase':
