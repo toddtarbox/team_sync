@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -69,10 +70,18 @@ class _HomePageState extends State<HomePage> {
                     DatabaseService.instance.path.isNotEmpty || _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
-                        '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 24))))),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                              '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 24)),
+                          SizedBox(width: 10),
+                          DatabaseService.instance.isLocalDatabase
+                              ? Container()
+                              : Icon(Icons.cloud_rounded, color: Colors.white70)
+                        ])))),
         actions: [
           Visibility(
             visible: !_isSubscribed,
@@ -81,7 +90,7 @@ class _HomePageState extends State<HomePage> {
                 await SubscriptionService.instance.purchaseSubscription();
               },
               child:
-                  const Text('Go Pro', style: TextStyle(color: Colors.white)),
+                  const Text('Go Pro', style: TextStyle(color: Colors.yellow)),
             ),
           ),
           Visibility(
@@ -146,8 +155,8 @@ class _HomePageState extends State<HomePage> {
                       children: [
                     const Text('No Team Found', style: TextStyle(fontSize: 24)),
                     GestureDetector(
-                        onTap: () async {
-                          await _handleSelection(context, 'team');
+                        onTap: () {
+                          _handleSelection(context, 'team');
                         },
                         child: Text('Create a new Team to start',
                             style: TextStyle(
@@ -165,8 +174,8 @@ class _HomePageState extends State<HomePage> {
                     const Text('No Seasons Found',
                         style: TextStyle(fontSize: 24)),
                     GestureDetector(
-                        onTap: () async {
-                          await _handleSelection(context, 'season');
+                        onTap: () {
+                          _handleSelection(context, 'season');
                         },
                         child: Text('Create a new Season to start',
                             style: TextStyle(
@@ -279,37 +288,34 @@ class _HomePageState extends State<HomePage> {
         // Using a Wrap widget ensures the content is responsive and
         // won't overflow if the options are too tall.
         return Wrap(
-          children: <Widget>[
+          children: [
+            Visibility(
+                visible: _isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.workspace_premium_rounded,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: const Text('PRO SUBSCRIPTION FEATURES'),
+                  tileColor: Colors.yellow,
+                )),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
                   leading: Icon(Icons.cloud_sync_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Open Existing Cloud Database'),
-                  onTap: () async {
+                  title: const Text('Open Cloud Database'),
+                  onTap: () {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    await _handleSelection(context, 'existingCloudDatabase');
+                    _handleSelection(context, 'existingCloudDatabase');
                   },
                 )),
-            ListTile(
-              leading: Icon(Icons.folder_open,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Open Existing Local Database'),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'existingLocalDatabase');
-              },
-            ),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
                   leading: Icon(Icons.cloud_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Create New Cloud Database'),
+                  title: const Text('Create Cloud Database'),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -331,15 +337,38 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
+            Divider(color: Theme.of(context).colorScheme.secondary),
+            ListTile(
+              leading: Icon(Icons.folder_open,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: const Text('Open Database'),
+              onTap: () async {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                await _handleSelection(context, 'existingInternalDatabase');
+              },
+            ),
             ListTile(
               leading: Icon(Icons.storage_rounded,
                   color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Create New Local Database'),
+              title: const Text('Create New Database'),
               onTap: () async {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
                 // Then perform the action and show feedback
                 await _handleSelection(context, 'newLocalDatabase');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings_backup_restore_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: const Text('Open From Backup'),
+              onTap: () async {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                await _handleSelection(context, 'existingLocalDatabase');
               },
             ),
             Visibility(
@@ -348,7 +377,7 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Backup Current Local Database'),
+                  title: const Text('Backup Current Database to Device'),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -356,6 +385,7 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'exportDB');
                   },
                 )),
+            Divider(color: Theme.of(context).colorScheme.secondary),
             Visibility(
                 visible:
                     DatabaseService.instance.path.isNotEmpty && _team == null,
@@ -414,6 +444,12 @@ class _HomePageState extends State<HomePage> {
           await _openDatabase();
         }
         return;
+      case 'existingInternalDatabase':
+        final existingDB = await _pickInternalDatabase();
+        if (existingDB != null) {
+          await _openDatabase(path: existingDB);
+        }
+        return;
       case 'newCloudDatabase':
         if (DatabaseService.instance.isLocalDatabase) {
           await DatabaseService.instance.close();
@@ -426,23 +462,40 @@ class _HomePageState extends State<HomePage> {
         final existingDB = await _pickFile();
         if (existingDB != null) {
           final dbName = existingDB.split('/').last;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return const AlertDialog(
+                title: Text('Importing Database'),
+                content: SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: CircularProgressIndicator.adaptive()),
+              );
+            },
+          );
+          try {
+            await DatabaseService.instance
+                .importLocalToCloud(existingDB, dbName);
+          } finally {
+            Navigator.of(context).pop();
+          }
+
           const storage = FlutterSecureStorage();
           await storage.write(key: 'last_db_used_path', value: dbName);
-          await DatabaseService.instance.importLocalToCloud(existingDB, dbName);
+
           await _openDatabase();
           setState(() {});
         }
         break;
       case 'newLocalDatabase':
-        final saveDir = await _pickLocation();
-        if (saveDir != null) {
-          if (!DatabaseService.instance.isLocalDatabase) {
-            await DatabaseService.instance.close();
-            DatabaseService.instance.setProvider(LocalDatabaseProvider());
-          }
-
-          await _createDatabase(saveDir: saveDir);
+        if (!DatabaseService.instance.isLocalDatabase) {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(LocalDatabaseProvider());
         }
+
+        await _createDatabase();
         break;
       case 'exportDB':
         await FilePicker.platform.saveFile(
@@ -458,7 +511,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _createDatabase({String? saveDir}) async {
+  Future<void> _createDatabase() async {
     String databaseName = '';
     showModalBottomSheet(
         context: context,
@@ -486,9 +539,7 @@ class _HomePageState extends State<HomePage> {
                                   const storage = FlutterSecureStorage();
                                   await storage.write(
                                       key: 'last_db_used_path',
-                                      value: saveDir != null
-                                          ? '$saveDir/$databaseName'
-                                          : databaseName);
+                                      value: databaseName);
                                   await _openDatabase();
 
                                   setState(() {});
@@ -506,7 +557,23 @@ class _HomePageState extends State<HomePage> {
         });
   }
 
-  Future<void> _openDatabase() async {
+  Future<void> _openDatabase({String? path}) async {
+    if (path != null) {
+      await DatabaseService.instance.open(path);
+
+      final teamResult = await DatabaseService.instance
+          .query('Teams', where: 'id=?', whereArgs: [1]);
+      if (teamResult.isNotEmpty) {
+        _team = Team.fromMap(teamResult.first);
+        await _loadSeasons();
+      } else {
+        _team = null;
+      }
+
+      setState(() {});
+      return;
+    }
+
     const storage = FlutterSecureStorage();
     String? databasePath = await storage.read(key: 'last_db_used_path');
     if (databasePath == null) {
@@ -588,6 +655,18 @@ class _HomePageState extends State<HomePage> {
 
   Future<bool> _pickCloudDatabase() async {
     final entries = await DatabaseService.instance.getAvailableDatabases();
+    if (entries.isEmpty) {
+      showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            title: Text('No cloud databases found'),
+          );
+        },
+      );
+      return false;
+    }
 
     return await showModalBottomSheet(
             context: context,
@@ -615,6 +694,42 @@ class _HomePageState extends State<HomePage> {
         false;
   }
 
+  Future<String?> _pickInternalDatabase() async {
+    final databasesDir = await getDatabasesPath();
+    final entries =
+        Directory(databasesDir).listSync().where((e) => e.path.endsWith('.db'));
+    if (entries.isEmpty) {
+      return null;
+    }
+
+    return await showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return Card(
+              child: Padding(
+                  padding: const EdgeInsets.all(50),
+                  child: Column(children: [
+                    const Text(
+                      'Select a Database',
+                    ),
+                    DropdownMenu(
+                        onSelected: (value) async {
+                          if (value != null) {
+                            const storage = FlutterSecureStorage();
+                            await storage.write(
+                                key: 'last_db_used_path',
+                                value: value.path.split('/').last);
+                            Navigator.pop(context, value.path);
+                          }
+                        },
+                        dropdownMenuEntries: entries
+                            .map((e) => DropdownMenuEntry(
+                                value: e, label: e.path.split('/').last))
+                            .toList())
+                  ])));
+        });
+  }
+
   Future<String?> _pickFile() async {
     // 1. Request storage permission
     var status = Platform.isIOS
@@ -628,7 +743,7 @@ class _HomePageState extends State<HomePage> {
     try {
       // 2. Pick a file
       FilePickerResult? pickResult = await FilePicker.platform
-          .pickFiles(allowMultiple: false, type: FileType.any);
+          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
       if (pickResult == null) {
         return null;
       }
