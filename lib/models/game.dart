@@ -233,8 +233,11 @@ class Game {
   }
 
   static Future<List<Game>> listFromTeamId(int teamId) async {
-    final results = await DatabaseService.instance.query('Games',
-        where: 'homeTeamId=? OR awayTeamId=?', whereArgs: [teamId, teamId]);
+    final homeResults = await DatabaseService.instance
+        .query('Games', where: 'homeTeamId=?', whereArgs: [teamId]);
+    final awayResults = await DatabaseService.instance
+        .query('Games', where: 'awayTeamId=?', whereArgs: [teamId]);
+    final results = homeResults + awayResults;
 
     final games = await Future.wait(results
         .map((g) async => await Game.fromMap(g))

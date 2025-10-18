@@ -337,7 +337,9 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
-            Divider(color: Theme.of(context).colorScheme.secondary),
+            Visibility(
+                visible: _isSubscribed,
+                child: Divider(color: Theme.of(context).colorScheme.secondary)),
             ListTile(
               leading: Icon(Icons.folder_open,
                   color: Theme.of(context).colorScheme.secondary),
@@ -419,74 +421,76 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Helper function to handle the action and show a SnackBar
   Future<void> _handleSelection(BuildContext context, String option) async {
     switch (option) {
       case 'existingCloudDatabase':
         if (await _pickCloudDatabase()) {
-          if (DatabaseService.instance.isLocalDatabase) {
-            await DatabaseService.instance.close();
-            DatabaseService.instance.setProvider(FirebaseDBProvider());
-          }
           await _openDatabase();
         }
         return;
       case 'existingLocalDatabase':
         final existingDB = await _pickFile();
-        if (!DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(LocalDatabaseProvider());
-        }
-
         if (existingDB != null) {
+          if (!DatabaseService.instance.isLocalDatabase) {
+            await DatabaseService.instance.close();
+            DatabaseService.instance.setProvider(LocalDatabaseProvider());
+          }
+
           const storage = FlutterSecureStorage();
           await storage.write(key: 'last_db_used_path', value: existingDB);
+          await storage.write(key: 'last_db_used_is_local', value: 'true');
           await _openDatabase();
         }
         return;
       case 'existingInternalDatabase':
         final existingDB = await _pickInternalDatabase();
         if (existingDB != null) {
+          if (!DatabaseService.instance.isLocalDatabase) {
+            await DatabaseService.instance.close();
+            DatabaseService.instance.setProvider(LocalDatabaseProvider());
+          }
+
           await _openDatabase(path: existingDB);
         }
         return;
       case 'newCloudDatabase':
-        if (DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(FirebaseDBProvider());
-        }
-
-        await _createDatabase();
+        await _createDatabase(false);
         break;
       case 'importCloudDatabase':
         final existingDB = await _pickFile();
         if (existingDB != null) {
           final dbName = existingDB.split('/').last;
+
+          if (await DatabaseService.instance.exists(dbName)) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return const AlertDialog(
+                  title: Text('Database Exists'),
+                  content: Text(
+                      'A cloud database with the same name already exists.'),
+                );
+              },
+            );
+
+            return;
+          }
+
           showDialog(
             context: context,
-            barrierDismissible: false,
             builder: (BuildContext context) {
               return const AlertDialog(
                 title: Text('Importing Database'),
-                content: SizedBox(
-                    width: 50,
-                    height: 50,
-                    child: CircularProgressIndicator.adaptive()),
+                content: Text(
+                    'This may take a few minutes. You\'ll be able to open this database in a few minutes. Please be patient.'),
               );
             },
           );
+
           try {
             await DatabaseService.instance
                 .importLocalToCloud(existingDB, dbName);
-          } finally {
-            Navigator.of(context).pop();
-          }
-
-          const storage = FlutterSecureStorage();
-          await storage.write(key: 'last_db_used_path', value: dbName);
-
-          await _openDatabase();
-          setState(() {});
+          } finally {}
         }
         break;
       case 'newLocalDatabase':
@@ -495,7 +499,7 @@ class _HomePageState extends State<HomePage> {
           DatabaseService.instance.setProvider(LocalDatabaseProvider());
         }
 
-        await _createDatabase();
+        await _createDatabase(true);
         break;
       case 'exportDB':
         await FilePicker.platform.saveFile(
@@ -511,7 +515,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _createDatabase() async {
+  Future<void> _createDatabase(bool isLocal) async {
     String databaseName = '';
     showModalBottomSheet(
         context: context,
@@ -540,6 +544,10 @@ class _HomePageState extends State<HomePage> {
                                   await storage.write(
                                       key: 'last_db_used_path',
                                       value: databaseName);
+                                  await storage.write(
+                                      key: 'last_db_used_is_local',
+                                      value: isLocal ? 'true' : 'false');
+
                                   await _openDatabase();
 
                                   setState(() {});
@@ -559,6 +567,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openDatabase({String? path}) async {
     if (path != null) {
+      if (!DatabaseService.instance.isLocalDatabase) {
+        await DatabaseService.instance.close();
+        DatabaseService.instance.setProvider(LocalDatabaseProvider());
+      }
+
       await DatabaseService.instance.open(path);
 
       final teamResult = await DatabaseService.instance
@@ -590,7 +603,14 @@ class _HomePageState extends State<HomePage> {
           databasePath += '.db';
         }
 
-        await DatabaseService.instance.open(databasePath);
+        final wasOpened = await DatabaseService.instance.open(databasePath);
+        if (!wasOpened) {
+          // The database is still being imported, show a message.
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Database import still in progress...'),
+          ));
+          return;
+        }
 
         final teamResult = await DatabaseService.instance
             .query('Teams', where: 'id=?', whereArgs: [1]);
@@ -613,6 +633,16 @@ class _HomePageState extends State<HomePage> {
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used_path');
       if (lastDBUsed != null) {
+        final isLocalDatabase =
+            await storage.read(key: 'last_db_used_is_local') ?? 'true';
+        if (isLocalDatabase == 'true') {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(LocalDatabaseProvider());
+        } else {
+          await DatabaseService.instance.close();
+          DatabaseService.instance.setProvider(FirebaseDBProvider());
+        }
+
         await _openDatabase();
       }
     } else {
@@ -654,6 +684,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _pickCloudDatabase() async {
+    if (DatabaseService.instance.isLocalDatabase) {
+      await DatabaseService.instance.close();
+      DatabaseService.instance.setProvider(FirebaseDBProvider());
+    }
+
     final entries = await DatabaseService.instance.getAvailableDatabases();
     if (entries.isEmpty) {
       showDialog(
@@ -683,6 +718,9 @@ class _HomePageState extends State<HomePage> {
                               const storage = FlutterSecureStorage();
                               await storage.write(
                                   key: 'last_db_used_path', value: value);
+                              await storage.write(
+                                  key: 'last_db_used_is_local', value: 'false');
+
                               Navigator.pop(context, true);
                             },
                             dropdownMenuEntries: entries
@@ -719,6 +757,8 @@ class _HomePageState extends State<HomePage> {
                             await storage.write(
                                 key: 'last_db_used_path',
                                 value: value.path.split('/').last);
+                            await storage.write(
+                                key: 'last_db_used_is_local', value: 'true');
                             Navigator.pop(context, value.path);
                           }
                         },
@@ -742,8 +782,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 2. Pick a file
-      FilePickerResult? pickResult = await FilePicker.platform
-          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
+      FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
       if (pickResult == null) {
         return null;
       }
