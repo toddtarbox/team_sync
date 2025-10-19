@@ -11,6 +11,7 @@ import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
 import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 
@@ -26,6 +27,7 @@ class SeasonPage extends StatefulWidget {
 class _SeasonPageState extends State<SeasonPage> {
   final format = DateFormat('E MMM dd, yyyy');
   final saveFormat = DateFormat('MM.dd.yyyy');
+  int _expandedGameId = 0;
 
   @override
   void initState() {
@@ -123,6 +125,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           itemCount: games.length,
                           itemBuilder: (context, index) {
                             final game = games[index];
+                            final isExpanded = game.id == _expandedGameId;
                             return Dismissible(
                                 key: Key(game.id.toString()),
                                 background: Container(color: Colors.red),
@@ -157,18 +160,54 @@ class _SeasonPageState extends State<SeasonPage> {
                                       where: 'id=?', whereArgs: [game.id]);
                                   setState(() {});
                                 },
-                                child: ListTile(
-                                    minLeadingWidth: 90,
-                                    leading: GameResult(game, season.teamId),
-                                    title: Text(game.displayName(season.teamId),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                    subtitle: Text(format.format(game.date)),
-                                    onTap: () {
-                                      game.gameStatus.index == 0
-                                          ? _showGame(game: game)
-                                          : _goToGame(game);
-                                    }));
+                                child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Stack(children: [
+                                      Card(
+                                          child: Column(
+                                        children: [
+                                          ListTile(
+                                              title: Text(
+                                                  game.displayName(
+                                                      season.teamId),
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                              subtitle: Text(
+                                                  format.format(game.date)),
+                                              trailing: Container(
+                                                  margin:
+                                                      EdgeInsets.only(top: 20),
+                                                  child: IconButton(
+                                                    icon: Icon(isExpanded
+                                                        ? Icons.expand_less
+                                                        : Icons.expand_more),
+                                                    onPressed: () async {
+                                                      setState(() {
+                                                        _expandedGameId =
+                                                            isExpanded
+                                                                ? 0
+                                                                : game.id;
+                                                      });
+                                                    },
+                                                  )),
+                                              onTap: () {
+                                                game.gameStatus.index == 0
+                                                    ? _showGame(game: game)
+                                                    : _goToGame(game);
+                                              }),
+                                          if (isExpanded)
+                                            ScoringSummary(
+                                                season, season.team, game),
+                                        ],
+                                      )),
+                                      Positioned(
+                                        top: 0,
+                                        right: 0,
+                                        child: GameResult(
+                                            game, widget.season.teamId),
+                                      ),
+                                    ])));
                           })))
             ]);
           } else if (snapshot.hasError) {
