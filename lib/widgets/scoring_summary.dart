@@ -44,7 +44,7 @@ class _ScoringSummaryState extends State<ScoringSummary> {
         .toList(growable: false);
 
     return Container(
-        padding: EdgeInsets.only(top: 5, left: 16, right: 16),
+        padding: EdgeInsets.only(top: 5, left: 16, right: 16, bottom: 10),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SizedBox(
