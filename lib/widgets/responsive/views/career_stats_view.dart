@@ -14,6 +14,8 @@ class CareerStatsView extends StatefulWidget {
 }
 
 class _CareerStatsViewState extends State<CareerStatsView> {
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +37,18 @@ class _CareerStatsViewState extends State<CareerStatsView> {
               return ListTile(
                   title: GestureDetector(
                       onTap: () async {
+                        if (_isLoading) return;
+
+                        setState(() {
+                          _isLoading = true;
+                        });
+
                         final stat = await stats.getStatPlayers(category);
+
+                        setState(() {
+                          _isLoading = false;
+                        });
+
                         if (stat.isNotEmpty) {
                           final sortedStats = List.from(stat.entries);
                           sortedStats
@@ -66,14 +79,17 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                           Text(category.name.toSentenceCase().toTitleCase())));
             }).toList(growable: false);
 
-            return ListView.separated(
-                itemCount: statCategoryTiles.length,
-                itemBuilder: (context, index) {
-                  return statCategoryTiles[index];
-                },
-                separatorBuilder: (context, index) {
-                  return const Divider(height: 1, color: Colors.black);
-                });
+            return Stack(children: [
+              ListView.separated(
+                  itemCount: statCategoryTiles.length,
+                  itemBuilder: (context, index) {
+                    return statCategoryTiles[index];
+                  },
+                  separatorBuilder: (context, index) {
+                    return const Divider(height: 1, color: Colors.black);
+                  }),
+              if (_isLoading) const Center(child: CircularProgressIndicator())
+            ]);
           } else if (snapshot.hasError) {
             return const Center(child: Text('Error loading stats'));
           } else {
