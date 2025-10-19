@@ -317,6 +317,8 @@ class DatabaseService {
     _provider = provider;
   }
 
+  Future<bool> get isImporting async => await _provider.isImporting;
+
   /// Imports a local SQLite database into a specified Firestore database.
   ///
   /// This method reads all data from the tables in the local database
@@ -330,7 +332,7 @@ class DatabaseService {
     await localProvider.open(localPath);
     await cloudProvider.open(cloudDbName);
 
-    if (!(await cloudProvider.isImporting)) {
+    if (!(await isImporting)) {
       // Define the order of table migration to respect foreign key constraints.
       const tablesToMigrate = [
         'Teams',
@@ -352,6 +354,7 @@ class DatabaseService {
         }
       }
     }
+
     await cloudProvider.set({'isImporting': false});
 
     await localProvider.close();

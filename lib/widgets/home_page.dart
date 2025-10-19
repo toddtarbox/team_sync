@@ -28,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
   late bool _isSubscribed;
+  bool _isImporting = false; // Flag to control the loading spinner
 
   @override
   void initState() {
@@ -134,144 +135,171 @@ class _HomePageState extends State<HomePage> {
           onPressed: () async {
             await _showCreateOptions(context);
           }),
-      body: FutureBuilder(
-        future: _load(),
-        builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else {
-            if (DatabaseService.instance.path.isEmpty) {
-              return const Center(
-                  child: Text('Please create or open a database',
-                      style: TextStyle(fontSize: 24)));
-            }
+      body: Stack(
+        children: [
+          FutureBuilder(
+            future: _load(),
+            builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !_isImporting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else {
+                if (DatabaseService.instance.path.isEmpty) {
+                  return const Center(
+                      child: Text('Please create or open a database',
+                          style: TextStyle(fontSize: 24)));
+                }
 
-            if (_team == null) {
-              return Center(
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    const Text('No Team Found', style: TextStyle(fontSize: 24)),
-                    GestureDetector(
-                        onTap: () {
-                          _handleSelection(context, 'team');
-                        },
-                        child: Text('Create a new Team to start',
-                            style: TextStyle(
-                                fontSize: 18,
-                                color:
-                                    Theme.of(context).colorScheme.secondary))),
-                  ]));
-            }
+                if (_team == null) {
+                  return Center(
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                        const Text('No Team Found',
+                            style: TextStyle(fontSize: 24)),
+                        GestureDetector(
+                            onTap: () {
+                              _handleSelection(context, 'team');
+                            },
+                            child: Text('Create a new Team to start',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary))),
+                      ]));
+                }
 
-            if (_seasons.isEmpty) {
-              return Center(
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    const Text('No Seasons Found',
-                        style: TextStyle(fontSize: 24)),
-                    GestureDetector(
-                        onTap: () {
-                          _handleSelection(context, 'season');
-                        },
-                        child: Text('Create a new Season to start',
-                            style: TextStyle(
-                                fontSize: 18,
-                                color:
-                                    Theme.of(context).colorScheme.secondary))),
-                  ]));
-            }
+                if (_seasons.isEmpty) {
+                  return Center(
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                        const Text('No Seasons Found',
+                            style: TextStyle(fontSize: 24)),
+                        GestureDetector(
+                            onTap: () {
+                              _handleSelection(context, 'season');
+                            },
+                            child: Text('Create a new Season to start',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary))),
+                      ]));
+                }
 
-            return Column(children: [
-              Container(
-                  decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
-                      )),
-                  child: Card(
-                      color: Colors.black,
-                      child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Center(child: SeasonRecord(_seasons))))),
-              Expanded(
-                  child: Card(
-                      color: Colors.white70,
-                      child: ListView.builder(
-                          itemCount: _seasons.length,
-                          itemBuilder: (context, index) {
-                            final season = _seasons[index];
-                            return Dismissible(
-                                key: Key(season.id.toString()),
-                                background: Container(
-                                    color: Theme.of(context).colorScheme.error),
-                                behavior: HitTestBehavior.translucent,
-                                confirmDismiss: (_) {
-                                  return showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text("Confirm Delete"),
-                                        content: const Text(
-                                            "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone."),
-                                        actions: [
-                                          TextButton(
-                                            child: const Text("Continue"),
-                                            onPressed: () {
-                                              Navigator.pop(context, true);
-                                            },
-                                          ),
-                                          TextButton(
-                                            child: const Text("Cancel"),
-                                            onPressed: () {
-                                              Navigator.pop(context, false);
-                                            },
-                                          ),
-                                        ],
+                return Column(children: [
+                  Container(
+                      decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(25),
+                            bottomRight: Radius.circular(25),
+                          )),
+                      child: Card(
+                          color: Colors.black,
+                          child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Center(child: SeasonRecord(_seasons))))),
+                  Expanded(
+                      child: Card(
+                          color: Colors.white70,
+                          child: ListView.builder(
+                              itemCount: _seasons.length,
+                              itemBuilder: (context, index) {
+                                final season = _seasons[index];
+                                return Dismissible(
+                                    key: Key(season.id.toString()),
+                                    background: Container(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .error),
+                                    behavior: HitTestBehavior.translucent,
+                                    confirmDismiss: (_) {
+                                      return showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: const Text("Confirm Delete"),
+                                            content: const Text(
+                                                "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone."),
+                                            actions: [
+                                              TextButton(
+                                                child: const Text("Continue"),
+                                                onPressed: () {
+                                                  Navigator.pop(context, true);
+                                                },
+                                              ),
+                                              TextButton(
+                                                child: const Text("Cancel"),
+                                                onPressed: () {
+                                                  Navigator.pop(context, false);
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       );
                                     },
-                                  );
-                                },
-                                onDismissed: (direction) async {
-                                  await DatabaseService.instance.delete(
-                                      'Seasons',
-                                      where: 'id=?',
-                                      whereArgs: [season.id]);
-                                  setState(() {});
-                                },
-                                child: GestureDetector(
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              SeasonPage(season: season),
-                                        ),
-                                      );
+                                    onDismissed: (direction) async {
+                                      await DatabaseService.instance.delete(
+                                          'Seasons',
+                                          where: 'id=?',
+                                          whereArgs: [season.id]);
+                                      setState(() {});
                                     },
-                                    child: Card(
-                                        child: Column(children: [
-                                      Text(season.name,
-                                          style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold)),
-                                      Container(
-                                          decoration: BoxDecoration(
-                                              color: Colors.grey[500],
-                                              borderRadius:
-                                                  BorderRadius.circular(10)),
-                                          padding: const EdgeInsets.all(5),
-                                          margin: const EdgeInsets.all(10),
-                                          child: Center(
-                                              child: SeasonRecord([season]))),
-                                    ]))));
-                          })))
-            ]);
-          }
-        },
+                                    child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  SeasonPage(season: season),
+                                            ),
+                                          );
+                                        },
+                                        child: Card(
+                                            child: Column(children: [
+                                          Text(season.name,
+                                              style: const TextStyle(
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.bold)),
+                                          Container(
+                                              decoration: BoxDecoration(
+                                                  color: Colors.grey[500],
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          10)),
+                                              padding: const EdgeInsets.all(5),
+                                              margin: const EdgeInsets.all(10),
+                                              child: Center(
+                                                  child:
+                                                      SeasonRecord([season]))),
+                                        ]))));
+                              })))
+                ]);
+              }
+            },
+          ),
+          if (_isImporting)
+            Container(
+              color: Colors.black.withOpacity(0.75),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Importing database...',
+                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -421,7 +449,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Helper function to handle the action and show a SnackBar
   Future<void> _handleSelection(BuildContext context, String option) async {
+    // Capture the ScaffoldMessenger before the async gap
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     switch (option) {
       case 'existingCloudDatabase':
         if (await _pickCloudDatabase()) {
@@ -459,46 +491,43 @@ class _HomePageState extends State<HomePage> {
       case 'importCloudDatabase':
         final existingDB = await _pickFile();
         if (existingDB != null) {
-          final dbName = existingDB.split('/').last;
-
-          if (await DatabaseService.instance.exists(dbName)) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return const AlertDialog(
-                  title: Text('Database Exists'),
-                  content: Text(
-                      'A cloud database with the same name already exists.'),
-                );
-              },
-            );
-
+          if (await DatabaseService.instance
+              .exists(existingDB.split('/').last)) {
+            scaffoldMessenger.showSnackBar(const SnackBar(
+              content: Text('A cloud database with this name already exists.'),
+              backgroundColor: Colors.red,
+            ));
             return;
           }
 
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return const AlertDialog(
-                title: Text('Importing Database'),
-                content: Text(
-                    'This may take a few minutes. You\'ll be able to open this database in a few minutes. Please be patient.'),
-              );
-            },
-          );
+          setState(() {
+            _isImporting = true;
+          });
 
           try {
+            final dbName = existingDB.split('/').last;
             await DatabaseService.instance
                 .importLocalToCloud(existingDB, dbName);
-          } finally {}
+            const storage = FlutterSecureStorage();
+            await storage.write(key: 'last_db_used_path', value: dbName);
+            await _openDatabase();
+            scaffoldMessenger.showSnackBar(const SnackBar(
+              content: Text('Database imported successfully!'),
+              backgroundColor: Colors.green,
+            ));
+          } catch (e) {
+            scaffoldMessenger.showSnackBar(SnackBar(
+              content: Text('Error during import: $e'),
+              backgroundColor: Colors.red,
+            ));
+          } finally {
+            setState(() {
+              _isImporting = false;
+            });
+          }
         }
         break;
       case 'newLocalDatabase':
-        if (!DatabaseService.instance.isLocalDatabase) {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(LocalDatabaseProvider());
-        }
-
         await _createDatabase(true);
         break;
       case 'exportDB':
@@ -609,12 +638,17 @@ class _HomePageState extends State<HomePage> {
           databasePath += '.db';
         }
 
-        final wasOpened = await DatabaseService.instance.open(databasePath);
-        if (!wasOpened) {
-          // The database is still being imported, show a message.
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Database import still in progress...'),
-          ));
+        if (!await DatabaseService.instance.open(databasePath)) {
+          if (await DatabaseService.instance.isImporting) {
+            // The database is still being imported, show a message.
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Database import still in progress...'),
+            ));
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('There was an error opening this database.'),
+            ));
+          }
           return;
         }
 
@@ -762,15 +796,15 @@ class _HomePageState extends State<HomePage> {
                             const storage = FlutterSecureStorage();
                             await storage.write(
                                 key: 'last_db_used_path',
-                                value: value.path.split('/').last);
+                                value: value.split('/').last);
                             await storage.write(
                                 key: 'last_db_used_is_local', value: 'true');
-                            Navigator.pop(context, value.path);
+                            Navigator.pop(context, value);
                           }
                         },
                         dropdownMenuEntries: entries
                             .map((e) => DropdownMenuEntry(
-                                value: e, label: e.path.split('/').last))
+                                value: e.path, label: e.path.split('/').last))
                             .toList())
                   ])));
         });
