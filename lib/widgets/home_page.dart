@@ -567,6 +567,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openDatabase({String? path}) async {
     if (path != null) {
+      // Local DB open only
       if (!DatabaseService.instance.isLocalDatabase) {
         await DatabaseService.instance.close();
         DatabaseService.instance.setProvider(LocalDatabaseProvider());
@@ -584,6 +585,11 @@ class _HomePageState extends State<HomePage> {
       }
 
       setState(() {});
+      return;
+    }
+
+    // Below is opening a cloud database, so don't allow if not subscribed
+    if (!_isSubscribed) {
       return;
     }
 
