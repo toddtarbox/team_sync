@@ -293,14 +293,15 @@ class _HomePageState extends State<HomePage> {
           if (_isImporting)
             Container(
               color: Colors.black.withOpacity(0.5),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Importing database...',
-                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(AppLocalizations.of(context)!.importingDatabase,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 16)),
                   ],
                 ),
               ),
@@ -491,8 +492,9 @@ class _HomePageState extends State<HomePage> {
         if (existingDB != null) {
           if (await DatabaseService.instance
               .exists(existingDB.split('/').last)) {
-            scaffoldMessenger.showSnackBar(const SnackBar(
-              content: Text('A cloud database with this name already exists.'),
+            scaffoldMessenger.showSnackBar(SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.databaseAlreadyExists),
               backgroundColor: Colors.red,
             ));
             return;
@@ -509,8 +511,8 @@ class _HomePageState extends State<HomePage> {
             const storage = FlutterSecureStorage();
             await storage.write(key: 'last_db_used_path', value: dbName);
             await _openDatabase();
-            scaffoldMessenger.showSnackBar(const SnackBar(
-              content: Text('Database imported successfully!'),
+            scaffoldMessenger.showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!.databaseImported),
               backgroundColor: Colors.green,
             ));
           } catch (e) {
@@ -640,8 +642,9 @@ class _HomePageState extends State<HomePage> {
         final wasOpened = await DatabaseService.instance.open(databasePath);
         if (!wasOpened) {
           // The database is still being imported, show a message.
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Database import still in progress...'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.databaseImportInProgress),
           ));
           return;
         }

@@ -134,6 +134,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get finalText => 'Final';
 
   @override
+  String get finalOTText => 'Final OT';
+
+  @override
+  String get finalPKsText => 'Final PKs';
+
+  @override
   String get areYouSureYouWantToDeleteThisEvent =>
       'Are you sure you want to delete this event? This cannot be undone.';
 
@@ -200,4 +206,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get postSeasonStats => 'Post Season Stats';
+
+  @override
+  String get noPlayersFound => 'No players found';
+
+  @override
+  String get shots => 'Shots';
+
+  @override
+  String get shotsOnGoal => 'Shots on Goal';
+
+  @override
+  String get goals => 'Goals';
+
+  @override
+  String get assists => 'Assists';
+
+  @override
+  String get offside => 'Offside';
+
+  @override
+  String get fouls => 'Fouls';
+
+  @override
+  String get corners => 'Corners';
+
+  @override
+  String get yellowCards => 'Yellow Cards';
+
+  @override
+  String get redCards => 'Red Cards';
+
+  @override
+  String get saves => 'Saves';
+
+  @override
+  String get season => 'Season';
+
+  @override
+  String get importingDatabase => 'Importing database...';
+
+  @override
+  String get databaseAlreadyExists =>
+      'A cloud database with this name already exists.';
+
+  @override
+  String get databaseImported => 'Database imported successfully!';
+
+  @override
+  String get databaseImportInProgress => 'Database import still in progress...';
 }

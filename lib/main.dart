@@ -28,7 +28,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(22, 148, 123, 1),
-          brightness: Brightness.dark,
         ),
         cardTheme: const CardThemeData(
           elevation: 4.0,

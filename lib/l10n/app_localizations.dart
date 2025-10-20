@@ -340,6 +340,18 @@ abstract class AppLocalizations {
   /// **'Final'**
   String get finalText;
 
+  /// No description provided for @finalOTText.
+  ///
+  /// In en, this message translates to:
+  /// **'Final OT'**
+  String get finalOTText;
+
+  /// No description provided for @finalPKsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Final PKs'**
+  String get finalPKsText;
+
   /// No description provided for @areYouSureYouWantToDeleteThisEvent.
   ///
   /// In en, this message translates to:
@@ -471,6 +483,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Post Season Stats'**
   String get postSeasonStats;
+
+  /// No description provided for @noPlayersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No players found'**
+  String get noPlayersFound;
+
+  /// No description provided for @shots.
+  ///
+  /// In en, this message translates to:
+  /// **'Shots'**
+  String get shots;
+
+  /// No description provided for @shotsOnGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Shots on Goal'**
+  String get shotsOnGoal;
+
+  /// No description provided for @goals.
+  ///
+  /// In en, this message translates to:
+  /// **'Goals'**
+  String get goals;
+
+  /// No description provided for @assists.
+  ///
+  /// In en, this message translates to:
+  /// **'Assists'**
+  String get assists;
+
+  /// No description provided for @offside.
+  ///
+  /// In en, this message translates to:
+  /// **'Offside'**
+  String get offside;
+
+  /// No description provided for @fouls.
+  ///
+  /// In en, this message translates to:
+  /// **'Fouls'**
+  String get fouls;
+
+  /// No description provided for @corners.
+  ///
+  /// In en, this message translates to:
+  /// **'Corners'**
+  String get corners;
+
+  /// No description provided for @yellowCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow Cards'**
+  String get yellowCards;
+
+  /// No description provided for @redCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Red Cards'**
+  String get redCards;
+
+  /// No description provided for @saves.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves'**
+  String get saves;
+
+  /// No description provided for @season.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get season;
+
+  /// No description provided for @importingDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing database...'**
+  String get importingDatabase;
+
+  /// No description provided for @databaseAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A cloud database with this name already exists.'**
+  String get databaseAlreadyExists;
+
+  /// No description provided for @databaseImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Database imported successfully!'**
+  String get databaseImported;
+
+  /// No description provided for @databaseImportInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Database import still in progress...'**
+  String get databaseImportInProgress;
 }
 
 class _AppLocalizationsDelegate

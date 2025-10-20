@@ -1,5 +1,6 @@
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
@@ -100,7 +101,9 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         RadioListTile(
-                                          title: const Text('Final'),
+                                          title: Text(
+                                              AppLocalizations.of(context)!
+                                                  .finalText),
                                           value: 9,
                                           groupValue: status,
                                           onChanged: (i) {
@@ -110,7 +113,9 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                           },
                                         ),
                                         RadioListTile(
-                                          title: const Text('Final OT'),
+                                          title: Text(
+                                              AppLocalizations.of(context)!
+                                                  .finalOTText),
                                           value: 10,
                                           groupValue: status,
                                           onChanged: (i) {
@@ -120,7 +125,9 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                           },
                                         ),
                                         RadioListTile(
-                                          title: const Text('Final PKs'),
+                                          title: Text(
+                                              AppLocalizations.of(context)!
+                                                  .finalPKsText),
                                           value: 11,
                                           groupValue: status,
                                           onChanged: (i) {
