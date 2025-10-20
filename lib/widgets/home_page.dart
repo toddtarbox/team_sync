@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -59,8 +60,8 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
-        title: const Text('Soccer Analytics',
-            style: TextStyle(
+        title: Text(AppLocalizations.of(context)!.soccerAnalytics,
+            style: const TextStyle(
                 fontSize: 24,
                 color: Colors.white70,
                 fontWeight: FontWeight.bold)),
@@ -71,18 +72,10 @@ class _HomePageState extends State<HomePage> {
                     DatabaseService.instance.path.isNotEmpty || _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                              '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 24)),
-                          SizedBox(width: 10),
-                          DatabaseService.instance.isLocalDatabase
-                              ? Container()
-                              : Icon(Icons.cloud_rounded, color: Colors.white70)
-                        ])))),
+                    child: Text(
+                        '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 24))))),
         actions: [
           Visibility(
             visible: !_isSubscribed,
@@ -90,8 +83,8 @@ class _HomePageState extends State<HomePage> {
               onPressed: () async {
                 await SubscriptionService.instance.purchaseSubscription();
               },
-              child:
-                  const Text('Go Pro', style: TextStyle(color: Colors.yellow)),
+              child: Text(AppLocalizations.of(context)!.goPro,
+                  style: const TextStyle(color: Colors.white)),
             ),
           ),
           Visibility(
@@ -147,9 +140,11 @@ class _HomePageState extends State<HomePage> {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else {
                 if (DatabaseService.instance.path.isEmpty) {
-                  return const Center(
-                      child: Text('Please create or open a database',
-                          style: TextStyle(fontSize: 24)));
+                  return Center(
+                      child: Text(
+                          AppLocalizations.of(context)!
+                              .pleaseCreateOrOpenADatabase,
+                          style: const TextStyle(fontSize: 24)));
                 }
 
                 if (_team == null) {
@@ -157,13 +152,15 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                        const Text('No Team Found',
-                            style: TextStyle(fontSize: 24)),
+                        Text(AppLocalizations.of(context)!.noTeamFound,
+                            style: const TextStyle(fontSize: 24)),
                         GestureDetector(
                             onTap: () {
                               _handleSelection(context, 'team');
                             },
-                            child: Text('Create a new Team to start',
+                            child: Text(
+                                AppLocalizations.of(context)!
+                                    .createNewTeamToStart,
                                 style: TextStyle(
                                     fontSize: 18,
                                     color: Theme.of(context)
@@ -177,13 +174,15 @@ class _HomePageState extends State<HomePage> {
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                        const Text('No Seasons Found',
-                            style: TextStyle(fontSize: 24)),
+                        Text(AppLocalizations.of(context)!.noSeasonsFound,
+                            style: const TextStyle(fontSize: 24)),
                         GestureDetector(
                             onTap: () {
                               _handleSelection(context, 'season');
                             },
-                            child: Text('Create a new Season to start',
+                            child: Text(
+                                AppLocalizations.of(context)!
+                                    .createNewSeasonToStart,
                                 style: TextStyle(
                                     fontSize: 18,
                                     color: Theme.of(context)
@@ -224,18 +223,25 @@ class _HomePageState extends State<HomePage> {
                                         context: context,
                                         builder: (BuildContext context) {
                                           return AlertDialog(
-                                            title: const Text("Confirm Delete"),
-                                            content: const Text(
-                                                "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone."),
+                                            title: Text(
+                                                AppLocalizations.of(context)!
+                                                    .confirmDelete),
+                                            content: Text(AppLocalizations.of(
+                                                    context)!
+                                                .areYouSureYouWantToDeleteThisSeason),
                                             actions: [
                                               TextButton(
-                                                child: const Text("Continue"),
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .continueButton),
                                                 onPressed: () {
                                                   Navigator.pop(context, true);
                                                 },
                                               ),
                                               TextButton(
-                                                child: const Text("Cancel"),
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .cancelButton),
                                                 onPressed: () {
                                                   Navigator.pop(context, false);
                                                 },
@@ -286,7 +292,7 @@ class _HomePageState extends State<HomePage> {
           ),
           if (_isImporting)
             Container(
-              color: Colors.black.withOpacity(0.75),
+              color: Colors.black.withOpacity(0.5),
               child: const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -316,21 +322,14 @@ class _HomePageState extends State<HomePage> {
         // Using a Wrap widget ensures the content is responsive and
         // won't overflow if the options are too tall.
         return Wrap(
-          children: [
-            Visibility(
-                visible: _isSubscribed,
-                child: ListTile(
-                  leading: Icon(Icons.workspace_premium_rounded,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('PRO SUBSCRIPTION FEATURES'),
-                  tileColor: Colors.yellow,
-                )),
+          children: <Widget>[
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
                   leading: Icon(Icons.cloud_sync_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Open Cloud Database'),
+                  title: Text(
+                      AppLocalizations.of(context)!.openExistingCloudDatabase),
                   onTap: () {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -338,12 +337,24 @@ class _HomePageState extends State<HomePage> {
                     _handleSelection(context, 'existingCloudDatabase');
                   },
                 )),
+            ListTile(
+              leading: Icon(Icons.folder_open,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: Text(AppLocalizations.of(context)!.openDatabase),
+              onTap: () async {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                await _handleSelection(context, 'existingInternalDatabase');
+              },
+            ),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
                   leading: Icon(Icons.cloud_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Create Cloud Database'),
+                  title: Text(
+                      AppLocalizations.of(context)!.createNewCloudDatabase),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -356,8 +367,8 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: Icon(Icons.cloud_upload_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text(
-                      'Convert a Local Database to a Cloud Database'),
+                  title:
+                      Text(AppLocalizations.of(context)!.convertLocalToCloud),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -365,24 +376,11 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
-            Visibility(
-                visible: _isSubscribed,
-                child: Divider(color: Theme.of(context).colorScheme.secondary)),
-            ListTile(
-              leading: Icon(Icons.folder_open,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Open Database'),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'existingInternalDatabase');
-              },
-            ),
+            Divider(color: Theme.of(context).colorScheme.secondary),
             ListTile(
               leading: Icon(Icons.storage_rounded,
                   color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Create New Database'),
+              title: Text(AppLocalizations.of(context)!.createNewDatabase),
               onTap: () async {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
@@ -393,7 +391,7 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.settings_backup_restore_rounded,
                   color: Theme.of(context).colorScheme.secondary),
-              title: const Text('Open From Backup'),
+              title: Text(AppLocalizations.of(context)!.openFromBackup),
               onTap: () async {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
@@ -407,7 +405,7 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: Icon(Icons.save,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Backup Current Database to Device'),
+                  title: Text(AppLocalizations.of(context)!.backupDatabase),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -422,7 +420,7 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: Icon(Icons.plus_one_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Create Team'),
+                  title: Text(AppLocalizations.of(context)!.createTeam),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -435,7 +433,7 @@ class _HomePageState extends State<HomePage> {
                 child: ListTile(
                   leading: Icon(Icons.filter_1_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: const Text('Create New Season'),
+                  title: Text(AppLocalizations.of(context)!.createNewSeason),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -553,20 +551,19 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text(
-                      'New Database',
-                    ),
+                    Text(AppLocalizations.of(context)!.newDatabase),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Database Name'),
+                        decoration: InputDecoration(
+                            labelText:
+                                AppLocalizations.of(context)!.databaseName),
                         onChanged: (name) => databaseName = name),
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           TextButton(
-                              child: const Text('Save',
-                                  style: TextStyle(fontSize: 20)),
+                              child: Text(AppLocalizations.of(context)!.save,
+                                  style: const TextStyle(fontSize: 20)),
                               onPressed: () async {
                                 if (databaseName.isNotEmpty) {
                                   const storage = FlutterSecureStorage();
@@ -584,8 +581,9 @@ class _HomePageState extends State<HomePage> {
                                 }
                               }),
                           TextButton(
-                              child: const Text('Cancel',
-                                  style: TextStyle(fontSize: 20)),
+                              child: Text(
+                                  AppLocalizations.of(context)!.cancelButton,
+                                  style: const TextStyle(fontSize: 20)),
                               onPressed: () {
                                 Navigator.pop(context);
                               })
@@ -634,21 +632,17 @@ class _HomePageState extends State<HomePage> {
           : await Permission.manageExternalStorage.request().isGranted;
 
       if (granted) {
-        if (!databasePath.endsWith('.db')) {
+        if (DatabaseService.instance.isLocalDatabase &&
+            !databasePath.endsWith('.db')) {
           databasePath += '.db';
         }
 
-        if (!await DatabaseService.instance.open(databasePath)) {
-          if (await DatabaseService.instance.isImporting) {
-            // The database is still being imported, show a message.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Database import still in progress...'),
-            ));
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('There was an error opening this database.'),
-            ));
-          }
+        final wasOpened = await DatabaseService.instance.open(databasePath);
+        if (!wasOpened) {
+          // The database is still being imported, show a message.
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Database import still in progress...'),
+          ));
           return;
         }
 
@@ -724,19 +718,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _pickCloudDatabase() async {
-    if (DatabaseService.instance.isLocalDatabase) {
-      await DatabaseService.instance.close();
-      DatabaseService.instance.setProvider(FirebaseDBProvider());
-    }
-
     final entries = await DatabaseService.instance.getAvailableDatabases();
     if (entries.isEmpty) {
       showDialog(
         context: context,
         barrierDismissible: true,
         builder: (BuildContext context) {
-          return const AlertDialog(
-            title: Text('No cloud databases found'),
+          return AlertDialog(
+            title: Text(AppLocalizations.of(context)!.noCloudDatabasesFound),
           );
         },
       );
@@ -750,9 +739,8 @@ class _HomePageState extends State<HomePage> {
                   child: Padding(
                       padding: const EdgeInsets.all(50),
                       child: Column(children: [
-                        const Text(
-                          'Select a Cloud Database',
-                        ),
+                        Text(
+                            AppLocalizations.of(context)!.selectACloudDatabase),
                         DropdownMenu(
                             onSelected: (value) async {
                               const storage = FlutterSecureStorage();
@@ -787,9 +775,7 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text(
-                      'Select a Database',
-                    ),
+                    Text(AppLocalizations.of(context)!.selectADatabase),
                     DropdownMenu(
                         onSelected: (value) async {
                           if (value != null) {
@@ -822,7 +808,8 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 2. Pick a file
-      FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
+      FilePickerResult? pickResult = await FilePicker.platform
+          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
       if (pickResult == null) {
         return null;
       }
@@ -845,18 +832,17 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text(
-                      'New Team',
-                    ),
+                    Text(AppLocalizations.of(context)!.newTeam),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Team Name'),
+                        decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.teamName),
                         onChanged: (name) => teamName = name),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Team Short Name'),
+                        decoration: InputDecoration(
+                            labelText:
+                                AppLocalizations.of(context)!.teamShortName),
                         onChanged: (name) => teamShortName = name),
                     const Spacer(),
                     TextButton(
@@ -865,8 +851,9 @@ class _HomePageState extends State<HomePage> {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               GestureDetector(
-                                  child: const Text('Save',
-                                      style: TextStyle(fontSize: 20)),
+                                  child: Text(
+                                      AppLocalizations.of(context)!.save,
+                                      style: const TextStyle(fontSize: 20)),
                                   onTap: () async {
                                     if (teamName.isNotEmpty &&
                                         teamShortName.isNotEmpty) {
@@ -879,8 +866,10 @@ class _HomePageState extends State<HomePage> {
                                     }
                                   }),
                               GestureDetector(
-                                  child: const Text('Cancel',
-                                      style: TextStyle(fontSize: 20)),
+                                  child: Text(
+                                      AppLocalizations.of(context)!
+                                          .cancelButton,
+                                      style: const TextStyle(fontSize: 20)),
                                   onTap: () {
                                     Navigator.pop(context);
                                   })
@@ -912,18 +901,19 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text('New Season'),
+                    Text(AppLocalizations.of(context)!.newSeason),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Season Name'),
+                        decoration: InputDecoration(
+                            labelText:
+                                AppLocalizations.of(context)!.seasonName),
                         onChanged: (name) => seasonName = name),
                     Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           TextButton(
-                              child: const Text('Save',
-                                  style: TextStyle(fontSize: 20)),
+                              child: Text(AppLocalizations.of(context)!.save,
+                                  style: const TextStyle(fontSize: 20)),
                               onPressed: () async {
                                 await DatabaseService.instance.insert('Seasons',
                                     {'name': seasonName, 'teamId': _team!.id});
@@ -934,8 +924,9 @@ class _HomePageState extends State<HomePage> {
                                 }
                               }),
                           TextButton(
-                              child: const Text('Cancel',
-                                  style: TextStyle(fontSize: 20)),
+                              child: Text(
+                                  AppLocalizations.of(context)!.cancelButton,
+                                  style: const TextStyle(fontSize: 20)),
                               onPressed: () {
                                 Navigator.pop(context);
                               })

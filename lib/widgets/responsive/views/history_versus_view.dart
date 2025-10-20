@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/team.dart';
 
@@ -52,8 +53,9 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                         showDialog(
                             context: context,
                             builder: (context) {
-                              return const AlertDialog(
-                                  title: Text('Loading...'));
+                              return AlertDialog(
+                                  title: Text(
+                                      AppLocalizations.of(context)!.loading));
                             });
 
                         await Future.wait(games
@@ -105,7 +107,8 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                   return const Divider(height: 1, color: Colors.black);
                 });
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading history'));
+            return Center(
+                child: Text(AppLocalizations.of(context)!.errorLoadingHistory));
           } else {
             return const Center(child: CircularProgressIndicator());
           }

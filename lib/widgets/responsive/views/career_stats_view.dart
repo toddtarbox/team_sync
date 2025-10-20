@@ -1,5 +1,6 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
@@ -14,8 +15,6 @@ class CareerStatsView extends StatefulWidget {
 }
 
 class _CareerStatsViewState extends State<CareerStatsView> {
-  bool _isLoading = false;
-
   @override
   void initState() {
     super.initState();
@@ -37,18 +36,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
               return ListTile(
                   title: GestureDetector(
                       onTap: () async {
-                        if (_isLoading) return;
-
-                        setState(() {
-                          _isLoading = true;
-                        });
-
                         final stat = await stats.getStatPlayers(category);
-
-                        setState(() {
-                          _isLoading = false;
-                        });
-
                         if (stat.isNotEmpty) {
                           final sortedStats = List.from(stat.entries);
                           sortedStats
@@ -79,19 +67,17 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                           Text(category.name.toSentenceCase().toTitleCase())));
             }).toList(growable: false);
 
-            return Stack(children: [
-              ListView.separated(
-                  itemCount: statCategoryTiles.length,
-                  itemBuilder: (context, index) {
-                    return statCategoryTiles[index];
-                  },
-                  separatorBuilder: (context, index) {
-                    return const Divider(height: 1, color: Colors.black);
-                  }),
-              if (_isLoading) const Center(child: CircularProgressIndicator())
-            ]);
+            return ListView.separated(
+                itemCount: statCategoryTiles.length,
+                itemBuilder: (context, index) {
+                  return statCategoryTiles[index];
+                },
+                separatorBuilder: (context, index) {
+                  return const Divider(height: 1, color: Colors.black);
+                });
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading stats'));
+            return Center(
+                child: Text(AppLocalizations.of(context)!.errorLoadingStats));
           } else {
             return const Center(child: CircularProgressIndicator());
           }

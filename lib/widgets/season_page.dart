@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
@@ -11,7 +12,6 @@ import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
 import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
-import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 
@@ -27,7 +27,7 @@ class SeasonPage extends StatefulWidget {
 class _SeasonPageState extends State<SeasonPage> {
   final format = DateFormat('E MMM dd, yyyy');
   final saveFormat = DateFormat('MM.dd.yyyy');
-  int _expandedGameId = 0;
+  int? _expandedGameId;
 
   @override
   void initState() {
@@ -92,15 +92,16 @@ class _SeasonPageState extends State<SeasonPage> {
                   child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                    const Text('No Games Found',
-                        style: TextStyle(fontSize: 24)),
+                    Text(AppLocalizations.of(context)!.noGamesFound,
+                        style: const TextStyle(fontSize: 24)),
                     GestureDetector(
                         onTap: () {
                           _showGame();
                         },
-                        child: const Text('Create a new Game to start',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.blue))),
+                        child: Text(
+                            AppLocalizations.of(context)!.createNewGameToStart,
+                            style: const TextStyle(
+                                fontSize: 18, color: Colors.blue))),
                   ]));
             }
 
@@ -134,18 +135,25 @@ class _SeasonPageState extends State<SeasonPage> {
                                     context: context,
                                     builder: (BuildContext context) {
                                       return AlertDialog(
-                                        title: const Text("Confirm Delete"),
-                                        content: const Text(
-                                            "Are you sure you want to delete this Game? All data associated with this Game will be deleted. This cannot be undone."),
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .confirmDelete),
+                                        content: Text(AppLocalizations.of(
+                                                context)!
+                                            .areYouSureYouWantToDeleteThisGame),
                                         actions: [
                                           TextButton(
-                                            child: const Text("Continue"),
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .continueButton),
                                             onPressed: () {
                                               Navigator.pop(context, true);
                                             },
                                           ),
                                           TextButton(
-                                            child: const Text("Cancel"),
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .cancelButton),
                                             onPressed: () {
                                               Navigator.pop(context, false);
                                             },
@@ -175,30 +183,27 @@ class _SeasonPageState extends State<SeasonPage> {
                                                           FontWeight.bold)),
                                               subtitle: Text(
                                                   format.format(game.date)),
-                                              trailing: Container(
-                                                  margin:
-                                                      EdgeInsets.only(top: 20),
-                                                  child: IconButton(
-                                                    icon: Icon(isExpanded
-                                                        ? Icons.expand_less
-                                                        : Icons.expand_more),
-                                                    onPressed: () async {
-                                                      setState(() {
-                                                        _expandedGameId =
-                                                            isExpanded
-                                                                ? 0
-                                                                : game.id;
-                                                      });
-                                                    },
-                                                  )),
+                                              trailing: IconButton(
+                                                icon: Icon(isExpanded
+                                                    ? Icons.expand_less
+                                                    : Icons.expand_more),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _expandedGameId = isExpanded
+                                                        ? null
+                                                        : game.id;
+                                                  });
+                                                },
+                                              ),
                                               onTap: () {
                                                 game.gameStatus.index == 0
                                                     ? _showGame(game: game)
                                                     : _goToGame(game);
                                               }),
                                           if (isExpanded)
-                                            ScoringSummary(
-                                                season, season.team, game),
+                                            Scoreboard(game, widget.season,
+                                                color: Colors.black,
+                                                shortName: true),
                                         ],
                                       )),
                                       Positioned(
@@ -211,7 +216,8 @@ class _SeasonPageState extends State<SeasonPage> {
                           })))
             ]);
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading Season Games'));
+            return Center(
+                child: Text(AppLocalizations.of(context)!.errorLoadingHistory));
           } else {
             return const Center(child: CircularProgressIndicator());
           }
@@ -254,16 +260,16 @@ class _SeasonPageState extends State<SeasonPage> {
                 child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Column(children: [
-                      const Text(
-                        'Edit Game',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Text(
+                        AppLocalizations.of(context)!.editGame,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Container(height: 20),
                       Row(children: [
                         Expanded(
                             child: RadioListTile(
-                          title: const Text('Home',
-                              style: TextStyle(fontSize: 20)),
+                          title: Text(AppLocalizations.of(context)!.home,
+                              style: const TextStyle(fontSize: 20)),
                           value: 0,
                           groupValue: location,
                           onChanged: (i) {
@@ -280,8 +286,8 @@ class _SeasonPageState extends State<SeasonPage> {
                         )),
                         Expanded(
                             child: RadioListTile(
-                          title: const Text('Away',
-                              style: TextStyle(fontSize: 20)),
+                          title: Text(AppLocalizations.of(context)!.away,
+                              style: const TextStyle(fontSize: 20)),
                           value: 1,
                           groupValue: location,
                           onChanged: (i) {
@@ -302,7 +308,8 @@ class _SeasonPageState extends State<SeasonPage> {
                           onPressed: () {
                             _createOpponent();
                           },
-                          child: const Text('Create New Opponent')),
+                          child: Text(
+                              AppLocalizations.of(context)!.createNewOpponent)),
                       const SizedBox(height: 30),
                       DropdownMenu(
                           enabled: game!.gameStatus.index == 0,
@@ -320,7 +327,8 @@ class _SeasonPageState extends State<SeasonPage> {
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Opponent'),
+                          label: Text(
+                              AppLocalizations.of(context)!.selectOpponent),
                           dropdownMenuEntries: entries),
                       const SizedBox(height: 30),
                       ElevatedButton(
@@ -360,8 +368,9 @@ class _SeasonPageState extends State<SeasonPage> {
                           ? ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green),
-                              child: const Text('Go to game',
-                                  style: TextStyle(
+                              child: Text(
+                                  AppLocalizations.of(context)!.goToGame,
+                                  style: const TextStyle(
                                       color: Colors.white70,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 20)),
@@ -387,15 +396,17 @@ class _SeasonPageState extends State<SeasonPage> {
                                         setState(() {});
                                       }
                                     },
-                                    child: const Text('Save',
-                                        style: TextStyle(fontSize: 20)))
+                                    child: Text(
+                                        AppLocalizations.of(context)!.save,
+                                        style: const TextStyle(fontSize: 20)))
                                 : Container(),
                             GestureDetector(
                                 onTap: () {
                                   Navigator.pop(context);
                                 },
-                                child: const Text('Cancel',
-                                    style: TextStyle(fontSize: 20)))
+                                child: Text(
+                                    AppLocalizations.of(context)!.cancelButton,
+                                    style: const TextStyle(fontSize: 20)))
                           ])
                     ])));
           });
@@ -431,18 +442,17 @@ class _SeasonPageState extends State<SeasonPage> {
               child: Padding(
                   padding: const EdgeInsets.all(50),
                   child: Column(children: [
-                    const Text(
-                      'New Team',
-                    ),
+                    Text(AppLocalizations.of(context)!.newTeam),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Team Name'),
+                        decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.teamName),
                         onChanged: (name) => teamName = name),
                     TextField(
                         autofocus: true,
-                        decoration:
-                            const InputDecoration(labelText: 'Team Short Name'),
+                        decoration: InputDecoration(
+                            labelText:
+                                AppLocalizations.of(context)!.teamShortName),
                         onChanged: (name) => teamShortName = name),
                     const Spacer(),
                     TextButton(
@@ -451,8 +461,9 @@ class _SeasonPageState extends State<SeasonPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               GestureDetector(
-                                  child: const Text('Save',
-                                      style: TextStyle(fontSize: 20)),
+                                  child: Text(
+                                      AppLocalizations.of(context)!.save,
+                                      style: const TextStyle(fontSize: 20)),
                                   onTap: () async {
                                     if (teamName.isNotEmpty &&
                                         teamShortName.isNotEmpty) {
@@ -464,8 +475,10 @@ class _SeasonPageState extends State<SeasonPage> {
                                     }
                                   }),
                               GestureDetector(
-                                  child: const Text('Cancel',
-                                      style: TextStyle(fontSize: 20)),
+                                  child: Text(
+                                      AppLocalizations.of(context)!
+                                          .cancelButton,
+                                      style: const TextStyle(fontSize: 20)),
                                   onTap: () {
                                     Navigator.pop(context);
                                   })

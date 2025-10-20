@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 
 class SeasonRecord extends StatelessWidget {
@@ -19,7 +20,9 @@ class SeasonRecord extends StatelessWidget {
         .length;
     int ties = games.where((g) => g.isTie).length;
 
-    final String leading = seasons.length > 1 ? 'Overall' : 'Season';
+    final String leading = seasons.length > 1
+        ? AppLocalizations.of(context)!.overall
+        : AppLocalizations.of(context)!.season;
 
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
       team.fullName == 'Saint Albert' && seasons.length > 1

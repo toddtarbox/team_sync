@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/responsive/views/history_versus_view.dart';
 
@@ -17,8 +18,8 @@ class HistoryVersusPage extends StatelessWidget {
                 Navigator.of(context).pop();
               },
               child: const Icon(Icons.arrow_back, color: Colors.white70)),
-          title: const Text('History Versus',
-              style: TextStyle(
+          title: Text(AppLocalizations.of(context)!.historyVersus,
+              style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 24,
                   fontWeight: FontWeight.bold)),

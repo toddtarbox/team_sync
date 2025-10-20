@@ -4,6 +4,8 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/home_page.dart';
 
+import 'l10n/app_localizations.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -20,20 +22,20 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'TeamSync',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         useMaterial3: true,
-        // A deep, professional blue is used to generate a full color scheme.
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(22, 148, 123, 1),
+          brightness: Brightness.dark,
         ),
-        // Define a consistent card theme for a modern look.
         cardTheme: const CardThemeData(
           elevation: 4.0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(16)),
           ),
         ),
-        // Define a theme for the app bar to be used throughout the app.
         appBarTheme: AppBarTheme(
           backgroundColor: Colors.grey.shade900,
           elevation: 0,
