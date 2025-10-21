@@ -383,7 +383,9 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'importCloudDatabase');
                   },
                 )),
-            Divider(color: Theme.of(context).colorScheme.secondary),
+            Visibility(
+                visible: _isSubscribed,
+                child: Divider(color: Theme.of(context).colorScheme.secondary)),
             ListTile(
               leading: Icon(Icons.folder_open,
                   color: Theme.of(context).colorScheme.secondary),
@@ -431,7 +433,10 @@ class _HomePageState extends State<HomePage> {
                     await _handleSelection(context, 'exportDB');
                   },
                 )),
-            Divider(color: Theme.of(context).colorScheme.secondary),
+            Visibility(
+                visible:
+                    DatabaseService.instance.path.isNotEmpty && _team == null,
+                child: Divider(color: Theme.of(context).colorScheme.secondary)),
             Visibility(
                 visible:
                     DatabaseService.instance.path.isNotEmpty && _team == null,
