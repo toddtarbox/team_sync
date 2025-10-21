@@ -17,6 +17,7 @@ import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -316,7 +317,29 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
+      bottomNavigationBar: BottomAppBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            TextButton(
+              onPressed: () =>
+                  _launchURL('https://sites.google.com/view/team-sync/privacy'),
+              child: Text('Privacy Policy'),
+            ),
+            TextButton(
+              onPressed: () => _launchURL(
+                  'https://sites.google.com/view/team-sync/terms-of-use'),
+              child: Text('Terms of Use'),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  void _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    await launchUrl(uri);
   }
 
   // This function shows the modal bottom sheet
