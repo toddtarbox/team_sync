@@ -18,7 +18,7 @@ class ScoringSummary extends StatefulWidget {
 }
 
 class _ScoringSummaryState extends State<ScoringSummary> {
-  bool _isLoading = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -28,14 +28,10 @@ class _ScoringSummaryState extends State<ScoringSummary> {
   @override
   Widget build(BuildContext context) {
     if (widget.game.allGameEvents.isEmpty) {
+      _isLoading = true;
       widget.game.loadGameEvents().then((value) => setState(() {
             _isLoading = false;
           }));
-      ;
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
     }
 
     final assistEvents = widget.game.allGameEvents

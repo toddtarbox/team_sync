@@ -355,17 +355,6 @@ class _HomePageState extends State<HomePage> {
                     _handleSelection(context, 'existingCloudDatabase');
                   },
                 )),
-            ListTile(
-              leading: Icon(Icons.folder_open,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: Text(AppLocalizations.of(context)!.openDatabase),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'existingInternalDatabase');
-              },
-            ),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
@@ -395,6 +384,17 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
             Divider(color: Theme.of(context).colorScheme.secondary),
+            ListTile(
+              leading: Icon(Icons.folder_open,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: Text(AppLocalizations.of(context)!.openDatabase),
+              onTap: () async {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                await _handleSelection(context, 'existingInternalDatabase');
+              },
+            ),
             ListTile(
               leading: Icon(Icons.storage_rounded,
                   color: Theme.of(context).colorScheme.secondary),
@@ -738,6 +738,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _pickCloudDatabase() async {
+    if (DatabaseService.instance.isLocalDatabase) {
+      await DatabaseService.instance.close();
+      DatabaseService.instance.setProvider(FirebaseDBProvider());
+    }
+
     final entries = await DatabaseService.instance.getAvailableDatabases();
     if (entries.isEmpty) {
       showDialog(
@@ -828,8 +833,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       // 2. Pick a file
-      FilePickerResult? pickResult = await FilePicker.platform
-          .pickFiles(allowedExtensions: ['db'], type: FileType.custom);
+      FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
       if (pickResult == null) {
         return null;
       }
