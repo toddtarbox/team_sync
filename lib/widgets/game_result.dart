@@ -10,7 +10,7 @@ class GameResult extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (game.gameStatus == GameStatus.notStarted) {
-      return const Text('Not Played');
+      return const Text('');
     } else if (game.gameStatus.index < 9) {
       return const Text('');
     }
