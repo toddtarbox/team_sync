@@ -33,14 +33,17 @@ class SubscriptionService {
 
     var firebaseUser = FirebaseAuth.instance.currentUser;
     if (firebaseUser != null) {
-      final loginResult = await Purchases.logIn(firebaseUser.uid);
-      _customerInfo = loginResult.customerInfo;
-      _updateSubscriptionStatus();
+      Purchases.logIn(firebaseUser.uid).then((loginResult) {
+        _customerInfo = loginResult.customerInfo;
+        _updateSubscriptionStatus();
+      });
     }
 
     Purchases.addCustomerInfoUpdateListener(_onCustomerInfoUpdated);
-    _customerInfo = await Purchases.getCustomerInfo();
-    _updateSubscriptionStatus();
+    Purchases.getCustomerInfo().then((customerInfo) {
+      _customerInfo = customerInfo;
+      _updateSubscriptionStatus();
+    });
   }
 
   void _onCustomerInfoUpdated(CustomerInfo customerInfo) {

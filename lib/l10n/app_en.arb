@@ -79,5 +79,6 @@
   "importingDatabase": "Importing database...",
   "databaseAlreadyExists": "A cloud database with this name already exists.",
   "databaseImported": "Database imported successfully!",
-  "databaseImportInProgress": "Database import still in progress..."
+  "databaseImportInProgress": "Database import still in progress...",
+  "proSubscriptionFeatures": "PRO SUBSCRIPTION FEATURES"
 }

@@ -255,4 +255,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get databaseImportInProgress => 'Database import still in progress...';
+
+  @override
+  String get proSubscriptionFeatures => 'PRO SUBSCRIPTION FEATURES';
 }

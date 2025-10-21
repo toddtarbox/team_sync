@@ -72,10 +72,18 @@ class _HomePageState extends State<HomePage> {
                     DatabaseService.instance.path.isNotEmpty || _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
-                        '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 24))))),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                              '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 24)),
+                          SizedBox(width: 10),
+                          DatabaseService.instance.isLocalDatabase
+                              ? Container()
+                              : Icon(Icons.cloud_rounded, color: Colors.white70)
+                        ])))),
         actions: [
           Visibility(
             visible: !_isSubscribed,
@@ -84,7 +92,7 @@ class _HomePageState extends State<HomePage> {
                 await SubscriptionService.instance.purchaseSubscription();
               },
               child: Text(AppLocalizations.of(context)!.goPro,
-                  style: const TextStyle(color: Colors.white)),
+                  style: const TextStyle(color: Colors.yellow)),
             ),
           ),
           Visibility(
@@ -323,7 +331,16 @@ class _HomePageState extends State<HomePage> {
         // Using a Wrap widget ensures the content is responsive and
         // won't overflow if the options are too tall.
         return Wrap(
-          children: <Widget>[
+          children: [
+            Visibility(
+                visible: _isSubscribed,
+                child: ListTile(
+                  leading: Icon(Icons.workspace_premium_rounded,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(
+                      AppLocalizations.of(context)!.proSubscriptionFeatures),
+                  tileColor: Colors.yellow,
+                )),
             Visibility(
                 visible: _isSubscribed,
                 child: ListTile(
