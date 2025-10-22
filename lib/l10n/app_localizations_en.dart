@@ -258,4 +258,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get proSubscriptionFeatures => 'PRO SUBSCRIPTION FEATURES';
+
+  @override
+  String get setTeamColors => 'Set team colors';
+
+  @override
+  String get pickTeamColors => 'Pick team colors';
+
+  @override
+  String get primaryColor => 'Primary color';
+
+  @override
+  String get secondaryColor => 'Secondary color';
+
+  @override
+  String get pickAColor => 'Pick a color';
+
+  @override
+  String get gotIt => 'Got it';
 }

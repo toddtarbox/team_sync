@@ -589,6 +589,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'PRO SUBSCRIPTION FEATURES'**
   String get proSubscriptionFeatures;
+
+  /// No description provided for @setTeamColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Set team colors'**
+  String get setTeamColors;
+
+  /// No description provided for @pickTeamColors.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick team colors'**
+  String get pickTeamColors;
+
+  /// No description provided for @primaryColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary color'**
+  String get primaryColor;
+
+  /// No description provided for @secondaryColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Secondary color'**
+  String get secondaryColor;
+
+  /// No description provided for @pickAColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a color'**
+  String get pickAColor;
+
+  /// No description provided for @gotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get gotIt;
 }
 
 class _AppLocalizationsDelegate

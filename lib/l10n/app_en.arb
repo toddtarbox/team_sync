@@ -80,5 +80,11 @@
   "databaseAlreadyExists": "A cloud database with this name already exists.",
   "databaseImported": "Database imported successfully!",
   "databaseImportInProgress": "Database import still in progress...",
-  "proSubscriptionFeatures": "PRO SUBSCRIPTION FEATURES"
+  "proSubscriptionFeatures": "PRO SUBSCRIPTION FEATURES",
+  "setTeamColors": "Set team colors",
+  "pickTeamColors": "Pick team colors",
+  "primaryColor": "Primary color",
+  "secondaryColor": "Secondary color",
+  "pickAColor": "Pick a color",
+  "gotIt": "Got it"
 }

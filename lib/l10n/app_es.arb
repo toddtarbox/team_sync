@@ -76,11 +76,17 @@
   "databaseAlreadyExists": "Ya existe una base de datos en la nube con este nombre.",
   "databaseImported": "¡Base de datos importada con éxito!",
   "databaseImportInProgress": "Importación de la base de datos en curso...",
-  "errorDuringImport": "Error durante la importación: ",
+  "errorDuringImport": "Error during import: ",
   "season": "Temporada",
   "importingDatabase": "Importando base de datos...",
   "finalText": "Final",
   "finalOTText": "Tiempo extra final",
   "finalPKsText": "PK finales",
-  "proSubscriptionFeatures": "FUNCIONES DE LA SUSCRIPCIÓN PRO"
+  "proSubscriptionFeatures": "FUNCIONES DE LA SUSCRIPCIÓN PRO",
+  "setTeamColors": "Establecer colores del equipo",
+  "pickTeamColors": "Elegir colores del equipo",
+  "primaryColor": "Color primario",
+  "secondaryColor": "Color secundario",
+  "pickAColor": "Elige un color",
+  "gotIt": "Entendido"
 }

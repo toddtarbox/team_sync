@@ -263,4 +263,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get proSubscriptionFeatures => 'FUNCIONES DE LA SUSCRIPCIÓN PRO';
+
+  @override
+  String get setTeamColors => 'Establecer colores del equipo';
+
+  @override
+  String get pickTeamColors => 'Elegir colores del equipo';
+
+  @override
+  String get primaryColor => 'Color primario';
+
+  @override
+  String get secondaryColor => 'Color secundario';
+
+  @override
+  String get pickAColor => 'Elige un color';
+
+  @override
+  String get gotIt => 'Entendido';
 }
