@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/models/team.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget title;
   final PreferredSizeWidget? bottom;
   final List<Widget>? actions;
+  final Team? team;
 
   const CustomAppBar(
-      {super.key, required this.title, this.bottom, this.actions});
+      {super.key, required this.title, this.bottom, this.actions, this.team});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
+        gradient: LinearGradient(
+          colors: [
+            team?.color1 ?? Theme.of(context).primaryColor,
+            team?.color2 ?? Theme.of(context).primaryColorDark,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
       child: AppBar(
         leading: GestureDetector(
@@ -29,6 +38,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         actions: actions,
         bottom: bottom,
         backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
     );
   }

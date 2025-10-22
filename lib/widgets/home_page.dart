@@ -61,6 +61,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
+        team: _team,
         title: Text(AppLocalizations.of(context)!.soccerAnalytics,
             style: const TextStyle(
                 fontSize: 24,
@@ -339,7 +340,11 @@ class _HomePageState extends State<HomePage> {
 
   void _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
-    await launchUrl(uri);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      throw 'Could not launch $url';
+    }
   }
 
   // This function shows the modal bottom sheet
