@@ -23,8 +23,12 @@ class Team extends Equatable {
         id: map['id'],
         fullName: map['fullName'],
         shortName: map['shortName'],
-        color1: map['color1'] != null ? Color(map['color1']) : Colors.green,
-        color2: map['color2'] != null ? Color(map['color2']) : Colors.green);
+        color1: map['color1'] != null && map['color1'] != 0
+            ? Color(map['color1'])
+            : Colors.green,
+        color2: map['color2'] != null && map['color2'] != 0
+            ? Color(map['color2'])
+            : Colors.green);
   }
 
   static Future<Team> fromId(int id) async {

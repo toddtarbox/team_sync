@@ -182,11 +182,11 @@ abstract class AppLocalizations {
   /// **'Create New Cloud Database'**
   String get createNewCloudDatabase;
 
-  /// No description provided for @convertLocalToCloud.
+  /// No description provided for @convertToCloud.
   ///
   /// In en, this message translates to:
-  /// **'Convert a Local Database to a Cloud Database'**
-  String get convertLocalToCloud;
+  /// **'Convert to a Cloud Database'**
+  String get convertToCloud;
 
   /// No description provided for @createNewDatabase.
   ///
@@ -403,6 +403,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Are you sure you want to delete this Game? All data associated with this Game will be deleted. This cannot be undone.'**
   String get areYouSureYouWantToDeleteThisGame;
+
+  /// No description provided for @areYouSureYouWantToDeleteThisPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this Player? All data associated with this Player will be deleted. This cannot be undone.'**
+  String get areYouSureYouWantToDeleteThisPlayer;
 
   /// No description provided for @editGame.
   ///

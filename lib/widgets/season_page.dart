@@ -77,11 +77,22 @@ class _SeasonPageState extends State<SeasonPage> {
                   child: Icon(Icons.person, color: Colors.white70)))
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-          child: const Icon(Icons.add),
-          onPressed: () {
-            _showGame();
-          }),
+      floatingActionButton: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [widget.season.team.color1, widget.season.team.color2],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            shape: BoxShape.circle,
+          ),
+          child: FloatingActionButton(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: const Icon(Icons.add),
+              onPressed: () {
+                _showGame();
+              })),
       body: FutureBuilder(
         future: _loadSeason(),
         builder: (BuildContext context, AsyncSnapshot<Season> snapshot) {

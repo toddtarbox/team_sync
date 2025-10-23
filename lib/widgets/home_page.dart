@@ -134,26 +134,28 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.settings))
         ],
       ),
-      floatingActionButton: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              _team?.color1 ?? Theme.of(context).primaryColor,
-              _team?.color2 ?? Theme.of(context).primaryColorDark,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-        ),
-        child: FloatingActionButton(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: const Icon(Icons.add, color: Colors.white70),
-          onPressed: () async {
-            await _showCreateOptions(context);
-          },
-        ),
+      floatingActionButton: Visibility(
+        visible: !_isImporting,
+        child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _team?.color1 ?? Theme.of(context).primaryColor,
+                  _team?.color2 ?? Theme.of(context).primaryColorDark,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: FloatingActionButton(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              child: const Icon(Icons.add, color: Colors.white70),
+              onPressed: () async {
+                await _showCreateOptions(context);
+              },
+            )),
       ),
       body: Stack(
         children: [
@@ -353,8 +355,11 @@ class _HomePageState extends State<HomePage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: BottomAppBar(
+          height: 80,
           color: Colors.transparent,
           elevation: 0,
           child: Row(
@@ -439,12 +444,12 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
             Visibility(
-                visible: _isSubscribed,
+                visible:
+                    _isSubscribed && DatabaseService.instance.isLocalDatabase,
                 child: ListTile(
                   leading: Icon(Icons.cloud_upload_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title:
-                      Text(AppLocalizations.of(context)!.convertLocalToCloud),
+                  title: Text(AppLocalizations.of(context)!.convertToCloud),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
@@ -474,7 +479,7 @@ class _HomePageState extends State<HomePage> {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
                 // Then perform the action and show feedback
-                await _handleSelection(context, 'newLocalDatabase');
+                await _handleSelection(context, 'newInternalDatabase');
               },
             ),
             ListTile(
@@ -485,7 +490,7 @@ class _HomePageState extends State<HomePage> {
                 // Close the bottom sheet first
                 Navigator.of(builderContext).pop();
                 // Then perform the action and show feedback
-                await _handleSelection(context, 'existingLocalDatabase');
+                await _handleSelection(context, 'existingBackupDatabase');
               },
             ),
             Visibility(
@@ -564,7 +569,7 @@ class _HomePageState extends State<HomePage> {
           await _openCloudDatabase(databaseName);
         }
         return;
-      case 'existingLocalDatabase':
+      case 'existingBackupDatabase':
         final existingDB = await _pickFile();
         if (existingDB != null) {
           await _openBackupDatabase(existingDB);
@@ -577,41 +582,28 @@ class _HomePageState extends State<HomePage> {
         await _createDatabase(false);
         break;
       case 'importCloudDatabase':
-        final existingDB = await _pickFile();
-        if (existingDB != null) {
-          if (await DatabaseService.instance
-              .exists(existingDB.split('/').last)) {
-            scaffoldMessenger.showSnackBar(SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.databaseAlreadyExists),
-              backgroundColor: Colors.red,
-            ));
-            return;
-          }
+        setState(() {
+          _isImporting = true;
+        });
 
+        try {
+          await DatabaseService.instance.importToCloud();
+          scaffoldMessenger.showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.databaseImported),
+            backgroundColor: Colors.green,
+          ));
+        } catch (e) {
+          scaffoldMessenger.showSnackBar(SnackBar(
+            content: Text('Error during import: $e'),
+            backgroundColor: Colors.red,
+          ));
+        } finally {
           setState(() {
-            _isImporting = true;
+            _isImporting = false;
           });
-
-          try {
-            await _openCloudDatabase(existingDB.split('/').last);
-            scaffoldMessenger.showSnackBar(SnackBar(
-              content: Text(AppLocalizations.of(context)!.databaseImported),
-              backgroundColor: Colors.green,
-            ));
-          } catch (e) {
-            scaffoldMessenger.showSnackBar(SnackBar(
-              content: Text('Error during import: $e'),
-              backgroundColor: Colors.red,
-            ));
-          } finally {
-            setState(() {
-              _isImporting = false;
-            });
-          }
         }
         break;
-      case 'newLocalDatabase':
+      case 'newInternalDatabase':
         await _createDatabase(true);
         break;
       case 'exportDB':
@@ -628,7 +620,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _createDatabase(bool isLocal) async {
+  Future<void> _createDatabase(bool isInternal) async {
     String databaseName = '';
     showModalBottomSheet(
         context: context,
@@ -652,7 +644,7 @@ class _HomePageState extends State<HomePage> {
                                   style: const TextStyle(fontSize: 20)),
                               onPressed: () async {
                                 if (databaseName.isNotEmpty) {
-                                  if (isLocal) {
+                                  if (isInternal) {
                                     await _openInternalDatabase(databaseName);
                                   } else {
                                     await _openCloudDatabase(databaseName);
@@ -680,7 +672,11 @@ class _HomePageState extends State<HomePage> {
       DatabaseService.instance.setProvider(LocalDatabaseProvider());
     }
 
-    await DatabaseService.instance.open(path);
+    final backupFile = File(path);
+    final importedFile = await backupFile
+        .copy('${await getDatabasesPath()}/${backupFile.path.split('/').last}');
+
+    await DatabaseService.instance.open(importedFile.path);
 
     final teamResult = await DatabaseService.instance
         .query('Teams', where: 'id=?', whereArgs: [1]);

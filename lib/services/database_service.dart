@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// An abstract class that defines the interface for database operations.
@@ -204,11 +205,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   String get path => _path;
 
   @override
-  Future<void> close() async {
-    if (path.isNotEmpty) {
-      await _dbDocumentSnapshot.reference.update({'isImporting': false});
-    }
-  }
+  Future<void> close() async {}
 
   @override
   Future<List<Map<String, dynamic>>> query(String table,
@@ -246,22 +243,15 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     // For importing data, we must preserve the original ID.
     // We check if the incoming data already has an ID.
-    if (data.containsKey('id') && data['id'] != null) {
+    if (table != 'Players' && data.containsKey('id') && data['id'] != null) {
       final id = data['id'];
       // Use the existing ID as the document ID in Firestore.
       // .set() will create or overwrite the document, which is perfect for an import.
       await collectionRef.doc(id.toString()).set(data);
       return id;
     } else {
-      AggregateQuery aggregateQuery = collectionRef.count();
-      AggregateQuerySnapshot snapshot = await aggregateQuery.get();
-      int existingRows = snapshot.count ?? 0;
-      existingRows++;
-
-      data['id'] = existingRows;
-      await collectionRef.doc(existingRows.toString()).set(data);
-
-      return existingRows;
+      await collectionRef.doc().set(data);
+      return 1;
     }
   }
 
@@ -288,10 +278,17 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> delete(String table,
       {String? where, List<dynamic>? whereArgs}) async {
-    final snapshot = await _dbDocumentSnapshot.reference
-        .collection(table)
-        .where(where!, isEqualTo: whereArgs!.first)
-        .get();
+    Query q = _dbDocumentSnapshot.reference.collection(table);
+    if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
+      final fields = where.split(' AND ');
+      int index = 0;
+
+      for (var arg in whereArgs) {
+        final field = fields[index++].replaceAll('=?', '');
+        q = q.where(field, isEqualTo: arg);
+      }
+    }
+    final snapshot = await q.get();
     for (final doc in snapshot.docs) {
       await doc.reference.delete();
     }
@@ -331,41 +328,40 @@ class DatabaseService {
   /// This method reads all data from the tables in the local database
   /// and writes them to the corresponding collections in Firestore.
   /// It respects table dependencies to ensure data integrity.
-  Future<void> importLocalToCloud(String localPath, String cloudDbName) async {
-    final localProvider = LocalDatabaseProvider();
+  Future<void> importToCloud() async {
+    if (_provider is FirebaseDBProvider || await isImporting) {
+      return;
+    }
+
     final cloudProvider = FirebaseDBProvider();
 
-    // Open connections to both the source (local) and destination (cloud) databases.
-    await localProvider.open(localPath);
+    final cloudDbName = _provider.path.split('/').last;
     await cloudProvider.open(cloudDbName);
 
-    if (!(await isImporting)) {
-      // Define the order of table migration to respect foreign key constraints.
-      const tablesToMigrate = [
-        'Teams',
-        'Seasons',
-        'Players',
-        'Games',
-        'Events'
-      ];
+    // Define the order of table migration to respect foreign key constraints.
+    const tablesToMigrate = ['Teams', 'Seasons', 'Players', 'Games', 'Events'];
 
-      await cloudProvider.set({'isImporting': true});
+    await cloudProvider.set({'isImporting': true});
 
-      for (final table in tablesToMigrate) {
-        final dataToMigrate = await localProvider.query(table);
+    for (final table in tablesToMigrate) {
+      debugPrint('Querying table: $table');
+      final dataToMigrate = await _provider.query(table);
 
-        for (final row in dataToMigrate) {
-          // Our updated `insert` method on the cloud provider will use the
-          // existing ID from the row, preserving data integrity.
-          await cloudProvider.insert(table, row);
-        }
-      }
+      debugPrint('Migrating table: $table - ${dataToMigrate.length} rows');
+      final rowMigrationPromises = dataToMigrate.map((row) async {
+        // Our updated `insert` method on the cloud provider will use the
+        // existing ID from the row, preserving data integrity.
+        cloudProvider.insert(table, row);
+      });
+      await Future.wait(rowMigrationPromises);
     }
 
     await cloudProvider.set({'isImporting': false});
 
-    await localProvider.close();
-    await cloudProvider.close();
+    await _provider.close();
+    setProvider(cloudProvider);
+
+    debugPrint('Importing complete');
   }
 
   Future<bool> open(String path) async => await _provider.open(path);

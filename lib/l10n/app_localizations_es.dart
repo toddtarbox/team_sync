@@ -54,8 +54,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get createNewCloudDatabase => 'Crear nueva base de datos en la nube';
 
   @override
-  String get convertLocalToCloud =>
-      'Convertir una base de datos local a una en la nube';
+  String get convertToCloud => 'Convertir a una base de datos en la nube';
 
   @override
   String get createNewDatabase => 'Crear nueva base de datos';
@@ -168,6 +167,10 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get areYouSureYouWantToDeleteThisGame =>
       '¿Estás seguro de que quieres eliminar este partido? Todos los datos asociados a este partido serán eliminados. Esta acción no se puede deshacer.';
+
+  @override
+  String get areYouSureYouWantToDeleteThisPlayer =>
+      '¿Seguro que quieres eliminar este reproductor? Se eliminarán todos los datos asociados. Esta acción es irreversible.';
 
   @override
   String get editGame => 'Editar partido';

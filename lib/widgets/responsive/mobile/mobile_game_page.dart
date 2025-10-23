@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
@@ -30,13 +31,8 @@ class _MobileGamePageState extends State<MobileGamePage> {
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          leading: GestureDetector(
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-              child: const Icon(Icons.arrow_back, color: Colors.white70)),
+        appBar: CustomAppBar(
+          team: widget.season.team,
           title: Text(widget.game.displayName(widget.season.teamId),
               style: const TextStyle(
                   color: Colors.white70,
@@ -181,45 +177,61 @@ class _MobileGamePageState extends State<MobileGamePage> {
               preferredSize: Size(width, 100),
               child: Scoreboard(widget.game, widget.season)),
         ),
-        floatingActionButton: FloatingActionButton(
-            child: const Icon(Icons.add),
-            onPressed: () async {
-              final promptToAdvance = widget.game.gameStatus.index < 9 &&
-                  (widget.game.gameStatus == GameStatus.notStarted ||
-                      widget.game.gameStatus == GameStatus.halftime ||
-                      widget.game.gameStatus == GameStatus.overtimeNotStarted ||
-                      widget.game.gameStatus == GameStatus.overtimeHalftime);
-              if (promptToAdvance) {
-                final shouldAdvance = await showDialog<bool>(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                          title: const Text("Advance Game"),
-                          content: const Text(
-                              "Do you want to advance to the next period?"),
-                          actions: [
-                            TextButton(
-                              child: const Text("Advance"),
-                              onPressed: () async {
-                                Navigator.pop(context, true);
-                              },
-                            ),
-                            TextButton(
-                              child: const Text("Cancel"),
-                              onPressed: () {
-                                Navigator.pop(context, false);
-                              },
-                            ),
-                          ]);
-                    });
+        floatingActionButton: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  widget.season.team.color1,
+                  widget.season.team.color2,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: FloatingActionButton(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                child: const Icon(Icons.add),
+                onPressed: () async {
+                  final promptToAdvance = widget.game.gameStatus.index < 9 &&
+                      (widget.game.gameStatus == GameStatus.notStarted ||
+                          widget.game.gameStatus == GameStatus.halftime ||
+                          widget.game.gameStatus ==
+                              GameStatus.overtimeNotStarted ||
+                          widget.game.gameStatus ==
+                              GameStatus.overtimeHalftime);
+                  if (promptToAdvance) {
+                    final shouldAdvance = await showDialog<bool>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                              title: const Text("Advance Game"),
+                              content: const Text(
+                                  "Do you want to advance to the next period?"),
+                              actions: [
+                                TextButton(
+                                  child: const Text("Advance"),
+                                  onPressed: () async {
+                                    Navigator.pop(context, true);
+                                  },
+                                ),
+                                TextButton(
+                                  child: const Text("Cancel"),
+                                  onPressed: () {
+                                    Navigator.pop(context, false);
+                                  },
+                                ),
+                              ]);
+                        });
 
-                if (shouldAdvance == true) {
-                  _eventEmitter.emit('advanceGame');
-                }
-              }
+                    if (shouldAdvance == true) {
+                      _eventEmitter.emit('advanceGame');
+                    }
+                  }
 
-              _eventEmitter.emit('createEvent');
-            }),
+                  _eventEmitter.emit('createEvent');
+                })),
         body: GameView(
             season: widget.season,
             game: widget.game,
