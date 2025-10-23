@@ -504,8 +504,8 @@ class _SeasonPageState extends State<SeasonPage> {
     await DatabaseService.instance.insert('Teams', {
       'fullName': teamName,
       'shortName': teamShortName,
-      'color1': color1.value,
-      'color2': color2.value
+      'color1': color1.toARGB32(),
+      'color2': color2.toARGB32()
     });
   }
 }

@@ -268,10 +268,17 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> update(String table, Map<String, dynamic> data,
       {String? where, List<dynamic>? whereArgs}) async {
-    final snapshot = await _dbDocumentSnapshot.reference
-        .collection(table)
-        .where(where!, isEqualTo: whereArgs!.first)
-        .get();
+    Query q = _dbDocumentSnapshot.reference.collection(table);
+    if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
+      final fields = where.split(' AND ');
+      int index = 0;
+
+      for (var arg in whereArgs) {
+        final field = fields[index++].replaceAll('=?', '');
+        q = q.where(field, isEqualTo: arg);
+      }
+    }
+    final snapshot = await q.get();
     for (final doc in snapshot.docs) {
       await doc.reference.update(data);
     }

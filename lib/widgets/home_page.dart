@@ -221,11 +221,19 @@ class _HomePageState extends State<HomePage> {
                 return Column(children: [
                   Container(
                       decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(25),
-                            bottomRight: Radius.circular(25),
-                          )),
+                        gradient: LinearGradient(
+                          colors: [
+                            _team?.color1 ?? Theme.of(context).primaryColor,
+                            _team?.color2 ?? Theme.of(context).primaryColorDark,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(25),
+                          bottomRight: Radius.circular(25),
+                        ),
+                      ),
                       child: Card(
                           color: Colors.black,
                           child: Padding(
@@ -939,8 +947,11 @@ class _HomePageState extends State<HomePage> {
               onPressed: () async {
                 await DatabaseService.instance.update(
                   'Teams',
-                  {'color1': pickerColor1.value, 'color2': pickerColor2.value},
-                  where: 'id = ?',
+                  {
+                    'color1': pickerColor1.toARGB32(),
+                    'color2': pickerColor2.toARGB32()
+                  },
+                  where: 'id=?',
                   whereArgs: [_team!.id],
                 );
                 final teamResult = await DatabaseService.instance

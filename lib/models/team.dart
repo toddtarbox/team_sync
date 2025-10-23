@@ -15,16 +15,16 @@ class Team extends Equatable {
       {required this.id,
       required this.fullName,
       required this.shortName,
-      this.color1 = Colors.transparent,
-      this.color2 = Colors.transparent});
+      this.color1 = Colors.green,
+      this.color2 = Colors.green});
 
   factory Team.fromMap(Map<String, dynamic> map) {
     return Team(
         id: map['id'],
         fullName: map['fullName'],
         shortName: map['shortName'],
-        color1: map['color1'] != null ? Color(map['color1']) : Colors.transparent,
-        color2: map['color2'] != null ? Color(map['color2']) : Colors.transparent);
+        color1: map['color1'] != null ? Color(map['color1']) : Colors.green,
+        color2: map['color2'] != null ? Color(map['color2']) : Colors.green);
   }
 
   static Future<Team> fromId(int id) async {
