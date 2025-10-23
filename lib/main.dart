@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/home_page.dart';
 
@@ -23,8 +24,25 @@ class ThemeNotifier extends ChangeNotifier {
 
   ThemeMode get themeMode => _themeMode;
 
-  void setThemeMode(ThemeMode mode) {
+  ThemeNotifier() {
+    _loadThemeMode();
+  }
+
+  void setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
+    notifyListeners();
+    _saveThemeMode(mode);
+  }
+
+  void _saveThemeMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setInt('themeMode', mode.index);
+  }
+
+  void _loadThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeIndex = prefs.getInt('themeMode') ?? ThemeMode.system.index;
+    _themeMode = ThemeMode.values[themeIndex];
     notifyListeners();
   }
 }

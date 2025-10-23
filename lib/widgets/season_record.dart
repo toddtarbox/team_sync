@@ -30,8 +30,7 @@ class SeasonRecord extends StatelessWidget {
               width: 42, height: 42)
           : Container(),
       Text('$leading Record ($wins - $losses - $ties)',
-          style: const TextStyle(
-              color: Colors.white70, fontSize: 24, fontWeight: FontWeight.bold))
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
     ]);
   }
 }

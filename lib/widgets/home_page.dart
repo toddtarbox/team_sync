@@ -237,90 +237,85 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       child: Card(
+                          color: Colors.transparent,
                           child: Padding(
                               padding: const EdgeInsets.all(10),
                               child: Center(child: SeasonRecord(_seasons))))),
                   Expanded(
-                      child: Card(
-                          child: ListView.builder(
-                              itemCount: _seasons.length,
-                              itemBuilder: (context, index) {
-                                final season = _seasons[index];
-                                return Dismissible(
-                                    key: Key(season.id.toString()),
-                                    background: Container(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .error),
-                                    behavior: HitTestBehavior.translucent,
-                                    confirmDismiss: (_) {
-                                      return showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: Text(
+                      child: ListView.builder(
+                          itemCount: _seasons.length,
+                          itemBuilder: (context, index) {
+                            final season = _seasons[index];
+                            return Dismissible(
+                                key: Key(season.id.toString()),
+                                background: Container(
+                                    color: Theme.of(context).colorScheme.error),
+                                behavior: HitTestBehavior.translucent,
+                                confirmDismiss: (_) {
+                                  return showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .confirmDelete),
+                                        content: Text(AppLocalizations.of(
+                                                context)!
+                                            .areYouSureYouWantToDeleteThisSeason),
+                                        actions: [
+                                          TextButton(
+                                            child: Text(
                                                 AppLocalizations.of(context)!
-                                                    .confirmDelete),
-                                            content: Text(AppLocalizations.of(
-                                                    context)!
-                                                .areYouSureYouWantToDeleteThisSeason),
-                                            actions: [
-                                              TextButton(
-                                                child: Text(AppLocalizations.of(
-                                                        context)!
                                                     .continueButton),
-                                                onPressed: () {
-                                                  Navigator.pop(context, true);
-                                                },
-                                              ),
-                                              TextButton(
-                                                child: Text(AppLocalizations.of(
-                                                        context)!
+                                            onPressed: () {
+                                              Navigator.pop(context, true);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
                                                     .cancelButton),
-                                                onPressed: () {
-                                                  Navigator.pop(context, false);
-                                                },
-                                              ),
-                                            ],
-                                          );
-                                        },
+                                            onPressed: () {
+                                              Navigator.pop(context, false);
+                                            },
+                                          ),
+                                        ],
                                       );
                                     },
-                                    onDismissed: (direction) async {
-                                      await DatabaseService.instance.delete(
-                                          'Seasons',
-                                          where: 'id=?',
-                                          whereArgs: [season.id]);
-                                      setState(() {});
+                                  );
+                                },
+                                onDismissed: (direction) async {
+                                  await DatabaseService.instance.delete(
+                                      'Seasons',
+                                      where: 'id=?',
+                                      whereArgs: [season.id]);
+                                  setState(() {});
+                                },
+                                child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              SeasonPage(season: season),
+                                        ),
+                                      );
                                     },
-                                    child: GestureDetector(
-                                        onTap: () {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  SeasonPage(season: season),
-                                            ),
-                                          );
-                                        },
-                                        child: Card(
-                                            child: Column(children: [
-                                          Text(season.name,
-                                              style: const TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight: FontWeight.bold)),
-                                          Container(
-                                              decoration: BoxDecoration(
-                                                  color: Colors.grey[800],
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          10)),
-                                              padding: const EdgeInsets.all(5),
-                                              margin: const EdgeInsets.all(10),
-                                              child: Center(
-                                                  child:
-                                                      SeasonRecord([season]))),
-                                        ]))));
-                              })))
+                                    child: Card(
+                                        child: Column(children: [
+                                      Text(season.name,
+                                          style: const TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold)),
+                                      Container(
+                                          decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(10)),
+                                          padding: const EdgeInsets.all(5),
+                                          margin: const EdgeInsets.all(10),
+                                          child: Center(
+                                              child: SeasonRecord([season]))),
+                                    ]))));
+                          }))
                 ]);
               }
             },

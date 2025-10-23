@@ -133,6 +133,7 @@ class _SeasonPageState extends State<SeasonPage> {
                     ),
                   ),
                   child: Card(
+                      color: Colors.transparent,
                       child: Padding(
                           padding: const EdgeInsets.all(10),
                           child:
