@@ -73,7 +73,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                   return statCategoryTiles[index];
                 },
                 separatorBuilder: (context, index) {
-                  return const Divider(height: 1, color: Colors.black);
+                  return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
             return Center(

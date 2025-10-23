@@ -15,7 +15,7 @@ class GameResult extends StatelessWidget {
       return const Text('');
     }
 
-    Color color = Colors.black54;
+    Color color = Colors.grey;
     String result = game.isTie ? 'T' : '';
     int teamScore =
         game.isHomeTeam(teamId) ? game.homeTeamScore : game.awayTeamScore;

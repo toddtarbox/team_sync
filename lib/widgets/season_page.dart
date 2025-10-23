@@ -41,10 +41,7 @@ class _SeasonPageState extends State<SeasonPage> {
       appBar: CustomAppBar(
         team: widget.season.team,
         title: Text(widget.season.name,
-            style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 24,
-                fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
@@ -63,7 +60,7 @@ class _SeasonPageState extends State<SeasonPage> {
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.paste, color: Colors.white70))),
+                  child: Icon(Icons.paste))),
           GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
@@ -74,7 +71,7 @@ class _SeasonPageState extends State<SeasonPage> {
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.person, color: Colors.white70)))
+                  child: Icon(Icons.person)))
         ],
       ),
       floatingActionButton: Container(
@@ -136,14 +133,12 @@ class _SeasonPageState extends State<SeasonPage> {
                     ),
                   ),
                   child: Card(
-                      color: Colors.black,
                       child: Padding(
                           padding: const EdgeInsets.all(10),
                           child:
                               Center(child: SeasonRecord([widget.season]))))),
               Expanded(
                   child: Card(
-                      color: Colors.white70,
                       child: ListView.builder(
                           itemCount: games.length,
                           itemBuilder: (context, index) {
@@ -387,7 +382,6 @@ class _SeasonPageState extends State<SeasonPage> {
                               child: Center(
                                   child: Text(format.format(game.date),
                                       style: const TextStyle(
-                                          color: Colors.white70,
                                           fontWeight: FontWeight.bold,
                                           fontSize: 20))))),
                       const SizedBox(height: 30),
@@ -403,7 +397,6 @@ class _SeasonPageState extends State<SeasonPage> {
                               child: Text(
                                   AppLocalizations.of(context)!.goToGame,
                                   style: const TextStyle(
-                                      color: Colors.white70,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 20)),
                               onPressed: () async {

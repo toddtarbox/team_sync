@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-// For secure storage, you should add this package to your pubspec.yaml
-// import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:team_sync/models/team.dart';
+import 'package:team_sync/widgets/custom_appbar.dart';
 
 class TwitterSettingsPage extends StatefulWidget {
-  const TwitterSettingsPage({super.key});
+  final Team? team;
+
+  const TwitterSettingsPage({required this.team, super.key});
 
   @override
   State<TwitterSettingsPage> createState() => _TwitterSettingsPageState();
@@ -92,10 +94,9 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: CustomAppBar(
+        team: widget.team,
         title: const Text('Twitter API Settings'),
-        backgroundColor: Colors.blueGrey[800],
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -172,8 +173,6 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        filled: true,
-        fillColor: Colors.grey[50],
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
@@ -187,7 +186,6 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
   /// Helper method to create the info card at the top.
   Widget _buildInfoCard() {
     return Card(
-      color: Colors.blueGrey[50],
       elevation: 0,
       shape: RoundedRectangleBorder(
         side: BorderSide(color: Colors.blueGrey.shade200),
@@ -197,12 +195,11 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
         padding: EdgeInsets.all(16.0),
         child: Row(
           children: [
-            Icon(Icons.info_outline, color: Colors.blueGrey),
+            Icon(Icons.info_outline),
             SizedBox(width: 16),
             Expanded(
               child: Text(
                 'Enter your credentials from the Twitter Developer Portal. These values will be stored securely on your device.',
-                style: TextStyle(color: Colors.blueGrey),
               ),
             ),
           ],

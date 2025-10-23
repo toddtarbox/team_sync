@@ -53,6 +53,7 @@ dependencies:
   twitter_webview_auth: ^0.2.0
   dart_twitter_api: ^0.6.0
   firebase_analytics: ^12.0.3
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:

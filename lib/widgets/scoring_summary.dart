@@ -63,7 +63,6 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                               : widget.game.awayTeam;
 
                       return ListTile(
-                          tileColor: Colors.black45,
                           titleTextStyle: const TextStyle(color: Colors.white),
                           leading: AutoSizeText('${event.eventMinute}\'',
                               style: const TextStyle(color: Colors.white),
@@ -97,7 +96,7 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                                   fontWeight: FontWeight.bold)));
                     },
                     separatorBuilder: (context, index) {
-                      return const Divider(height: 1, color: Colors.black);
+                      return const Divider(height: 1);
                     })));
   }
 }

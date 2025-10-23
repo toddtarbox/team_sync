@@ -63,16 +63,12 @@ class _GameStatsViewState extends State<GameStatsView> {
             final stats = snapshot.data!;
             final statCategoryTiles = stats.map((stat) {
               return ListTile(
-                leadingAndTrailingTextStyle: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24),
+                leadingAndTrailingTextStyle:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 title: Center(
                     child: Text(stat.name,
                         style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24))),
+                            fontWeight: FontWeight.bold, fontSize: 24))),
                 leading: GestureDetector(
                     onTap: () {
                       if (stat.playerStats.isNotEmpty) {
@@ -87,7 +83,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                                   itemBuilder: (context, index) {
                                     if (index == 0) {
                                       return ListTile(
-                                          tileColor: Colors.black,
                                           title: Center(
                                               child: Text(stat.dialogName,
                                                   style: const TextStyle(
@@ -128,7 +123,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const ListTile(
-                        tileColor: Colors.black,
                         title: Center(
                             child: Text('Scoring Summary',
                                 style: TextStyle(
@@ -148,7 +142,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                             : widget.game.awayTeam;
 
                     return ListTile(
-                        tileColor: Colors.black45,
                         titleTextStyle: const TextStyle(color: Colors.white),
                         leading: AutoSizeText('${event.eventMinute}\'',
                             style: const TextStyle(color: Colors.white),
@@ -180,7 +173,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                                 fontSize: 14, fontWeight: FontWeight.bold)));
                   } else if (index == scoringEvents.length + 1) {
                     return const ListTile(
-                        tileColor: Colors.black,
                         title: Center(
                             child: Text('Game Stats',
                                 style: TextStyle(
@@ -191,7 +183,7 @@ class _GameStatsViewState extends State<GameStatsView> {
                   }
                 },
                 separatorBuilder: (context, index) {
-                  return const Divider(height: 1, color: Colors.black);
+                  return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
             return const Center(child: Text('Error loading stats'));

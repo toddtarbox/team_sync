@@ -101,8 +101,7 @@ class _GameViewState extends State<GameView> {
                     return Visibility(
                         visible: showScoringEvents,
                         child: const ListTile(
-                            title: Center(child: Text('Scoring Events')),
-                            tileColor: Colors.black12));
+                            title: Center(child: Text('Scoring Events'))));
                   }
 
                   if (index <= _game.scoringEvents.length) {
@@ -114,8 +113,7 @@ class _GameViewState extends State<GameView> {
 
                   if (index == _game.scoringEvents.length + 1) {
                     return const ListTile(
-                        title: Center(child: Text('All Game Events')),
-                        tileColor: Colors.black12);
+                        title: Center(child: Text('All Game Events')));
                   }
 
                   if (index >= _game.scoringEvents.length - 2 &&
@@ -131,8 +129,7 @@ class _GameViewState extends State<GameView> {
                   if (_game.shootoutEvents.isNotEmpty) {
                     if (index == _game.gameEvents.length + 2) {
                       return const ListTile(
-                          title: Center(child: Text('End of Regulation')),
-                          tileColor: Colors.black12);
+                          title: Center(child: Text('End of Regulation')));
                     }
 
                     if (index >=
@@ -152,8 +149,7 @@ class _GameViewState extends State<GameView> {
                   }
 
                   return const ListTile(
-                      title: Center(child: Text('End of Game')),
-                      tileColor: Colors.black12);
+                      title: Center(child: Text('End of Game')));
                 });
           } else if (snapshot.hasError) {
             return const Center(child: Text('Error loading events'));
@@ -241,7 +237,6 @@ class _GameViewState extends State<GameView> {
             subtitle: Visibility(
                 visible: event.eventType != 'Period',
                 child: Text(event.player?.displayName ?? event.team.shortName)),
-            tileColor: event.eventType == 'Period' ? Colors.black12 : null,
             onTap: () {
               _editEvent(event: event);
             }));

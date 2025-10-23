@@ -17,7 +17,7 @@ import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
-import 'package:team_sync/widgets/twitter_settings_page.dart';
+import 'package:team_sync/widgets/settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
@@ -127,7 +127,7 @@ class _HomePageState extends State<HomePage> {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (context) => const TwitterSettingsPage(),
+                    builder: (context) => SettingsPage(team: _team),
                   ),
                 );
               },
@@ -237,13 +237,11 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       child: Card(
-                          color: Colors.black,
                           child: Padding(
                               padding: const EdgeInsets.all(10),
                               child: Center(child: SeasonRecord(_seasons))))),
                   Expanded(
                       child: Card(
-                          color: Colors.white70,
                           child: ListView.builder(
                               itemCount: _seasons.length,
                               itemBuilder: (context, index) {
@@ -312,7 +310,7 @@ class _HomePageState extends State<HomePage> {
                                                   fontWeight: FontWeight.bold)),
                                           Container(
                                               decoration: BoxDecoration(
-                                                  color: Colors.grey[500],
+                                                  color: Colors.grey[800],
                                                   borderRadius:
                                                       BorderRadius.circular(
                                                           10)),
@@ -329,7 +327,7 @@ class _HomePageState extends State<HomePage> {
           ),
           if (_isImporting)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -27,16 +27,12 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
             final stats = snapshot.data!;
             final statCategoryTiles = LeaderCategory.values.map((category) {
               return ListTile(
-                leadingAndTrailingTextStyle: const TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24),
+                leadingAndTrailingTextStyle:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 title: Center(
                     child: Text(category.name.toSentenceCase().toTitleCase(),
                         style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24))),
+                            fontWeight: FontWeight.bold, fontSize: 24))),
                 leading: GestureDetector(
                     onTap: () async {
                       final stat = await stats.getStatPlayers(category);
@@ -52,12 +48,10 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                   itemBuilder: (context, index) {
                                     if (index == 0) {
                                       return ListTile(
-                                          tileColor: Colors.black,
                                           title: Center(
                                               child: Text(
                                                   category.name.toTitleCase(),
                                                   style: const TextStyle(
-                                                      color: Colors.white,
                                                       fontSize: 20,
                                                       fontWeight:
                                                           FontWeight.bold))));
@@ -96,22 +90,18 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   } else {
                     return ListTile(
                       leadingAndTrailingTextStyle: const TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24),
+                          fontWeight: FontWeight.bold, fontSize: 24),
                       title: const Center(
                           child: Text('Corners',
                               style: TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 24))),
+                                  fontWeight: FontWeight.bold, fontSize: 24))),
                       leading: Text(stats.teamCorners.toString()),
                       trailing: Text(stats.opponentCorners.toString()),
                     );
                   }
                 },
                 separatorBuilder: (context, index) {
-                  return const Divider(height: 1, color: Colors.black);
+                  return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
             return const Center(child: Text('Error loading stats'));
