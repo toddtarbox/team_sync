@@ -13,6 +13,7 @@ class SeasonStatsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
+        team: season.team,
         title: Text(season.name, style: const TextStyle(color: Colors.white70)),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),

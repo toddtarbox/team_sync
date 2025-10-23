@@ -39,6 +39,7 @@ class _SeasonPageState extends State<SeasonPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
+        team: widget.season.team,
         title: Text(widget.season.name,
             style: const TextStyle(
                 color: Colors.white70,
@@ -109,11 +110,20 @@ class _SeasonPageState extends State<SeasonPage> {
             return Column(children: [
               Container(
                   decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
-                      )),
+                    gradient: LinearGradient(
+                      colors: [
+                        season.team.color1 ?? Theme.of(context).primaryColor,
+                        season.team.color2 ??
+                            Theme.of(context).primaryColorDark,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(25),
+                      bottomRight: Radius.circular(25),
+                    ),
+                  ),
                   child: Card(
                       color: Colors.black,
                       child: Padding(
