@@ -21,35 +21,51 @@ class SettingsPage extends StatelessWidget {
         builder: (context, themeNotifier, child) {
           return ListView(
             children: [
+              SwitchListTile(
+                title: const Text('Automatic Theme'),
+                subtitle: const Text(
+                    'Automatically switch theme based on the time of day'),
+                value: themeNotifier.isAutoMode,
+                onChanged: (bool value) {
+                  themeNotifier.setAutoMode(value);
+                },
+              ),
+              const Divider(),
               RadioListTile<ThemeMode>(
                 title: const Text('Light Mode'),
                 value: ThemeMode.light,
                 groupValue: themeNotifier.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeNotifier.setThemeMode(value);
-                  }
-                },
+                onChanged: themeNotifier.isAutoMode
+                    ? null
+                    : (ThemeMode? value) {
+                        if (value != null) {
+                          themeNotifier.setThemeMode(value);
+                        }
+                      },
               ),
               RadioListTile<ThemeMode>(
                 title: const Text('Dark Mode'),
                 value: ThemeMode.dark,
                 groupValue: themeNotifier.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeNotifier.setThemeMode(value);
-                  }
-                },
+                onChanged: themeNotifier.isAutoMode
+                    ? null
+                    : (ThemeMode? value) {
+                        if (value != null) {
+                          themeNotifier.setThemeMode(value);
+                        }
+                      },
               ),
               RadioListTile<ThemeMode>(
                 title: const Text('System Default'),
                 value: ThemeMode.system,
                 groupValue: themeNotifier.themeMode,
-                onChanged: (ThemeMode? value) {
-                  if (value != null) {
-                    themeNotifier.setThemeMode(value);
-                  }
-                },
+                onChanged: themeNotifier.isAutoMode
+                    ? null
+                    : (ThemeMode? value) {
+                        if (value != null) {
+                          themeNotifier.setThemeMode(value);
+                        }
+                      },
               ),
               const Divider(),
               ListTile(
