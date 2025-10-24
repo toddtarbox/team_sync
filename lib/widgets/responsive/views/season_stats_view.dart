@@ -82,7 +82,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                 ? TextDecoration.underline
                                 : null))),
                 trailing: Text(
-                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g'),
+                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)'),
               );
             }).toList(growable: false);
 
