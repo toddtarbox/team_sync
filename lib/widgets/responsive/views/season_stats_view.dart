@@ -25,6 +25,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
         builder: (BuildContext context, AsyncSnapshot<SeasonStats?> snapshot) {
           if (snapshot.hasData) {
             final stats = snapshot.data!;
+            final gamesPlayed = widget.season.games.length;
+
             final statCategoryTiles = LeaderCategory.values.map((category) {
               return ListTile(
                 leadingAndTrailingTextStyle:
@@ -73,12 +75,14 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                             });
                       }
                     },
-                    child: Text(stats.teamStat(category).toString(),
+                    child: Text(
+                        '${stats.teamStat(category)} (${(stats.teamStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
                         style: TextStyle(
                             decoration: stats.teamStat(category) > 0
                                 ? TextDecoration.underline
                                 : null))),
-                trailing: Text(stats.opponentStat(category).toString()),
+                trailing: Text(
+                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g'),
               );
             }).toList(growable: false);
 
@@ -95,8 +99,12 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                           child: Text('Corners',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 24))),
-                      leading: Text(stats.teamCorners.toString()),
-                      trailing: Text(stats.opponentCorners.toString()),
+                      leading: Text(
+                        '${stats.teamCorners.toString()} (${(stats.teamCorners / gamesPlayed).toStringAsFixed(1)}/g)',
+                      ),
+                      trailing: Text(
+                        '${stats.opponentCorners.toString()} (${(stats.opponentCorners / gamesPlayed).toStringAsFixed(1)}/g)',
+                      ),
                     );
                   }
                 },
