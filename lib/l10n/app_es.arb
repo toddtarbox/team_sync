@@ -1,6 +1,7 @@
 {
   "soccerAnalytics": "Análisis de Fútbol",
   "goPro": "Hazte Pro",
+  "pro": "Pro",
   "pleaseCreateOrOpenADatabase": "Por favor, crea o abre una base de datos",
   "noTeamFound": "No se encontró ningún equipo",
   "createNewTeamToStart": "Crea un nuevo equipo para empezar",

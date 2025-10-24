@@ -1,6 +1,7 @@
 {
   "soccerAnalytics": "Soccer Analytics",
   "goPro": "Go Pro",
+  "pro": "Pro",
   "pleaseCreateOrOpenADatabase": "Please create or open a database",
   "noTeamFound": "No Team Found",
   "createNewTeamToStart": "Create a new Team to start",

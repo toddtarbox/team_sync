@@ -110,6 +110,12 @@ abstract class AppLocalizations {
   /// **'Go Pro'**
   String get goPro;
 
+  /// No description provided for @pro.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro'**
+  String get pro;
+
   /// No description provided for @pleaseCreateOrOpenADatabase.
   ///
   /// In en, this message translates to:

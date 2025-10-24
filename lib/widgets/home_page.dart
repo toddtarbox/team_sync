@@ -3,9 +3,12 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
@@ -33,8 +36,16 @@ class _HomePageState extends State<HomePage> {
   late bool _isSubscribed;
   bool _isImporting = false; // Flag to control the loading spinner
 
+  final _welcomeKey = GlobalKey();
+  final _fabKey = GlobalKey();
+  final _fabKeyOnly = GlobalKey();
+  final _goProKey = GlobalKey();
+  final _settingsKey = GlobalKey();
+  final _proKeyOnly = GlobalKey();
+
   @override
   void initState() {
+    super.initState();
     SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
       setState(() {
         _isSubscribed = isSubscribed;
@@ -45,15 +56,107 @@ class _HomePageState extends State<HomePage> {
     DatabaseService.instance.setProvider(
         _isSubscribed ? FirebaseDBProvider() : LocalDatabaseProvider());
 
+    ShowcaseView.register(
+      hideFloatingActionWidgetForShowcase: [
+        _settingsKey,
+        _fabKeyOnly,
+        _proKeyOnly
+      ],
+      globalFloatingActionWidget: (showcaseContext) => FloatingActionWidget(
+        left: 16,
+        bottom: 16,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ElevatedButton(
+            onPressed: () => ShowcaseView.get().dismiss(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffEE5366),
+            ),
+            child: const Text(
+              'Skip',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ),
+      ),
+      onStart: (index, key) {},
+      onComplete: (index, key) {
+        if (key == _settingsKey || key == _fabKeyOnly || key == _proKeyOnly) {
+          SystemChrome.setSystemUIOverlayStyle(
+            SystemUiOverlayStyle.light.copyWith(
+              statusBarIconBrightness: Brightness.dark,
+              statusBarColor: Colors.white,
+            ),
+          );
+
+          _showCreateOptions(context);
+        }
+      },
+      blurValue: 1,
+      autoPlayDelay: const Duration(seconds: 3),
+      globalTooltipActionConfig: const TooltipActionConfig(
+        position: TooltipActionPosition.inside,
+        alignment: MainAxisAlignment.spaceBetween,
+        actionGap: 20,
+      ),
+      globalTooltipActions: [
+        // Here we don't need previous action for the first showcase widget
+        // so we hide this action for the first showcase widget
+        TooltipActionButton(
+          type: TooltipDefaultActionType.previous,
+          textStyle: const TextStyle(
+            color: Colors.white,
+          ),
+          hideActionWidgetForShowcase: [
+            _welcomeKey,
+            _settingsKey,
+            _fabKeyOnly,
+            _proKeyOnly
+          ],
+        ),
+        // Here we don't need next action for the last showcase widget so we
+        // hide this action for the last showcase widget
+        TooltipActionButton(
+          type: TooltipDefaultActionType.next,
+          textStyle: const TextStyle(
+            color: Colors.white,
+          ),
+          hideActionWidgetForShowcase: [_fabKeyOnly, _proKeyOnly],
+        ),
+      ],
+      onDismiss: (key) {
+        debugPrint('Dismissed at $key');
+      },
+    );
+
+    _checkIfFirstLaunch();
+
     _load().then((_) {
       setState(() {});
     });
+  }
 
-    super.initState();
+  Future<void> _checkIfFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+
+    if (isFirstLaunch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        prefs.setBool('isFirstLaunch', false);
+
+        ShowcaseView.get().startShowCase(
+          [_welcomeKey, _fabKey, _goProKey, _settingsKey],
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
+    ShowcaseView.get().unregister();
     super.dispose();
   }
 
@@ -88,13 +191,28 @@ class _HomePageState extends State<HomePage> {
                               : Icon(Icons.cloud_rounded, color: Colors.white70)
                         ])))),
         actions: [
-          Visibility(
-            visible: !_isSubscribed,
+          Showcase(
+            key: _isSubscribed ? _proKeyOnly : _goProKey,
+            description: _isSubscribed
+                ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
+                : 'Go Pro to access more features, like cloud storage!',
             child: TextButton(
               onPressed: () async {
-                await SubscriptionService.instance.purchaseSubscription();
+                if (!_isSubscribed) {
+                  await SubscriptionService.instance.purchaseSubscription();
+                  setState(() {});
+                }
+
+                if (_isSubscribed) {
+                  ShowcaseView.get().startShowCase(
+                    [_proKeyOnly],
+                  );
+                }
               },
-              child: Text(AppLocalizations.of(context)!.goPro,
+              child: Text(
+                  _isSubscribed
+                      ? AppLocalizations.of(context)!.pro
+                      : AppLocalizations.of(context)!.goPro,
                   style: const TextStyle(color: Colors.yellow)),
             ),
           ),
@@ -122,40 +240,50 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   icon: const Icon(Icons.manage_history_outlined))),
-          IconButton(
-              color: Colors.white70,
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SettingsPage(team: _team),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.settings))
+          Showcase(
+            key: _settingsKey,
+            description: 'Access app settings here',
+            child: IconButton(
+                color: Colors.white70,
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => SettingsPage(team: _team),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.settings)),
+          )
         ],
       ),
-      floatingActionButton: Visibility(
-        visible: !_isImporting,
+      floatingActionButton: Showcase(
+        key: DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
+        description: DatabaseService.instance.path.isEmpty
+            ? 'Tap here to create a new database'
+            : _team == null
+                ? 'Tap here to create a new Team'
+                : 'Tap here to add a new Season or change your team colors',
         child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  _team?.color1 ?? Theme.of(context).primaryColor,
-                  _team?.color2 ?? Theme.of(context).primaryColorDark,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _team?.color1 ?? Theme.of(context).primaryColor,
+                _team?.color2 ?? Theme.of(context).primaryColorDark,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: FloatingActionButton(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child: const Icon(Icons.add, color: Colors.white70),
-              onPressed: () async {
-                await _showCreateOptions(context);
-              },
-            )),
+            shape: BoxShape.circle,
+          ),
+          child: FloatingActionButton(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            child: const Icon(Icons.add, color: Colors.white70),
+            onPressed: () async {
+              await _showCreateOptions(context);
+            },
+          ),
+        ),
       ),
       body: Stack(
         children: [
@@ -169,11 +297,15 @@ class _HomePageState extends State<HomePage> {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else {
                 if (DatabaseService.instance.path.isEmpty) {
-                  return Center(
-                      child: Text(
-                          AppLocalizations.of(context)!
-                              .pleaseCreateOrOpenADatabase,
-                          style: const TextStyle(fontSize: 24)));
+                  return Showcase(
+                      key: _welcomeKey,
+                      description:
+                          'Welcome to TeamSync! Let\'s take a look around and get you started managing your team!',
+                      child: Center(
+                          child: Text(
+                              AppLocalizations.of(context)!
+                                  .pleaseCreateOrOpenADatabase,
+                              style: const TextStyle(fontSize: 24))));
                 }
 
                 if (_team == null) {
@@ -236,7 +368,7 @@ class _HomePageState extends State<HomePage> {
                           bottomRight: Radius.circular(25),
                         ),
                       ),
-                      child: Card(
+                      child: Container(
                           color: Colors.transparent,
                           child: Padding(
                               padding: const EdgeInsets.all(10),
@@ -520,6 +652,9 @@ class _HomePageState extends State<HomePage> {
                 )),
             Visibility(
                 visible: _team != null,
+                child: Divider(color: Theme.of(context).colorScheme.secondary)),
+            Visibility(
+                visible: _team != null,
                 child: ListTile(
                   leading: Icon(Icons.color_lens,
                       color: Theme.of(context).colorScheme.secondary),
@@ -598,6 +733,9 @@ class _HomePageState extends State<HomePage> {
         break;
       case 'newInternalDatabase':
         await _createDatabase(true);
+        ShowcaseView.get().startShowCase(
+          [_fabKey],
+        );
         break;
       case 'exportDB':
         await FilePicker.platform.saveFile(
@@ -606,16 +744,22 @@ class _HomePageState extends State<HomePage> {
         break;
       case 'team':
         await _createTeam();
+        ShowcaseView.get().startShowCase(
+          [_fabKeyOnly],
+        );
         break;
       case 'season':
         await _createSeason();
+        ShowcaseView.get().startShowCase(
+          [_fabKeyOnly],
+        );
         break;
     }
   }
 
   Future<void> _createDatabase(bool isInternal) async {
     String databaseName = '';
-    showModalBottomSheet(
+    await showModalBottomSheet(
         context: context,
         builder: (context) {
           return Card(
@@ -716,41 +860,34 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final granted = Platform.isIOS
-          ? await Permission.storage.request().isGranted
-          : await Permission.manageExternalStorage.request().isGranted;
-
-      if (granted) {
-        if (DatabaseService.instance.isLocalDatabase &&
-            !databaseName.endsWith('.db')) {
-          databaseName += '.db';
-        }
-
-        final wasOpened = await DatabaseService.instance.open(databaseName);
-        if (!wasOpened) {
-          // The database is still being imported, show a message.
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content:
-                Text(AppLocalizations.of(context)!.databaseImportInProgress),
-          ));
-          return;
-        }
-
-        const storage = FlutterSecureStorage();
-        await storage.write(key: 'last_db_used', value: databaseName);
-        await storage.write(key: 'last_db_used_is_internal', value: 'false');
-
-        final teamResult = await DatabaseService.instance
-            .query('Teams', where: 'id=?', whereArgs: [1]);
-        if (teamResult.isNotEmpty) {
-          _team = Team.fromMap(teamResult.first);
-          await _loadSeasons();
-        } else {
-          _team = null;
-        }
-
-        setState(() {});
+      if (DatabaseService.instance.isLocalDatabase &&
+          !databaseName.endsWith('.db')) {
+        databaseName += '.db';
       }
+
+      final wasOpened = await DatabaseService.instance.open(databaseName);
+      if (!wasOpened) {
+        // The database is still being imported, show a message.
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.databaseImportInProgress),
+        ));
+        return;
+      }
+
+      const storage = FlutterSecureStorage();
+      await storage.write(key: 'last_db_used', value: databaseName);
+      await storage.write(key: 'last_db_used_is_internal', value: 'false');
+
+      final teamResult = await DatabaseService.instance
+          .query('Teams', where: 'id=?', whereArgs: [1]);
+      if (teamResult.isNotEmpty) {
+        _team = Team.fromMap(teamResult.first);
+        await _loadSeasons();
+      } else {
+        _team = null;
+      }
+
+      setState(() {});
     } catch (e) {
       debugPrint(e.toString());
     }
@@ -963,7 +1100,7 @@ class _HomePageState extends State<HomePage> {
     late String teamName;
     late String teamShortName;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
         context: context,
         builder: (context) {
           return Card(
@@ -1031,7 +1168,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _createSeason() async {
     late String seasonName;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
         context: context,
         builder: (context) {
           return Card(

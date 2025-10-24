@@ -15,6 +15,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goPro => 'Go Pro';
 
   @override
+  String get pro => 'Pro';
+
+  @override
   String get pleaseCreateOrOpenADatabase => 'Please create or open a database';
 
   @override

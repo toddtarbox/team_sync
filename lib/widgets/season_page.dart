@@ -132,7 +132,7 @@ class _SeasonPageState extends State<SeasonPage> {
                       bottomRight: Radius.circular(25),
                     ),
                   ),
-                  child: Card(
+                  child: Container(
                       color: Colors.transparent,
                       child: Padding(
                           padding: const EdgeInsets.all(10),
