@@ -32,7 +32,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                 title: Center(
                     child: Text(category.name.toSentenceCase().toTitleCase(),
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 24))),
+                            fontWeight: FontWeight.bold, fontSize: 20))),
                 leading: GestureDetector(
                     onTap: () async {
                       final stat = await stats.getStatPlayers(category);
@@ -77,14 +77,14 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                         '${stats.teamStat(category)} (${(stats.teamStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 24,
+                            fontSize: 18,
                             decoration: stats.teamStat(category) > 0
                                 ? TextDecoration.underline
                                 : null))),
                 trailing: Text(
                     '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 24)),
+                        fontWeight: FontWeight.bold, fontSize: 18)),
               );
             }).toList(growable: false);
 
@@ -98,15 +98,15 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                       title: const Center(
                           child: Text('Corners',
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 24))),
+                                  fontWeight: FontWeight.bold, fontSize: 20))),
                       leading: Text(
                           '${stats.teamCorners.toString()} (${(stats.teamCorners / gamesPlayed).toStringAsFixed(1)}/g)',
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 24)),
+                              fontWeight: FontWeight.bold, fontSize: 18)),
                       trailing: Text(
                           '${stats.opponentCorners.toString()} (${(stats.opponentCorners / gamesPlayed).toStringAsFixed(1)}/g)',
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 24)),
+                              fontWeight: FontWeight.bold, fontSize: 18)),
                     );
                   }
                 },
