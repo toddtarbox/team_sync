@@ -15,10 +15,8 @@ class HistoryVersusPage extends StatelessWidget {
         appBar: CustomAppBar(
           team: team,
           title: Text(AppLocalizations.of(context)!.historyVersus,
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         ),
         body: HistoryVersusView(team: team));
   }

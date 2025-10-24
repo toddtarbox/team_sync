@@ -29,8 +29,6 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
 
             final statCategoryTiles = LeaderCategory.values.map((category) {
               return ListTile(
-                leadingAndTrailingTextStyle:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 title: Center(
                     child: Text(category.name.toSentenceCase().toTitleCase(),
                         style: const TextStyle(
@@ -78,11 +76,15 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     child: Text(
                         '${stats.teamStat(category)} (${(stats.teamStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
                         style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
                             decoration: stats.teamStat(category) > 0
                                 ? TextDecoration.underline
                                 : null))),
                 trailing: Text(
-                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)'),
+                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 24)),
               );
             }).toList(growable: false);
 
@@ -93,18 +95,18 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     return statCategoryTiles[index];
                   } else {
                     return ListTile(
-                      leadingAndTrailingTextStyle: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 24),
                       title: const Center(
                           child: Text('Corners',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold, fontSize: 24))),
                       leading: Text(
-                        '${stats.teamCorners.toString()} (${(stats.teamCorners / gamesPlayed).toStringAsFixed(1)}/g)',
-                      ),
+                          '${stats.teamCorners.toString()} (${(stats.teamCorners / gamesPlayed).toStringAsFixed(1)}/g)',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 24)),
                       trailing: Text(
-                        '${stats.opponentCorners.toString()} (${(stats.opponentCorners / gamesPlayed).toStringAsFixed(1)}/g)',
-                      ),
+                          '${stats.opponentCorners.toString()} (${(stats.opponentCorners / gamesPlayed).toStringAsFixed(1)}/g)',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 24)),
                     );
                   }
                 },

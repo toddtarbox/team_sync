@@ -11,7 +11,7 @@ class Scoreboard extends StatelessWidget {
 
   const Scoreboard(this.game, this.season,
       {this.shortName = false,
-      this.color = Colors.white70,
+      this.color = Colors.black,
       this.backgroundColor = Colors.transparent,
       super.key});
 

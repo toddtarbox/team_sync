@@ -14,11 +14,11 @@ class SeasonStatsPage extends StatelessWidget {
     return Scaffold(
       appBar: CustomAppBar(
         team: season.team,
-        title: Text(season.name, style: const TextStyle(color: Colors.white70)),
+        title: Text(season.name),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
             child: Text(AppLocalizations.of(context)!.seasonStats,
-                style: const TextStyle(color: Colors.white70, fontSize: 24))),
+                style: const TextStyle(fontSize: 24))),
       ),
       body: SeasonStatsView(season: season),
     );

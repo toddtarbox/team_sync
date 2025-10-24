@@ -31,7 +31,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               }
             },
             child: Navigator.of(context).canPop()
-                ? const Icon(Icons.arrow_back, color: Colors.white70)
+                ? const Icon(Icons.arrow_back)
                 : Image.asset('assets/images/pngs/icon_no_background.png',
                     width: 16, height: 16)),
         title: title,

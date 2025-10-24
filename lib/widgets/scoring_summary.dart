@@ -63,37 +63,31 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                               : widget.game.awayTeam;
 
                       return ListTile(
-                          titleTextStyle: const TextStyle(color: Colors.white),
                           leading: AutoSizeText('${event.eventMinute}\'',
-                              style: const TextStyle(color: Colors.white),
                               minFontSize: 14),
                           title: event.team.id == widget.season.team.id
                               ? AutoSizeText(event.player?.displayName ?? '',
-                                  style: const TextStyle(color: Colors.white),
                                   minFontSize: 14)
                               : AutoSizeText(event.team.shortName,
-                                  style: const TextStyle(color: Colors.white),
                                   minFontSize: 14),
                           subtitle: AutoSizeText(
-                              event.team.id == widget.team.id &&
-                                      assistEvent != null
-                                  ? assistEvent.display
-                                  : event.eventType == 'PenaltyKick'
-                                      ? 'PK'
-                                      : event.team.id == widget.season.team.id
-                                          ? event.player == null
-                                              ? 'Own goal by ${opponent.shortName}'
-                                              : 'No assist'
-                                          : '',
-                              style: const TextStyle(color: Colors.white70)),
+                            event.team.id == widget.team.id &&
+                                    assistEvent != null
+                                ? assistEvent.display
+                                : event.eventType == 'PenaltyKick'
+                                    ? 'PK'
+                                    : event.team.id == widget.season.team.id
+                                        ? event.player == null
+                                            ? 'Own goal by ${opponent.shortName}'
+                                            : 'No assist'
+                                        : '',
+                          ),
                           trailing: Text(
                               maxLines: 1,
                               widget.game.getScore(widget.season.teamId,
                                   minute: event.eventMinute),
                               style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold)));
+                                  fontSize: 14, fontWeight: FontWeight.bold)));
                     },
                     separatorBuilder: (context, index) {
                       return const Divider(height: 1);

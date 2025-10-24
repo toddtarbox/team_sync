@@ -43,10 +43,8 @@ class _TabletGamePageState extends State<TabletGamePage> {
         appBar: CustomAppBar(
           team: widget.season.team,
           title: Text(_game.displayName(widget.season.teamId),
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           actions: _game.gameStatus.index < 9
               ? [
                   GestureDetector(
@@ -79,8 +77,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                       },
                       child: const Padding(
                           padding: EdgeInsets.all(5),
-                          child: Icon(Icons.add,
-                              size: 24, color: Colors.white70))),
+                          child: Icon(Icons.add, size: 24))),
                   GestureDetector(
                       onTap: () async {
                         final selectedStatus = await showDialog<int>(
@@ -152,8 +149,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                       },
                       child: const Padding(
                           padding: EdgeInsets.all(5),
-                          child: Icon(Icons.close,
-                              size: 24, color: Colors.white70)))
+                          child: Icon(Icons.close, size: 24)))
                 ]
               : [],
           bottom: PreferredSize(

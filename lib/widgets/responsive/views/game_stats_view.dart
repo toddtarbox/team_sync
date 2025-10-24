@@ -63,8 +63,6 @@ class _GameStatsViewState extends State<GameStatsView> {
             final stats = snapshot.data!;
             final statCategoryTiles = stats.map((stat) {
               return ListTile(
-                leadingAndTrailingTextStyle:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 title: Center(
                     child: Text(stat.name,
                         style: const TextStyle(
@@ -86,7 +84,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                                           title: Center(
                                               child: Text(stat.dialogName,
                                                   style: const TextStyle(
-                                                      color: Colors.white,
                                                       fontSize: 20,
                                                       fontWeight:
                                                           FontWeight.bold))));
@@ -110,11 +107,15 @@ class _GameStatsViewState extends State<GameStatsView> {
                     },
                     child: Text(stat.teamStat.toString(),
                         style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
                             decoration:
                                 stat.name != 'Corners' && stat.teamStat > 0
                                     ? TextDecoration.underline
                                     : null))),
-                trailing: Text(stat.opponentStat.toString()),
+                trailing: Text(stat.opponentStat.toString(),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 24)),
               );
             }).toList(growable: false);
 
@@ -125,9 +126,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                     return const ListTile(
                         title: Center(
                             child: Text('Scoring Summary',
-                                style: TextStyle(
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.bold))));
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold))));
                   } else if (index <= scoringEvents.length) {
                     final event = scoringEvents[index - 1];
                     final assistEvent = assistEvents
@@ -142,29 +142,25 @@ class _GameStatsViewState extends State<GameStatsView> {
                             : widget.game.awayTeam;
 
                     return ListTile(
-                        titleTextStyle: const TextStyle(color: Colors.white),
                         leading: AutoSizeText('${event.eventMinute}\'',
-                            style: const TextStyle(color: Colors.white),
                             minFontSize: 14),
                         title: event.team.id == widget.season.team.id
                             ? AutoSizeText(event.player?.displayName ?? '',
-                                style: const TextStyle(color: Colors.white),
                                 minFontSize: 14)
                             : AutoSizeText(event.team.shortName,
-                                style: const TextStyle(color: Colors.white),
                                 minFontSize: 14),
                         subtitle: AutoSizeText(
-                            event.team.id == widget.season.team.id &&
-                                    assistEvent != null
-                                ? assistEvent.display
-                                : event.eventType == 'PenaltyKick'
-                                    ? 'PK'
-                                    : event.team.id == widget.season.team.id
-                                        ? event.player == null
-                                            ? 'Own goal by ${opponent.shortName}'
-                                            : 'No assist'
-                                        : '',
-                            style: const TextStyle(color: Colors.white70)),
+                          event.team.id == widget.season.team.id &&
+                                  assistEvent != null
+                              ? assistEvent.display
+                              : event.eventType == 'PenaltyKick'
+                                  ? 'PK'
+                                  : event.team.id == widget.season.team.id
+                                      ? event.player == null
+                                          ? 'Own goal by ${opponent.shortName}'
+                                          : 'No assist'
+                                      : '',
+                        ),
                         trailing: Text(
                             maxLines: 1,
                             _game.getScore(widget.season.teamId,
@@ -175,9 +171,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                     return const ListTile(
                         title: Center(
                             child: Text('Game Stats',
-                                style: TextStyle(
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.bold))));
+                                style:
+                                    TextStyle(fontWeight: FontWeight.bold))));
                   } else {
                     return statCategoryTiles[index - scoringEvents.length - 2];
                   }

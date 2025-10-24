@@ -34,10 +34,8 @@ class _MobileGamePageState extends State<MobileGamePage> {
         appBar: CustomAppBar(
           team: widget.season.team,
           title: Text(widget.game.displayName(widget.season.teamId),
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           actions: widget.game.gameStatus.index < 9
               ? [
                   GestureDetector(
@@ -48,8 +46,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       },
                       child: const Padding(
                           padding: EdgeInsets.all(5),
-                          child: Icon(Icons.paste,
-                              size: 24, color: Colors.white70))),
+                          child: Icon(Icons.paste, size: 24))),
                   GestureDetector(
                       onTap: () async {
                         await showDialog(
@@ -78,9 +75,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                             });
                       },
                       child: const Padding(
-                          padding: EdgeInsets.all(5),
-                          child: Icon(Icons.add,
-                              size: 24, color: Colors.white70))),
+                          padding: EdgeInsets.all(5), child: Icon(Icons.add))),
                   GestureDetector(
                       onTap: () async {
                         final selectedStatus = await showDialog<int>(
@@ -158,8 +153,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       },
                       child: const Padding(
                           padding: EdgeInsets.all(5),
-                          child: Icon(Icons.close,
-                              size: 24, color: Colors.white70)))
+                          child: Icon(Icons.close, size: 24)))
                 ]
               : [
                   GestureDetector(
@@ -170,8 +164,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       },
                       child: const Padding(
                           padding: EdgeInsets.only(right: 10),
-                          child: Icon(Icons.paste,
-                              size: 24, color: Colors.white70))),
+                          child: Icon(Icons.paste, size: 24))),
                 ],
           bottom: PreferredSize(
               preferredSize: Size(width, 100),

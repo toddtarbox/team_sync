@@ -24,12 +24,10 @@ class MobileGameStatsPage extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
               },
-              child: const Icon(Icons.arrow_back, color: Colors.white70)),
+              child: const Icon(Icons.arrow_back)),
           title: Text(game.displayName(season.teamId),
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           bottom: PreferredSize(
               preferredSize: Size(width, 100), child: Scoreboard(game, season)),
         ),

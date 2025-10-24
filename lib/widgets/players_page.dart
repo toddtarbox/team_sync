@@ -20,10 +20,8 @@ class _PlayersPageState extends State<PlayersPage> {
         appBar: CustomAppBar(
           team: widget.season.team,
           title: Text(AppLocalizations.of(context)!.players,
-              style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold)),
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         ),
         floatingActionButton: Container(
             decoration: BoxDecoration(

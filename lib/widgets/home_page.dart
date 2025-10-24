@@ -167,10 +167,7 @@ class _HomePageState extends State<HomePage> {
       appBar: CustomAppBar(
         team: _team,
         title: Text(AppLocalizations.of(context)!.soccerAnalytics,
-            style: const TextStyle(
-                fontSize: 24,
-                color: Colors.white70,
-                fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
@@ -183,12 +180,11 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Text(
                               '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 24)),
+                              style: const TextStyle(fontSize: 24)),
                           SizedBox(width: 10),
                           DatabaseService.instance.isLocalDatabase
                               ? Container()
-                              : Icon(Icons.cloud_rounded, color: Colors.white70)
+                              : Icon(Icons.cloud_rounded)
                         ])))),
         actions: [
           Showcase(
@@ -219,7 +215,6 @@ class _HomePageState extends State<HomePage> {
           Visibility(
               visible: _team != null,
               child: IconButton(
-                  color: Colors.white70,
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -231,7 +226,6 @@ class _HomePageState extends State<HomePage> {
           Visibility(
               visible: _team != null,
               child: IconButton(
-                  color: Colors.white70,
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -244,7 +238,6 @@ class _HomePageState extends State<HomePage> {
             key: _settingsKey,
             description: 'Access app settings here',
             child: IconButton(
-                color: Colors.white70,
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -278,7 +271,7 @@ class _HomePageState extends State<HomePage> {
           child: FloatingActionButton(
             backgroundColor: Colors.transparent,
             elevation: 0,
-            child: const Icon(Icons.add, color: Colors.white70),
+            child: const Icon(Icons.add),
             onPressed: () async {
               await _showCreateOptions(context);
             },
@@ -462,8 +455,7 @@ class _HomePageState extends State<HomePage> {
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
                     Text(AppLocalizations.of(context)!.importingDatabase,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 16)),
+                        style: const TextStyle(fontSize: 16)),
                   ],
                 ),
               ),
@@ -493,14 +485,12 @@ class _HomePageState extends State<HomePage> {
               TextButton(
                 onPressed: () => _launchURL(
                     'https://sites.google.com/view/team-sync/privacy'),
-                child: const Text('Privacy Policy',
-                    style: TextStyle(color: Colors.white70)),
+                child: const Text('Privacy Policy'),
               ),
               TextButton(
                 onPressed: () =>
                     _launchURL('https://sites.google.com/view/team-sync/terms'),
-                child: const Text('Terms of Use',
-                    style: TextStyle(color: Colors.white70)),
+                child: const Text('Terms of Use'),
               ),
             ],
           ),
@@ -926,28 +916,6 @@ class _HomePageState extends State<HomePage> {
     await Future.wait(_seasons.map((s) async => await s.load()));
   }
 
-  Future<String?> _pickLocation() async {
-    // 1. Request storage permission
-    var status = Platform.isIOS
-        ? await Permission.storage.request()
-        : await Permission.manageExternalStorage.request();
-    if (!status.isGranted) {
-      openAppSettings(); // Guide user to settings
-      return null;
-    }
-
-    try {
-      // 2. Pick a folder
-      String? dirPath = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: 'Select a Folder to Save Your Database',
-      );
-      return dirPath;
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-    return null;
-  }
-
   Future<String?> _pickCloudDatabase() async {
     if (DatabaseService.instance.isLocalDatabase) {
       await DatabaseService.instance.close();
@@ -1024,8 +992,14 @@ class _HomePageState extends State<HomePage> {
         ? await Permission.storage.request()
         : await Permission.manageExternalStorage.request();
     if (!status.isGranted) {
-      openAppSettings(); // Guide user to settings
-      return null;
+      await openAppSettings();
+
+      status = Platform.isIOS
+          ? await Permission.storage.request()
+          : await Permission.manageExternalStorage.request();
+      if (!status.isGranted) {
+        return null;
+      }
     }
 
     try {
