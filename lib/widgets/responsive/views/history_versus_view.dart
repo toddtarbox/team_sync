@@ -74,7 +74,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                   Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: Text(
-                                      'Vs. ${team?.fullName ?? ''}',
+                                      'vs. ${team?.fullName ?? ''}',
                                       style: const TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.bold),
