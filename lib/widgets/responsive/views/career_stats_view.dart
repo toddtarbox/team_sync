@@ -59,21 +59,41 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                           showModalBottomSheet(
                               context: context,
                               builder: (context) {
-                                return ListView.builder(
-                                    itemCount: stat.length,
-                                    itemBuilder: (context, index) {
-                                      final stat = sortedStats[index];
-                                      return ListTile(
-                                          title: Text(stat.key.displayName,
-                                              style: const TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight: FontWeight.bold)),
-                                          trailing: Text(stat.value.toString(),
-                                              style: const TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight:
-                                                      FontWeight.bold)));
-                                    });
+                                return Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        category.name
+                                            .toSentenceCase()
+                                            .toTitleCase(),
+                                        style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: ListView.builder(
+                                          itemCount: stat.length,
+                                          itemBuilder: (context, index) {
+                                            final stat = sortedStats[index];
+                                            return ListTile(
+                                                title: Text(
+                                                    stat.key.displayName,
+                                                    style: const TextStyle(
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                trailing: Text(
+                                                    stat.value.toString(),
+                                                    style: const TextStyle(
+                                                        fontSize: 24,
+                                                        fontWeight:
+                                                            FontWeight.bold)));
+                                          }),
+                                    ),
+                                  ],
+                                );
                               });
                         }
                       },

@@ -69,29 +69,47 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                         showModalBottomSheet(
                             context: context,
                             builder: (context) {
-                              return ListView.builder(
-                                  itemCount: games.length,
-                                  itemBuilder: (context, index) {
-                                    final game = games[index];
-                                    final color = game.isWin(widget.team.id)
-                                        ? Colors.green
-                                        : game.isTie
-                                            ? Colors.grey
-                                            : Colors.red;
+                              return Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Vs. ${team?.fullName ?? ''}',
+                                      style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: ListView.builder(
+                                        itemCount: games.length,
+                                        itemBuilder: (context, index) {
+                                          final game = games[index];
+                                          final color =
+                                              game.isWin(widget.team.id)
+                                                  ? Colors.green
+                                                  : game.isTie
+                                                      ? Colors.grey
+                                                      : Colors.red;
 
-                                    return ListTile(
-                                        title: Text(
-                                            '${game.date.month}/${game.date.day}/${game.date.year} ${game.displayName(widget.team.id)}',
-                                            style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold)),
-                                        trailing: Text(
-                                            game.getScore(widget.team.id),
-                                            style: TextStyle(
-                                                color: color,
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold)));
-                                  });
+                                          return ListTile(
+                                              title: Text(
+                                                  '${game.date.month}/${game.date.day}/${game.date.year} ${game.displayName(widget.team.id)}',
+                                                  style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                              trailing: Text(
+                                                  game.getScore(widget.team.id),
+                                                  style: TextStyle(
+                                                      color: color,
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold)));
+                                        }),
+                                  ),
+                                ],
+                              );
                             });
                       },
                       child: ListTile(
