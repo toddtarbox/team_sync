@@ -88,5 +88,6 @@
   "primaryColor": "Primary color",
   "secondaryColor": "Secondary color",
   "pickAColor": "Pick a color",
-  "gotIt": "Got it"
+  "gotIt": "Got it",
+  "shareDatabase": "Share Database"
 }

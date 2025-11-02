@@ -287,4 +287,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gotIt => 'Entendido';
+
+  @override
+  String get shareDatabase => 'Compartir base de datos';
 }

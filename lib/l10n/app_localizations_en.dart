@@ -282,4 +282,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gotIt => 'Got it';
+
+  @override
+  String get shareDatabase => 'Share Database';
 }

@@ -90,5 +90,6 @@
   "primaryColor": "Color primario",
   "secondaryColor": "Color secundario",
   "pickAColor": "Elige un color",
-  "gotIt": "Entendido"
+  "gotIt": "Entendido",
+  "shareDatabase": "Compartir base de datos"
 }

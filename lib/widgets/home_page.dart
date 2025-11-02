@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
@@ -24,7 +27,8 @@ import 'package:team_sync/widgets/settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String? databaseId;
+  const HomePage({super.key, this.databaseId});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -35,6 +39,8 @@ class _HomePageState extends State<HomePage> {
   List<Season> _seasons = [];
   late bool _isSubscribed;
   bool _isImporting = false; // Flag to control the loading spinner
+  bool get isWebView => widget.databaseId != null || kIsWeb;
+  final _teamIdController = TextEditingController();
 
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
@@ -53,8 +59,9 @@ class _HomePageState extends State<HomePage> {
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
-    DatabaseService.instance.setProvider(
-        _isSubscribed ? FirebaseDBProvider() : LocalDatabaseProvider());
+    DatabaseService.instance.setProvider(kIsWeb || _isSubscribed
+        ? FirebaseDBProvider()
+        : LocalDatabaseProvider());
 
     ShowcaseView.register(
       hideFloatingActionWidgetForShowcase: [
@@ -91,8 +98,9 @@ class _HomePageState extends State<HomePage> {
               statusBarColor: Colors.white,
             ),
           );
-
-          _showCreateOptions(context);
+          if (!kIsWeb) {
+            _showCreateOptions(context);
+          }
         }
       },
       blurValue: 1,
@@ -132,7 +140,9 @@ class _HomePageState extends State<HomePage> {
       },
     );
 
-    _checkIfFirstLaunch();
+    if (!kIsWeb) {
+      _checkIfFirstLaunch();
+    }
 
     _load().then((_) {
       setState(() {});
@@ -162,6 +172,42 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb && widget.databaseId == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('TeamSync Viewer')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Enter a 6-digit Team ID to view stats:',
+                    style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _teamIdController,
+                  maxLength: 6,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Team ID',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_teamIdController.text.length == 6) {
+                      context.go('/${_teamIdController.text}');
+                    }
+                  },
+                  child: const Text('Load Team'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
@@ -172,7 +218,8 @@ class _HomePageState extends State<HomePage> {
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
                 visible:
-                    DatabaseService.instance.path.isNotEmpty || _team != null,
+                    (!kIsWeb && DatabaseService.instance.path.isNotEmpty) ||
+                        _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Row(
@@ -186,98 +233,106 @@ class _HomePageState extends State<HomePage> {
                               ? Container()
                               : Icon(Icons.cloud_rounded)
                         ])))),
-        actions: [
-          Showcase(
-            key: _isSubscribed ? _proKeyOnly : _goProKey,
-            description: _isSubscribed
-                ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
-                : 'Go Pro to access more features, like cloud storage!',
-            child: TextButton(
-              onPressed: () async {
-                if (!_isSubscribed) {
-                  await SubscriptionService.instance.purchaseSubscription();
-                  setState(() {});
-                }
+        actions: kIsWeb
+            ? []
+            : [
+                Showcase(
+                  key: _isSubscribed ? _proKeyOnly : _goProKey,
+                  description: _isSubscribed
+                      ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
+                      : 'Go Pro to access more features, like cloud storage!',
+                  child: TextButton(
+                    onPressed: () async {
+                      if (!_isSubscribed) {
+                        await SubscriptionService.instance
+                            .purchaseSubscription();
+                        setState(() {});
+                      }
 
-                if (_isSubscribed) {
-                  ShowcaseView.get().startShowCase(
-                    [_proKeyOnly],
-                  );
-                }
-              },
-              child: Text(
-                  _isSubscribed
-                      ? AppLocalizations.of(context)!.pro
-                      : AppLocalizations.of(context)!.goPro,
-                  style: const TextStyle(color: Colors.yellow)),
-            ),
-          ),
-          Visibility(
-              visible: _team != null,
-              child: IconButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => CareerStatsPage(team: _team!),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.leaderboard))),
-          Visibility(
-              visible: _team != null,
-              child: IconButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => HistoryVersusPage(team: _team!),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.manage_history_outlined))),
-          Showcase(
-            key: _settingsKey,
-            description: 'Access app settings here',
-            child: IconButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => SettingsPage(team: _team),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.settings)),
-          )
-        ],
-      ),
-      floatingActionButton: Showcase(
-        key: DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
-        description: DatabaseService.instance.path.isEmpty
-            ? 'Tap here to create a new database'
-            : _team == null
-                ? 'Tap here to create a new Team'
-                : 'Tap here to add a new Season or change your team colors',
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                _team?.color1 ?? Theme.of(context).primaryColor,
-                _team?.color2 ?? Theme.of(context).primaryColorDark,
+                      if (_isSubscribed) {
+                        ShowcaseView.get().startShowCase(
+                          [_proKeyOnly],
+                        );
+                      }
+                    },
+                    child: Text(
+                        _isSubscribed
+                            ? AppLocalizations.of(context)!.pro
+                            : AppLocalizations.of(context)!.goPro,
+                        style: const TextStyle(color: Colors.yellow)),
+                  ),
+                ),
+                Visibility(
+                    visible: _team != null,
+                    child: IconButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  CareerStatsPage(team: _team!),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.leaderboard))),
+                Visibility(
+                    visible: _team != null,
+                    child: IconButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  HistoryVersusPage(team: _team!),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.manage_history_outlined))),
+                Showcase(
+                  key: _settingsKey,
+                  description: 'Access app settings here',
+                  child: IconButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => SettingsPage(team: _team),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.settings)),
+                )
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: FloatingActionButton(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            child: const Icon(Icons.add),
-            onPressed: () async {
-              await _showCreateOptions(context);
-            },
-          ),
-        ),
       ),
+      floatingActionButton: kIsWeb
+          ? null
+          : Showcase(
+              key:
+                  DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
+              description: DatabaseService.instance.path.isEmpty
+                  ? 'Tap here to create a new database'
+                  : _team == null
+                      ? 'Tap here to create a new Team'
+                      : 'Tap here to add a new Season or change your team colors',
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _team?.color1 ?? Theme.of(context).primaryColor,
+                      _team?.color2 ?? Theme.of(context).primaryColorDark,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: FloatingActionButton(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: const Icon(Icons.add),
+                  onPressed: () async {
+                    await _showCreateOptions(context);
+                  },
+                ),
+              ),
+            ),
       body: Stack(
         children: [
           FutureBuilder(
@@ -289,7 +344,10 @@ class _HomePageState extends State<HomePage> {
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else {
-                if (DatabaseService.instance.path.isEmpty) {
+                if ((!kIsWeb &&
+                        DatabaseService.instance.path.isEmpty &&
+                        !isWebView) ||
+                    (isWebView && _team == null)) {
                   return Showcase(
                       key: _welcomeKey,
                       description:
@@ -308,18 +366,19 @@ class _HomePageState extends State<HomePage> {
                           children: [
                         Text(AppLocalizations.of(context)!.noTeamFound,
                             style: const TextStyle(fontSize: 24)),
-                        GestureDetector(
-                            onTap: () {
-                              _handleSelection(context, 'team');
-                            },
-                            child: Text(
-                                AppLocalizations.of(context)!
-                                    .createNewTeamToStart,
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .secondary))),
+                        if (!kIsWeb)
+                          GestureDetector(
+                              onTap: () {
+                                _handleSelection(context, 'team');
+                              },
+                              child: Text(
+                                  AppLocalizations.of(context)!
+                                      .createNewTeamToStart,
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary))),
                       ]));
                 }
 
@@ -330,18 +389,19 @@ class _HomePageState extends State<HomePage> {
                           children: [
                         Text(AppLocalizations.of(context)!.noSeasonsFound,
                             style: const TextStyle(fontSize: 24)),
-                        GestureDetector(
-                            onTap: () {
-                              _handleSelection(context, 'season');
-                            },
-                            child: Text(
-                                AppLocalizations.of(context)!
-                                    .createNewSeasonToStart,
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .secondary))),
+                        if (!kIsWeb)
+                          GestureDetector(
+                              onTap: () {
+                                _handleSelection(context, 'season');
+                              },
+                              child: Text(
+                                  AppLocalizations.of(context)!
+                                      .createNewSeasonToStart,
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary))),
                       ]));
                 }
 
@@ -473,7 +533,7 @@ class _HomePageState extends State<HomePage> {
             end: Alignment.bottomRight,
           ),
           shape: BoxShape.rectangle,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: BottomAppBar(
           height: 80,
@@ -884,7 +944,36 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    if (DatabaseService.instance.path.isEmpty) {
+    if (isWebView && widget.databaseId != null) {
+      final mappingDoc = await FirebaseFirestore.instance
+          .collection('team_id_mappings')
+          .doc(widget.databaseId)
+          .get();
+
+      if (mappingDoc.exists) {
+        final realId = mappingDoc.data()!['databaseId'];
+        final doc = await FirebaseFirestore.instance
+            .collection('shared_databases')
+            .doc(realId)
+            .get();
+
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>;
+
+          // Directly process the data instead of using a provider
+          final teamsData =
+              (data['Teams'] as List<dynamic>).cast<Map<String, dynamic>>();
+          final seasonsData =
+              (data['Seasons'] as List<dynamic>).cast<Map<String, dynamic>>();
+
+          if (teamsData.isNotEmpty) {
+            _team = Team.fromMap(teamsData.first);
+            _seasons = seasonsData.map((s) => Season.fromMap(s)).toList();
+          }
+        }
+      }
+    } else if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
+      // Mobile-specific loading
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used');
       if (lastDBUsed != null) {
@@ -900,16 +989,13 @@ class _HomePageState extends State<HomePage> {
           await _openCloudDatabase(lastDBUsed);
         }
       }
-    } else {
+    } else if (!kIsWeb) {
       await _loadSeasons();
     }
   }
 
   Future<void> _loadSeasons() async {
-    if (DatabaseService.instance.path.isEmpty) {
-      return;
-    }
-
+    if (DatabaseService.instance.path.isEmpty) return;
     final results =
         await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList(growable: false);

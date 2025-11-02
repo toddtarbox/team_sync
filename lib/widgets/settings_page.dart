@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
@@ -68,16 +69,19 @@ class SettingsPage extends StatelessWidget {
                       },
               ),
               const Divider(),
-              ListTile(
-                title: const Text('Twitter Settings'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => TwitterSettingsPage(team: team),
-                    ),
-                  );
-                },
+              Visibility(
+                visible: !kIsWeb,
+                child: ListTile(
+                  title: const Text('Twitter Settings'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => TwitterSettingsPage(team: team),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           );

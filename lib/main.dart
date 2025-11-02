@@ -5,14 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:team_sync/firebase_options.dart';
+import 'package:team_sync/router.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/home_page.dart';
 
 import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await SubscriptionService.instance.initialize();
 
   runApp(ChangeNotifierProvider(
@@ -108,7 +111,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, child) {
-        return MaterialApp(
+        return MaterialApp.router(
+          routerConfig: router,
           title: 'TeamSync',
           debugShowCheckedModeBanner: false,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -157,7 +161,6 @@ class MyApp extends StatelessWidget {
             ],
             child: child!,
           ),
-          home: const HomePage(),
         );
       },
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
@@ -23,23 +24,28 @@ class _PlayersPageState extends State<PlayersPage> {
               style:
                   const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         ),
-        floatingActionButton: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [widget.season.team.color1, widget.season.team.color2],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-            ),
-            child: FloatingActionButton(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child: const Icon(Icons.add),
-              onPressed: () {
-                _createPlayer();
-              },
-            )),
+        floatingActionButton: kIsWeb
+            ? null
+            : Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      widget.season.team.color1,
+                      widget.season.team.color2
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: FloatingActionButton(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: const Icon(Icons.add),
+                  onPressed: () {
+                    _createPlayer();
+                  },
+                )),
         body: FutureBuilder(
           future: DatabaseService.instance.query('Players',
               where: 'seasonId=? AND teamId=?',
@@ -56,35 +62,40 @@ class _PlayersPageState extends State<PlayersPage> {
                     return Dismissible(
                         key: Key(player.id.toString()),
                         background: Container(color: Colors.red),
-                        confirmDismiss: (_) {
-                          return showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text(AppLocalizations.of(context)!
-                                    .confirmDelete),
-                                content: Text(AppLocalizations.of(context)!
-                                    .areYouSureYouWantToDeleteThisPlayer),
-                                actions: [
-                                  TextButton(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .continueButton),
-                                    onPressed: () {
-                                      Navigator.pop(context, true);
-                                    },
-                                  ),
-                                  TextButton(
-                                    child: Text(AppLocalizations.of(context)!
-                                        .cancelButton),
-                                    onPressed: () {
-                                      Navigator.pop(context, false);
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
+                        confirmDismiss: kIsWeb
+                            ? (_) => Future.value(false)
+                            : (_) {
+                                return showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text(AppLocalizations.of(context)!
+                                          .confirmDelete),
+                                      content: Text(
+                                          AppLocalizations.of(context)!
+                                              .areYouSureYouWantToDeleteThisPlayer),
+                                      actions: [
+                                        TextButton(
+                                          child: Text(
+                                              AppLocalizations.of(context)!
+                                                  .continueButton),
+                                          onPressed: () {
+                                            Navigator.pop(context, true);
+                                          },
+                                        ),
+                                        TextButton(
+                                          child: Text(
+                                              AppLocalizations.of(context)!
+                                                  .cancelButton),
+                                          onPressed: () {
+                                            Navigator.pop(context, false);
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
                         onDismissed: (direction) async {
                           await DatabaseService.instance.delete('Players',
                               where: 'id=? AND seasonId=?',

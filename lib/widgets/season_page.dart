@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -48,48 +49,56 @@ class _SeasonPageState extends State<SeasonPage> {
                 visible: widget.season.team.fullName == 'Saint Albert',
                 child: Image.asset('assets/images/jpgs/sa-crest.jpg',
                     width: 64, height: 64))),
-        actions: [
-          GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SeasonStatsPage(season: widget.season),
-                  ),
-                );
-              },
-              child: const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.paste))),
-          GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => PlayersPage(season: widget.season),
-                  ),
-                );
-              },
-              child: const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.person)))
-        ],
+        actions: kIsWeb
+            ? []
+            : [
+                GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SeasonStatsPage(season: widget.season),
+                        ),
+                      );
+                    },
+                    child: const Padding(
+                        padding: EdgeInsets.only(right: 10),
+                        child: Icon(Icons.paste))),
+                GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              PlayersPage(season: widget.season),
+                        ),
+                      );
+                    },
+                    child: const Padding(
+                        padding: EdgeInsets.only(right: 10),
+                        child: Icon(Icons.person)))
+              ],
       ),
-      floatingActionButton: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [widget.season.team.color1, widget.season.team.color2],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: FloatingActionButton(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              child: const Icon(Icons.add),
-              onPressed: () {
-                _showGame();
-              })),
+      floatingActionButton: kIsWeb
+          ? null
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    widget.season.team.color1,
+                    widget.season.team.color2
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: FloatingActionButton(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: const Icon(Icons.add),
+                  onPressed: () {
+                    _showGame();
+                  })),
       body: FutureBuilder(
         future: _loadSeason(),
         builder: (BuildContext context, AsyncSnapshot<Season> snapshot) {
@@ -120,9 +129,8 @@ class _SeasonPageState extends State<SeasonPage> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        season.team.color1 ?? Theme.of(context).primaryColor,
-                        season.team.color2 ??
-                            Theme.of(context).primaryColorDark,
+                        season.team.color1,
+                        season.team.color2,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -147,39 +155,45 @@ class _SeasonPageState extends State<SeasonPage> {
                             return Dismissible(
                                 key: Key(game.id.toString()),
                                 background: Container(color: Colors.red),
-                                confirmDismiss: (_) {
-                                  return showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text(
-                                            AppLocalizations.of(context)!
-                                                .confirmDelete),
-                                        content: Text(AppLocalizations.of(
-                                                context)!
-                                            .areYouSureYouWantToDeleteThisGame),
-                                        actions: [
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .continueButton),
-                                            onPressed: () {
-                                              Navigator.pop(context, true);
-                                            },
-                                          ),
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .cancelButton),
-                                            onPressed: () {
-                                              Navigator.pop(context, false);
-                                            },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
+                                confirmDismiss: kIsWeb
+                                    ? (_) => Future.value(false)
+                                    : (_) {
+                                        return showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              title: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .confirmDelete),
+                                              content: Text(AppLocalizations.of(
+                                                      context)!
+                                                  .areYouSureYouWantToDeleteThisGame),
+                                              actions: [
+                                                TextButton(
+                                                  child: Text(
+                                                      AppLocalizations.of(
+                                                              context)!
+                                                          .continueButton),
+                                                  onPressed: () {
+                                                    Navigator.pop(
+                                                        context, true);
+                                                  },
+                                                ),
+                                                TextButton(
+                                                  child: Text(
+                                                      AppLocalizations.of(
+                                                              context)!
+                                                          .cancelButton),
+                                                  onPressed: () {
+                                                    Navigator.pop(
+                                                        context, false);
+                                                  },
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
                                 onDismissed: (direction) async {
                                   await DatabaseService.instance.delete('Games',
                                       where: 'id=?', whereArgs: [game.id]);
