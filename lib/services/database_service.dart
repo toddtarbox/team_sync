@@ -12,6 +12,8 @@ abstract class DatabaseProvider {
   /// Opens a connection to the database.
   Future<bool> open(String path);
 
+  Future<bool> openFromPath(String path);
+
   /// The path to the current database file.
   String get path;
 
@@ -91,6 +93,11 @@ class LocalDatabaseProvider implements DatabaseProvider {
     });
 
     return true;
+  }
+
+  @override
+  Future<bool> openFromPath(String path) async {
+    return await open(path);
   }
 
   @override
@@ -206,6 +213,22 @@ class FirebaseDBProvider implements DatabaseProvider {
     _dbDocumentSnapshot = await dbDocument.get();
     if (!_dbDocumentSnapshot.exists) {
       await dbDocument.set({'version': 1});
+    }
+
+    return !(await isImporting);
+  }
+
+  @override
+  Future<bool> openFromPath(String path) async {
+    final dbDocument = _firestore.doc(path);
+    _dbDocumentSnapshot = await dbDocument.get();
+
+    final parts = path.split('/');
+    _path = parts.last;
+    _subscriptionId = parts[1];
+
+    if (!_dbDocumentSnapshot.exists) {
+      return false;
     }
 
     return !(await isImporting);
@@ -423,6 +446,28 @@ class DatabaseService {
     await dbDoc.reference.update({'publicShareId': publicId});
 
     return publicId;
+  }
+
+  Future<bool> openFromId(String id) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('shared_databases')
+        .doc(id)
+        .get();
+
+    if (doc.exists) {
+      final path = doc.data()!['databasePath'] as String;
+      return await _openFromPath(path);
+    }
+
+    return false;
+  }
+
+  Future<bool> _openFromPath(String path) async {
+    // We need to set the provider to FirebaseDBProvider if it's not already
+    if (_provider is! FirebaseDBProvider) {
+      setProvider(FirebaseDBProvider());
+    }
+    return await _provider.openFromPath(path);
   }
 
   Future<bool> open(String path) async => await _provider.open(path);

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -40,7 +39,6 @@ class _HomePageState extends State<HomePage> {
   late bool _isSubscribed;
   bool _isImporting = false; // Flag to control the loading spinner
   bool _isSharing = false; // Flag for sharing progress
-  bool get isWebView => widget.databaseId != null || kIsWeb;
   final _teamIdController = TextEditingController();
 
   final _welcomeKey = GlobalKey();
@@ -64,84 +62,80 @@ class _HomePageState extends State<HomePage> {
         ? FirebaseDBProvider()
         : LocalDatabaseProvider());
 
-    ShowcaseView.register(
-      hideFloatingActionWidgetForShowcase: [
-        _settingsKey,
-        _fabKeyOnly,
-        _proKeyOnly
-      ],
-      globalFloatingActionWidget: (showcaseContext) => FloatingActionWidget(
-        left: 16,
-        bottom: 16,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: ElevatedButton(
-            onPressed: () => ShowcaseView.get().dismiss(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xffEE5366),
-            ),
-            child: const Text(
-              'Skip',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
+    if (!kIsWeb) {
+      ShowcaseView.register(
+        hideFloatingActionWidgetForShowcase: [
+          _settingsKey,
+          _fabKeyOnly,
+          _proKeyOnly
+        ],
+        globalFloatingActionWidget: (showcaseContext) => FloatingActionWidget(
+          left: 16,
+          bottom: 16,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () => ShowcaseView.get().dismiss(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xffEE5366),
+              ),
+              child: const Text(
+                'Skip',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                ),
               ),
             ),
           ),
         ),
-      ),
-      onStart: (index, key) {},
-      onComplete: (index, key) {
-        if (key == _settingsKey || key == _fabKeyOnly || key == _proKeyOnly) {
-          SystemChrome.setSystemUIOverlayStyle(
-            SystemUiOverlayStyle.light.copyWith(
-              statusBarIconBrightness: Brightness.dark,
-              statusBarColor: Colors.white,
-            ),
-          );
-          if (!kIsWeb) {
-            _showCreateOptions(context);
+        onStart: (index, key) {},
+        onComplete: (index, key) {
+          if (key == _settingsKey || key == _fabKeyOnly || key == _proKeyOnly) {
+            SystemChrome.setSystemUIOverlayStyle(
+              SystemUiOverlayStyle.light.copyWith(
+                statusBarIconBrightness: Brightness.dark,
+                statusBarColor: Colors.white,
+              ),
+            );
+            if (!kIsWeb) {
+              _showCreateOptions(context);
+            }
           }
-        }
-      },
-      blurValue: 1,
-      autoPlayDelay: const Duration(seconds: 3),
-      globalTooltipActionConfig: const TooltipActionConfig(
-        position: TooltipActionPosition.inside,
-        alignment: MainAxisAlignment.spaceBetween,
-        actionGap: 20,
-      ),
-      globalTooltipActions: [
-        // Here we don't need previous action for the first showcase widget
-        // so we hide this action for the first showcase widget
-        TooltipActionButton(
-          type: TooltipDefaultActionType.previous,
-          textStyle: const TextStyle(
-            color: Colors.white,
-          ),
-          hideActionWidgetForShowcase: [
-            _welcomeKey,
-            _settingsKey,
-            _fabKeyOnly,
-            _proKeyOnly
-          ],
+        },
+        blurValue: 1,
+        autoPlayDelay: const Duration(seconds: 3),
+        globalTooltipActionConfig: const TooltipActionConfig(
+          position: TooltipActionPosition.inside,
+          alignment: MainAxisAlignment.spaceBetween,
+          actionGap: 20,
         ),
-        // Here we don't need next action for the last showcase widget so we
-        // hide this action for the last showcase widget
-        TooltipActionButton(
-          type: TooltipDefaultActionType.next,
-          textStyle: const TextStyle(
-            color: Colors.white,
+        globalTooltipActions: [
+          TooltipActionButton(
+            type: TooltipDefaultActionType.previous,
+            textStyle: const TextStyle(
+              color: Colors.white,
+            ),
+            hideActionWidgetForShowcase: [
+              _welcomeKey,
+              _settingsKey,
+              _fabKeyOnly,
+              _proKeyOnly
+            ],
           ),
-          hideActionWidgetForShowcase: [_fabKeyOnly, _proKeyOnly],
-        ),
-      ],
-      onDismiss: (key) {
-        debugPrint('Dismissed at $key');
-      },
-    );
+          TooltipActionButton(
+            type: TooltipDefaultActionType.next,
+            textStyle: const TextStyle(
+              color: Colors.white,
+            ),
+            hideActionWidgetForShowcase: [_fabKeyOnly, _proKeyOnly],
+          ),
+        ],
+        onDismiss: (key) {
+          debugPrint('Dismissed at $key');
+        },
+      );
 
-    if (!kIsWeb) {
       _checkIfFirstLaunch();
     }
 
@@ -167,7 +161,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    ShowcaseView.get().unregister();
+    if (!kIsWeb) {
+      ShowcaseView.get().unregister();
+    }
     super.dispose();
   }
 
@@ -353,22 +349,20 @@ class _HomePageState extends State<HomePage> {
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
               } else {
-                if ((!kIsWeb &&
-                        DatabaseService.instance.path.isEmpty &&
-                        !isWebView) ||
-                    (isWebView && _team == null)) {
+                if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
+                  final welcomeChild = Center(
+                      child: Text(
+                          AppLocalizations.of(context)!
+                              .pleaseCreateOrOpenADatabase,
+                          style: const TextStyle(fontSize: 24)));
                   return Showcase(
                       key: _welcomeKey,
                       description:
                           'Welcome to TeamSync! Let\'s take a look around and get you started managing your team!',
-                      child: Center(
-                          child: Text(
-                              AppLocalizations.of(context)!
-                                  .pleaseCreateOrOpenADatabase,
-                              style: const TextStyle(fontSize: 24))));
+                      child: welcomeChild);
                 }
 
-                if (_team == null) {
+                if (!kIsWeb && _team == null) {
                   return Center(
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -391,7 +385,7 @@ class _HomePageState extends State<HomePage> {
                       ]));
                 }
 
-                if (_seasons.isEmpty) {
+                if (!kIsWeb && _seasons.isEmpty) {
                   return Center(
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -412,6 +406,13 @@ class _HomePageState extends State<HomePage> {
                                           .colorScheme
                                           .secondary))),
                       ]));
+                }
+
+                if (_seasons.isEmpty) {
+                  return Center(
+                      child: Text(
+                          'Unable to load the specified team. Please check the ID and try again.',
+                          style: const TextStyle(fontSize: 24)));
                 }
 
                 return Column(children: [
@@ -516,7 +517,7 @@ class _HomePageState extends State<HomePage> {
           ),
           if (_isImporting || _isSharing)
             Container(
-              color: Colors.black.withValues(alpha: 0.5),
+              color: Colors.black.withOpacity(0.5),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -997,33 +998,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _load() async {
-    if (isWebView && widget.databaseId != null) {
-      final mappingDoc = await FirebaseFirestore.instance
-          .collection('team_id_mappings')
-          .doc(widget.databaseId)
-          .get();
-
-      if (mappingDoc.exists) {
-        final realId = mappingDoc.data()!['databaseId'];
-        final doc = await FirebaseFirestore.instance
-            .collection('shared_databases')
-            .doc(realId)
-            .get();
-
-        if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>;
-
-          // Directly process the data instead of using a provider
-          final teamsData =
-              (data['Teams'] as List<dynamic>).cast<Map<String, dynamic>>();
-          final seasonsData =
-              (data['Seasons'] as List<dynamic>).cast<Map<String, dynamic>>();
-
-          if (teamsData.isNotEmpty) {
-            _team = Team.fromMap(teamsData.first);
-            _seasons = seasonsData.map((s) => Season.fromMap(s)).toList();
-          }
-        }
+    if (widget.databaseId != null) {
+      final dbId = widget.databaseId!;
+      final opened = await DatabaseService.instance.openFromId(dbId);
+      if (!opened) {
+        return;
       }
     } else if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
       // Mobile-specific loading
@@ -1042,9 +1021,9 @@ class _HomePageState extends State<HomePage> {
           await _openCloudDatabase(lastDBUsed);
         }
       }
-    } else if (!kIsWeb) {
-      await _loadSeasons();
     }
+
+    await _loadSeasons();
   }
 
   Future<void> _loadSeasons() async {
