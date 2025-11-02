@@ -138,10 +138,10 @@ class _HomePageState extends State<HomePage> {
 
       _checkIfFirstLaunch();
     }
-
-    _load().then((_) {
-      setState(() {});
-    });
+    //
+    // _load().then((_) {
+    //   setState(() {});
+    // });
   }
 
   Future<void> _checkIfFirstLaunch() async {
@@ -215,8 +215,7 @@ class _HomePageState extends State<HomePage> {
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
                 visible:
-                    (!kIsWeb && DatabaseService.instance.path.isNotEmpty) ||
-                        _team != null,
+                    DatabaseService.instance.path.isNotEmpty || _team != null,
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Row(
@@ -230,80 +229,79 @@ class _HomePageState extends State<HomePage> {
                               ? Container()
                               : Icon(Icons.cloud_rounded)
                         ])))),
-        actions: kIsWeb
-            ? []
-            : [
-                if (!kIsWeb &&
-                    DatabaseService.instance.path.isNotEmpty &&
-                    !DatabaseService.instance.isLocalDatabase)
-                  IconButton(
-                    icon: const Icon(Icons.share),
-                    onPressed: () => _handleSelection(context, 'shareDatabase'),
-                  ),
-                Showcase(
-                  key: _isSubscribed ? _proKeyOnly : _goProKey,
-                  description: _isSubscribed
-                      ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
-                      : 'Go Pro to access more features, like cloud storage!',
-                  child: TextButton(
-                    onPressed: () async {
-                      if (!_isSubscribed) {
-                        await SubscriptionService.instance
-                            .purchaseSubscription();
-                        setState(() {});
-                      }
+        actions: [
+          if (!kIsWeb &&
+              DatabaseService.instance.path.isNotEmpty &&
+              !DatabaseService.instance.isLocalDatabase)
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: () => _handleSelection(context, 'shareDatabase'),
+            ),
+          Visibility(
+              visible: !kIsWeb,
+              child: Showcase(
+                key: _isSubscribed ? _proKeyOnly : _goProKey,
+                description: _isSubscribed
+                    ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
+                    : 'Go Pro to access more features, like cloud storage!',
+                child: TextButton(
+                  onPressed: () async {
+                    if (!_isSubscribed) {
+                      await SubscriptionService.instance.purchaseSubscription();
+                      setState(() {});
+                    }
 
-                      if (_isSubscribed) {
-                        ShowcaseView.get().startShowCase(
-                          [_proKeyOnly],
-                        );
-                      }
-                    },
-                    child: Text(
-                        _isSubscribed
-                            ? AppLocalizations.of(context)!.pro
-                            : AppLocalizations.of(context)!.goPro,
-                        style: const TextStyle(color: Colors.yellow)),
-                  ),
+                    if (_isSubscribed) {
+                      ShowcaseView.get().startShowCase(
+                        [_proKeyOnly],
+                      );
+                    }
+                  },
+                  child: Text(
+                      _isSubscribed
+                          ? AppLocalizations.of(context)!.pro
+                          : AppLocalizations.of(context)!.goPro,
+                      style: const TextStyle(color: Colors.yellow)),
                 ),
-                Visibility(
-                    visible: _team != null,
-                    child: IconButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  CareerStatsPage(team: _team!),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.leaderboard))),
-                Visibility(
-                    visible: _team != null,
-                    child: IconButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  HistoryVersusPage(team: _team!),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.manage_history_outlined))),
-                Showcase(
-                  key: _settingsKey,
-                  description: 'Access app settings here',
-                  child: IconButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => SettingsPage(team: _team),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.settings)),
-                )
-              ],
+              )),
+          Visibility(
+              visible: _team != null,
+              child: IconButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => CareerStatsPage(team: _team!),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.leaderboard))),
+          Visibility(
+              visible: _team != null,
+              child: IconButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => HistoryVersusPage(team: _team!),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.manage_history_outlined))),
+          Visibility(
+              visible: !kIsWeb,
+              child: Showcase(
+                key: _settingsKey,
+                description: 'Access app settings here',
+                child: IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => SettingsPage(team: _team),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.settings)),
+              ))
+        ],
       ),
       floatingActionButton: kIsWeb
           ? null
@@ -1004,6 +1002,15 @@ class _HomePageState extends State<HomePage> {
       if (!opened) {
         return;
       }
+
+      final teamResult = await DatabaseService.instance
+          .query('Teams', where: 'id=?', whereArgs: [1]);
+      if (teamResult.isNotEmpty) {
+        _team = Team.fromMap(teamResult.first);
+        await _loadSeasons();
+      } else {
+        _team = null;
+      }
     } else if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
       // Mobile-specific loading
       const storage = FlutterSecureStorage();
@@ -1021,9 +1028,9 @@ class _HomePageState extends State<HomePage> {
           await _openCloudDatabase(lastDBUsed);
         }
       }
-    }
 
-    await _loadSeasons();
+      await _loadSeasons();
+    }
   }
 
   Future<void> _loadSeasons() async {
