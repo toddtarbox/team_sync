@@ -36,7 +36,21 @@ class _CareerStatsViewState extends State<CareerStatsView> {
               return ListTile(
                   title: GestureDetector(
                       onTap: () async {
+                        // Show a temp progress dialog
+                        showDialog(
+                            barrierDismissible: false,
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                  title: Text(
+                                      AppLocalizations.of(context)!.loading));
+                            });
+
                         final stat = await stats.getStatPlayers(category);
+
+                        // Dismiss the dialog
+                        Navigator.pop(context);
+
                         if (stat.isNotEmpty) {
                           final sortedStats = List.from(stat.entries);
                           sortedStats

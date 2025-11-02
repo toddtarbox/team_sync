@@ -51,6 +51,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
 
                         // Show a temp progress dialog
                         showDialog(
+                            barrierDismissible: false,
                             context: context,
                             builder: (context) {
                               return AlertDialog(
