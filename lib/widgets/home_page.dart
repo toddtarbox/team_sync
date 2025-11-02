@@ -762,12 +762,13 @@ class _HomePageState extends State<HomePage> {
         });
         try {
           final id = await DatabaseService.instance.shareDatabase();
+          final url = 'https://team-sync.app/$id';
 
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Share this 6-Digit ID'),
-              content: SelectableText(id,
+              title: const Text('Share this URL'),
+              content: SelectableText(url,
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold)),
               actions: [
@@ -778,7 +779,7 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   icon: const Icon(Icons.copy),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: id));
+                    Clipboard.setData(ClipboardData(text: url));
                     scaffoldMessenger.showSnackBar(
                       const SnackBar(content: Text('Copied to clipboard!')),
                     );
