@@ -138,10 +138,10 @@ class _HomePageState extends State<HomePage> {
 
       _checkIfFirstLaunch();
     }
-    //
-    // _load().then((_) {
-    //   setState(() {});
-    // });
+    
+    _load().then((_) {
+      setState(() {});
+    });
   }
 
   Future<void> _checkIfFirstLaunch() async {
