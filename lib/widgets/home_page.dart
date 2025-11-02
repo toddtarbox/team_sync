@@ -39,6 +39,7 @@ class _HomePageState extends State<HomePage> {
   List<Season> _seasons = [];
   late bool _isSubscribed;
   bool _isImporting = false; // Flag to control the loading spinner
+  bool _isSharing = false; // Flag for sharing progress
   bool get isWebView => widget.databaseId != null || kIsWeb;
   final _teamIdController = TextEditingController();
 
@@ -236,6 +237,13 @@ class _HomePageState extends State<HomePage> {
         actions: kIsWeb
             ? []
             : [
+                if (!kIsWeb &&
+                    DatabaseService.instance.path.isNotEmpty &&
+                    !DatabaseService.instance.isLocalDatabase)
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: () => _handleSelection(context, 'shareDatabase'),
+                  ),
                 Showcase(
                   key: _isSubscribed ? _proKeyOnly : _goProKey,
                   description: _isSubscribed
@@ -339,7 +347,8 @@ class _HomePageState extends State<HomePage> {
             future: _load(),
             builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting &&
-                  !_isImporting) {
+                  !_isImporting &&
+                  !_isSharing) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -505,7 +514,7 @@ class _HomePageState extends State<HomePage> {
               }
             },
           ),
-          if (_isImporting)
+          if (_isImporting || _isSharing)
             Container(
               color: Colors.black.withValues(alpha: 0.5),
               child: Center(
@@ -514,7 +523,10 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
-                    Text(AppLocalizations.of(context)!.importingDatabase,
+                    Text(
+                        _isSharing
+                            ? 'Generating Share ID...'
+                            : AppLocalizations.of(context)!.importingDatabase,
                         style: const TextStyle(fontSize: 16)),
                   ],
                 ),
@@ -741,6 +753,47 @@ class _HomePageState extends State<HomePage> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     switch (option) {
+      case 'shareDatabase':
+        setState(() {
+          _isSharing = true;
+        });
+        try {
+          final id = await DatabaseService.instance.shareDatabase();
+
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Share this 6-Digit ID'),
+              content: SelectableText(id,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: id));
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard!')),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        } catch (e) {
+          scaffoldMessenger.showSnackBar(SnackBar(
+              content: Text('Error during share, please try again'),
+              backgroundColor: Colors.red));
+          debugPrint(e.toString());
+        }
+        setState(() {
+          _isSharing = false;
+        });
+        break;
       case 'existingCloudDatabase':
         final databaseName = await _pickCloudDatabase();
         if (databaseName != null) {

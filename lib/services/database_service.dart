@@ -6,7 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
-// ... (rest of the DatabaseProvider abstract class and LocalDatabaseProvider implementation)
+/// An abstract class that defines the interface for database operations.
+/// This allows for interchangeable implementations (e.g., local, cloud).
 abstract class DatabaseProvider {
   /// Opens a connection to the database.
   Future<bool> open(String path);
@@ -129,12 +130,22 @@ class LocalDatabaseProvider implements DatabaseProvider {
   Future<bool> get isImporting => Future.value(false);
 }
 
+/// A concrete implementation of [DatabaseProvider] for a cloud-based Firebase database.
 class FirebaseDBProvider implements DatabaseProvider {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   late String _subscriptionId;
   String _path = '';
   late DocumentSnapshot _dbDocumentSnapshot;
+  DocumentSnapshot get dbDocumentSnapshot => _dbDocumentSnapshot;
+
+  String? get publicShareId {
+    final data = _dbDocumentSnapshot.data() as Map<String, dynamic>?;
+    if (data != null && data.containsKey('publicShareId')) {
+      return data['publicShareId'] as String?;
+    }
+    return null;
+  }
 
   @override
   Future<bool> get isImporting async =>
@@ -142,7 +153,7 @@ class FirebaseDBProvider implements DatabaseProvider {
           as Map<String, dynamic>)['isImporting'] ==
       true;
 
-  Future<void> set(Map<String, bool> map) async {
+  Future<void> set(Map<String, dynamic> map) async {
     await _dbDocumentSnapshot.reference.update(map);
   }
 
@@ -249,6 +260,13 @@ class FirebaseDBProvider implements DatabaseProvider {
       await collectionRef.doc(id.toString()).set(data);
       return id;
     } else {
+      AggregateQuery aggregateQuery = collectionRef.count();
+      AggregateQuerySnapshot snapshot = await aggregateQuery.get();
+      int existingRows = snapshot.count ?? 0;
+      existingRows++;
+
+      data['id'] = existingRows;
+
       await collectionRef.doc().set(data);
       return 1;
     }
@@ -295,24 +313,78 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 }
 
+/// A service class that abstracts the database provider from the UI.
+/// The rest of the app will interact with this service, which delegates
+/// calls to the underlying [DatabaseProvider].
+/// This is a singleton to ensure a single database connection.
 class DatabaseService {
+  // The single, static instance of the database service.
   static final DatabaseService instance = DatabaseService._internal();
+
+  // The internal provider for database operations.
   late DatabaseProvider _provider;
 
   bool get isLocalDatabase => _provider is LocalDatabaseProvider;
+  String? get publicShareId {
+    if (_provider is FirebaseDBProvider) {
+      return (_provider as FirebaseDBProvider).publicShareId;
+    }
+    return null;
+  }
 
+  // A private constructor.
   DatabaseService._internal() {
+    // Default to the local provider.
     _provider = LocalDatabaseProvider();
   }
 
+  /// Sets the database provider for the service.
+  /// This allows for swapping the database implementation (e.g., for testing).
   void setProvider(DatabaseProvider provider) {
     _provider = provider;
   }
 
   Future<bool> get isImporting async => await _provider.isImporting;
 
+  /// Imports a local SQLite database into a specified Firestore database.
+  ///
+  /// This method reads all data from the tables in the local database
+  /// and writes them to the corresponding collections in Firestore.
+  /// It respects table dependencies to ensure data integrity.
   Future<void> importToCloud() async {
-    // ... (importToCloud implementation remains the same)
+    if (_provider is FirebaseDBProvider || await isImporting) {
+      return;
+    }
+
+    final cloudProvider = FirebaseDBProvider();
+
+    final cloudDbName = _provider.path.split('/').last;
+    await cloudProvider.open(cloudDbName);
+
+    // Define the order of table migration to respect foreign key constraints.
+    const tablesToMigrate = ['Teams', 'Seasons', 'Players', 'Games', 'Events'];
+
+    await cloudProvider.set({'isImporting': true});
+
+    for (final table in tablesToMigrate) {
+      debugPrint('Querying table: $table');
+      final dataToMigrate = await _provider.query(table);
+
+      debugPrint('Migrating table: $table - ${dataToMigrate.length} rows');
+      final rowMigrationPromises = dataToMigrate.map((row) async {
+        // Our updated `insert` method on the cloud provider will use the
+        // existing ID from the row, preserving data integrity.
+        cloudProvider.insert(table, row);
+      });
+      await Future.wait(rowMigrationPromises);
+    }
+
+    await cloudProvider.set({'isImporting': false});
+
+    await _provider.close();
+    setProvider(cloudProvider);
+
+    debugPrint('Importing complete');
   }
 
   Future<String> shareDatabase() async {
@@ -320,55 +392,62 @@ class DatabaseService {
       throw Exception("Can only share a cloud database.");
     }
 
-    const tables = ['Teams', 'Seasons', 'Players', 'Games', 'Events'];
-    final Map<String, dynamic> databaseJson = {};
+    final firebaseProvider = _provider as FirebaseDBProvider;
+    final dbDoc = firebaseProvider.dbDocumentSnapshot;
+    final data = dbDoc.data() as Map<String, dynamic>?;
 
-    for (final table in tables) {
-      final tableData = await _provider.query(table);
-      databaseJson[table] = tableData;
+    // If it's already shared, return the existing ID.
+    if (data != null && data.containsKey('publicShareId')) {
+      return data['publicShareId'] as String;
     }
 
-    // 1. Upload the data to get the main document ID
-    final mainDocRef = await FirebaseFirestore.instance
-        .collection('shared_databases')
-        .add(databaseJson);
-
-    // 2. Generate a unique 6-digit ID
+    // Otherwise, create a new share.
     final random = Random();
     String publicId;
     bool exists;
-
     do {
       publicId = (100000 + random.nextInt(900000)).toString();
       final mappingDoc = await FirebaseFirestore.instance
-          .collection('team_id_mappings')
+          .collection('shared_databases')
           .doc(publicId)
           .get();
       exists = mappingDoc.exists;
     } while (exists);
 
-    // 3. Create the mapping document
     await FirebaseFirestore.instance
-        .collection('team_id_mappings')
+        .collection('shared_databases')
         .doc(publicId)
-        .set({'databaseId': mainDocRef.id});
+        .set({'databasePath': dbDoc.reference.path});
 
-    // 4. Return the user-friendly 6-digit ID
+    // Save the public ID back to the source database for future lookups.
+    await dbDoc.reference.update({'publicShareId': publicId});
+
     return publicId;
   }
 
   Future<bool> open(String path) async => await _provider.open(path);
+
   String get path => _provider.path;
+
   Future<void> close() async => await _provider.close();
-  Future<List<String>> getAvailableDatabases() async => await _provider.getAvailableDatabases();
-  Future<List<Map<String, dynamic>>> query(String table, {String? where, List<dynamic>? whereArgs, String? orderBy}) async =>
-      await _provider.query(table, where: where, whereArgs: whereArgs, orderBy: orderBy);
-  Future<int> insert(String table, Map<String, dynamic> data, {ConflictAlgorithm? conflictAlgorithm}) async =>
+  Future<List<String>> getAvailableDatabases() async =>
+      await _provider.getAvailableDatabases();
+  Future<List<Map<String, dynamic>>> query(String table,
+          {String? where, List<dynamic>? whereArgs, String? orderBy}) async =>
+      await _provider.query(table,
+          where: where, whereArgs: whereArgs, orderBy: orderBy);
+
+  Future<int> insert(String table, Map<String, dynamic> data,
+          {ConflictAlgorithm? conflictAlgorithm}) async =>
       await _provider.insert(table, data, conflictAlgorithm: conflictAlgorithm);
-  Future<int> update(String table, Map<String, dynamic> data, {String? where, List<dynamic>? whereArgs}) async =>
+  Future<int> update(String table, Map<String, dynamic> data,
+          {String? where, List<dynamic>? whereArgs}) async =>
       await _provider.update(table, data, where: where, whereArgs: whereArgs);
-  Future<int> delete(String table, {String? where, List<dynamic>? whereArgs}) async =>
+
+  Future<int> delete(String table,
+          {String? where, List<dynamic>? whereArgs}) async =>
       await _provider.delete(table, where: where, whereArgs: whereArgs);
+
   Future<bool> exists(String dbName) async {
     final databases = await getAvailableDatabases();
     return databases.contains(dbName);
