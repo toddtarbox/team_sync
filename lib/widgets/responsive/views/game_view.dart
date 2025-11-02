@@ -1,5 +1,6 @@
 import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:eventify/eventify.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
@@ -185,6 +186,30 @@ class _GameViewState extends State<GameView> {
         ? widget.game.homeTeam
         : widget.game.awayTeam;
 
+    final eventCard = ListTile(
+        leading: eventMinuteWidget,
+        trailing: scoreWidget,
+        title: Row(children: [
+          event.image,
+          const SizedBox(width: 10),
+          Text(event.eventType == 'Shot' &&
+                  event.eventData == ShotResult.goal.index &&
+                  event.team.id == widget.season.teamId &&
+                  event.player == null
+              ? 'Own goal by ${opponent.shortName}'
+              : event.display)
+        ]),
+        subtitle: Visibility(
+            visible: event.eventType != 'Period',
+            child: Text(event.player?.displayName ?? event.team.shortName)),
+        onTap: () {
+          _editEvent(event: event);
+        });
+
+    if (kIsWeb) {
+      return eventCard;
+    }
+
     return Dismissible(
         key: Key(event.id.toString()),
         background: Container(color: Colors.red),
@@ -221,25 +246,7 @@ class _GameViewState extends State<GameView> {
             _game.updateScore();
           });
         },
-        child: ListTile(
-            leading: eventMinuteWidget,
-            trailing: scoreWidget,
-            title: Row(children: [
-              event.image,
-              const SizedBox(width: 10),
-              Text(event.eventType == 'Shot' &&
-                      event.eventData == ShotResult.goal.index &&
-                      event.team.id == widget.season.teamId &&
-                      event.player == null
-                  ? 'Own goal by ${opponent.shortName}'
-                  : event.display)
-            ]),
-            subtitle: Visibility(
-                visible: event.eventType != 'Period',
-                child: Text(event.player?.displayName ?? event.team.shortName)),
-            onTap: () {
-              _editEvent(event: event);
-            }));
+        child: eventCard);
   }
 
   Future<List<GameEvent>> _loadGameEvents() async {

@@ -439,6 +439,33 @@ class _HomePageState extends State<HomePage> {
                           itemCount: _seasons.length,
                           itemBuilder: (context, index) {
                             final season = _seasons[index];
+                            final seasonCard = GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          SeasonPage(season: season),
+                                    ),
+                                  );
+                                },
+                                child: Card(
+                                    child: Column(children: [
+                                  Text(season.name,
+                                      style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold)),
+                                  Container(
+                                      decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                      padding: const EdgeInsets.all(5),
+                                      margin: const EdgeInsets.all(10),
+                                      child: Center(
+                                          child: SeasonRecord([season]))),
+                                ])));
+                            if (kIsWeb) {
+                              return seasonCard;
+                            }
                             return Dismissible(
                                 key: Key(season.id.toString()),
                                 background: Container(
@@ -484,30 +511,7 @@ class _HomePageState extends State<HomePage> {
                                       whereArgs: [season.id]);
                                   setState(() {});
                                 },
-                                child: GestureDetector(
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              SeasonPage(season: season),
-                                        ),
-                                      );
-                                    },
-                                    child: Card(
-                                        child: Column(children: [
-                                      Text(season.name,
-                                          style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold)),
-                                      Container(
-                                          decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(10)),
-                                          padding: const EdgeInsets.all(5),
-                                          margin: const EdgeInsets.all(10),
-                                          child: Center(
-                                              child: SeasonRecord([season]))),
-                                    ]))));
+                                child: seasonCard);
                           }))
                 ]);
               }
@@ -1027,9 +1031,9 @@ class _HomePageState extends State<HomePage> {
           DatabaseService.instance.setProvider(FirebaseDBProvider());
           await _openCloudDatabase(lastDBUsed);
         }
-      }
 
-      await _loadSeasons();
+        await _loadSeasons();
+      }
     }
   }
 

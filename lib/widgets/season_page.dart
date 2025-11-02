@@ -152,109 +152,111 @@ class _SeasonPageState extends State<SeasonPage> {
                           itemCount: games.length,
                           itemBuilder: (context, index) {
                             final game = games[index];
+                            final gameCard = Container(
+                                padding: const EdgeInsets.all(5),
+                                child: Stack(children: [
+                                  Card(
+                                      child: Column(
+                                    children: [
+                                      ListTile(
+                                          title: Text(
+                                              game.displayName(
+                                                  season.teamId),
+                                              style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.bold)),
+                                          subtitle: Text(
+                                              format.format(game.date)),
+                                          trailing: Container(
+                                              margin:
+                                                  EdgeInsets.only(top: 20),
+                                              child: IconButton(
+                                                icon: Icon(game.id ==
+                                                        _expandedGameId
+                                                    ? Icons.expand_less
+                                                    : Icons.expand_more),
+                                                onPressed: () async {
+                                                  setState(() {
+                                                    _expandedGameId = game
+                                                                .id ==
+                                                            _expandedGameId
+                                                        ? 0
+                                                        : game.id;
+                                                  });
+
+                                                  if (game.allGameEvents
+                                                      .isEmpty) {
+                                                    await game
+                                                        .loadGameEvents();
+                                                  }
+                                                },
+                                              )),
+                                          onTap: () {
+                                            game.gameStatus.index == 0
+                                                ? _showGame(game: game)
+                                                : _goToGame(game);
+                                          }),
+                                      if (game.id == _expandedGameId)
+                                        ScoringSummary(
+                                            season, season.team, game),
+                                    ],
+                                  )),
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: GameResult(
+                                        game, widget.season.teamId),
+                                  ),
+                                ]));
+                            if (kIsWeb) {
+                              return gameCard;
+                            }
                             return Dismissible(
                                 key: Key(game.id.toString()),
                                 background: Container(color: Colors.red),
-                                confirmDismiss: kIsWeb
-                                    ? (_) => Future.value(false)
-                                    : (_) {
-                                        return showDialog(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return AlertDialog(
-                                              title: Text(
-                                                  AppLocalizations.of(context)!
-                                                      .confirmDelete),
-                                              content: Text(AppLocalizations.of(
-                                                      context)!
-                                                  .areYouSureYouWantToDeleteThisGame),
-                                              actions: [
-                                                TextButton(
-                                                  child: Text(
-                                                      AppLocalizations.of(
-                                                              context)!
-                                                          .continueButton),
-                                                  onPressed: () {
-                                                    Navigator.pop(
-                                                        context, true);
-                                                  },
-                                                ),
-                                                TextButton(
-                                                  child: Text(
-                                                      AppLocalizations.of(
-                                                              context)!
-                                                          .cancelButton),
-                                                  onPressed: () {
-                                                    Navigator.pop(
-                                                        context, false);
-                                                  },
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
+                                confirmDismiss: (_) {
+                                  return showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .confirmDelete),
+                                        content: Text(AppLocalizations.of(
+                                                context)!
+                                            .areYouSureYouWantToDeleteThisGame),
+                                        actions: [
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(
+                                                        context)!
+                                                    .continueButton),
+                                            onPressed: () {
+                                              Navigator.pop(
+                                                  context, true);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(
+                                                        context)!
+                                                    .cancelButton),
+                                            onPressed: () {
+                                              Navigator.pop(
+                                                  context, false);
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
                                 onDismissed: (direction) async {
                                   await DatabaseService.instance.delete('Games',
                                       where: 'id=?', whereArgs: [game.id]);
                                   setState(() {});
                                 },
-                                child: Container(
-                                    padding: const EdgeInsets.all(5),
-                                    child: Stack(children: [
-                                      Card(
-                                          child: Column(
-                                        children: [
-                                          ListTile(
-                                              title: Text(
-                                                  game.displayName(
-                                                      season.teamId),
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                              subtitle: Text(
-                                                  format.format(game.date)),
-                                              trailing: Container(
-                                                  margin:
-                                                      EdgeInsets.only(top: 20),
-                                                  child: IconButton(
-                                                    icon: Icon(game.id ==
-                                                            _expandedGameId
-                                                        ? Icons.expand_less
-                                                        : Icons.expand_more),
-                                                    onPressed: () async {
-                                                      setState(() {
-                                                        _expandedGameId = game
-                                                                    .id ==
-                                                                _expandedGameId
-                                                            ? 0
-                                                            : game.id;
-                                                      });
-
-                                                      if (game.allGameEvents
-                                                          .isEmpty) {
-                                                        await game
-                                                            .loadGameEvents();
-                                                      }
-                                                    },
-                                                  )),
-                                              onTap: () {
-                                                game.gameStatus.index == 0
-                                                    ? _showGame(game: game)
-                                                    : _goToGame(game);
-                                              }),
-                                          if (game.id == _expandedGameId)
-                                            ScoringSummary(
-                                                season, season.team, game),
-                                        ],
-                                      )),
-                                      Positioned(
-                                        top: 0,
-                                        right: 0,
-                                        child: GameResult(
-                                            game, widget.season.teamId),
-                                      ),
-                                    ])));
+                                child: gameCard);
                           })))
             ]);
           } else if (snapshot.hasError) {

@@ -71,9 +71,9 @@ class _PlayersPageState extends State<PlayersPage> {
                                     return AlertDialog(
                                       title: Text(AppLocalizations.of(context)!
                                           .confirmDelete),
-                                      content: Text(
-                                          AppLocalizations.of(context)!
-                                              .areYouSureYouWantToDeleteThisPlayer),
+                                      content: Text(AppLocalizations.of(
+                                              context)!
+                                          .areYouSureYouWantToDeleteThisPlayer),
                                       actions: [
                                         TextButton(
                                           child: Text(
