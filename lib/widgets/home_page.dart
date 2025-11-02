@@ -762,7 +762,7 @@ class _HomePageState extends State<HomePage> {
         });
         try {
           final id = await DatabaseService.instance.shareDatabase();
-          final url = 'https://team-sync.app/$id';
+          final url = 'https://team-sync-soccer.web.app/#/$id';
 
           showDialog(
             context: context,
