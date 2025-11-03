@@ -43,6 +43,8 @@ class GameStats implements StatLeaders {
           if (event.eventData == ShotResult.goal.index) {
             stats._playerGoals
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerShotsOnGoal
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           } else if (event.eventData == ShotResult.onTargetSave.index) {
             stats._playerShotsOnGoal
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);

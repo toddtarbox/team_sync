@@ -3,6 +3,8 @@ import 'package:change_case/change_case.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/game_event.dart';
+import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 
@@ -23,6 +25,7 @@ class GameStatsView extends StatefulWidget {
 
 class _GameStatsViewState extends State<GameStatsView> {
   late Game _game;
+  late List<ListTile> _statCategoryTiles;
 
   @override
   void initState() {
@@ -53,96 +56,14 @@ class _GameStatsViewState extends State<GameStatsView> {
                     (e.eventType == 'PenaltyKick' &&
                         e.eventData == 0 &&
                         e.eventMinute > 0))
-                .toList(growable: false)
                 .toList(growable: false);
 
             final assistEvents = _game.allGameEvents
                 .where((e) => e.eventType == 'Assist')
-                .toList(growable: false)
                 .toList(growable: false);
 
-            final stats = snapshot.data!;
-            final statCategoryTiles = LeaderCategory.values.map((category) {
-              return ListTile(
-                title: Center(
-                    child: Text(category.name.toSentenceCase().toTitleCase(),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 24))),
-                leading: GestureDetector(
-                    onTap: () async {
-                      final playerStats = await stats.getStatPlayers(category);
-                      if (playerStats.isNotEmpty) {
-                        final sortedStats = List.from(playerStats.entries);
-                        sortedStats.sort((a, b) => b.value.compareTo(a.value));
-
-                        if (!mounted) return;
-                        showModalBottomSheet(
-                            context: context,
-                            builder: (context) {
-                              return ListView.builder(
-                                  itemCount: sortedStats.length + 1,
-                                  itemBuilder: (context, index) {
-                                    if (index == 0) {
-                                      return ListTile(
-                                          title: Center(
-                                              child: Text(
-                                                  category.name
-                                                      .toSentenceCase()
-                                                      .toTitleCase(),
-                                                  style: const TextStyle(
-                                                      fontSize: 20,
-                                                      fontWeight:
-                                                          FontWeight.bold))));
-                                    }
-
-                                    final player = sortedStats[index - 1].key;
-                                    final count = sortedStats[index - 1].value;
-                                    return ListTile(
-                                      leading: Text(player.displayName,
-                                          style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold)),
-                                      title: Text(count.toString(),
-                                          style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold)),
-                                    );
-                                  });
-                            });
-                      }
-                    },
-                    child: Text(
-                        _game.allGameEvents
-                            .where((e) =>
-                                e.eventType == category.name &&
-                                e.team.id == widget.season.teamId)
-                            .length
-                            .toString(),
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                            decoration: category.name != 'Corners' &&
-                                    _game.allGameEvents
-                                        .where((e) =>
-                                            e.eventType == category.name &&
-                                            e.team.id == widget.season.teamId)
-                                        .isNotEmpty
-                                ? TextDecoration.underline
-                                : null))),
-                trailing: Text(
-                    _game.allGameEvents
-                        .where((e) =>
-                            e.eventType == category.name &&
-                            e.team.id != widget.season.teamId)
-                        .length
-                        .toString(),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 24)),
-              );
-            }).toList(growable: false);
-
             return ListView.separated(
-                itemCount: scoringEvents.length + 2 + statCategoryTiles.length,
+                itemCount: scoringEvents.length + 2 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const ListTile(
@@ -196,7 +117,7 @@ class _GameStatsViewState extends State<GameStatsView> {
                                 style:
                                     TextStyle(fontWeight: FontWeight.bold))));
                   } else {
-                    return statCategoryTiles[index - scoringEvents.length - 2];
+                    return _statCategoryTiles[index - scoringEvents.length - 2];
                   }
                 },
                 separatorBuilder: (context, index) {
@@ -212,6 +133,172 @@ class _GameStatsViewState extends State<GameStatsView> {
 
   Future<GameStats> _loadStats() async {
     await _game.loadGameEvents();
-    return await _game.getStats(widget.season.teamId);
+    final stats = await _game.getStats(widget.season.teamId);
+
+    final playerStats = <LeaderCategory, Map<Player, int>>{};
+    for (final category in LeaderCategory.values) {
+      playerStats[category] = await stats.getStatPlayers(category);
+    }
+
+    _statCategoryTiles = LeaderCategory.values.map((category) {
+      int teamTotalForCategory = 0;
+      for (final stat in playerStats[category]!.entries) {
+        teamTotalForCategory += stat.value;
+      }
+
+      int opponentTotalForCategory = 0;
+      for (final event in _game.allGameEvents) {
+        switch (category) {
+          case LeaderCategory.goals:
+            if (event.eventType == 'Shot' &&
+                event.eventData == 0 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.assists:
+          case LeaderCategory.ownGoalsEarned:
+            break;
+          case LeaderCategory.penaltyKickGoals:
+            if (event.eventType == 'PenaltyKick' &&
+                event.eventData == 0 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.penaltyKicksTaken:
+            if (event.eventType == 'PenaltyKick' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.shots:
+            if (event.eventType == 'Shot' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.shotsOnGoal:
+            if (event.eventType == 'Shot' &&
+                (event.eventData == ShotResult.goal.index ||
+                    event.eventData == ShotResult.onTargetSave.index) &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.shotsOffPost:
+            if (event.eventType == 'Shot' &&
+                event.eventData == ShotResult.offTargetPost.index &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.saves:
+            if (event.eventType == 'Shot' &&
+                event.eventData == ShotResult.onTargetSave.index &&
+                event.team.id == widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.offsides:
+            if (event.eventType == 'Offsides' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.fouls:
+            if (event.eventType == 'Foul' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.yellows:
+            if (event.eventType == 'Card' &&
+                event.eventData == 0 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.secondYellowReds:
+            if (event.eventType == 'Card' &&
+                event.eventData == 1 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.reds:
+            if (event.eventType == 'Card' &&
+                event.eventData == 2 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+        }
+      }
+
+      return ListTile(
+        title: Center(
+            child: Text(category.name.toSentenceCase().toTitleCase(),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 24))),
+        leading: GestureDetector(
+            onTap: () async {
+              if (playerStats.isNotEmpty) {
+                final sortedStats = List.from(playerStats[category]!.entries);
+                sortedStats.sort((a, b) => b.value.compareTo(a.value));
+
+                if (!mounted) return;
+                showModalBottomSheet(
+                    context: context,
+                    builder: (context) {
+                      return ListView.builder(
+                          itemCount: sortedStats.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              return ListTile(
+                                  title: Center(
+                                      child: Text(
+                                          category.name
+                                              .toSentenceCase()
+                                              .toTitleCase(),
+                                          style: const TextStyle(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold))));
+                            }
+
+                            final player = sortedStats[index - 1].key;
+                            final count = sortedStats[index - 1].value;
+                            return ListTile(
+                              leading: Text(player.displayName,
+                                  style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold)),
+                              title: Text(count.toString(),
+                                  style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold)),
+                            );
+                          });
+                    });
+              }
+            },
+            child: Text(teamTotalForCategory.toString(),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    decoration: category.name != 'Corners' &&
+                            _game.allGameEvents
+                                .where((e) =>
+                                    e.eventType == category.name &&
+                                    e.team.id == widget.season.teamId)
+                                .isNotEmpty
+                        ? TextDecoration.underline
+                        : null))),
+        trailing: Text(opponentTotalForCategory.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+      );
+    }).toList(growable: false);
+
+    return stats;
   }
 }
