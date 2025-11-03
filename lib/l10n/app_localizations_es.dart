@@ -38,7 +38,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get areYouSureYouWantToDeleteThisSeason =>
-      '¿Estás seguro de que quieres eliminar esta temporada? Todos los datos asociados a esta temporada serán eliminados. Esta acción no se puede deshacer.';
+      'Estas seguro que quieres borrar esta temporada? Todos los datos asociados a esta temporada serán eliminados. Esto no se puede deshacer.';
 
   @override
   String get continueButton => 'Continuar';
@@ -122,7 +122,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get tieAbbreviation => 'E';
 
   @override
-  String get historyVersus => 'Historial Contra';
+  String get historyVersus => 'Historial contra';
 
   @override
   String get players => 'Jugadores';
@@ -140,14 +140,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get finalText => 'Final';
 
   @override
-  String get finalOTText => 'Tiempo extra final';
+  String get finalOTText => 'Final OT';
 
   @override
-  String get finalPKsText => 'PK finales';
+  String get finalPKsText => 'Final PKs';
 
   @override
   String get areYouSureYouWantToDeleteThisEvent =>
-      '¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.';
+      'Estas seguro que quieres borrar este evento? Esto no se puede deshacer.';
 
   @override
   String get newEvent => 'Nuevo evento';
@@ -169,20 +169,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get areYouSureYouWantToDeleteThisGame =>
-      '¿Estás seguro de que quieres eliminar este partido? Todos los datos asociados a este partido serán eliminados. Esta acción no se puede deshacer.';
+      'Estas seguro que quieres borrar este partido? Todos los datos asociados a este partido serán eliminados. Esto no se puede deshacer.';
 
   @override
   String get areYouSureYouWantToDeleteThisPlayer =>
-      '¿Seguro que quieres eliminar este reproductor? Se eliminarán todos los datos asociados. Esta acción es irreversible.';
+      'Estas seguro que quieres borrar este jugador? Todos los datos asociados a este jugador serán eliminados. Esto no se puede deshacer.';
 
   @override
   String get editGame => 'Editar partido';
 
   @override
-  String get home => 'Local';
+  String get home => 'Casa';
 
   @override
-  String get away => 'Visitante';
+  String get away => 'Fuera';
 
   @override
   String get createNewOpponent => 'Crear nuevo oponente';
@@ -194,7 +194,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get goToGame => 'Ir al partido';
 
   @override
-  String get overall => 'Total';
+  String get overall => 'General';
 
   @override
   String get seasonStats => 'Estadísticas de la temporada';
@@ -265,10 +265,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get databaseImportInProgress =>
-      'Importación de la base de datos en curso...';
+      'La importación de la base de datos aún está en curso...';
 
   @override
-  String get proSubscriptionFeatures => 'FUNCIONES DE LA SUSCRIPCIÓN PRO';
+  String get proSubscriptionFeatures => 'CARACTERÍSTICAS DE LA SUSCRIPCIÓN PRO';
 
   @override
   String get setTeamColors => 'Establecer colores del equipo';
@@ -292,11 +292,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get shareDatabase => 'Compartir base de datos';
 
   @override
-  String get career => 'Career';
+  String get career => 'Carrera';
 
   @override
-  String get game => 'Game';
+  String get game => 'Partido';
 
   @override
-  String get calculating => 'Calculating...';
+  String get calculating => 'Calculando...';
+
+  @override
+  String get bestSeason => 'Mejor temporada';
+
+  @override
+  String get bestGame => 'Mejor partido';
 }

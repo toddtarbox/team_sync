@@ -160,35 +160,25 @@ class _SeasonPageState extends State<SeasonPage> {
                                     children: [
                                       ListTile(
                                           title: Text(
-                                              game.displayName(
-                                                  season.teamId),
+                                              game.displayName(season.teamId),
                                               style: const TextStyle(
-                                                  fontWeight:
-                                                      FontWeight.bold)),
-                                          subtitle: Text(
-                                              format.format(game.date)),
+                                                  fontWeight: FontWeight.bold)),
+                                          subtitle:
+                                              Text(format.format(game.date)),
                                           trailing: Container(
-                                              margin:
-                                                  EdgeInsets.only(top: 20),
+                                              margin: EdgeInsets.only(top: 20),
                                               child: IconButton(
-                                                icon: Icon(game.id ==
-                                                        _expandedGameId
-                                                    ? Icons.expand_less
-                                                    : Icons.expand_more),
+                                                icon: Icon(
+                                                    game.id == _expandedGameId
+                                                        ? Icons.expand_less
+                                                        : Icons.expand_more),
                                                 onPressed: () async {
                                                   setState(() {
-                                                    _expandedGameId = game
-                                                                .id ==
+                                                    _expandedGameId = game.id ==
                                                             _expandedGameId
                                                         ? 0
                                                         : game.id;
                                                   });
-
-                                                  if (game.allGameEvents
-                                                      .isEmpty) {
-                                                    await game
-                                                        .loadGameEvents();
-                                                  }
                                                 },
                                               )),
                                           onTap: () {
@@ -204,8 +194,8 @@ class _SeasonPageState extends State<SeasonPage> {
                                   Positioned(
                                     top: 0,
                                     right: 0,
-                                    child: GameResult(
-                                        game, widget.season.teamId),
+                                    child:
+                                        GameResult(game, widget.season.teamId),
                                   ),
                                 ]));
                             if (kIsWeb) {
@@ -228,22 +218,18 @@ class _SeasonPageState extends State<SeasonPage> {
                                         actions: [
                                           TextButton(
                                             child: Text(
-                                                AppLocalizations.of(
-                                                        context)!
+                                                AppLocalizations.of(context)!
                                                     .continueButton),
                                             onPressed: () {
-                                              Navigator.pop(
-                                                  context, true);
+                                              Navigator.pop(context, true);
                                             },
                                           ),
                                           TextButton(
                                             child: Text(
-                                                AppLocalizations.of(
-                                                        context)!
+                                                AppLocalizations.of(context)!
                                                     .cancelButton),
                                             onPressed: () {
-                                              Navigator.pop(
-                                                  context, false);
+                                              Navigator.pop(context, false);
                                             },
                                           ),
                                         ],

@@ -6,6 +6,7 @@ import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stat.dart';
@@ -70,10 +71,16 @@ class Team extends Equatable {
     final gamesFuture = Game.listFromTeamId(id);
     final seasonsFuture = Season.fromTeamId(id);
     final playersFuture = Player.allFromTeamId(id);
+    final eventsFuture = GameEvent.listFromTeamId(id);
 
-    final results =
-        await Future.wait([gamesFuture, seasonsFuture, playersFuture]);
-    return {'games': results[0], 'seasons': results[1], 'players': results[2]};
+    final results = await Future.wait(
+        [gamesFuture, seasonsFuture, playersFuture, eventsFuture]);
+    return {
+      'games': results[0],
+      'seasons': results[1],
+      'players': results[2],
+      'events': results[3]
+    };
   }
 
   Future<Map<LeaderCategory, MapEntry<Player, int>>> calculateCareerStats(
@@ -159,9 +166,24 @@ class Team extends Equatable {
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
+    final events = data['events'] as List<GameEvent>;
     final bestGameStats = BestGameStats();
+
+    final eventsByGame = <int, List<GameEvent>>{};
+    for (final event in events) {
+      final gameId = event.game.id;
+      if (!eventsByGame.containsKey(gameId)) {
+        eventsByGame[gameId] = [];
+      }
+      eventsByGame[gameId]!.add(event);
+    }
+
     int i = 0;
     for (final category in LeaderCategory.values) {
+      if (category == LeaderCategory.ownGoalsEarned) {
+        i++;
+        continue;
+      }
       progressController?.add(CalculationProgress(
           total: LeaderCategory.values.length,
           current: i,
@@ -172,8 +194,8 @@ class Team extends Equatable {
       Season? bestSeason;
 
       for (final game in games) {
-        await game.loadGameEvents();
-        final gameStats = game.getStats(id);
+        final gameEvents = eventsByGame[game.id] ?? [];
+        final gameStats = GameStats.fromEvents(id, gameEvents);
         final statPlayers = await gameStats.getStatPlayers(category);
 
         for (final entry in statPlayers.entries) {
@@ -258,11 +280,21 @@ class Team extends Equatable {
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
+    final events = data['events'] as List<GameEvent>;
     final gameStatsList = <BestGameStat>[];
 
+    final eventsByGame = <int, List<GameEvent>>{};
+    for (final event in events) {
+      final gameId = event.game.id;
+      if (!eventsByGame.containsKey(gameId)) {
+        eventsByGame[gameId] = [];
+      }
+      eventsByGame[gameId]!.add(event);
+    }
+
     for (final game in games) {
-      await game.loadGameEvents();
-      final gameStats = game.getStats(id);
+      final gameEvents = eventsByGame[game.id] ?? [];
+      final gameStats = GameStats.fromEvents(id, gameEvents);
       final statPlayers = await gameStats.getStatPlayers(category);
 
       for (final entry in statPlayers.entries) {

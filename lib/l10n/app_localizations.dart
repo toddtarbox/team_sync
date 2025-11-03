@@ -661,6 +661,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Calculating...'**
   String get calculating;
+
+  /// No description provided for @bestSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Season'**
+  String get bestSeason;
+
+  /// No description provided for @bestGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Best Game'**
+  String get bestGame;
 }
 
 class _AppLocalizationsDelegate

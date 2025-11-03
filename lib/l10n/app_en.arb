@@ -92,5 +92,7 @@
   "shareDatabase": "Share Database",
   "career": "Career",
   "game": "Game",
-  "calculating": "Calculating..."
+  "calculating": "Calculating...",
+  "bestSeason": "Best Season",
+  "bestGame": "Best Game"
 }

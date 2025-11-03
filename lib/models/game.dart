@@ -461,7 +461,8 @@ class Game {
     return false;
   }
 
-  GameStats getStats(int teamId) {
+  Future<GameStats> getStats(int teamId) async {
+    await loadGameEvents();
     return GameStats.fromEvents(teamId, allGameEvents);
   }
 

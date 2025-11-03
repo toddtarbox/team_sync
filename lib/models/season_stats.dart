@@ -32,7 +32,6 @@ class SeasonStats implements StatLeaders {
   final HashMap<int, int> _playerShotsOnGoal = HashMap<int, int>();
   final HashMap<int, int> _playerShotsOffPost = HashMap<int, int>();
   final HashMap<int, int> _playerGoals = HashMap<int, int>();
-  final HashMap<int, int> _playerOwnGoals = HashMap<int, int>();
   final HashMap<int, int> _playerPenaltyKickGoals = HashMap<int, int>();
   final HashMap<int, int> _playerPenaltyKicksTaken = HashMap<int, int>();
   final HashMap<int, int> _playerAssists = HashMap<int, int>();

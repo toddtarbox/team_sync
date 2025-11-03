@@ -377,7 +377,7 @@ class _GameViewState extends State<GameView> {
                     child: Column(children: [
                       Row(children: [
                         Expanded(
-                            child: RadioListTile(
+                            child: RadioListTile<int>(
                           title: Text(_game.awayTeam.shortName),
                           value: 0,
                           groupValue: team,
@@ -396,7 +396,7 @@ class _GameViewState extends State<GameView> {
                           },
                         )),
                         Expanded(
-                            child: RadioListTile(
+                            child: RadioListTile<int>(
                           title: Text(_game.homeTeam.shortName),
                           value: 1,
                           groupValue: team,

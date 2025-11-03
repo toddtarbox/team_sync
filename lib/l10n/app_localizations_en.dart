@@ -294,4 +294,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calculating => 'Calculating...';
+
+  @override
+  String get bestSeason => 'Best Season';
+
+  @override
+  String get bestGame => 'Best Game';
 }

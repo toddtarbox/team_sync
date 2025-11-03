@@ -1,4 +1,3 @@
-import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
@@ -10,8 +9,6 @@ class RecordHoldersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventEmitter = EventEmitter();
-
     return Scaffold(
       appBar: CustomAppBar(
         team: team,

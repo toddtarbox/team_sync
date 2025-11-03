@@ -481,10 +481,13 @@ class GameEvent {
         eventData: eventData);
   }
 
-  static Future<GameEvent> fromMap(Map<String, dynamic> map) async {
+  static Future<GameEvent?> fromMap(Map<String, dynamic> map) async {
     final team = await Team.fromId(map['teamId']);
     final player = await Player.fromId(map['playerId']);
     final game = await Game.fromId(map['gameId']);
+    if (game == null) {
+      return null;
+    }
 
     final eventType = map['eventType'];
     if (eventType == 'Period') {
@@ -492,7 +495,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -503,7 +506,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -514,7 +517,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -525,7 +528,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -536,7 +539,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -547,7 +550,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -558,7 +561,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -569,7 +572,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -580,7 +583,7 @@ class GameEvent {
           id: map['id'],
           player: player,
           team: team,
-          game: game!,
+          game: game,
           seasonId: map['seasonId'],
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
@@ -592,7 +595,7 @@ class GameEvent {
         id: map['id'],
         player: player,
         team: team,
-        game: game!,
+        game: game,
         seasonId: map['seasonId'],
         eventType: map['eventType'],
         eventMinute: map['eventMinute'],
@@ -602,14 +605,21 @@ class GameEvent {
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {
     final results = await DatabaseService.instance.query('Events',
-        where: 'gameId=? AND teamId!=?',
-        whereArgs: [gameId, -1],
-        orderBy: 'id ASC');
+        where: 'gameId=?', whereArgs: [gameId], orderBy: 'id ASC');
 
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(g))
         .toList(growable: false));
 
-    return events;
+    return events.whereType<GameEvent>().toList();
+  }
+
+  static Future<List<GameEvent>> listFromTeamId(int teamId) async {
+    final results = await DatabaseService.instance
+        .query('Events', where: 'teamId=?', whereArgs: [teamId]);
+    final events = await Future.wait(results
+        .map((g) async => await GameEvent.fromMap(g))
+        .toList(growable: false));
+    return events.whereType<GameEvent>().toList();
   }
 }

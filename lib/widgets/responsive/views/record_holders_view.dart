@@ -98,13 +98,13 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             segments: <ButtonSegment<StatType>>[
               ButtonSegment<StatType>(
                   value: StatType.career,
-                  label: Text(AppLocalizations.of(context)!.career)),
+                  label: Text(AppLocalizations.of(context)!.careerLeaders)),
               ButtonSegment<StatType>(
                   value: StatType.season,
-                  label: Text(AppLocalizations.of(context)!.season)),
+                  label: Text(AppLocalizations.of(context)!.bestSeason)),
               ButtonSegment<StatType>(
                   value: StatType.game,
-                  label: Text(AppLocalizations.of(context)!.game)),
+                  label: Text(AppLocalizations.of(context)!.bestGame)),
             ],
             selected: <StatType>{_selectedStatType},
             onSelectionChanged: (Set<StatType> newSelection) {
@@ -262,7 +262,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     return ListTile(
       title: Text(category.name.toSentenceCase().toTitleCase()),
       subtitle: Text(
-          '${bestStat.player.displayName} - ${bestStat.game.displayName(bestStat.player.teamId)}'),
+          '${bestStat.player.displayName} - ${bestStat.season.name} - ${bestStat.game.displayName(bestStat.player.teamId)}'),
       trailing: Text(bestStat.value.toString()),
       onTap: () async {
         showDialog(
@@ -294,7 +294,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                       final entry = categoryStats[index];
                       return ListTile(
                         title: Text(
-                            '${entry.player.displayName} - ${entry.game.displayName(entry.player.teamId)}'),
+                            '${entry.player.displayName} - ${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
                         trailing: Text(entry.value.toString()),
                       );
                     },
@@ -371,14 +371,14 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   Future<dynamic> _calculateStats(dynamic data) async {
     switch (_selectedStatType) {
       case StatType.career:
-        return await widget.team
-            .calculateCareerStats(data, progressController: _progressController);
+        return await widget.team.calculateCareerStats(data,
+            progressController: _progressController);
       case StatType.season:
         return await widget.team.calculateBestSeasonStats(data,
             progressController: _progressController);
       case StatType.game:
-        return await widget.team
-            .calculateBestGameStats(data, progressController: _progressController);
+        return await widget.team.calculateBestGameStats(data,
+            progressController: _progressController);
     }
   }
 }
