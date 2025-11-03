@@ -49,6 +49,7 @@ dependencies:
   shared_preferences: ^2.2.3
   showcaseview: ^5.0.1
   go_router: ^14.2.1
+  flutter_markdown: ^0.7.1
 
   purchases_flutter: ^9.8.0
   purchases_ui_flutter: ^9.8.0
@@ -84,3 +85,5 @@ flutter:
   assets:
     - assets/images/pngs/
     - assets/images/jpgs/
+    - assets/PRIVACY_POLICY.md
+    - assets/TERMS_OF_USE.md

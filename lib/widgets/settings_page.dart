@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/markdown_viewer.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -82,6 +83,33 @@ class SettingsPage extends StatelessWidget {
                     );
                   },
                 ),
+              ),
+              const Divider(),
+              ListTile(
+                title: const Text('Privacy Policy'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const MarkdownViewer(
+                        file: 'PRIVACY_POLICY.md',
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                title: const Text('Terms of Use'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const MarkdownViewer(
+                        file: 'TERMS_OF_USE.md',
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           );
