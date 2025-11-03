@@ -255,6 +255,10 @@ class _GameViewState extends State<GameView> {
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
+    if (kIsWeb) {
+      return;
+    }
+
     if (event?.eventType == 'Period') {
       return;
     }

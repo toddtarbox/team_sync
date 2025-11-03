@@ -98,6 +98,12 @@ abstract class AppLocalizations {
     Locale('es')
   ];
 
+  /// No description provided for @appTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'TeamSync'**
+  String get appTitle;
+
   /// No description provided for @soccerAnalytics.
   ///
   /// In en, this message translates to:
