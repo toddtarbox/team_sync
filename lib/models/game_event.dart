@@ -602,7 +602,9 @@ class GameEvent {
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {
     final results = await DatabaseService.instance.query('Events',
-        where: 'gameId=?', whereArgs: [gameId], orderBy: 'id ASC');
+        where: 'gameId=? AND teamId!=?',
+        whereArgs: [gameId, -1],
+        orderBy: 'id ASC');
 
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(g))

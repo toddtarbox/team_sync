@@ -40,6 +40,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                         final sortedStats = List.from(stat.entries);
                         sortedStats.sort((a, b) => b.value.compareTo(a.value));
 
+                        if (!mounted) return;
                         showModalBottomSheet(
                             context: context,
                             builder: (context) {
@@ -122,6 +123,6 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }
 
   Future<SeasonStats?> _loadSeasonStats() async {
-    return await widget.season.getSeasonStats();
+    return await widget.season.getStats();
   }
 }

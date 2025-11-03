@@ -17,11 +17,11 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/career_stats_page.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/season_page.dart';
+import 'package:team_sync/widgets/record_holders_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
+import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -138,7 +138,7 @@ class _HomePageState extends State<HomePage> {
 
       _checkIfFirstLaunch();
     }
-    
+
     _load().then((_) {
       setState(() {});
     });
@@ -270,7 +270,7 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => CareerStatsPage(team: _team!),
+                        builder: (context) => RecordHoldersPage(team: _team!),
                       ),
                     );
                   },
@@ -435,84 +435,8 @@ class _HomePageState extends State<HomePage> {
                               padding: const EdgeInsets.all(10),
                               child: Center(child: SeasonRecord(_seasons))))),
                   Expanded(
-                      child: ListView.builder(
-                          itemCount: _seasons.length,
-                          itemBuilder: (context, index) {
-                            final season = _seasons[index];
-                            final seasonCard = GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          SeasonPage(season: season),
-                                    ),
-                                  );
-                                },
-                                child: Card(
-                                    child: Column(children: [
-                                  Text(season.name,
-                                      style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold)),
-                                  Container(
-                                      decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                      padding: const EdgeInsets.all(5),
-                                      margin: const EdgeInsets.all(10),
-                                      child: Center(
-                                          child: SeasonRecord([season]))),
-                                ])));
-                            if (kIsWeb) {
-                              return seasonCard;
-                            }
-                            return Dismissible(
-                                key: Key(season.id.toString()),
-                                background: Container(
-                                    color: Theme.of(context).colorScheme.error),
-                                behavior: HitTestBehavior.translucent,
-                                confirmDismiss: (_) {
-                                  return showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text(
-                                            AppLocalizations.of(context)!
-                                                .confirmDelete),
-                                        content: Text(AppLocalizations.of(
-                                                context)!
-                                            .areYouSureYouWantToDeleteThisSeason),
-                                        actions: [
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .continueButton),
-                                            onPressed: () {
-                                              Navigator.pop(context, true);
-                                            },
-                                          ),
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .cancelButton),
-                                            onPressed: () {
-                                              Navigator.pop(context, false);
-                                            },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                                onDismissed: (direction) async {
-                                  await DatabaseService.instance.delete(
-                                      'Seasons',
-                                      where: 'id=?',
-                                      whereArgs: [season.id]);
-                                  setState(() {});
-                                },
-                                child: seasonCard);
-                          }))
+                    child: SeasonsListView(seasons: _seasons),
+                  )
                 ]);
               }
             },
@@ -536,40 +460,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
         ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              _team?.color1 ?? Theme.of(context).primaryColor,
-              _team?.color2 ?? Theme.of(context).primaryColorDark,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.rectangle,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: BottomAppBar(
-          height: 80,
-          color: Colors.transparent,
-          elevation: 0,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton(
-                onPressed: () => _launchURL(
-                    'https://sites.google.com/view/team-sync/privacy'),
-                child: const Text('Privacy Policy'),
-              ),
-              TextButton(
-                onPressed: () =>
-                    _launchURL('https://sites.google.com/view/team-sync/terms'),
-                child: const Text('Terms of Use'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

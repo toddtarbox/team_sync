@@ -4,8 +4,9 @@ import 'dart:core';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/models/stat_leaders.dart';
 
-class CareerStats {
+class CareerStats implements StatLeaders {
   final int teamId;
 
   CareerStats({required this.teamId});
@@ -98,9 +99,10 @@ class CareerStats {
     return stats;
   }
 
+  @override
   Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
     HashMap<int, int>? sourceTable;
-    final HashMap<Player, int> players = HashMap<Player, int>();
+    final HashMap<Player, int> playerStats = HashMap<Player, int>();
 
     switch (category) {
       case LeaderCategory.goals:
@@ -159,17 +161,19 @@ class CareerStats {
         break;
     }
 
-    if (sourceTable == null) return players;
+    if (sourceTable == null) return playerStats;
 
-    for (int playerId in sourceTable.keys) {
-      if (playerId != -1) {
-        Player? player = await Player.fromId(playerId);
-        if (player != null) {
-          players[player] = sourceTable[playerId] ?? 0;
-        }
+    final playerIds =
+        sourceTable.keys.where((id) => id != -1).toList(growable: false);
+    final players = await Player.fromIds(playerIds);
+
+    for (int playerId in playerIds) {
+      final player = players[playerId];
+      if (player != null) {
+        playerStats[player] = sourceTable[playerId] ?? 0;
       }
     }
 
-    return players;
+    return playerStats;
   }
 }

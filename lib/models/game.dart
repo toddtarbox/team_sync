@@ -1,20 +1,167 @@
+import 'dart:collection';
+
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/models/stat_leaders.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 
-class GameStat {
-  final String name;
-  final String dialogName;
-  final String category;
-  final int teamStat;
-  final int opponentStat;
-  Map<Player, int> playerStats = {};
+class GameStats implements StatLeaders {
+  final int teamId;
 
-  GameStat(this.name, this.dialogName, this.category, this.teamStat,
-      this.opponentStat);
+  GameStats({required this.teamId});
+
+  final HashMap<int, int> _playerGoals = HashMap<int, int>();
+  final HashMap<int, int> _playerPenaltyKickGoals = HashMap<int, int>();
+  final HashMap<int, int> _playerPenaltyKicksTaken = HashMap<int, int>();
+  final HashMap<int, int> _playerAssists = HashMap<int, int>();
+  final HashMap<int, int> _playerShots = HashMap<int, int>();
+  final HashMap<int, int> _playerShotsOnGoal = HashMap<int, int>();
+  final HashMap<int, int> _playerShotsOffPost = HashMap<int, int>();
+  final HashMap<int, int> _playerSaves = HashMap<int, int>();
+  final HashMap<int, int> _playerOffsides = HashMap<int, int>();
+  final HashMap<int, int> _playerFouls = HashMap<int, int>();
+  final HashMap<int, int> _playerYellows = HashMap<int, int>();
+  final HashMap<int, int> _playerSecondYellows = HashMap<int, int>();
+  final HashMap<int, int> _playerReds = HashMap<int, int>();
+
+  factory GameStats.fromEvents(int teamId, List<GameEvent> events) {
+    final stats = GameStats(teamId: teamId);
+
+    for (final event in events) {
+      if (event.player == null) continue;
+      final playerId = event.player!.id;
+
+      switch (event.eventType) {
+        case 'Shot':
+          stats._playerShots
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+
+          if (event.eventData == ShotResult.goal.index) {
+            stats._playerGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == ShotResult.onTargetSave.index) {
+            stats._playerShotsOnGoal
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == ShotResult.offTargetPost.index) {
+            stats._playerShotsOffPost
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+
+        case 'PenaltyKick':
+          stats._playerPenaltyKicksTaken
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          if (event.eventData == ShotResult.goal.index) {
+            stats._playerGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerPenaltyKickGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+
+        case 'Assist':
+          stats._playerAssists
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Save':
+          stats._playerSaves
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Offsides':
+          stats._playerOffsides
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Foul':
+          stats._playerFouls
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Card':
+          if (event.eventData == 0) {
+            stats._playerYellows
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 1) {
+            stats._playerSecondYellows
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 2) {
+            stats._playerReds
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+      }
+    }
+    return stats;
+  }
+
+  @override
+  Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
+    HashMap<int, int>? sourceTable;
+    final HashMap<Player, int> players = HashMap<Player, int>();
+
+    switch (category) {
+      case LeaderCategory.goals:
+        sourceTable = _playerGoals;
+        break;
+      case LeaderCategory.penaltyKickGoals:
+        sourceTable = _playerPenaltyKickGoals;
+        break;
+      case LeaderCategory.penaltyKicksTaken:
+        sourceTable = _playerPenaltyKicksTaken;
+        break;
+      case LeaderCategory.assists:
+        sourceTable = _playerAssists;
+        break;
+      case LeaderCategory.shots:
+        sourceTable = _playerShots;
+        break;
+      case LeaderCategory.shotsOnGoal:
+        sourceTable = _playerShotsOnGoal;
+        break;
+      case LeaderCategory.shotsOffPost:
+        sourceTable = _playerShotsOffPost;
+        break;
+      case LeaderCategory.saves:
+        sourceTable = _playerSaves;
+        break;
+      case LeaderCategory.offsides:
+        sourceTable = _playerOffsides;
+        break;
+      case LeaderCategory.fouls:
+        sourceTable = _playerFouls;
+        break;
+      case LeaderCategory.yellows:
+        sourceTable = _playerYellows;
+        break;
+      case LeaderCategory.secondYellowReds:
+        sourceTable = _playerSecondYellows;
+        break;
+      case LeaderCategory.reds:
+        sourceTable = _playerReds;
+        break;
+      default:
+        break;
+    }
+
+    if (sourceTable == null) return players;
+
+    for (int playerId in sourceTable.keys) {
+      if (playerId != -1) {
+        Player? player = await Player.fromId(playerId);
+        if (player != null) {
+          players[player] = sourceTable[playerId] ?? 0;
+        }
+      }
+    }
+
+    return players;
+  }
 }
 
 enum GameStatus {
@@ -314,83 +461,8 @@ class Game {
     return false;
   }
 
-  Future<GameStat> getStats(String name, String dialogName, String category,
-      List<int> data, int teamId) async {
-    GameStat stat;
-    if (!data.contains(-1)) {
-      int teamStat = allGameEvents
-          .where((e) =>
-              e.eventType == category &&
-              data.contains(e.eventData) &&
-              e.team.id == teamId &&
-              e.eventMinute > -2)
-          .length;
-      int opponentStat = allGameEvents
-          .where((e) =>
-              e.eventType == category &&
-              data.contains(e.eventData) &&
-              e.team.id != teamId &&
-              e.eventMinute > -2)
-          .length;
-
-      stat = GameStat(name, dialogName, category, teamStat, opponentStat);
-
-      final playerSet = allGameEvents
-          .where((e) => e.eventType == category)
-          .map((e) => e.player?.id)
-          .where((e) => e != null)
-          .toSet();
-      for (final id in playerSet) {
-        if (id != null && id != -1) {
-          final player = await Player.fromId(id);
-          stat.playerStats[player!] = allGameEvents
-              .where((e) =>
-                  e.player?.id == id &&
-                  e.eventType == category &&
-                  e.eventMinute > -2 &&
-                  data.contains(e.eventData))
-              .toList(growable: false)
-              .length;
-        }
-      }
-    } else {
-      int teamStat = allGameEvents
-          .where((e) =>
-              e.eventType == category &&
-              e.team.id == teamId &&
-              e.eventMinute > -2)
-          .length;
-      int opponentStat = allGameEvents
-          .where((e) =>
-              e.eventType == category &&
-              e.team.id != teamId &&
-              e.eventMinute > -2)
-          .length;
-
-      stat = GameStat(name, dialogName, category, teamStat, opponentStat);
-
-      final playerSet = allGameEvents
-          .where((e) => e.eventType == category)
-          .map((e) => e.player?.id)
-          .where((e) => e != null)
-          .toSet();
-      for (final id in playerSet) {
-        if (id != null && id != -1) {
-          final player = await Player.fromId(id);
-          stat.playerStats[player!] = allGameEvents
-              .where((e) =>
-                  e.player?.id == id &&
-                  e.eventType == category &&
-                  e.eventMinute > -2)
-              .toList(growable: false)
-              .length;
-        }
-      }
-    }
-
-    stat.playerStats.removeWhere((_, count) => count == 0);
-
-    return stat;
+  GameStats getStats(int teamId) {
+    return GameStats.fromEvents(teamId, allGameEvents);
   }
 
   String tweetStatus() {

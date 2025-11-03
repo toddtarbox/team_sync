@@ -285,4 +285,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareDatabase => 'Share Database';
+
+  @override
+  String get career => 'Career';
+
+  @override
+  String get game => 'Game';
+
+  @override
+  String get calculating => 'Calculating...';
 }

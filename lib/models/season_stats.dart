@@ -3,6 +3,7 @@ import 'dart:core';
 
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/stat_leaders.dart';
 
 enum LeaderCategory {
   goals,
@@ -21,7 +22,7 @@ enum LeaderCategory {
   reds
 }
 
-class SeasonStats {
+class SeasonStats implements StatLeaders {
   final int teamId;
   final int seasonId;
 
@@ -376,6 +377,7 @@ class SeasonStats {
     }
   }
 
+  @override
   Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
     HashMap<int, int> sourceTable;
     final HashMap<Player, int> players = HashMap<Player, int>();

@@ -20,6 +20,12 @@ class Season {
     return Season(id: map['id'], name: map['name'], teamId: map['teamId']);
   }
 
+  static Future<List<Season>> fromTeamId(int teamId) async {
+    final results = await DatabaseService.instance
+        .query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
+    return results.map((s) => Season.fromMap(s)).toList(growable: false);
+  }
+
   Future<void> load() async {
     team = await Team.fromId(teamId);
     games = await Game.listFromSeasonId(id);
@@ -30,7 +36,7 @@ class Season {
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }
 
-  Future<SeasonStats?> getSeasonStats() async {
+  Future<SeasonStats?> getStats() async {
     try {
       final results = await DatabaseService.instance
           .query('Events', where: 'seasonId=?', whereArgs: [id]);

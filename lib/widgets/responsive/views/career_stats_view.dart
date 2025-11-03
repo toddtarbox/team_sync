@@ -1,7 +1,7 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/career_stats.dart';
+import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
 
@@ -16,27 +16,18 @@ class CareerStatsView extends StatefulWidget {
 
 class _CareerStatsViewState extends State<CareerStatsView> {
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
         future: _loadCareerStats(),
-        builder: (BuildContext context, AsyncSnapshot<CareerStats?> snapshot) {
+        builder: (BuildContext context,
+            AsyncSnapshot<Map<LeaderCategory, MapEntry<Player, int>>>
+                snapshot) {
           if (snapshot.hasData) {
             final stats = snapshot.data!;
-            final statCategoryTiles = LeaderCategory.values.map((category) {
-              if (category == LeaderCategory.ownGoalsEarned ||
-                  category == LeaderCategory.secondYellowReds) {
-                return Container();
-              }
-
+            final statCategoryTiles = stats.entries.map((entry) {
               return ListTile(
                   title: GestureDetector(
                       onTap: () async {
-                        // Show a temp progress dialog
                         showDialog(
                             barrierDismissible: false,
                             context: context,
@@ -46,16 +37,13 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                                       AppLocalizations.of(context)!.loading));
                             });
 
-                        final stat = await stats.getStatPlayers(category);
+                        final stat = await widget.team
+                            .getCareerStatsForCategory(entry.key);
 
-                        // Dismiss the dialog
+                        if (!mounted) return;
                         Navigator.pop(context);
 
                         if (stat.isNotEmpty) {
-                          final sortedStats = List.from(stat.entries);
-                          sortedStats
-                              .sort((a, b) => b.value.compareTo(a.value));
-
                           showModalBottomSheet(
                               context: context,
                               builder: (context) {
@@ -64,7 +52,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                                     Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Text(
-                                        category.name
+                                        entry.key.name
                                             .toSentenceCase()
                                             .toTitleCase(),
                                         style: const TextStyle(
@@ -76,16 +64,16 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                                       child: ListView.builder(
                                           itemCount: stat.length,
                                           itemBuilder: (context, index) {
-                                            final stat = sortedStats[index];
+                                            final statEntry = stat[index];
                                             return ListTile(
                                                 title: Text(
-                                                    stat.key.displayName,
+                                                    statEntry.key.displayName,
                                                     style: const TextStyle(
                                                         fontSize: 24,
                                                         fontWeight:
                                                             FontWeight.bold)),
                                                 trailing: Text(
-                                                    stat.value.toString(),
+                                                    statEntry.value.toString(),
                                                     style: const TextStyle(
                                                         fontSize: 24,
                                                         fontWeight:
@@ -98,7 +86,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                         }
                       },
                       child:
-                          Text(category.name.toSentenceCase().toTitleCase())));
+                          Text(entry.key.name.toSentenceCase().toTitleCase())));
             }).toList(growable: false);
 
             return ListView.separated(
@@ -118,7 +106,8 @@ class _CareerStatsViewState extends State<CareerStatsView> {
         });
   }
 
-  Future<CareerStats?> _loadCareerStats() async {
-    return await widget.team.getCareerStats(widget.team.id);
+  Future<Map<LeaderCategory, MapEntry<Player, int>>> _loadCareerStats() async {
+    final data = await widget.team.fetchAllDataForCareer();
+    return await widget.team.calculateCareerStats(data);
   }
 }

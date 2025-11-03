@@ -50,6 +50,25 @@ class Player {
     }
   }
 
+  static Future<Map<int, Player>> fromIds(List<int> ids) async {
+    if (ids.isEmpty) {
+      return {};
+    }
+    final results =
+        await DatabaseService.instance.query('Players', where: 'id IN ($ids)');
+    final players =
+        results.map((p) => Player.fromMap(p)).toList(growable: false);
+    return {for (var p in players) p.id: p};
+  }
+
+  static Future<Map<int, Player>> allFromTeamId(int teamId) async {
+    final results = await DatabaseService.instance
+        .query('Players', where: 'teamId=?', whereArgs: [teamId]);
+    final players =
+        results.map((p) => Player.fromMap(p)).toList(growable: false);
+    return {for (var p in players) p.id: p};
+  }
+
   static Future<List<Player>> listFromTeamIdSeasonId(
       int teamId, int seasonId) async {
     final results = await DatabaseService.instance.query('Players',

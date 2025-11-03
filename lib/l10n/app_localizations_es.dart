@@ -290,4 +290,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get shareDatabase => 'Compartir base de datos';
+
+  @override
+  String get career => 'Career';
+
+  @override
+  String get game => 'Game';
+
+  @override
+  String get calculating => 'Calculating...';
 }

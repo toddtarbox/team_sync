@@ -11,6 +11,7 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/event_service.dart';
 
 class GameView extends StatefulWidget {
   final Season season;
@@ -638,7 +639,7 @@ class _GameViewState extends State<GameView> {
         setState(() {});
       }
 
-      widget.eventEmitter.emit('eventCreated');
+      EventService().eventEmitter.emit('eventCreated');
 
       return true;
     }

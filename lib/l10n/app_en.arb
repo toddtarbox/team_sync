@@ -89,5 +89,8 @@
   "secondaryColor": "Secondary color",
   "pickAColor": "Pick a color",
   "gotIt": "Got it",
-  "shareDatabase": "Share Database"
+  "shareDatabase": "Share Database",
+  "career": "Career",
+  "game": "Game",
+  "calculating": "Calculating..."
 }
