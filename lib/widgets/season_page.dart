@@ -254,6 +254,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           })))
             ]);
           } else if (snapshot.hasError) {
+            debugPrintStack(stackTrace: snapshot.stackTrace);
             return Center(
                 child: Text(AppLocalizations.of(context)!.errorLoadingHistory));
           } else {

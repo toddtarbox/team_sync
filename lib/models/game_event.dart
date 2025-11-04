@@ -135,6 +135,7 @@ class Shot extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -162,6 +163,7 @@ class Assist extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -189,6 +191,7 @@ class Save extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -236,6 +239,7 @@ class PenaltyKick extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -261,6 +265,7 @@ class Corner extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -288,6 +293,7 @@ class Foul extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -315,6 +321,7 @@ class Offsides extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -348,6 +355,7 @@ class GameCard extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -398,6 +406,7 @@ class Period extends GameEvent {
       required super.eventType,
       required super.eventMinute,
       required super.eventPeriod,
+      required super.eventUrls,
       required super.eventData});
 }
 
@@ -411,6 +420,7 @@ class GameEvent {
   int eventMinute;
   int eventPeriod;
   int eventData;
+  String? eventUrls;
 
   String get display {
     return eventType;
@@ -459,6 +469,7 @@ class GameEvent {
       required this.eventType,
       required this.eventMinute,
       required this.eventPeriod,
+      required this.eventUrls,
       required this.eventData});
 
   static GameEvent initial(
@@ -468,6 +479,7 @@ class GameEvent {
       required String eventType,
       required int eventMinute,
       required int eventPeriod,
+      required String eventUrls,
       required int eventData}) {
     return GameEvent(
         id: -1,
@@ -478,6 +490,7 @@ class GameEvent {
         eventType: eventType,
         eventMinute: eventMinute,
         eventPeriod: eventPeriod,
+        eventUrls: eventUrls,
         eventData: eventData);
   }
 
@@ -500,6 +513,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Shot') {
       return Shot(
@@ -511,6 +525,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Assist') {
       return Assist(
@@ -522,6 +537,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Save') {
       return Save(
@@ -533,6 +549,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'PenaltyKick') {
       return PenaltyKick(
@@ -544,6 +561,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Corner') {
       return Corner(
@@ -555,6 +573,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Foul') {
       return Foul(
@@ -566,6 +585,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Offsides') {
       return Offsides(
@@ -577,6 +597,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     } else if (eventType == 'Card') {
       return GameCard(
@@ -588,6 +609,7 @@ class GameEvent {
           eventType: map['eventType'],
           eventMinute: map['eventMinute'],
           eventPeriod: map['eventPeriod'],
+          eventUrls: map['eventUrls'],
           eventData: map['eventData']);
     }
 
@@ -600,6 +622,7 @@ class GameEvent {
         eventType: map['eventType'],
         eventMinute: map['eventMinute'],
         eventPeriod: map['eventPeriod'],
+        eventUrls: map['eventUrls'],
         eventData: map['eventData']);
   }
 

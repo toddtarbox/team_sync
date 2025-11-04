@@ -743,6 +743,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openCloudDatabase(String databaseName) async {
     try {
+      if (DatabaseService.instance.path.endsWith(databaseName)) {
+        // Database is already open
+        return;
+      }
+
       DatabaseService.instance.setProvider(FirebaseDBProvider());
 
       if (!databaseName.endsWith('.db')) {

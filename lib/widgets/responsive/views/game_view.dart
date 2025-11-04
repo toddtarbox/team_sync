@@ -12,6 +12,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GameView extends StatefulWidget {
   final Season season;
@@ -154,11 +155,16 @@ class _GameViewState extends State<GameView> {
                       title: Center(child: Text('End of Game')));
                 });
           } else if (snapshot.hasError) {
+            debugPrintStack(stackTrace: snapshot.stackTrace);
             return const Center(child: Text('Error loading events'));
           } else {
             return const Center(child: CircularProgressIndicator());
           }
         });
+  }
+
+  void _launchUrl(String url) async {
+    await launchUrl(Uri.parse(url));
   }
 
   Widget _getEventTile(GameEvent event) {
@@ -183,6 +189,15 @@ class _GameViewState extends State<GameView> {
                     style: const TextStyle(fontSize: 20))))
         : null;
 
+    final linkWidget = event.eventUrls?.isNotEmpty ?? false
+        ? Center(
+            child: IconButton(
+                icon: Icon(Icons.link, color: Colors.blue),
+                onPressed: () {
+                  _launchUrl(event.eventUrls!);
+                }))
+        : Container();
+
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
@@ -199,7 +214,8 @@ class _GameViewState extends State<GameView> {
               ? event.team.id == widget.season.teamId
                   ? 'Own goal by ${opponent.shortName}'
                   : 'Own goal'
-              : event.display)
+              : event.display),
+          linkWidget
         ]),
         subtitle: Visibility(
             visible: event.eventType != 'Period',
@@ -301,6 +317,7 @@ class _GameViewState extends State<GameView> {
         eventType: event?.eventType ?? 'Shot',
         eventMinute: event?.eventMinute ?? -1,
         eventPeriod: event?.eventPeriod ?? -1,
+        eventUrls: event?.eventUrls ?? '',
         eventData: event?.eventData ?? 0);
 
     int? team = event.team.id == _game.awayTeam.id ? 0 : 1;
@@ -525,6 +542,12 @@ class _GameViewState extends State<GameView> {
                             const Text('Own Goal')
                           ])),
                       const SizedBox(height: 20),
+                      TextFormField(
+                          initialValue: event.eventUrls,
+                          decoration: const InputDecoration(
+                              labelText: 'Video or photo URL'),
+                          onChanged: (url) => event!.eventUrls = url),
+                      const SizedBox(height: 20),
                       Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
@@ -576,6 +599,7 @@ class _GameViewState extends State<GameView> {
         eventType: 'Period',
         eventMinute: -1,
         eventPeriod: _game.gameStatus.index,
+        eventUrls: '',
         eventData: _game.gameStatus.index);
     await _saveEvent(periodEvent);
 
@@ -603,7 +627,8 @@ class _GameViewState extends State<GameView> {
             'eventMinute': event.eventMinute,
             'eventPeriod': event.eventPeriod,
             'eventData': event.eventData,
-            'eventTextData': null
+            'eventTextData': null,
+            'eventUrls': event.eventUrls
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
 
@@ -635,6 +660,7 @@ class _GameViewState extends State<GameView> {
             eventType: 'Save',
             eventMinute: event.eventMinute,
             eventPeriod: -1,
+            eventUrls: event.eventUrls ?? '',
             eventData: 0);
         setState(() {
           _autoCreateSave = saveEvent;

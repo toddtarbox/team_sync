@@ -98,6 +98,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                   return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
+            debugPrintStack(stackTrace: snapshot.stackTrace);
             return Center(
                 child: Text(AppLocalizations.of(context)!.errorLoadingStats));
           } else {

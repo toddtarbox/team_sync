@@ -143,11 +143,15 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   late String _subscriptionId;
   String _path = '';
-  late DocumentSnapshot _dbDocumentSnapshot;
-  DocumentSnapshot get dbDocumentSnapshot => _dbDocumentSnapshot;
+  DocumentSnapshot? _dbDocumentSnapshot;
+  DocumentSnapshot? get dbDocumentSnapshot => _dbDocumentSnapshot;
 
   String? get publicShareId {
-    final data = _dbDocumentSnapshot.data() as Map<String, dynamic>?;
+    if (_dbDocumentSnapshot == null) {
+      return null;
+    }
+
+    final data = _dbDocumentSnapshot!.data() as Map<String, dynamic>?;
     if (data != null && data.containsKey('publicShareId')) {
       return data['publicShareId'] as String?;
     }
@@ -156,12 +160,12 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<bool> get isImporting async =>
-      ((await _dbDocumentSnapshot.reference.get()).data()
+      ((await _dbDocumentSnapshot?.reference.get())?.data()
           as Map<String, dynamic>)['isImporting'] ==
       true;
 
   Future<void> set(Map<String, dynamic> map) async {
-    await _dbDocumentSnapshot.reference.update(map);
+    await _dbDocumentSnapshot?.reference.update(map);
   }
 
   Future<void> _getSubscriptionId() async {
@@ -211,7 +215,7 @@ class FirebaseDBProvider implements DatabaseProvider {
         .doc(_path);
 
     _dbDocumentSnapshot = await dbDocument.get();
-    if (!_dbDocumentSnapshot.exists) {
+    if (_dbDocumentSnapshot?.exists == true) {
       await dbDocument.set({'version': 1});
     }
 
@@ -227,7 +231,7 @@ class FirebaseDBProvider implements DatabaseProvider {
     _path = parts.last;
     _subscriptionId = parts[1];
 
-    if (!_dbDocumentSnapshot.exists) {
+    if (_dbDocumentSnapshot?.exists == false) {
       return false;
     }
 
@@ -243,7 +247,11 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<List<Map<String, dynamic>>> query(String table,
       {String? where, List<dynamic>? whereArgs, String? orderBy}) async {
-    Query q = _dbDocumentSnapshot.reference.collection(table);
+    if (_dbDocumentSnapshot == null) {
+      return [];
+    }
+
+    Query q = _dbDocumentSnapshot!.reference.collection(table);
     if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
       final fields = where.split(' AND ');
       int index = 0;
@@ -272,7 +280,11 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> insert(String table, Map<String, dynamic> data,
       {ConflictAlgorithm? conflictAlgorithm}) async {
-    final collectionRef = _dbDocumentSnapshot.reference.collection(table);
+    if (_dbDocumentSnapshot == null) {
+      return -1;
+    }
+
+    final collectionRef = _dbDocumentSnapshot!.reference.collection(table);
 
     // For importing data, we must preserve the original ID.
     // We check if the incoming data already has an ID.
@@ -291,7 +303,11 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> update(String table, Map<String, dynamic> data,
       {String? where, List<dynamic>? whereArgs}) async {
-    Query q = _dbDocumentSnapshot.reference.collection(table);
+    if (_dbDocumentSnapshot == null) {
+      return -1;
+    }
+
+    Query q = _dbDocumentSnapshot!.reference.collection(table);
     if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
       final fields = where.split(' AND ');
       int index = 0;
@@ -311,7 +327,11 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   Future<int> delete(String table,
       {String? where, List<dynamic>? whereArgs}) async {
-    Query q = _dbDocumentSnapshot.reference.collection(table);
+    if (_dbDocumentSnapshot == null) {
+      return -1;
+    }
+
+    Query q = _dbDocumentSnapshot!.reference.collection(table);
     if (where != null && whereArgs != null && whereArgs.isNotEmpty) {
       final fields = where.split(' AND ');
       int index = 0;
@@ -403,13 +423,17 @@ class DatabaseService {
     debugPrint('Importing complete');
   }
 
-  Future<String> shareDatabase() async {
+  Future<String?> shareDatabase() async {
     if (_provider is! FirebaseDBProvider) {
       throw Exception("Can only share a cloud database.");
     }
 
     final firebaseProvider = _provider as FirebaseDBProvider;
     final dbDoc = firebaseProvider.dbDocumentSnapshot;
+    if (dbDoc == null) {
+      return null;
+    }
+
     final data = dbDoc.data() as Map<String, dynamic>?;
 
     // If it's already shared, return the existing ID.
