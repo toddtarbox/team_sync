@@ -1,9 +1,14 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 
 class PlayersPage extends StatefulWidget {
@@ -15,6 +20,8 @@ class PlayersPage extends StatefulWidget {
 }
 
 class _PlayersPageState extends State<PlayersPage> {
+  File? _imageFile;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,12 +104,42 @@ class _PlayersPageState extends State<PlayersPage> {
                                 );
                               },
                         onDismissed: (direction) async {
+                          if (player.profileImage != null &&
+                              player.profileImage!.isNotEmpty) {
+                            try {
+                              await FirebaseStorage.instance
+                                  .refFromURL(player.profileImage!)
+                                  .delete();
+                            } catch (e) {
+                              // Image may not exist, so we can ignore.
+                            }
+                          }
                           await DatabaseService.instance.delete('Players',
                               where: 'id=? AND seasonId=?',
                               whereArgs: [player.id, widget.season.id]);
                           setState(() {});
                         },
                         child: ListTile(
+                          onTap: () => _editPlayer(player),
+                          leading: CircleAvatar(
+                            child: player.profileImage != null &&
+                                    player.profileImage!.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      player.profileImage!,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Text(
+                                            '${player.firstName[0]}${player.lastName[0]}');
+                                      },
+                                    ),
+                                  )
+                                : Text(
+                                    '${player.firstName[0]}${player.lastName[0]}'),
+                          ),
                           title: Text(player.displayName),
                           subtitle: Text('#${player.number}'),
                         ));
@@ -114,64 +151,239 @@ class _PlayersPageState extends State<PlayersPage> {
         ));
   }
 
-  void _createPlayer() {
-    late String playerName;
-    late int playerNumber;
+  void _editPlayer(Player player) {
+    late String playerName = player.displayName;
+    late int playerNumber = player.number;
+    _imageFile = null;
 
     showModalBottomSheet(
         context: context,
         builder: (context) {
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.newPlayer),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.playerName),
-                        onChanged: (name) => playerName = name),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.playerNumber),
-                        onChanged: (number) =>
-                            playerNumber = int.parse(number)),
-                    const Spacer(),
-                    TextButton(
-                        onPressed: () {},
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!.save,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () async {
-                                    if (playerName.isNotEmpty) {
-                                      await DatabaseService.instance.insert(
-                                          'Players', {
-                                        'name': playerName,
-                                        'number': playerNumber,
-                                        'seasonId': widget.season.id
-                                      });
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+            return Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(50),
+                    child: Column(children: [
+                      Text(AppLocalizations.of(context)!.editPlayer),
+                      GestureDetector(
+                        onTap: SubscriptionService.instance.isSubscribed
+                            ? () async {
+                                final pickedFile = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (pickedFile != null) {
+                                  setModalState(() {
+                                    _imageFile = File(pickedFile.path);
+                                  });
+                                }
+                              }
+                            : null,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage: _imageFile != null
+                              ? FileImage(_imageFile!)
+                              : (player.profileImage != null &&
+                                      player.profileImage!.isNotEmpty
+                                  ? NetworkImage(player.profileImage!)
+                                  : null) as ImageProvider?,
+                          child: _imageFile == null &&
+                                  (player.profileImage == null ||
+                                      player.profileImage!.isEmpty)
+                              ? const Icon(Icons.add_a_photo)
+                              : null,
+                        ),
+                      ),
+                      TextFormField(
+                          initialValue: playerName,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.playerName),
+                          onChanged: (name) => playerName = name),
+                      TextFormField(
+                          initialValue: playerNumber.toString(),
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.playerNumber),
+                          onChanged: (number) =>
+                              playerNumber = int.parse(number)),
+                      const Spacer(),
+                      TextButton(
+                          onPressed: () {},
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!.save,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () async {
+                                      if (playerName.isNotEmpty) {
+                                        String? imageUrl = player.profileImage;
+                                        if (_imageFile != null) {
+                                          if (player.profileImage != null &&
+                                              player.profileImage!.isNotEmpty) {
+                                            try {
+                                              await FirebaseStorage.instance
+                                                  .refFromURL(
+                                                      player.profileImage!)
+                                                  .delete();
+                                            } catch (e) {
+                                              // Image may not exist, so we can ignore.
+                                            }
+                                          }
+                                          final storageRef = FirebaseStorage
+                                              .instance
+                                              .ref()
+                                              .child(
+                                                  'player_images/${DateTime.now().toIso8601String()}');
+                                          await storageRef.putFile(_imageFile!);
+                                          imageUrl =
+                                              await storageRef.getDownloadURL();
+                                        }
 
-                                      setState(() {});
+                                        final nameParts = playerName.split(' ');
+                                        final firstName = nameParts.first;
+                                        final lastName = nameParts.length > 1
+                                            ? nameParts.last
+                                            : '';
+
+                                        await DatabaseService.instance.update(
+                                            'Players',
+                                            {
+                                              'firstName': firstName,
+                                              'lastName': lastName,
+                                              'number': playerNumber,
+                                              'profileImage': imageUrl
+                                            },
+                                            where: 'id=? AND seasonId=?',
+                                            whereArgs: [
+                                              player.id,
+                                              widget.season.id
+                                            ]);
+
+                                        setState(() {});
+                                        Navigator.pop(context);
+                                      }
+                                    }),
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!
+                                            .cancelButton,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () {
                                       Navigator.pop(context);
-                                    }
-                                  }),
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!
-                                          .cancelButton,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                  })
-                            ]))
-                  ])));
+                                    })
+                              ]))
+                    ])));
+          });
+        });
+  }
+
+  void _createPlayer() {
+    late String playerName;
+    late int playerNumber;
+    _imageFile = null;
+
+    showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+            return Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(50),
+                    child: Column(children: [
+                      Text(AppLocalizations.of(context)!.newPlayer),
+                      GestureDetector(
+                        onTap: () async {
+                          final pickedFile = await ImagePicker()
+                              .pickImage(source: ImageSource.gallery);
+                          if (pickedFile != null) {
+                            setModalState(() {
+                              _imageFile = File(pickedFile.path);
+                            });
+                          }
+                        },
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage: _imageFile != null
+                              ? FileImage(_imageFile!)
+                              : null,
+                          child: _imageFile == null
+                              ? const Icon(Icons.add_a_photo)
+                              : null,
+                        ),
+                      ),
+                      TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.playerName),
+                          onChanged: (name) => playerName = name),
+                      TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.playerNumber),
+                          onChanged: (number) =>
+                              playerNumber = int.parse(number)),
+                      const Spacer(),
+                      TextButton(
+                          onPressed: () {},
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!.save,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () async {
+                                      if (playerName.isNotEmpty) {
+                                        String? imageUrl;
+                                        if (_imageFile != null) {
+                                          final storageRef = FirebaseStorage
+                                              .instance
+                                              .ref()
+                                              .child(
+                                                  'player_images/${DateTime.now().toIso8601String()}');
+                                          await storageRef.putFile(_imageFile!);
+                                          imageUrl =
+                                              await storageRef.getDownloadURL();
+                                        }
+
+                                        final nameParts = playerName.split(' ');
+                                        final firstName = nameParts.first;
+                                        final lastName = nameParts.length > 1
+                                            ? nameParts.last
+                                            : '';
+
+                                        await DatabaseService.instance
+                                            .insert('Players', {
+                                          'firstName': firstName,
+                                          'lastName': lastName,
+                                          'number': playerNumber,
+                                          'seasonId': widget.season.id,
+                                          'teamId': widget.season.teamId,
+                                          'profileImage': imageUrl
+                                        });
+
+                                        setState(() {});
+                                        Navigator.pop(context);
+                                      }
+                                    }),
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!
+                                            .cancelButton,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                    })
+                              ]))
+                    ])));
+          });
         });
   }
 }

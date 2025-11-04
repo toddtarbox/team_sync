@@ -130,6 +130,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newPlayer => 'New Player';
 
   @override
+  String get editPlayer => 'Edit Player';
+
+  @override
   String get playerName => 'Player Name';
 
   @override

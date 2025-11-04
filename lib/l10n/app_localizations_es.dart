@@ -134,6 +134,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newPlayer => 'Nuevo jugador';
 
   @override
+  String get editPlayer => 'Edit Player';
+
+  @override
   String get playerName => 'Nombre del jugador';
 
   @override

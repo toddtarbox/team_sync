@@ -7,6 +7,7 @@ class Player {
   String firstName;
   String lastName;
   int number;
+  String? profileImage;
 
   String get displayName {
     return '$firstName $lastName';
@@ -18,7 +19,8 @@ class Player {
       required this.seasonId,
       required this.firstName,
       required this.lastName,
-      required this.number});
+      required this.number,
+      this.profileImage});
 
   static initial({required int teamId, required int seasonId}) {
     return Player(
@@ -37,7 +39,8 @@ class Player {
         seasonId: map['seasonId'],
         firstName: map['firstName'],
         lastName: map['lastName'],
-        number: map['number']);
+        number: map['number'],
+        profileImage: map['profileImage']);
   }
 
   static Future<Player?> fromId(int id) async {

@@ -283,13 +283,6 @@ class FirebaseDBProvider implements DatabaseProvider {
       await collectionRef.doc(id.toString()).set(data);
       return id;
     } else {
-      AggregateQuery aggregateQuery = collectionRef.count();
-      AggregateQuerySnapshot snapshot = await aggregateQuery.get();
-      int existingRows = snapshot.count ?? 0;
-      existingRows++;
-
-      data['id'] = existingRows;
-
       await collectionRef.doc().set(data);
       return 1;
     }

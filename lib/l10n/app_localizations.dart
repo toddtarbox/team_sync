@@ -338,6 +338,12 @@ abstract class AppLocalizations {
   /// **'New Player'**
   String get newPlayer;
 
+  /// No description provided for @editPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Player'**
+  String get editPlayer;
+
   /// No description provided for @playerName.
   ///
   /// In en, this message translates to:
