@@ -344,7 +344,7 @@ class Game {
         homeTeamScore: map['homeTeamScore'],
         awayTeamScore: map['awayTeamScore'],
         date: date,
-        gameStatus: GameStatus.fromString(map['gameStatus']),
+        gameStatus: GameStatus.fromString(map['gameStatus'].toString()),
         milliSecondsLeft: map['milliSecondsLeft']);
   }
 

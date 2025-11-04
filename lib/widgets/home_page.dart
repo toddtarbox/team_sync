@@ -23,7 +23,6 @@ import 'package:team_sync/widgets/record_holders_page.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
@@ -44,10 +43,6 @@ class _HomePageState extends State<HomePage> {
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
   final _fabKeyOnly = GlobalKey();
-  final _goProKey = GlobalKey();
-  final _settingsKey = GlobalKey();
-  final _proKeyOnly = GlobalKey();
-
   @override
   void initState() {
     super.initState();
@@ -58,9 +53,7 @@ class _HomePageState extends State<HomePage> {
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
-    DatabaseService.instance.setProvider(kIsWeb || _isSubscribed
-        ? FirebaseDBProvider()
-        : LocalDatabaseProvider());
+    DatabaseService.instance.setProvider(FirebaseDBProvider());
 
     if (!kIsWeb) {
       ShowcaseView.register(
@@ -143,6 +136,11 @@ class _HomePageState extends State<HomePage> {
       setState(() {});
     });
   }
+
+  final _goProKey = GlobalKey();
+  final _settingsKey = GlobalKey();
+
+  final _proKeyOnly = GlobalKey();
 
   Future<void> _checkIfFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
@@ -227,14 +225,16 @@ class _HomePageState extends State<HomePage> {
                           SizedBox(width: 10),
                           DatabaseService.instance.isLocalDatabase
                               ? Container()
-                              : Icon(Icons.cloud_rounded)
+                              : Icon(Icons.cloud_rounded,
+                                  color: _isSubscribed ? Colors.yellow : null)
                         ])))),
         actions: [
           if (!kIsWeb &&
+              _isSubscribed &&
               DatabaseService.instance.path.isNotEmpty &&
               !DatabaseService.instance.isLocalDatabase)
             IconButton(
-              icon: const Icon(Icons.share),
+              icon: const Icon(Icons.share, color: Colors.yellow),
               onPressed: () => _handleSelection(context, 'shareDatabase'),
             ),
           Visibility(
@@ -242,8 +242,8 @@ class _HomePageState extends State<HomePage> {
               child: Showcase(
                 key: _isSubscribed ? _proKeyOnly : _goProKey,
                 description: _isSubscribed
-                    ? 'Welcome to TeamSync Pro! You can now store your data in the cloud and access it from any device!'
-                    : 'Go Pro to access more features, like cloud storage!',
+                    ? 'Welcome to TeamSync Pro! You have access to all features, like web sharing and more!'
+                    : 'Go Pro to access more features!',
                 child: TextButton(
                   onPressed: () async {
                     if (!_isSubscribed) {
@@ -443,7 +443,7 @@ class _HomePageState extends State<HomePage> {
           ),
           if (_isImporting || _isSharing)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.75),
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -464,15 +464,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
   // This function shows the modal bottom sheet
   Future<void> _showCreateOptions(BuildContext context) async {
     await showModalBottomSheet(
@@ -486,46 +477,31 @@ class _HomePageState extends State<HomePage> {
         // won't overflow if the options are too tall.
         return Wrap(
           children: [
+            ListTile(
+              leading: Icon(Icons.cloud_sync_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title:
+                  Text(AppLocalizations.of(context)!.openExistingCloudDatabase),
+              onTap: () {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                _handleSelection(context, 'existingCloudDatabase');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.cloud_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: Text(AppLocalizations.of(context)!.createNewCloudDatabase),
+              onTap: () async {
+                // Close the bottom sheet first
+                Navigator.of(builderContext).pop();
+                // Then perform the action and show feedback
+                await _handleSelection(context, 'newCloudDatabase');
+              },
+            ),
             Visibility(
-                visible: _isSubscribed,
-                child: ListTile(
-                  leading: Icon(Icons.workspace_premium_rounded,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: Text(
-                      AppLocalizations.of(context)!.proSubscriptionFeatures),
-                  tileColor: Colors.yellow,
-                )),
-            Visibility(
-                visible: _isSubscribed,
-                child: ListTile(
-                  leading: Icon(Icons.cloud_sync_rounded,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: Text(
-                      AppLocalizations.of(context)!.openExistingCloudDatabase),
-                  onTap: () {
-                    // Close the bottom sheet first
-                    Navigator.of(builderContext).pop();
-                    // Then perform the action and show feedback
-                    _handleSelection(context, 'existingCloudDatabase');
-                  },
-                )),
-            Visibility(
-                visible: _isSubscribed,
-                child: ListTile(
-                  leading: Icon(Icons.cloud_rounded,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: Text(
-                      AppLocalizations.of(context)!.createNewCloudDatabase),
-                  onTap: () async {
-                    // Close the bottom sheet first
-                    Navigator.of(builderContext).pop();
-                    // Then perform the action and show feedback
-                    await _handleSelection(context, 'newCloudDatabase');
-                  },
-                )),
-            Visibility(
-                visible:
-                    _isSubscribed && DatabaseService.instance.isLocalDatabase,
+                visible: kDebugMode && DatabaseService.instance.isLocalDatabase,
                 child: ListTile(
                   leading: Icon(Icons.cloud_upload_rounded,
                       color: Theme.of(context).colorScheme.secondary),
@@ -538,53 +514,16 @@ class _HomePageState extends State<HomePage> {
                   },
                 )),
             Visibility(
-                visible: _isSubscribed,
-                child: Divider(color: Theme.of(context).colorScheme.secondary)),
-            ListTile(
-              leading: Icon(Icons.folder_open,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: Text(AppLocalizations.of(context)!.openDatabase),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'existingInternalDatabase');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.storage_rounded,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: Text(AppLocalizations.of(context)!.createNewDatabase),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'newInternalDatabase');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.settings_backup_restore_rounded,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: Text(AppLocalizations.of(context)!.openFromBackup),
-              onTap: () async {
-                // Close the bottom sheet first
-                Navigator.of(builderContext).pop();
-                // Then perform the action and show feedback
-                await _handleSelection(context, 'existingBackupDatabase');
-              },
-            ),
-            Visibility(
-                visible: DatabaseService.instance.path.isNotEmpty &&
-                    DatabaseService.instance.isLocalDatabase,
+                visible: kDebugMode,
                 child: ListTile(
-                  leading: Icon(Icons.save,
+                  leading: Icon(Icons.settings_backup_restore_rounded,
                       color: Theme.of(context).colorScheme.secondary),
-                  title: Text(AppLocalizations.of(context)!.backupDatabase),
+                  title: Text(AppLocalizations.of(context)!.openFromBackup),
                   onTap: () async {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    await _handleSelection(context, 'exportDB');
+                    await _handleSelection(context, 'existingBackupDatabase');
                   },
                 )),
             Visibility(
@@ -700,11 +639,8 @@ class _HomePageState extends State<HomePage> {
           await _openBackupDatabase(existingDB);
         }
         return;
-      case 'existingInternalDatabase':
-        await _pickInternalDatabase();
-        return;
       case 'newCloudDatabase':
-        await _createDatabase(false);
+        await _createDatabase();
         break;
       case 'importCloudDatabase':
         setState(() {
@@ -728,17 +664,6 @@ class _HomePageState extends State<HomePage> {
           });
         }
         break;
-      case 'newInternalDatabase':
-        await _createDatabase(true);
-        ShowcaseView.get().startShowCase(
-          [_fabKey],
-        );
-        break;
-      case 'exportDB':
-        await FilePicker.platform.saveFile(
-            fileName: DatabaseService.instance.path.split('/').last,
-            bytes: File(DatabaseService.instance.path).readAsBytesSync());
-        break;
       case 'team':
         await _createTeam();
         ShowcaseView.get().startShowCase(
@@ -754,7 +679,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _createDatabase(bool isInternal) async {
+  Future<void> _createDatabase() async {
     String databaseName = '';
     await showModalBottomSheet(
         context: context,
@@ -778,11 +703,7 @@ class _HomePageState extends State<HomePage> {
                                   style: const TextStyle(fontSize: 20)),
                               onPressed: () async {
                                 if (databaseName.isNotEmpty) {
-                                  if (isInternal) {
-                                    await _openInternalDatabase(databaseName);
-                                  } else {
-                                    await _openCloudDatabase(databaseName);
-                                  }
+                                  await _openCloudDatabase(databaseName);
 
                                   setState(() {});
                                   Navigator.pop(context);
@@ -825,55 +746,14 @@ class _HomePageState extends State<HomePage> {
     return;
   }
 
-  Future<void> _openInternalDatabase(String path) async {
-    await DatabaseService.instance.close();
-    if (!DatabaseService.instance.isLocalDatabase) {
-      DatabaseService.instance.setProvider(LocalDatabaseProvider());
-    }
-
-    await DatabaseService.instance.open(path);
-
-    const storage = FlutterSecureStorage();
-    await storage.write(key: 'last_db_used', value: path);
-    await storage.write(key: 'last_db_used_is_internal', value: 'true');
-
-    final teamResult = await DatabaseService.instance
-        .query('Teams', where: 'id=?', whereArgs: [1]);
-    if (teamResult.isNotEmpty) {
-      _team = Team.fromMap(teamResult.first);
-      await _loadSeasons();
-    } else {
-      _team = null;
-    }
-
-    setState(() {});
-    return;
-  }
-
   Future<void> _openCloudDatabase(String databaseName) async {
-    // Below is opening a cloud database, so don't allow if not subscribed
-    if (!_isSubscribed) {
-      return;
-    }
-
     try {
-      if (DatabaseService.instance.isLocalDatabase &&
-          !databaseName.endsWith('.db')) {
+      if (!databaseName.endsWith('.db')) {
         databaseName += '.db';
-      }
-
-      final wasOpened = await DatabaseService.instance.open(databaseName);
-      if (!wasOpened) {
-        // The database is still being imported, show a message.
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(AppLocalizations.of(context)!.databaseImportInProgress),
-        ));
-        return;
       }
 
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
-      await storage.write(key: 'last_db_used_is_internal', value: 'false');
 
       final teamResult = await DatabaseService.instance
           .query('Teams', where: 'id=?', whereArgs: [1]);
@@ -911,18 +791,9 @@ class _HomePageState extends State<HomePage> {
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used');
       if (lastDBUsed != null) {
-        final isInternalDatabase =
-            await storage.read(key: 'last_db_used_is_internal') ?? 'true';
-        if (isInternalDatabase == 'true') {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(LocalDatabaseProvider());
-          await _openInternalDatabase(lastDBUsed);
-        } else {
-          await DatabaseService.instance.close();
-          DatabaseService.instance.setProvider(FirebaseDBProvider());
-          await _openCloudDatabase(lastDBUsed);
-        }
-
+        await DatabaseService.instance.close();
+        DatabaseService.instance.setProvider(FirebaseDBProvider());
+        await _openCloudDatabase(lastDBUsed);
         await _loadSeasons();
       }
     }
@@ -970,37 +841,6 @@ class _HomePageState extends State<HomePage> {
                         },
                         dropdownMenuEntries: entries
                             .map((e) => DropdownMenuEntry(value: e, label: e))
-                            .toList())
-                  ])));
-        });
-  }
-
-  Future<String?> _pickInternalDatabase() async {
-    final databasesDir = await getDatabasesPath();
-    final entries =
-        Directory(databasesDir).listSync().where((e) => e.path.endsWith('.db'));
-    if (entries.isEmpty) {
-      return null;
-    }
-
-    return await showModalBottomSheet(
-        context: context,
-        builder: (BuildContext context) {
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.selectADatabase),
-                    DropdownMenu(
-                        onSelected: (value) async {
-                          if (value != null) {
-                            await _openInternalDatabase(value);
-                            Navigator.pop(context);
-                          }
-                        },
-                        dropdownMenuEntries: entries
-                            .map((e) => DropdownMenuEntry(
-                                value: e.path, label: e.path.split('/').last))
                             .toList())
                   ])));
         });

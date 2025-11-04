@@ -60,34 +60,31 @@ class _SeasonPageState extends State<SeasonPage> {
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold))
                 ]))),
-        actions: kIsWeb
-            ? []
-            : [
-                GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              SeasonStatsPage(season: widget.season),
-                        ),
-                      );
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.only(right: 10),
-                        child: Icon(Icons.paste))),
-                GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              PlayersPage(season: widget.season),
-                        ),
-                      );
-                    },
-                    child: const Padding(
-                        padding: EdgeInsets.only(right: 10),
-                        child: Icon(Icons.person)))
-              ],
+        actions: [
+          GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SeasonStatsPage(season: widget.season),
+                  ),
+                );
+              },
+              child: const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(Icons.paste))),
+          GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PlayersPage(season: widget.season),
+                  ),
+                );
+              },
+              child: const Padding(
+                  padding: EdgeInsets.only(right: 10),
+                  child: Icon(Icons.person)))
+        ],
       ),
       floatingActionButton: kIsWeb
           ? null

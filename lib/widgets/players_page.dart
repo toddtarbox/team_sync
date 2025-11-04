@@ -120,7 +120,7 @@ class _PlayersPageState extends State<PlayersPage> {
                           setState(() {});
                         },
                         child: ListTile(
-                          onTap: () => _editPlayer(player),
+                          onTap: kIsWeb ? null : () => _editPlayer(player),
                           leading: CircleAvatar(
                             child: player.profileImage != null &&
                                     player.profileImage!.isNotEmpty

@@ -230,7 +230,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 )
               : Text(
                   '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
-      trailing: Text(topEntry.value.toString()),
+      trailing:
+          Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
       onTap: () async {
         showDialog(
             context: context,
