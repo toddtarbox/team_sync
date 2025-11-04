@@ -36,6 +36,7 @@ class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
   late bool _isSubscribed;
+  bool _isLoading = false;
   bool _isImporting = false; // Flag to control the loading spinner
   bool _isSharing = false; // Flag for sharing progress
   final _teamIdController = TextEditingController();
@@ -131,10 +132,6 @@ class _HomePageState extends State<HomePage> {
 
       _checkIfFirstLaunch();
     }
-
-    _load().then((_) {
-      setState(() {});
-    });
   }
 
   final _goProKey = GlobalKey();
@@ -339,10 +336,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           FutureBuilder(
             future: _load(),
-            builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting &&
-                  !_isImporting &&
-                  !_isSharing) {
+            builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+              if (!snapshot.hasData || _isImporting || _isSharing) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -748,9 +743,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openCloudDatabase(String databaseName) async {
     try {
+      DatabaseService.instance.setProvider(FirebaseDBProvider());
+
       if (!databaseName.endsWith('.db')) {
         databaseName += '.db';
       }
+
+      await DatabaseService.instance.open(databaseName);
 
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
@@ -770,12 +769,12 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _load() async {
+  Future<bool> _load() async {
     if (widget.databaseId != null) {
       final dbId = widget.databaseId!;
       final opened = await DatabaseService.instance.openFromId(dbId);
       if (!opened) {
-        return;
+        return false;
       }
 
       final teamResult = await DatabaseService.instance
@@ -786,17 +785,16 @@ class _HomePageState extends State<HomePage> {
       } else {
         _team = null;
       }
-    } else if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
+    } else if (!kIsWeb) {
       // Mobile-specific loading
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used');
       if (lastDBUsed != null) {
-        await DatabaseService.instance.close();
-        DatabaseService.instance.setProvider(FirebaseDBProvider());
         await _openCloudDatabase(lastDBUsed);
-        await _loadSeasons();
       }
     }
+
+    return true;
   }
 
   Future<void> _loadSeasons() async {

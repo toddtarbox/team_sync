@@ -281,7 +281,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                   )
                                 : Text(
                                     '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
-                        trailing: Text(entry.value.toString()),
+                        trailing: Text(entry.value.toString(),
+                            style: const TextStyle(fontSize: 24)),
                       );
                     },
                   ),
@@ -299,7 +300,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       title: Text(category.name.toSentenceCase().toTitleCase()),
       subtitle: Text(
           '${bestStat.player.displayName} - ${bestStat.season.name} - ${bestStat.game.displayName(bestStat.player.teamId)}'),
-      trailing: Text(bestStat.value.toString()),
+      trailing:
+          Text(bestStat.value.toString(), style: const TextStyle(fontSize: 24)),
       leading: CircleAvatar(
           child: bestStat.player.profileImage != null &&
                   bestStat.player.profileImage!.isNotEmpty
@@ -366,7 +368,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                   )
                                 : Text(
                                     '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
-                        trailing: Text(entry.value.toString()),
+                        trailing: Text(entry.value.toString(),
+                            style: const TextStyle(fontSize: 24)),
                       );
                     },
                   ),
@@ -401,7 +404,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 )
               : Text(
                   '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}')),
-      trailing: Text(topEntry.value.toString()),
+      trailing:
+          Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
       onTap: () async {
         showDialog(
             context: context,
@@ -450,7 +454,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 : Text(
                                     '${entry.key.firstName[0]}${entry.key.lastName[0]}')),
                         title: Text(entry.key.displayName),
-                        trailing: Text(entry.value.toString()),
+                        trailing: Text(entry.value.toString(),
+                            style: const TextStyle(fontSize: 24)),
                       );
                     },
                   ),
