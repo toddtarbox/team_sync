@@ -76,7 +76,8 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                                   : event.eventType == 'PenaltyKick'
                                       ? 'PK'
                                       : event.team.id == widget.season.team.id
-                                          ? event.player == null
+                                          ? (event.player == null ||
+                                                  event.player?.id == -1)
                                               ? 'Own goal by ${opponent.shortName}'
                                               : 'No assist'
                                           : '',

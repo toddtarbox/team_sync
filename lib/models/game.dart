@@ -253,8 +253,6 @@ class Game {
   DateTime date;
   GameStatus gameStatus;
   int milliSecondsLeft;
-  Player? homeKeeper;
-  Player? awayKeeper;
 
   List<GameEvent> allGameEvents = [];
   List<GameEvent> scoringEvents = [];
@@ -316,9 +314,7 @@ class Game {
       required this.awayTeamScore,
       required this.date,
       required this.gameStatus,
-      required this.milliSecondsLeft,
-      required this.homeKeeper,
-      required this.awayKeeper});
+      required this.milliSecondsLeft});
 
   static Game initial(
       {required int seasonId, required Team homeTeam, required Team awayTeam}) {
@@ -331,9 +327,7 @@ class Game {
         awayTeamScore: 0,
         date: DateTime.now(),
         gameStatus: GameStatus.fromString('0'),
-        milliSecondsLeft: 0,
-        homeKeeper: Player.initial(teamId: homeTeam.id, seasonId: seasonId),
-        awayKeeper: Player.initial(teamId: awayTeam.id, seasonId: seasonId));
+        milliSecondsLeft: 0);
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
@@ -341,9 +335,6 @@ class Game {
 
     final homeTeam = await Team.fromId(map['homeTeamId']);
     final awayTeam = await Team.fromId(map['awayTeamId']);
-
-    final homeTeamKeeper = await Player.fromId(map['homeKeeperId']);
-    final awayTeamKeeper = await Player.fromId(map['awayKeeperId']);
 
     return Game(
         id: map['id'],
@@ -354,9 +345,7 @@ class Game {
         awayTeamScore: map['awayTeamScore'],
         date: date,
         gameStatus: GameStatus.fromString(map['gameStatus']),
-        milliSecondsLeft: map['milliSecondsLeft'],
-        homeKeeper: homeTeamKeeper,
-        awayKeeper: awayTeamKeeper);
+        milliSecondsLeft: map['milliSecondsLeft']);
   }
 
   static Future<Game?> fromId(int id) async {
@@ -408,7 +397,13 @@ class Game {
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
     gameEvents.sort((a, b) => a.eventPeriod.compareTo(b.eventPeriod));
     gameEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
-    gameEvents.sort((a, b) => a.id.compareTo(b.id));
+    gameEvents.sort((a, b) {
+      if (a.eventMinute == -1 || b.eventMinute == -1) {
+        return a.id.compareTo(b.id);
+      } else {
+        return a.eventMinute.compareTo(b.eventMinute);
+      }
+    });
 
     shootoutEvents =
         allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false);
@@ -452,9 +447,7 @@ class Game {
             'awayTeamScore': awayTeamScore,
             'date': saveFormat.format(date),
             'gameStatus': gameStatus.index,
-            'milliSecondsLeft': milliSecondsLeft,
-            'homeKeeperId': homeKeeper?.id ?? -1,
-            'awayKeeperId': awayKeeper?.id ?? -1
+            'milliSecondsLeft': milliSecondsLeft
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
       return true;

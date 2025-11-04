@@ -44,11 +44,22 @@ class _SeasonPageState extends State<SeasonPage> {
         title: Text(widget.season.name,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(40),
-            child: Visibility(
-                visible: widget.season.team.fullName == 'Saint Albert',
-                child: Image.asset('assets/images/jpgs/sa-crest.jpg',
-                    width: 64, height: 64))),
+            preferredSize: const Size.fromHeight(0),
+            child: Container(
+                padding: EdgeInsets.all(20),
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  widget.season.team.fullName == 'Saint Albert'
+                      ? Image.asset('assets/images/jpgs/sa-crest.jpg',
+                          width: 42, height: 42)
+                      : Container(),
+                  widget.season.team.fullName == 'Saint Albert'
+                      ? const SizedBox(width: 10)
+                      : Container(),
+                  Text(widget.season.team.fullName,
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold))
+                ]))),
         actions: kIsWeb
             ? []
             : [

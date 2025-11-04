@@ -932,7 +932,7 @@ class _HomePageState extends State<HomePage> {
     if (DatabaseService.instance.path.isEmpty) return;
     final results =
         await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
-    _seasons = results.map((m) => Season.fromMap(m)).toList(growable: false);
+    _seasons = results.map((m) => Season.fromMap(m)).toList();
     await Future.wait(_seasons.map((s) async => await s.load()));
   }
 
@@ -1185,6 +1185,7 @@ class _HomePageState extends State<HomePage> {
                               onPressed: () async {
                                 await DatabaseService.instance.insert('Seasons',
                                     {'name': seasonName, 'teamId': _team!.id});
+                                await _loadSeasons();
 
                                 setState(() {});
                                 if (mounted) {

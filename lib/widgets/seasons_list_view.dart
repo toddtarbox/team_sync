@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
@@ -48,37 +49,41 @@ class _SeasonsListViewState extends State<SeasonsListView> {
               key: Key(season.id.toString()),
               background: Container(color: Theme.of(context).colorScheme.error),
               behavior: HitTestBehavior.translucent,
-              confirmDismiss: (_) {
-                return showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text(AppLocalizations.of(context)!.confirmDelete),
-                      content: Text(AppLocalizations.of(context)!
-                          .areYouSureYouWantToDeleteThisSeason),
-                      actions: [
-                        TextButton(
-                          child: Text(
-                              AppLocalizations.of(context)!.continueButton),
-                          onPressed: () {
-                            Navigator.pop(context, true);
-                          },
-                        ),
-                        TextButton(
-                          child:
-                              Text(AppLocalizations.of(context)!.cancelButton),
-                          onPressed: () {
-                            Navigator.pop(context, false);
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
+              confirmDismiss: kIsWeb
+                  ? (_) => Future.value(false)
+                  : (_) {
+                      return showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text(
+                                AppLocalizations.of(context)!.confirmDelete),
+                            content: Text(AppLocalizations.of(context)!
+                                .areYouSureYouWantToDeleteThisSeason),
+                            actions: [
+                              TextButton(
+                                child: Text(AppLocalizations.of(context)!
+                                    .continueButton),
+                                onPressed: () {
+                                  Navigator.pop(context, true);
+                                },
+                              ),
+                              TextButton(
+                                child: Text(
+                                    AppLocalizations.of(context)!.cancelButton),
+                                onPressed: () {
+                                  Navigator.pop(context, false);
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
               onDismissed: (direction) async {
                 await DatabaseService.instance
                     .delete('Seasons', where: 'id=?', whereArgs: [season.id]);
+                widget.seasons.removeAt(index);
                 setState(() {});
               },
               child: seasonCard);

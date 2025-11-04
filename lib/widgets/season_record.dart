@@ -29,6 +29,7 @@ class SeasonRecord extends StatelessWidget {
           ? Image.asset('assets/images/jpgs/sa-crest.jpg',
               width: 42, height: 42)
           : Container(),
+      team.fullName == 'Saint Albert' ? const SizedBox(width: 10) : Container(),
       Text('$leading Record ($wins - $losses - $ties)',
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
     ]);

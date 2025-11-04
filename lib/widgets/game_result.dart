@@ -11,25 +11,24 @@ class GameResult extends StatelessWidget {
   Widget build(BuildContext context) {
     if (game.gameStatus == GameStatus.notStarted) {
       return const Text('');
-    } else if (game.gameStatus.index < 9) {
-      return const Text('');
     }
 
-    Color color = Colors.grey;
-    String result = game.isTie ? 'T' : '';
     int teamScore =
         game.isHomeTeam(teamId) ? game.homeTeamScore : game.awayTeamScore;
     int oppScore =
         game.isHomeTeam(teamId) ? game.awayTeamScore : game.homeTeamScore;
 
-    if (result.isEmpty) {
-      if (game.isWin(teamId)) {
-        result = 'W';
-        color = Colors.green;
-      } else {
-        result = 'L';
-        color = Colors.red;
-      }
+    String result;
+    Color color;
+    if (game.isWin(teamId)) {
+      result = 'W';
+      color = Colors.green;
+    } else if (game.isTie) {
+      result = 'T';
+      color = Colors.grey;
+    } else {
+      result = 'L';
+      color = Colors.red;
     }
 
     return Container(

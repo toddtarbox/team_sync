@@ -99,7 +99,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                               : event.eventType == 'PenaltyKick'
                                   ? 'PK'
                                   : event.team.id == widget.season.team.id
-                                      ? event.player == null
+                                      ? (event.player == null ||
+                                              event.player?.id == -1)
                                           ? 'Own goal by ${opponent.shortName}'
                                           : 'No assist'
                                       : '',

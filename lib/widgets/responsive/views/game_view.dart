@@ -195,9 +195,10 @@ class _GameViewState extends State<GameView> {
           const SizedBox(width: 10),
           Text(event.eventType == 'Shot' &&
                   event.eventData == ShotResult.goal.index &&
-                  event.team.id == widget.season.teamId &&
-                  event.player == null
-              ? 'Own goal by ${opponent.shortName}'
+                  (event.player == null || event.player?.id == -1)
+              ? event.team.id == widget.season.teamId
+                  ? 'Own goal by ${opponent.shortName}'
+                  : 'Own goal'
               : event.display)
         ]),
         subtitle: Visibility(
@@ -349,8 +350,6 @@ class _GameViewState extends State<GameView> {
                 DropdownMenuEntry<Player>(value: p, label: p.displayName))
             .toList();
 
-    bool canSave = playerEntries.isEmpty || event.player != null;
-
     final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
         .map((t) => DropdownMenuEntry<String>(value: t, label: t))
         .toList(growable: false);
@@ -363,9 +362,6 @@ class _GameViewState extends State<GameView> {
       lastName: 'Goal',
       number: -1,
     );
-
-    playerEntries.insert(
-        0, DropdownMenuEntry<Player>(value: ownGoalPlayer, label: 'Own Goal'));
 
     showModalBottomSheet(
         // ignore: use_build_context_synchronously
@@ -386,16 +382,9 @@ class _GameViewState extends State<GameView> {
                           value: 0,
                           groupValue: team,
                           onChanged: (i) {
-                            playerEntries = awayTeamPlayers
-                                .map((p) => DropdownMenuEntry<Player>(
-                                    value: p, label: p.displayName))
-                                .toList(growable: false);
-
                             setModalState(() {
                               team = i;
                               event!.team = _game.awayTeam;
-                              canSave =
-                                  playerEntries.isEmpty || event.player != null;
                             });
                           },
                         )),
@@ -405,20 +394,37 @@ class _GameViewState extends State<GameView> {
                           value: 1,
                           groupValue: team,
                           onChanged: (i) {
-                            playerEntries = homeTeamPlayers
-                                .map((p) => DropdownMenuEntry<Player>(
-                                    value: p, label: p.displayName))
-                                .toList(growable: false);
-
                             setModalState(() {
                               team = i;
                               event!.team = _game.homeTeam;
-                              canSave =
-                                  playerEntries.isEmpty || event.player != null;
                             });
                           },
                         )),
                       ]),
+                      const SizedBox(height: 30),
+                      DropdownMenu(
+                          initialSelection: initialStatus,
+                          onSelected: (eventPeriod) async {
+                            int period = 1;
+
+                            if (eventPeriod == '1st Half') {
+                              period = 1;
+                            } else if (eventPeriod == '2nd Half') {
+                              period = 2;
+                            } else if (eventPeriod == '1st Half Overtime') {
+                              period = 3;
+                            } else if (eventPeriod == '2nd Half Overtime') {
+                              period = 4;
+                            } else if (eventPeriod == 'Penalty Kicks') {
+                              period = 5;
+                            }
+                            setModalState(() {
+                              event!.eventPeriod = period;
+                            });
+                          },
+                          width: double.infinity,
+                          label: const Text('Select Period'),
+                          dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
                       DropdownMenu(
                           initialSelection: event!.eventType,
@@ -439,60 +445,31 @@ class _GameViewState extends State<GameView> {
                             setModalState(() {
                               event!.eventType = type;
                               event.eventData = data;
-
-                              canSave = event.eventType == 'Corner' ||
-                                  playerEntries.isEmpty ||
-                                  event.player != null;
                             });
                           },
                           width: double.infinity,
                           label: const Text('Select Event Type'),
                           dropdownMenuEntries: eventEntries),
-                      const SizedBox(height: 30),
-                      DropdownMenu(
-                          enabled: event.eventType != 'Corner' &&
-                              playerEntries.isNotEmpty,
-                          menuHeight: 700,
-                          initialSelection: event.player,
-                          onSelected: (player) async {
-                            setModalState(() {
-                              event!.player = player;
-
-                              canSave = true;
-                            });
-                          },
-                          width: double.infinity,
-                          label: const Text('Select Player'),
-                          dropdownMenuEntries: playerEntries),
                       Visibility(
                           visible: playerEntries.isNotEmpty,
                           child: const SizedBox(height: 30)),
-                      DropdownMenu(
-                          initialSelection: initialStatus,
-                          onSelected: (eventPeriod) async {
-                            int period = 1;
-
-                            if (eventPeriod == '1st Half') {
-                              period = 1;
-                            } else if (eventPeriod == '2nd Half') {
-                              period = 2;
-                            } else if (eventPeriod == '1st Half Overtime') {
-                              period = 3;
-                            } else if (eventPeriod == '2nd Half Overtime') {
-                              period = 4;
-                            } else if (eventPeriod == 'Penalty Kicks') {
-                              period = 5;
-                            }
-                            setModalState(() {
-                              event!.eventPeriod = period;
-
-                              canSave =
-                                  playerEntries.isEmpty || event.player != null;
-                            });
-                          },
-                          width: double.infinity,
-                          label: const Text('Select Period'),
-                          dropdownMenuEntries: eventPeriods),
+                      Visibility(
+                          visible: playerEntries.isNotEmpty,
+                          child: DropdownMenu(
+                              enabled: (event.eventType != 'Corner' &&
+                                      playerEntries.isNotEmpty) ||
+                                  (event.eventType == 'Shot' &&
+                                      event.eventData == ShotResult.goal.index),
+                              menuHeight: 700,
+                              initialSelection: event.player,
+                              onSelected: (player) async {
+                                setModalState(() {
+                                  event!.player = player;
+                                });
+                              },
+                              width: double.infinity,
+                              label: const Text('Select Player'),
+                              dropdownMenuEntries: playerEntries)),
                       const SizedBox(height: 30),
                       Visibility(
                           visible: event.eventType == 'Shot' ||
@@ -526,32 +503,55 @@ class _GameViewState extends State<GameView> {
                           visible: (event.eventType == 'Shot' ||
                                   event.eventType == 'PenaltyKick') &&
                               event.eventData == ShotResult.goal.index,
-                          child: TextFormField(
-                              initialValue: event.eventMinute.toString(),
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                  labelText: 'Game Minute (Goals Only)'),
-                              onChanged: (minute) =>
-                                  event!.eventMinute = int.parse(minute))),
+                          child: Row(children: [
+                            Expanded(
+                                child: TextFormField(
+                                    initialValue: event.eventMinute.toString(),
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                        labelText: 'Game Minute (Goals Only)'),
+                                    onChanged: (minute) => event!.eventMinute =
+                                        int.parse(minute))),
+                            Expanded(
+                                child: Checkbox(
+                                    value: event.player == ownGoalPlayer,
+                                    onChanged: (value) {
+                                      setModalState(() {
+                                        event!.player = value!
+                                            ? ownGoalPlayer
+                                            : event.player;
+                                      });
+                                    })),
+                            const Text('Own Goal')
+                          ])),
                       const SizedBox(height: 20),
                       Row(
-                          mainAxisAlignment: canSave
-                              ? MainAxisAlignment.spaceEvenly
-                              : MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            canSave
-                                ? TextButton(
-                                    onPressed: () async {
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                        setState(() {});
+                            TextButton(
+                                onPressed: () async {
+                                  if (mounted) {
+                                    final canSave =
+                                        event!.eventType == 'Corner' ||
+                                            ((event.eventType == 'Shot' ||
+                                                    event.eventType ==
+                                                        'PenaltyKick') &&
+                                                (event.eventData ==
+                                                    ShotResult.goal.index) &&
+                                                event.player != null &&
+                                                event.eventMinute > 0);
+                                    if (!canSave) {
+                                      return;
+                                    }
 
-                                        await _saveEvent(event!);
-                                      }
-                                    },
-                                    child: const Text('Save',
-                                        style: TextStyle(fontSize: 20)))
-                                : Container(),
+                                    Navigator.pop(context);
+                                    setState(() {});
+
+                                    await _saveEvent(event);
+                                  }
+                                },
+                                child: const Text('Save',
+                                    style: TextStyle(fontSize: 20))),
                             TextButton(
                                 onPressed: () async {
                                   Navigator.pop(context);
