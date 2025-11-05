@@ -22,7 +22,11 @@ class Season {
       this.logoUrl});
 
   factory Season.fromMap(Map<dynamic, dynamic> map) {
-    return Season(id: map['id'], name: map['name'], teamId: map['teamId']);
+    return Season(
+        id: map['id'],
+        name: map['name'],
+        teamId: map['teamId'],
+        logoUrl: map['logoUrl']);
   }
 
   static Future<List<Season>> fromTeamId(int teamId) async {

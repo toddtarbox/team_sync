@@ -1,12 +1,7 @@
-import 'dart:io';
-
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/services/database_service.dart';
 
 class SeasonRecord extends StatelessWidget {
   final List<Season> seasons;
@@ -27,24 +22,17 @@ class SeasonRecord extends StatelessWidget {
         .length;
     int ties = games.where((g) => g.isTie).length;
 
-    final String leading = seasons.length > 1
+    final String leading = !singleSeason
         ? AppLocalizations.of(context)!.overall
         : AppLocalizations.of(context)!.season;
 
-    final logoUrl = singleSeason ? seasons[0].logoUrl : team.logoUrl;
+    final logoUrl = !singleSeason ? team.logoUrl : null;
 
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
       logoUrl != null && logoUrl.isNotEmpty
           ? GestureDetector(
-              onTap: () {
-                if (singleSeason) {
-                  _pickSeasonPhoto();
-                }
-              },
               onDoubleTap: () {
-                if (singleSeason) {
-                  _showSeasonPhoto(context);
-                }
+                _showPhoto(context, logoUrl);
               },
               child: CircleAvatar(
                 child: ClipOval(
@@ -59,13 +47,7 @@ class SeasonRecord extends StatelessWidget {
                   ),
                 ),
               ))
-          : IconButton(
-              onPressed: () {
-                if (singleSeason) {
-                  _pickSeasonPhoto();
-                }
-              },
-              icon: Icon(Icons.photo)),
+          : Container(),
       logoUrl != null && logoUrl.isNotEmpty
           ? const SizedBox(width: 10)
           : Container(),
@@ -74,8 +56,8 @@ class SeasonRecord extends StatelessWidget {
     ]);
   }
 
-  Future<void> _showSeasonPhoto(BuildContext context) async {
-    if (seasons[0].logoUrl == null || seasons[0].logoUrl!.isEmpty) {
+  Future<void> _showPhoto(BuildContext context, String? logoUrl) async {
+    if (logoUrl == null || logoUrl.isEmpty) {
       return;
     }
 
@@ -84,39 +66,10 @@ class SeasonRecord extends StatelessWidget {
       builder: (context) {
         return Dialog(
           child: PhotoView(
-            imageProvider: NetworkImage(seasons[0].logoUrl!),
+            imageProvider: NetworkImage(logoUrl),
           ),
         );
       },
     );
-  }
-
-  Future<void> _pickSeasonPhoto() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      if (seasons[0].logoUrl != null && seasons[0].logoUrl!.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance
-              .refFromURL(seasons[0].logoUrl!)
-              .delete();
-        } catch (e) {
-          // Image may not exist, so we can ignore.
-        }
-      }
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('player_images/${DateTime.now().toIso8601String()}');
-      await storageRef.putFile(File(pickedFile.path));
-      final imageUrl = await storageRef.getDownloadURL();
-
-      await DatabaseService.instance.update(
-        'Seasons',
-        {'logoUrl': imageUrl},
-        where: 'id=?',
-        whereArgs: [seasons[0].id],
-      );
-      seasons[0].logoUrl = imageUrl;
-    }
   }
 }

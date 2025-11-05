@@ -1,5 +1,10 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -25,6 +30,8 @@ class _SeasonsListViewState extends State<SeasonsListView> {
         itemCount: widget.seasons.length,
         itemBuilder: (context, index) {
           final season = widget.seasons[index];
+          final logoUrl = season.logoUrl;
+
           final seasonCard = GestureDetector(
               onTap: () {
                 Navigator.of(context).push(
@@ -35,9 +42,49 @@ class _SeasonsListViewState extends State<SeasonsListView> {
               },
               child: Card(
                   child: Column(children: [
-                Text(season.name,
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(season.name,
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
+                  logoUrl != null && logoUrl.isNotEmpty
+                      ? const SizedBox(width: 10)
+                      : Container(),
+                  logoUrl != null && logoUrl.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            _showSeasonPhoto(context, logoUrl);
+                          },
+                          onDoubleTap: () {
+                            if (!kIsWeb) {
+                              _pickSeasonPhoto(season);
+                            } else {
+                              _showSeasonPhoto(context, logoUrl);
+                            }
+                          },
+                          child: CircleAvatar(
+                            child: ClipOval(
+                              child: Image.network(
+                                logoUrl,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Text(season.team.fullName[0]);
+                                },
+                              ),
+                            ),
+                          ))
+                      : kIsWeb
+                          ? Container()
+                          : IconButton(
+                              onPressed: () {
+                                _pickSeasonPhoto(season);
+                              },
+                              icon: const Icon(Icons.photo)),
+                  logoUrl != null && logoUrl.isNotEmpty
+                      ? const SizedBox(width: 10)
+                      : Container(),
+                ]),
                 Container(
                     decoration:
                         BoxDecoration(borderRadius: BorderRadius.circular(10)),
@@ -88,5 +135,49 @@ class _SeasonsListViewState extends State<SeasonsListView> {
               },
               child: seasonCard);
         });
+  }
+
+  Future<void> _showSeasonPhoto(BuildContext context, String? logoUrl) async {
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: PhotoView(
+            imageProvider: NetworkImage(logoUrl),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickSeasonPhoto(Season season) async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      if (season.logoUrl != null && season.logoUrl!.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance.refFromURL(season.logoUrl!).delete();
+        } catch (e) {
+          // Image may not exist, so we can ignore.
+        }
+      }
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('player_images/${DateTime.now().toIso8601String()}');
+      await storageRef.putFile(File(pickedFile.path));
+      final imageUrl = await storageRef.getDownloadURL();
+
+      await DatabaseService.instance.update(
+        'Seasons',
+        {'logoUrl': imageUrl},
+        where: 'id=?',
+        whereArgs: [season.id],
+      );
+      season.logoUrl = imageUrl;
+    }
   }
 }
