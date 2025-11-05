@@ -190,7 +190,9 @@ class _SeasonPageState extends State<SeasonPage> {
                                                 },
                                               )),
                                           onTap: () {
-                                            _showGame(game: game);
+                                            !kIsWeb
+                                                ? _showGame(game: game)
+                                                : _goToGame(game);
                                           }),
                                       if (game.id == _expandedGameId)
                                         ScoringSummary(
