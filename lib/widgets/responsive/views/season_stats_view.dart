@@ -35,12 +35,22 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                             fontWeight: FontWeight.bold, fontSize: 20))),
                 leading: GestureDetector(
                     onTap: () async {
+                      showModalBottomSheet(
+                          context: context,
+                          builder: (context) {
+                            return Center(child: CircularProgressIndicator());
+                          });
+
                       final stat = await stats.getStatPlayers(category);
+
+                      if (!mounted) return;
+
+                      Navigator.pop(context);
+
                       if (stat.isNotEmpty) {
                         final sortedStats = List.from(stat.entries);
                         sortedStats.sort((a, b) => b.value.compareTo(a.value));
 
-                        if (!mounted) return;
                         showModalBottomSheet(
                             context: context,
                             builder: (context) {
@@ -51,7 +61,9 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                       return ListTile(
                                           title: Center(
                                               child: Text(
-                                                  category.name.toTitleCase(),
+                                                  category.name
+                                                      .toSentenceCase()
+                                                      .toTitleCase(),
                                                   style: const TextStyle(
                                                       fontSize: 20,
                                                       fontWeight:
@@ -61,11 +73,31 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                     final player = sortedStats[index - 1].key;
                                     final count = sortedStats[index - 1].value;
                                     return ListTile(
-                                      leading: Text(player.displayName,
+                                      leading: CircleAvatar(
+                                        child: player.profileImage != null &&
+                                                player.profileImage!.isNotEmpty
+                                            ? ClipOval(
+                                                child: Image.network(
+                                                  player.profileImage!,
+                                                  width: 40,
+                                                  height: 40,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return Text(
+                                                        '${player.firstName[0]}${player.lastName[0]}');
+                                                  },
+                                                ),
+                                              )
+                                            : Text(
+                                                '${player.firstName[0]}${player.lastName[0]}'),
+                                      ),
+                                      title: Text(player.displayName,
                                           style: const TextStyle(
                                               fontSize: 24,
                                               fontWeight: FontWeight.bold)),
-                                      title: Text(count.toString(),
+                                      subtitle: Text('#${player.number}'),
+                                      trailing: Text(count.toString(),
                                           style: const TextStyle(
                                               fontSize: 24,
                                               fontWeight: FontWeight.bold)),
