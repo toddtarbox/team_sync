@@ -16,6 +16,7 @@ import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
   final Season season;
@@ -160,6 +161,21 @@ class _SeasonPageState extends State<SeasonPage> {
                           itemCount: games.length,
                           itemBuilder: (context, index) {
                             final game = games[index];
+
+                            final linkWidget = game.gameLinks?.isNotEmpty ??
+                                    false
+                                ? SizedBox(
+                                    width: 24,
+                                    child: Center(
+                                        child: IconButton(
+                                            icon: Icon(Icons.link,
+                                                color: Colors.blue),
+                                            onPressed: () async {
+                                              await launchUrl(
+                                                  Uri.parse((game.gameLinks!)));
+                                            })))
+                                : SizedBox(width: 24);
+
                             final gameCard = Container(
                                 padding: const EdgeInsets.all(5),
                                 child: Stack(children: [
@@ -173,6 +189,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                                   fontWeight: FontWeight.bold)),
                                           subtitle:
                                               Text(format.format(game.date)),
+                                          leading: linkWidget,
                                           trailing: Container(
                                               margin: EdgeInsets.only(top: 20),
                                               child: IconButton(
@@ -404,6 +421,12 @@ class _SeasonPageState extends State<SeasonPage> {
                           decoration: InputDecoration(
                               labelText: 'Description (optional)'),
                           onChanged: (name) => game!.description = name),
+                      const SizedBox(height: 30),
+                      TextFormField(
+                          initialValue: game.gameLinks,
+                          decoration:
+                              InputDecoration(labelText: 'Links (optional)'),
+                          onChanged: (links) => game!.gameLinks = links),
                       const SizedBox(height: 30),
                       const Divider(),
                       Scoreboard(game, widget.season,

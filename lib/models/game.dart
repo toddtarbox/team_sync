@@ -254,6 +254,7 @@ class Game {
   GameStatus gameStatus;
   int milliSecondsLeft;
   String? description;
+  String? gameLinks;
 
   List<GameEvent> allGameEvents = [];
   List<GameEvent> scoringEvents = [];
@@ -319,6 +320,7 @@ class Game {
       required this.date,
       required this.gameStatus,
       required this.description,
+      required this.gameLinks,
       required this.milliSecondsLeft});
 
   static Game initial(
@@ -333,6 +335,7 @@ class Game {
         date: DateTime.now(),
         gameStatus: GameStatus.fromString('0'),
         description: '',
+        gameLinks: '',
         milliSecondsLeft: 0);
   }
 
@@ -352,6 +355,7 @@ class Game {
         date: date,
         gameStatus: GameStatus.fromString(map['gameStatus'].toString()),
         description: map['description'],
+        gameLinks: map['gameLinks'],
         milliSecondsLeft: map['milliSecondsLeft']);
   }
 
@@ -453,6 +457,7 @@ class Game {
         'date': saveFormat.format(date),
         'gameStatus': gameStatus.index,
         'description': description,
+        'gameLinks': gameLinks,
         'milliSecondsLeft': milliSecondsLeft
       };
 
