@@ -164,7 +164,7 @@ class _GameViewState extends State<GameView> {
         });
   }
 
-  void _launchUrl(String url) async {
+  Future<void> _launchUrl(String url) async {
     await launchUrl(Uri.parse(url));
   }
 

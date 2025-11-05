@@ -168,8 +168,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                         icon: Icon(Icons.link,
                                             size: 24, color: Colors.blue),
                                         onPressed: () async {
-                                          await launchUrl(
-                                              Uri.parse((game.gameLinks!)));
+                                          await _launchUrl(game.gameLinks!);
                                         })
                                     : SizedBox(width: 24);
 
@@ -278,6 +277,37 @@ class _SeasonPageState extends State<SeasonPage> {
         },
       ),
     );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final urls = url.split(',');
+    if (urls.length == 1) {
+      await launchUrl(Uri.parse(url));
+    } else {
+      await showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text("Which Link"),
+              content: DropdownMenu(
+                  dropdownMenuEntries: urls
+                      .map((url) =>
+                          DropdownMenuEntry<String>(value: url, label: url))
+                      .toList(growable: false),
+                  onSelected: (url) {
+                    _launchUrl(url!);
+                  }),
+              actions: [
+                TextButton(
+                  child: const Text("Cancel"),
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                ),
+              ],
+            );
+          });
+    }
   }
 
   Future<Season> _loadSeason() async {
