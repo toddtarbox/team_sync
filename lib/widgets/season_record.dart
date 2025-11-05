@@ -25,11 +25,24 @@ class SeasonRecord extends StatelessWidget {
         : AppLocalizations.of(context)!.season;
 
     return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      team.fullName == 'Saint Albert' && seasons.length > 1
-          ? Image.asset('assets/images/jpgs/sa-crest.jpg',
-              width: 42, height: 42)
+      team.logoUrl != null && team.logoUrl!.isNotEmpty
+          ? CircleAvatar(
+              child: ClipOval(
+                child: Image.network(
+                  team.logoUrl!,
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text(team.fullName[0]);
+                  },
+                ),
+              ),
+            )
           : Container(),
-      team.fullName == 'Saint Albert' ? const SizedBox(width: 10) : Container(),
+      team.logoUrl != null && team.logoUrl!.isNotEmpty
+          ? const SizedBox(width: 10)
+          : Container(),
       Text('$leading Record ($wins - $losses - $ties)',
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
     ]);

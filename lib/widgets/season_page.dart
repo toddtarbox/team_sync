@@ -50,11 +50,23 @@ class _SeasonPageState extends State<SeasonPage> {
                 padding: EdgeInsets.all(20),
                 child:
                     Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  widget.season.team.fullName == 'Saint Albert'
-                      ? Image.asset('assets/images/jpgs/sa-crest.jpg',
-                          width: 42, height: 42)
+                  widget.season.team.logoUrl != null &&
+                          widget.season.team.logoUrl!.isNotEmpty
+                      ? CircleAvatar(
+                          child: ClipOval(
+                            child: Image.network(
+                              widget.season.team.logoUrl!,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Text(widget.season.team.fullName[0]);
+                              },
+                            ),
+                          ),
+                        )
                       : Container(),
-                  widget.season.team.fullName == 'Saint Albert'
+                  widget.season.team.logoUrl != null
                       ? const SizedBox(width: 10)
                       : Container(),
                   Text(widget.season.team.fullName,

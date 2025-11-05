@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
@@ -544,6 +546,19 @@ class _HomePageState extends State<HomePage> {
             Visibility(
                 visible: _team != null,
                 child: ListTile(
+                  leading: Icon(Icons.photo,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text('Set Team Logo'),
+                  onTap: () async {
+                    // Close the bottom sheet first
+                    Navigator.of(builderContext).pop();
+                    // Then perform the action and show feedback
+                    await _pickTeamLogo();
+                  },
+                )),
+            Visibility(
+                visible: _team != null,
+                child: ListTile(
                   leading: Icon(Icons.color_lens,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(AppLocalizations.of(context)!.setTeamColors),
@@ -551,7 +566,7 @@ class _HomePageState extends State<HomePage> {
                     // Close the bottom sheet first
                     Navigator.of(builderContext).pop();
                     // Then perform the action and show feedback
-                    await _pickTeamColors(context);
+                    await _pickTeamColors();
                   },
                 )),
             Visibility(
@@ -880,7 +895,41 @@ class _HomePageState extends State<HomePage> {
     return null;
   }
 
-  Future<void> _pickTeamColors(BuildContext context) async {
+  Future<void> _pickTeamLogo() async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      if (_team!.logoUrl != null && _team!.logoUrl!.isNotEmpty) {
+        try {
+          await FirebaseStorage.instance.refFromURL(_team!.logoUrl!).delete();
+        } catch (e) {
+          // Image may not exist, so we can ignore.
+        }
+      }
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('player_images/${DateTime.now().toIso8601String()}');
+      await storageRef.putFile(File(pickedFile.path));
+      final imageUrl = await storageRef.getDownloadURL();
+
+      await DatabaseService.instance.update(
+        'Teams',
+        {'logoUrl': imageUrl},
+        where: 'id=?',
+        whereArgs: [_team!.id],
+      );
+
+      final teamResult = await DatabaseService.instance
+          .query('Teams', where: 'id=?', whereArgs: [_team!.id]);
+      if (teamResult.isNotEmpty) {
+        setState(() {
+          _team = Team.fromMap(teamResult.first);
+        });
+      }
+    }
+  }
+
+  Future<void> _pickTeamColors() async {
     Color pickerColor1 = _team?.color1 ?? Colors.blue;
     Color pickerColor2 = _team?.color2 ?? Colors.red;
 
@@ -937,65 +986,101 @@ class _HomePageState extends State<HomePage> {
   Future<void> _createTeam() async {
     late String teamName;
     late String teamShortName;
+    File? _imageFile;
 
     await showModalBottomSheet(
         context: context,
         builder: (context) {
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.newTeam),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.teamName),
-                        onChanged: (name) => teamName = name),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.teamShortName),
-                        onChanged: (name) => teamShortName = name),
-                    const Spacer(),
-                    TextButton(
-                        onPressed: () {},
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!.save,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () async {
-                                    if (teamName.isNotEmpty &&
-                                        teamShortName.isNotEmpty) {
-                                      await _saveTeam(teamName, teamShortName);
-                                      setState(() {});
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+            return Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(50),
+                    child: Column(children: [
+                      Text(AppLocalizations.of(context)!.newTeam),
+                      GestureDetector(
+                        onTap: SubscriptionService.instance.isSubscribed
+                            ? () async {
+                                final pickedFile = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (pickedFile != null) {
+                                  setModalState(() {
+                                    _imageFile = File(pickedFile.path);
+                                  });
+                                }
+                              }
+                            : null,
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundImage: _imageFile != null
+                              ? FileImage(_imageFile!)
+                              : (_team!.logoUrl != null &&
+                                      _team!.logoUrl!.isNotEmpty
+                                  ? NetworkImage(_team!.logoUrl!)
+                                  : null) as ImageProvider?,
+                          child: _imageFile == null &&
+                                  (_team!.logoUrl == null ||
+                                      _team!.logoUrl!.isEmpty)
+                              ? const Icon(Icons.add_a_photo)
+                              : null,
+                        ),
+                      ),
+                      TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.teamName),
+                          onChanged: (name) => teamName = name),
+                      TextField(
+                          autofocus: true,
+                          decoration: InputDecoration(
+                              labelText:
+                                  AppLocalizations.of(context)!.teamShortName),
+                          onChanged: (name) => teamShortName = name),
+                      const Spacer(),
+                      TextButton(
+                          onPressed: () {},
+                          child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!.save,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () async {
+                                      if (teamName.isNotEmpty &&
+                                          teamShortName.isNotEmpty) {
+                                        await _saveTeam(teamName, teamShortName,
+                                            logoUrl: _imageFile?.path);
+                                        setState(() {});
+                                        Navigator.pop(context);
+                                      }
+                                    }),
+                                GestureDetector(
+                                    child: Text(
+                                        AppLocalizations.of(context)!
+                                            .cancelButton,
+                                        style: const TextStyle(fontSize: 20)),
+                                    onTap: () {
                                       Navigator.pop(context);
-                                    }
-                                  }),
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!
-                                          .cancelButton,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                  })
-                            ]))
-                  ])));
+                                    })
+                              ]))
+                    ])));
+          });
         });
   }
 
   Future<void> _saveTeam(String teamName, String teamShortName,
-      {Color? color1 = Colors.green, Color? color2 = Colors.green}) async {
+      {Color? color1 = Colors.green,
+      Color? color2 = Colors.green,
+      String? logoUrl}) async {
     await DatabaseService.instance.insert('Teams', {
       'id': DateTime.now().millisecondsSinceEpoch,
       'fullName': teamName,
       'shortName': teamShortName,
       'color1': color1?.value,
-      'color2': color2?.value
+      'color2': color2?.value,
+      'logoUrl': logoUrl
     });
   }
 
