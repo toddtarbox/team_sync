@@ -162,19 +162,16 @@ class _SeasonPageState extends State<SeasonPage> {
                           itemBuilder: (context, index) {
                             final game = games[index];
 
-                            final linkWidget = game.gameLinks?.isNotEmpty ??
-                                    false
-                                ? SizedBox(
-                                    width: 24,
-                                    child: Center(
-                                        child: IconButton(
-                                            icon: Icon(Icons.link,
-                                                color: Colors.blue),
-                                            onPressed: () async {
-                                              await launchUrl(
-                                                  Uri.parse((game.gameLinks!)));
-                                            })))
-                                : SizedBox(width: 24);
+                            final linkWidget =
+                                game.gameLinks?.isNotEmpty ?? false
+                                    ? IconButton(
+                                        icon: Icon(Icons.link,
+                                            size: 24, color: Colors.blue),
+                                        onPressed: () async {
+                                          await launchUrl(
+                                              Uri.parse((game.gameLinks!)));
+                                        })
+                                    : SizedBox(width: 24);
 
                             final gameCard = Container(
                                 padding: const EdgeInsets.all(5),
