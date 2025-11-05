@@ -36,7 +36,6 @@ class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
   late bool _isSubscribed;
-  bool _isLoading = false;
   bool _isImporting = false; // Flag to control the loading spinner
   bool _isSharing = false; // Flag for sharing progress
   final _teamIdController = TextEditingController();
@@ -649,6 +648,7 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: Colors.green,
           ));
         } catch (e) {
+          debugPrint(e.toString());
           scaffoldMessenger.showSnackBar(SnackBar(
             content: Text('Error during import: $e'),
             backgroundColor: Colors.red,
@@ -787,6 +787,7 @@ class _HomePageState extends State<HomePage> {
       if (teamResult.isNotEmpty) {
         _team = Team.fromMap(teamResult.first);
         await _loadSeasons();
+        setState(() {});
       } else {
         _team = null;
       }
@@ -969,11 +970,8 @@ class _HomePageState extends State<HomePage> {
                                   onTap: () async {
                                     if (teamName.isNotEmpty &&
                                         teamShortName.isNotEmpty) {
-                                      final team = await _saveTeam(
-                                          teamName, teamShortName);
-                                      setState(() {
-                                        _team = team;
-                                      });
+                                      await _saveTeam(teamName, teamShortName);
+                                      setState(() {});
                                       Navigator.pop(context);
                                     }
                                   }),
@@ -990,16 +988,15 @@ class _HomePageState extends State<HomePage> {
         });
   }
 
-  Future<Team> _saveTeam(String teamName, String teamShortName,
+  Future<void> _saveTeam(String teamName, String teamShortName,
       {Color? color1 = Colors.green, Color? color2 = Colors.green}) async {
-    final teamId = await DatabaseService.instance.insert('Teams', {
+    await DatabaseService.instance.insert('Teams', {
+      'id': DateTime.now().millisecondsSinceEpoch,
       'fullName': teamName,
       'shortName': teamShortName,
       'color1': color1?.value,
       'color2': color2?.value
     });
-
-    return await Team.fromId(teamId);
   }
 
   Future<void> _createSeason() async {
@@ -1026,8 +1023,12 @@ class _HomePageState extends State<HomePage> {
                               child: Text(AppLocalizations.of(context)!.save,
                                   style: const TextStyle(fontSize: 20)),
                               onPressed: () async {
-                                await DatabaseService.instance.insert('Seasons',
-                                    {'name': seasonName, 'teamId': _team!.id});
+                                await DatabaseService.instance
+                                    .insert('Seasons', {
+                                  'id': DateTime.now().millisecondsSinceEpoch,
+                                  'name': seasonName,
+                                  'teamId': _team!.id
+                                });
                                 await _loadSeasons();
 
                                 setState(() {});

@@ -253,6 +253,7 @@ class Game {
   DateTime date;
   GameStatus gameStatus;
   int milliSecondsLeft;
+  String? description;
 
   List<GameEvent> allGameEvents = [];
   List<GameEvent> scoringEvents = [];
@@ -260,10 +261,13 @@ class Game {
   List<GameEvent> shootoutEvents = [];
 
   String displayName(int teamId) {
+    final descToAdd =
+        description?.isEmpty ?? true == true ? '' : ' ($description) ';
+
     if (teamId == homeTeam.id) {
-      return 'vs ${awayTeam.shortName}';
+      return 'vs ${awayTeam.shortName}$descToAdd';
     } else {
-      return '@ ${homeTeam.shortName}';
+      return '@ ${homeTeam.shortName}$descToAdd';
     }
   }
 
@@ -314,6 +318,7 @@ class Game {
       required this.awayTeamScore,
       required this.date,
       required this.gameStatus,
+      required this.description,
       required this.milliSecondsLeft});
 
   static Game initial(
@@ -327,6 +332,7 @@ class Game {
         awayTeamScore: 0,
         date: DateTime.now(),
         gameStatus: GameStatus.fromString('0'),
+        description: '',
         milliSecondsLeft: 0);
   }
 
@@ -345,6 +351,7 @@ class Game {
         awayTeamScore: map['awayTeamScore'],
         date: date,
         gameStatus: GameStatus.fromString(map['gameStatus'].toString()),
+        description: map['description'],
         milliSecondsLeft: map['milliSecondsLeft']);
   }
 
@@ -436,20 +443,26 @@ class Game {
     if (homeTeam.id > 0 && awayTeam.id > 0) {
       final saveFormat = DateFormat('MM.dd.yyyy');
 
-      await DatabaseService.instance.insert(
-          'Games',
-          {
-            'id': id == -1 ? null : id,
-            'seasonId': seasonId,
-            'homeTeamId': homeTeam.id,
-            'awayTeamId': awayTeam.id,
-            'homeTeamScore': homeTeamScore,
-            'awayTeamScore': awayTeamScore,
-            'date': saveFormat.format(date),
-            'gameStatus': gameStatus.index,
-            'milliSecondsLeft': milliSecondsLeft
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      final data = {
+        'id': id == -1 ? DateTime.now().millisecondsSinceEpoch : id,
+        'seasonId': seasonId,
+        'homeTeamId': homeTeam.id,
+        'awayTeamId': awayTeam.id,
+        'homeTeamScore': homeTeamScore,
+        'awayTeamScore': awayTeamScore,
+        'date': saveFormat.format(date),
+        'gameStatus': gameStatus.index,
+        'description': description,
+        'milliSecondsLeft': milliSecondsLeft
+      };
+
+      if (id == -1) {
+        await DatabaseService.instance.insert('Games', data,
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      } else {
+        await DatabaseService.instance
+            .update('Games', data, where: 'id=?', whereArgs: [id]);
+      }
       return true;
     }
 

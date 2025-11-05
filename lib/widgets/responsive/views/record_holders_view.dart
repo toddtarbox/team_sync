@@ -121,6 +121,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildLoadingList();
               } else if (snapshot.hasError) {
+                debugPrint(snapshot.error.toString());
                 debugPrintStack(stackTrace: snapshot.stackTrace);
                 return Center(
                     child:

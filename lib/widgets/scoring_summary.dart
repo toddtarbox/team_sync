@@ -32,6 +32,7 @@ class _ScoringSummaryState extends State<ScoringSummary> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
+            debugPrint(snapshot.error.toString());
             debugPrintStack(stackTrace: snapshot.stackTrace);
             return const Center(child: Text('Error loading events'));
           }

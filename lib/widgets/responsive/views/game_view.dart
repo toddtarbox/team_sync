@@ -155,6 +155,7 @@ class _GameViewState extends State<GameView> {
                       title: Center(child: Text('End of Game')));
                 });
           } else if (snapshot.hasError) {
+            debugPrint(snapshot.error.toString());
             debugPrintStack(stackTrace: snapshot.stackTrace);
             return const Center(child: Text('Error loading events'));
           } else {
@@ -617,7 +618,9 @@ class _GameViewState extends State<GameView> {
       await DatabaseService.instance.insert(
           'Events',
           {
-            'id': event.id == -1 ? null : event.id,
+            'id': event.id == -1
+                ? DateTime.now().millisecondsSinceEpoch
+                : event.id,
             'playerId': event.player?.id ?? -1,
             'teamId': event.team.id,
             'gameId': event.game.id,

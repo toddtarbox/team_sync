@@ -190,9 +190,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                                 },
                                               )),
                                           onTap: () {
-                                            game.gameStatus.index == 0
-                                                ? _showGame(game: game)
-                                                : _goToGame(game);
+                                            _showGame(game: game);
                                           }),
                                       if (game.id == _expandedGameId)
                                         ScoringSummary(
@@ -254,6 +252,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           })))
             ]);
           } else if (snapshot.hasError) {
+            debugPrint(snapshot.error.toString());
             debugPrintStack(stackTrace: snapshot.stackTrace);
             return Center(
                 child: Text(AppLocalizations.of(context)!.errorLoadingHistory));
@@ -398,6 +397,13 @@ class _SeasonPageState extends State<SeasonPage> {
                                           fontSize: 20))))),
                       const SizedBox(height: 30),
                       const Divider(),
+                      TextFormField(
+                          initialValue: game.description,
+                          decoration: InputDecoration(
+                              labelText: 'Description (optional)'),
+                          onChanged: (name) => game!.description = name),
+                      const SizedBox(height: 30),
+                      const Divider(),
                       Scoreboard(game, widget.season,
                           color: Colors.black, shortName: true),
                       const Divider(),
@@ -423,20 +429,18 @@ class _SeasonPageState extends State<SeasonPage> {
                               ? MainAxisAlignment.spaceEvenly
                               : MainAxisAlignment.center,
                           children: [
-                            canSave
-                                ? GestureDetector(
-                                    onTap: () async {
-                                      await game!.saveGame();
+                            GestureDetector(
+                                onTap: () async {
+                                  await game!.saveGame();
 
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                        setState(() {});
-                                      }
-                                    },
-                                    child: Text(
-                                        AppLocalizations.of(context)!.save,
-                                        style: const TextStyle(fontSize: 20)))
-                                : Container(),
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    setState(() {});
+                                  }
+                                },
+                                child: Text(AppLocalizations.of(context)!.save,
+                                    style: const TextStyle(fontSize: 20))),
+                            const SizedBox(width: 30),
                             GestureDetector(
                                 onTap: () {
                                   Navigator.pop(context);
@@ -528,6 +532,7 @@ class _SeasonPageState extends State<SeasonPage> {
       {Color color1 = Colors.transparent,
       Color color2 = Colors.transparent}) async {
     await DatabaseService.instance.insert('Teams', {
+      'id': DateTime.now().millisecondsSinceEpoch,
       'fullName': teamName,
       'shortName': teamShortName,
       'color1': color1.toARGB32(),

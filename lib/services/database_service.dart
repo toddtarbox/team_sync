@@ -29,15 +29,15 @@ abstract class DatabaseProvider {
       {String? where, List<dynamic>? whereArgs, String? orderBy});
 
   /// Inserts a record into a table.
-  Future<int> insert(String table, Map<String, dynamic> data,
+  Future<String?> insert(String table, Map<String, dynamic> data,
       {ConflictAlgorithm? conflictAlgorithm});
 
   /// Updates records in a table.
-  Future<int> update(String table, Map<String, dynamic> data,
+  Future<void> update(String table, Map<String, dynamic> data,
       {String? where, List<dynamic>? whereArgs});
 
   /// Deletes records from a table.
-  Future<int> delete(String table, {String? where, List<dynamic>? whereArgs});
+  Future<void> delete(String table, {String? where, List<dynamic>? whereArgs});
 }
 
 /// A concrete implementation of [DatabaseProvider] for a local sqflite database.
@@ -114,24 +114,18 @@ class LocalDatabaseProvider implements DatabaseProvider {
   }
 
   @override
-  Future<int> insert(String table, Map<String, dynamic> data,
+  Future<String?> insert(String table, Map<String, dynamic> data,
       {ConflictAlgorithm? conflictAlgorithm}) async {
-    return await _database!
-        .insert(table, data, conflictAlgorithm: conflictAlgorithm);
+    return null;
   }
 
   @override
-  Future<int> update(String table, Map<String, dynamic> data,
-      {String? where, List<dynamic>? whereArgs}) async {
-    return await _database!
-        .update(table, data, where: where, whereArgs: whereArgs);
-  }
+  Future<void> update(String table, Map<String, dynamic> data,
+      {String? where, List<dynamic>? whereArgs}) async {}
 
   @override
-  Future<int> delete(String table,
-      {String? where, List<dynamic>? whereArgs}) async {
-    return await _database!.delete(table, where: where, whereArgs: whereArgs);
-  }
+  Future<void> delete(String table,
+      {String? where, List<dynamic>? whereArgs}) async {}
 
   @override
   Future<bool> get isImporting => Future.value(false);
@@ -159,10 +153,14 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<bool> get isImporting async =>
-      ((await _dbDocumentSnapshot?.reference.get())?.data()
-          as Map<String, dynamic>)['isImporting'] ==
-      true;
+  Future<bool> get isImporting async {
+    try {
+      final snapshot = await _dbDocumentSnapshot?.reference.get();
+      return (snapshot?.data() as Map<String, dynamic>)['isImporting'] == true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   Future<void> set(Map<String, dynamic> map) async {
     await _dbDocumentSnapshot?.reference.update(map);
@@ -215,7 +213,7 @@ class FirebaseDBProvider implements DatabaseProvider {
         .doc(_path);
 
     _dbDocumentSnapshot = await dbDocument.get();
-    if (_dbDocumentSnapshot?.exists == true) {
+    if (_dbDocumentSnapshot?.exists == false) {
       await dbDocument.set({'version': 1});
     }
 
@@ -278,33 +276,22 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<int> insert(String table, Map<String, dynamic> data,
+  Future<String?> insert(String table, Map<String, dynamic> data,
       {ConflictAlgorithm? conflictAlgorithm}) async {
     if (_dbDocumentSnapshot == null) {
-      return -1;
+      return null;
     }
 
     final collectionRef = _dbDocumentSnapshot!.reference.collection(table);
-
-    // For importing data, we must preserve the original ID.
-    // We check if the incoming data already has an ID.
-    if (table != 'Players' && data.containsKey('id') && data['id'] != null) {
-      final id = data['id'];
-      // Use the existing ID as the document ID in Firestore.
-      // .set() will create or overwrite the document, which is perfect for an import.
-      await collectionRef.doc(id.toString()).set(data);
-      return id;
-    } else {
-      await collectionRef.doc().set(data);
-      return 1;
-    }
+    await collectionRef.doc().set(data);
+    return collectionRef.doc().id;
   }
 
   @override
-  Future<int> update(String table, Map<String, dynamic> data,
+  Future<void> update(String table, Map<String, dynamic> data,
       {String? where, List<dynamic>? whereArgs}) async {
     if (_dbDocumentSnapshot == null) {
-      return -1;
+      return;
     }
 
     Query q = _dbDocumentSnapshot!.reference.collection(table);
@@ -321,14 +308,13 @@ class FirebaseDBProvider implements DatabaseProvider {
     for (final doc in snapshot.docs) {
       await doc.reference.update(data);
     }
-    return snapshot.docs.length;
   }
 
   @override
-  Future<int> delete(String table,
+  Future<void> delete(String table,
       {String? where, List<dynamic>? whereArgs}) async {
     if (_dbDocumentSnapshot == null) {
-      return -1;
+      return;
     }
 
     Query q = _dbDocumentSnapshot!.reference.collection(table);
@@ -345,7 +331,6 @@ class FirebaseDBProvider implements DatabaseProvider {
     for (final doc in snapshot.docs) {
       await doc.reference.delete();
     }
-    return snapshot.docs.length;
   }
 }
 
@@ -499,14 +484,14 @@ class DatabaseService {
       await _provider.query(table,
           where: where, whereArgs: whereArgs, orderBy: orderBy);
 
-  Future<int> insert(String table, Map<String, dynamic> data,
+  Future<String?> insert(String table, Map<String, dynamic> data,
           {ConflictAlgorithm? conflictAlgorithm}) async =>
       await _provider.insert(table, data, conflictAlgorithm: conflictAlgorithm);
-  Future<int> update(String table, Map<String, dynamic> data,
+  Future<void> update(String table, Map<String, dynamic> data,
           {String? where, List<dynamic>? whereArgs}) async =>
       await _provider.update(table, data, where: where, whereArgs: whereArgs);
 
-  Future<int> delete(String table,
+  Future<void> delete(String table,
           {String? where, List<dynamic>? whereArgs}) async =>
       await _provider.delete(table, where: where, whereArgs: whereArgs);
 

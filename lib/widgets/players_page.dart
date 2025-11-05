@@ -361,6 +361,8 @@ class _PlayersPageState extends State<PlayersPage> {
 
                                         await DatabaseService.instance
                                             .insert('Players', {
+                                          'id': DateTime.now()
+                                              .millisecondsSinceEpoch,
                                           'firstName': firstName,
                                           'lastName': lastName,
                                           'number': playerNumber,
