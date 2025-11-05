@@ -429,7 +429,9 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.transparent,
                           child: Padding(
                               padding: const EdgeInsets.all(10),
-                              child: Center(child: SeasonRecord(_seasons))))),
+                              child: Center(
+                                  child: SeasonRecord(_seasons,
+                                      singleSeason: false))))),
                   Expanded(
                     child: SeasonsListView(seasons: _seasons),
                   )

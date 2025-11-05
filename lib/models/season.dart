@@ -8,13 +8,18 @@ class Season {
   final int id;
   final String name;
   final int teamId;
+  String? logoUrl;
 
   late Team team;
   List<Game> games = [];
   List<Player> players = [];
   List<Team> teams = [];
 
-  Season({required this.id, required this.name, required this.teamId});
+  Season(
+      {required this.id,
+      required this.name,
+      required this.teamId,
+      this.logoUrl});
 
   factory Season.fromMap(Map<dynamic, dynamic> map) {
     return Season(id: map['id'], name: map['name'], teamId: map['teamId']);
