@@ -50,20 +50,13 @@ class _GameStatsViewState extends State<GameStatsView> {
         future: _loadStats(),
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
           if (snapshot.hasData) {
-            final scoringEvents = _game.allGameEvents
-                .where((e) =>
-                    e.eventType == 'Shot' && e.eventData == 0 ||
-                    (e.eventType == 'PenaltyKick' &&
-                        e.eventData == 0 &&
-                        e.eventMinute > 0))
-                .toList(growable: false);
-
             final assistEvents = _game.allGameEvents
                 .where((e) => e.eventType == 'Assist')
                 .toList(growable: false);
 
             return ListView.separated(
-                itemCount: scoringEvents.length + 2 + _statCategoryTiles.length,
+                itemCount:
+                    _game.scoringEvents.length + 2 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const ListTile(
@@ -71,8 +64,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                             child: Text('Scoring Summary',
                                 style:
                                     TextStyle(fontWeight: FontWeight.bold))));
-                  } else if (index <= scoringEvents.length) {
-                    final event = scoringEvents[index - 1];
+                  } else if (index <= _game.scoringEvents.length) {
+                    final event = _game.scoringEvents[index - 1];
                     final assistEvent = assistEvents
                         .where((e) =>
                             (e.id == event.id + 1 && e.eventType == 'Assist') ||
@@ -99,8 +92,8 @@ class _GameStatsViewState extends State<GameStatsView> {
                               : event.eventType == 'PenaltyKick'
                                   ? 'PK'
                                   : event.team.id == widget.season.team.id
-                                      ? (event.player == null ||
-                                              event.player?.id == -1)
+                                      ? event.player == null ||
+                                              event.player?.id == -2
                                           ? 'Own goal by ${opponent.shortName}'
                                           : 'No assist'
                                       : '',
@@ -111,14 +104,15 @@ class _GameStatsViewState extends State<GameStatsView> {
                                 minute: event.eventMinute),
                             style: const TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.bold)));
-                  } else if (index == scoringEvents.length + 1) {
+                  } else if (index == _game.scoringEvents.length + 1) {
                     return const ListTile(
                         title: Center(
                             child: Text('Game Stats',
                                 style:
                                     TextStyle(fontWeight: FontWeight.bold))));
                   } else {
-                    return _statCategoryTiles[index - scoringEvents.length - 2];
+                    return _statCategoryTiles[
+                        index - _game.scoringEvents.length - 2];
                   }
                 },
                 separatorBuilder: (context, index) {
@@ -158,7 +152,14 @@ class _GameStatsViewState extends State<GameStatsView> {
             }
             break;
           case LeaderCategory.assists:
+            break;
           case LeaderCategory.ownGoalsEarned:
+            if (event.eventType == 'Shot' &&
+                event.eventData == 0 &&
+                event.player?.id == -2 &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
             break;
           case LeaderCategory.penaltyKickGoals:
             if (event.eventType == 'PenaltyKick' &&

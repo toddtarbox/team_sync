@@ -15,6 +15,7 @@ class GameStats implements StatLeaders {
   GameStats({required this.teamId});
 
   final HashMap<int, int> _playerGoals = HashMap<int, int>();
+  final HashMap<int, int> _teamOwnGoals = HashMap<int, int>();
   final HashMap<int, int> _playerPenaltyKickGoals = HashMap<int, int>();
   final HashMap<int, int> _playerPenaltyKicksTaken = HashMap<int, int>();
   final HashMap<int, int> _playerAssists = HashMap<int, int>();
@@ -41,10 +42,15 @@ class GameStats implements StatLeaders {
               .update(playerId, (value) => value + 1, ifAbsent: () => 1);
 
           if (event.eventData == ShotResult.goal.index) {
-            stats._playerGoals
-                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
-            stats._playerShotsOnGoal
-                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            if (playerId == -2) {
+              stats._teamOwnGoals
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            } else {
+              stats._playerGoals
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+              stats._playerShotsOnGoal
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            }
           } else if (event.eventData == ShotResult.onTargetSave.index) {
             stats._playerShotsOnGoal
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);
@@ -111,6 +117,9 @@ class GameStats implements StatLeaders {
       case LeaderCategory.goals:
         sourceTable = _playerGoals;
         break;
+      case LeaderCategory.ownGoalsEarned:
+        sourceTable = _teamOwnGoals;
+        break;
       case LeaderCategory.penaltyKickGoals:
         sourceTable = _playerPenaltyKickGoals;
         break;
@@ -147,11 +156,7 @@ class GameStats implements StatLeaders {
       case LeaderCategory.reds:
         sourceTable = _playerReds;
         break;
-      default:
-        break;
     }
-
-    if (sourceTable == null) return players;
 
     for (int playerId in sourceTable.keys) {
       if (playerId != -1) {
@@ -404,6 +409,8 @@ class Game {
             (e.eventType == 'Shot' || e.eventType == 'PenaltyKick') &&
             e.eventData == ShotResult.goal.index)
         .toList(growable: false);
+    scoringEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
+
     gameEvents =
         allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
     gameEvents.sort((a, b) => a.eventPeriod.compareTo(b.eventPeriod));

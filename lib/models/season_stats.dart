@@ -172,7 +172,7 @@ class SeasonStats implements StatLeaders {
     stats._teamOwnGoalsEarned = map
         .where((m) =>
             m['teamId'] == teamId &&
-            m['playerId'] == -1 &&
+            m['playerId'] == -2 &&
             m['eventType'] == 'Shot' &&
             m['eventData'] == ShotResult.goal.index)
         .length;

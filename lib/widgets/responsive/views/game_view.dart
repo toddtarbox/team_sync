@@ -211,7 +211,9 @@ class _GameViewState extends State<GameView> {
           const SizedBox(width: 10),
           Text(event.eventType == 'Shot' &&
                   event.eventData == ShotResult.goal.index &&
-                  (event.player == null || event.player?.id == -1)
+                  ((event.player == null &&
+                          event.team.id == widget.season.teamId) ||
+                      event.player?.id == -2)
               ? event.team.id == widget.season.teamId
                   ? 'Own goal by ${opponent.shortName}'
                   : 'Own goal'
@@ -373,7 +375,7 @@ class _GameViewState extends State<GameView> {
         .toList(growable: false);
 
     final ownGoalPlayer = Player(
-      id: -1,
+      id: -2,
       teamId: event.team.id,
       seasonId: widget.season.id,
       firstName: 'Own',
@@ -532,7 +534,7 @@ class _GameViewState extends State<GameView> {
                                         int.parse(minute))),
                             Expanded(
                                 child: Checkbox(
-                                    value: event.player == ownGoalPlayer,
+                                    value: event.player?.id == -2,
                                     onChanged: (value) {
                                       setModalState(() {
                                         event!.player = value!
@@ -615,25 +617,43 @@ class _GameViewState extends State<GameView> {
     }
 
     if (event.eventPeriod >= 0) {
-      await DatabaseService.instance.insert(
-          'Events',
-          {
-            'id': event.id == -1
-                ? DateTime.now().millisecondsSinceEpoch
-                : event.id,
-            'playerId': event.player?.id ?? -1,
-            'teamId': event.team.id,
-            'gameId': event.game.id,
-            'seasonId': event.game.seasonId,
-            'eventType': event.eventType,
-            'eventLocation': '0,0',
-            'eventMinute': event.eventMinute,
-            'eventPeriod': event.eventPeriod,
-            'eventData': event.eventData,
-            'eventTextData': null,
-            'eventUrls': event.eventUrls
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      if (event.id == -1) {
+        await DatabaseService.instance.insert(
+            'Events',
+            {
+              'id': DateTime.now().millisecondsSinceEpoch,
+              'playerId': event.player?.id ?? -1,
+              'teamId': event.team.id,
+              'gameId': event.game.id,
+              'seasonId': event.game.seasonId,
+              'eventType': event.eventType,
+              'eventLocation': '0,0',
+              'eventMinute': event.eventMinute,
+              'eventPeriod': event.eventPeriod,
+              'eventData': event.eventData,
+              'eventTextData': null,
+              'eventUrls': event.eventUrls
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      } else {
+        await DatabaseService.instance.update(
+            'Events',
+            {
+              'playerId': event.player?.id ?? -1,
+              'teamId': event.team.id,
+              'gameId': event.game.id,
+              'seasonId': event.game.seasonId,
+              'eventType': event.eventType,
+              'eventLocation': '0,0',
+              'eventMinute': event.eventMinute,
+              'eventPeriod': event.eventPeriod,
+              'eventData': event.eventData,
+              'eventTextData': null,
+              'eventUrls': event.eventUrls
+            },
+            where: 'id=?',
+            whereArgs: [event.id]);
+      }
 
       await _game.updateScore();
 

@@ -44,6 +44,16 @@ class Player {
   }
 
   static Future<Player?> fromId(int id) async {
+    if (id == -2) {
+      return Player(
+          id: -2,
+          teamId: -1,
+          seasonId: -1,
+          firstName: 'Own',
+          lastName: 'Goal',
+          number: -1);
+    }
+
     final results = await DatabaseService.instance
         .query('Players', where: 'id=?', whereArgs: [id]);
     if (results.isNotEmpty) {
