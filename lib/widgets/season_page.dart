@@ -393,7 +393,7 @@ class _SeasonPageState extends State<SeasonPage> {
     showModalBottomSheet(
         context: context,
         showDragHandle: true,
-        scrollControlDisabledMaxHeightRatio: .75,
+        isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
