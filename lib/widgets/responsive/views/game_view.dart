@@ -594,6 +594,7 @@ class _GameViewState extends State<GameView> {
 
     final periodEvent = Period(
         id: -1,
+        index: -1,
         player: null,
         team: _game.homeTeam,
         game: _game,
@@ -671,6 +672,7 @@ class _GameViewState extends State<GameView> {
             : _game.homeTeam;
         final saveEvent = Save(
             id: -1,
+            index: -1,
             player: null,
             team: team,
             game: _game,

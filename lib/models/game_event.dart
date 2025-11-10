@@ -128,6 +128,7 @@ class Shot extends GameEvent {
 
   Shot(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -156,6 +157,7 @@ class Assist extends GameEvent {
 
   Assist(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -184,6 +186,7 @@ class Save extends GameEvent {
 
   Save(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -232,6 +235,7 @@ class PenaltyKick extends GameEvent {
 
   PenaltyKick(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -258,6 +262,7 @@ class Corner extends GameEvent {
 
   Corner(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -286,6 +291,7 @@ class Foul extends GameEvent {
 
   Foul(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -314,6 +320,7 @@ class Offsides extends GameEvent {
 
   Offsides(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -348,6 +355,7 @@ class GameCard extends GameEvent {
 
   GameCard(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -399,6 +407,7 @@ class Period extends GameEvent {
 
   Period(
       {required super.id,
+      required super.index,
       required super.player,
       required super.team,
       required super.game,
@@ -412,6 +421,7 @@ class Period extends GameEvent {
 
 class GameEvent {
   final int id;
+  int index; // Added index field for ordering
   Player? player;
   Team team;
   final Game game;
@@ -462,6 +472,7 @@ class GameEvent {
 
   GameEvent(
       {required this.id,
+      required this.index,
       required this.player,
       required this.team,
       required this.game,
@@ -483,6 +494,7 @@ class GameEvent {
       required int eventData}) {
     return GameEvent(
         id: -1,
+        index: -1,
         player: null,
         team: team,
         game: game,
@@ -506,6 +518,7 @@ class GameEvent {
     if (eventType == 'Period') {
       return Period(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -518,6 +531,7 @@ class GameEvent {
     } else if (eventType == 'Shot') {
       return Shot(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -530,6 +544,7 @@ class GameEvent {
     } else if (eventType == 'Assist') {
       return Assist(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -542,6 +557,7 @@ class GameEvent {
     } else if (eventType == 'Save') {
       return Save(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -554,6 +570,7 @@ class GameEvent {
     } else if (eventType == 'PenaltyKick') {
       return PenaltyKick(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -566,6 +583,7 @@ class GameEvent {
     } else if (eventType == 'Corner') {
       return Corner(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -578,6 +596,7 @@ class GameEvent {
     } else if (eventType == 'Foul') {
       return Foul(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -590,6 +609,7 @@ class GameEvent {
     } else if (eventType == 'Offsides') {
       return Offsides(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -602,6 +622,7 @@ class GameEvent {
     } else if (eventType == 'Card') {
       return GameCard(
           id: map['id'],
+          index: map['index'] ?? map['id'],
           player: player,
           team: team,
           game: game,
@@ -615,6 +636,7 @@ class GameEvent {
 
     return GameEvent(
         id: map['id'],
+        index: map['index'] ?? map['id'],
         player: player,
         team: team,
         game: game,

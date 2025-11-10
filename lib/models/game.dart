@@ -413,7 +413,7 @@ class Game {
     gameEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
     gameEvents.sort((a, b) {
       if (a.eventMinute == -1 || b.eventMinute == -1) {
-        return a.id.compareTo(b.id);
+        return a.index.compareTo(b.index);
       } else {
         return a.eventMinute.compareTo(b.eventMinute);
       }
