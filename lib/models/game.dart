@@ -408,16 +408,9 @@ class Game {
     scoringEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
 
     gameEvents =
-        allGameEvents.where((e) => e.eventMinute > -2).toList(growable: false);
+        allGameEvents.where((e) => e.eventMinute > -2).toList(growable: true);
     gameEvents.sort((a, b) => a.eventPeriod.compareTo(b.eventPeriod));
-    gameEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
-    gameEvents.sort((a, b) {
-      if (a.eventMinute == -1 || b.eventMinute == -1) {
-        return a.index.compareTo(b.index);
-      } else {
-        return a.eventMinute.compareTo(b.eventMinute);
-      }
-    });
+    gameEvents.sort((a, b) => a.index.compareTo(b.index));
 
     shootoutEvents =
         allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false);

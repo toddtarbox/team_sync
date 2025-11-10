@@ -97,11 +97,63 @@ class _GameViewState extends State<GameView> {
             bool showScoringEvents =
                 ResponsiveBreakpoints.of(context).largerThan(MOBILE);
 
-            return ListView.builder(
+            return ReorderableListView.builder(
                 itemCount: itemCount,
+                onReorder: (oldIndex, newIndex) async {
+                  // Calculate start of game events section
+                  int gameEventsStart = _game.scoringEvents.length + 2;
+
+                  // Only allow reordering within game events section
+                  if (oldIndex < gameEventsStart ||
+                      newIndex < gameEventsStart) {
+                    return;
+                  }
+
+                  // Convert to game events list index
+                  int oldEventIndex = oldIndex - gameEventsStart;
+                  int newEventIndex = newIndex - gameEventsStart;
+
+                  if (newEventIndex > _game.gameEvents.length) {
+                    newEventIndex = _game.gameEvents.length;
+                  }
+
+                  if (oldEventIndex < 0 ||
+                      oldEventIndex >= _game.gameEvents.length ||
+                      newEventIndex < 0 ||
+                      newEventIndex >= _game.gameEvents.length) {
+                    return;
+                  }
+
+                  // Get the event being moved
+                  final event = _game.gameEvents[oldEventIndex];
+
+                  // Remove from old position
+                  _game.gameEvents.removeAt(oldEventIndex);
+
+                  // Insert at new position
+                  if (newEventIndex > oldEventIndex) {
+                    newEventIndex -= 1;
+                  }
+                  _game.gameEvents.insert(newEventIndex, event);
+
+                  // Update indices in database
+                  for (int i = 0; i < _game.gameEvents.length; i++) {
+                    final currentEvent = _game.gameEvents[i];
+                    currentEvent.index = i;
+                    await DatabaseService.instance.update(
+                      'Events',
+                      {'index': currentEvent.index},
+                      where: 'id=?',
+                      whereArgs: [currentEvent.id],
+                    );
+                  }
+
+                  setState(() {});
+                },
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return Visibility(
+                        key: const ValueKey('scoring-header'),
                         visible: showScoringEvents,
                         child: const ListTile(
                             title: Center(child: Text('Scoring Events'))));
@@ -110,28 +162,33 @@ class _GameViewState extends State<GameView> {
                   if (index <= _game.scoringEvents.length) {
                     final event = _game.scoringEvents[index - 1];
                     return Visibility(
+                        key: ValueKey('scoring-${event.id}'),
                         visible: showScoringEvents,
                         child: _getEventTile(event));
                   }
 
                   if (index == _game.scoringEvents.length + 1) {
-                    return const ListTile(
-                        title: Center(child: Text('All Game Events')));
+                    return ListTile(
+                        key: const ValueKey('events-header'),
+                        title: const Center(child: Text('All Game Events')));
                   }
 
-                  if (index >= _game.scoringEvents.length - 2 &&
+                  if (index >= _game.scoringEvents.length + 2 &&
                       index <
                           _game.gameEvents.length +
                               _game.scoringEvents.length +
                               2) {
                     final event = _game
                         .gameEvents[index - _game.scoringEvents.length - 2];
-                    return _getEventTile(event);
+                    return KeyedSubtree(
+                        key: ValueKey('event-${event.id}'),
+                        child: _getEventTile(event));
                   }
 
                   if (_game.shootoutEvents.isNotEmpty) {
                     if (index == _game.gameEvents.length + 2) {
                       return const ListTile(
+                          key: ValueKey('regulation-end'),
                           title: Center(child: Text('End of Regulation')));
                     }
 
@@ -147,11 +204,14 @@ class _GameViewState extends State<GameView> {
                           2 -
                           _game.gameEvents.length -
                           1];
-                      return _getEventTile(event);
+                      return KeyedSubtree(
+                          key: ValueKey('shootout-${event.id}'),
+                          child: _getEventTile(event));
                     }
                   }
 
                   return const ListTile(
+                      key: ValueKey('game-end'),
                       title: Center(child: Text('End of Game')));
                 });
           } else if (snapshot.hasError) {
@@ -444,7 +504,7 @@ class _GameViewState extends State<GameView> {
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
                       DropdownMenu(
-                          initialSelection: event!.eventType,
+                          initialSelection: event.eventType,
                           onSelected: (eventType) async {
                             String type = eventType!.replaceAll(' ', '');
                             int data = 0;
@@ -618,10 +678,12 @@ class _GameViewState extends State<GameView> {
 
     if (event.eventPeriod >= 0) {
       if (event.id == -1) {
+        final newId = DateTime.now().millisecondsSinceEpoch;
         await DatabaseService.instance.insert(
             'Events',
             {
-              'id': DateTime.now().millisecondsSinceEpoch,
+              'id': newId,
+              'index': newId,
               'playerId': event.player?.id ?? -1,
               'teamId': event.team.id,
               'gameId': event.game.id,
