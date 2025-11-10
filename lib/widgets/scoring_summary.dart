@@ -53,7 +53,8 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                         final event = widget.game.scoringEvents[index];
                         final assistEvent = assistEvents
                             .where((e) =>
-                                (e.id == event.id + 1 &&
+                                (((e.id == event.id + 1) ||
+                                        e.eventMinute == event.eventMinute) &&
                                     e.eventType == 'Assist') ||
                                 e.eventData == event.id)
                             .firstOrNull;

@@ -435,7 +435,9 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
         .toList();
 
-    var playerEntries = awayPlayerEntries;
+    var playerEntries = event.team.id == _game.homeTeam.id
+        ? homePlayerEntries
+        : awayPlayerEntries;
 
     final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
         .map((t) => DropdownMenuEntry<String>(value: t, label: t))
@@ -463,27 +465,27 @@ class _GameViewState extends State<GameView> {
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Column(children: [
                       RadioGroup(
-                          groupValue: event!.team == _game.awayTeam ? 0 : 1,
+                          groupValue: event!.team == _game.homeTeam ? 0 : 1,
                           onChanged: (value) {
                             setModalState(() {
                               if (value == 0) {
-                                event!.team = _game.awayTeam;
-                                playerEntries = awayPlayerEntries;
-                              } else {
                                 event!.team = _game.homeTeam;
                                 playerEntries = homePlayerEntries;
+                              } else {
+                                event!.team = _game.awayTeam;
+                                playerEntries = awayPlayerEntries;
                               }
                             });
                           },
                           child: Row(children: [
                             Expanded(
                                 child: RadioListTile<int>(
-                              title: Text(_game.awayTeam.shortName),
+                              title: Text(_game.homeTeam.shortName),
                               value: 0,
                             )),
                             Expanded(
                                 child: RadioListTile<int>(
-                              title: Text(_game.homeTeam.shortName),
+                              title: Text(_game.awayTeam.shortName),
                               value: 1,
                             )),
                           ])),
