@@ -281,6 +281,12 @@ class _SeasonPageState extends State<SeasonPage> {
                             }
                             return Dismissible(
                                 key: Key(game.id.toString()),
+                                direction: DismissDirection
+                                    .startToEnd, // Only allow right to left swipe
+                                dismissThresholds: const {
+                                  DismissDirection.startToEnd:
+                                      0.5, // Require 50% swipe to trigger
+                                },
                                 background: Container(color: Colors.red),
                                 confirmDismiss: (_) {
                                   return showDialog(

@@ -68,6 +68,12 @@ class _PlayersPageState extends State<PlayersPage> {
                     final player = Player.fromMap(players[index]);
                     return Dismissible(
                         key: Key(player.id.toString()),
+                        direction: DismissDirection
+                            .startToEnd, // Only allow right to left swipe
+                        dismissThresholds: const {
+                          DismissDirection.startToEnd:
+                              0.5, // Require 50% swipe to trigger
+                        },
                         background: Container(color: Colors.red),
                         confirmDismiss: kIsWeb
                             ? (_) => Future.value(false)

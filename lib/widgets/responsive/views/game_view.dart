@@ -293,7 +293,16 @@ class _GameViewState extends State<GameView> {
 
     return Dismissible(
         key: Key(event.id.toString()),
-        background: Container(color: Colors.red),
+        direction:
+            DismissDirection.startToEnd, // Only allow right to left swipe
+        dismissThresholds: const {
+          DismissDirection.startToEnd: 0.5, // Require 50% swipe to trigger
+        },
+        background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Colors.white)),
         confirmDismiss: (_) {
           return showDialog(
             context: context,

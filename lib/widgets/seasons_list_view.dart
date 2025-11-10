@@ -94,6 +94,12 @@ class _SeasonsListViewState extends State<SeasonsListView> {
               ])));
           return Dismissible(
               key: Key(season.id.toString()),
+              direction:
+                  DismissDirection.startToEnd, // Only allow right to left swipe
+              dismissThresholds: const {
+                DismissDirection.startToEnd:
+                    0.5, // Require 50% swipe to trigger
+              },
               background: Container(color: Theme.of(context).colorScheme.error),
               behavior: HitTestBehavior.translucent,
               confirmDismiss: kIsWeb
