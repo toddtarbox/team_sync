@@ -257,7 +257,6 @@ class Game {
   int awayTeamScore;
   DateTime date;
   GameStatus gameStatus;
-  int milliSecondsLeft;
   String? description;
   String? gameLinks;
 
@@ -325,8 +324,7 @@ class Game {
       required this.date,
       required this.gameStatus,
       required this.description,
-      required this.gameLinks,
-      required this.milliSecondsLeft});
+      required this.gameLinks});
 
   static Game initial(
       {required int seasonId, required Team homeTeam, required Team awayTeam}) {
@@ -340,8 +338,7 @@ class Game {
         date: DateTime.now(),
         gameStatus: GameStatus.fromString('0'),
         description: '',
-        gameLinks: '',
-        milliSecondsLeft: 0);
+        gameLinks: '');
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
@@ -360,8 +357,7 @@ class Game {
         date: date,
         gameStatus: GameStatus.fromString(map['gameStatus'].toString()),
         description: map['description'],
-        gameLinks: map['gameLinks'],
-        milliSecondsLeft: map['milliSecondsLeft']);
+        gameLinks: map['gameLinks']);
   }
 
   static Future<Game?> fromId(int id) async {
@@ -465,7 +461,6 @@ class Game {
         'gameStatus': gameStatus.index,
         'description': description,
         'gameLinks': gameLinks,
-        'milliSecondsLeft': milliSecondsLeft
       };
 
       if (id == -1) {

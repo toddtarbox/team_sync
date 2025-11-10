@@ -38,8 +38,9 @@ class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
   late bool _isSubscribed;
-  bool _isImporting = false; // Flag to control the loading spinner
-  bool _isSharing = false; // Flag for sharing progress
+  bool _isLoading = false;
+  bool _isImporting = false;
+  bool _isSharing = false;
   final _teamIdController = TextEditingController();
 
   final _welcomeKey = GlobalKey();
@@ -338,7 +339,10 @@ class _HomePageState extends State<HomePage> {
           FutureBuilder(
             future: _load(),
             builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-              if (!snapshot.hasData || _isImporting || _isSharing) {
+              if (!snapshot.hasData ||
+                  _isLoading ||
+                  _isImporting ||
+                  _isSharing) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
@@ -813,7 +817,15 @@ class _HomePageState extends State<HomePage> {
       const storage = FlutterSecureStorage();
       final lastDBUsed = await storage.read(key: 'last_db_used');
       if (lastDBUsed != null) {
+        setState(() {
+          _isLoading = true;
+        });
+
         await _openCloudDatabase(lastDBUsed);
+
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
 

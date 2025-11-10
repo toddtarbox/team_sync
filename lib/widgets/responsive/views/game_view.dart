@@ -323,8 +323,6 @@ class _GameViewState extends State<GameView> {
         eventUrls: event?.eventUrls ?? '',
         eventData: event?.eventData ?? 0);
 
-    int? team = event.team.id == _game.awayTeam.id ? 0 : 1;
-
     final initialStatus = event.eventPeriod == -1
         ? _game.gameStatus == GameStatus.firstHalf
             ? '1st Half'
@@ -360,15 +358,15 @@ class _GameViewState extends State<GameView> {
                         ? 'Blocked'
                         : '';
 
-    List<DropdownMenuEntry> playerEntries = team == 0
-        ? awayTeamPlayers
-            .map((p) =>
-                DropdownMenuEntry<Player>(value: p, label: p.displayName))
-            .toList()
-        : homeTeamPlayers
-            .map((p) =>
-                DropdownMenuEntry<Player>(value: p, label: p.displayName))
-            .toList();
+    List<DropdownMenuEntry> homePlayerEntries = homeTeamPlayers
+        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .toList();
+
+    List<DropdownMenuEntry> awayPlayerEntries = awayTeamPlayers
+        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .toList();
+
+    var playerEntries = awayPlayerEntries;
 
     final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
         .map((t) => DropdownMenuEntry<String>(value: t, label: t))
@@ -395,32 +393,31 @@ class _GameViewState extends State<GameView> {
                 child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
                     child: Column(children: [
-                      Row(children: [
-                        Expanded(
-                            child: RadioListTile<int>(
-                          title: Text(_game.awayTeam.shortName),
-                          value: 0,
-                          groupValue: team,
-                          onChanged: (i) {
+                      RadioGroup(
+                          groupValue: event!.team == _game.awayTeam ? 0 : 1,
+                          onChanged: (value) {
                             setModalState(() {
-                              team = i;
-                              event!.team = _game.awayTeam;
+                              if (value == 0) {
+                                event!.team = _game.awayTeam;
+                                playerEntries = awayPlayerEntries;
+                              } else {
+                                event!.team = _game.homeTeam;
+                                playerEntries = homePlayerEntries;
+                              }
                             });
                           },
-                        )),
-                        Expanded(
-                            child: RadioListTile<int>(
-                          title: Text(_game.homeTeam.shortName),
-                          value: 1,
-                          groupValue: team,
-                          onChanged: (i) {
-                            setModalState(() {
-                              team = i;
-                              event!.team = _game.homeTeam;
-                            });
-                          },
-                        )),
-                      ]),
+                          child: Row(children: [
+                            Expanded(
+                                child: RadioListTile<int>(
+                              title: Text(_game.awayTeam.shortName),
+                              value: 0,
+                            )),
+                            Expanded(
+                                child: RadioListTile<int>(
+                              title: Text(_game.homeTeam.shortName),
+                              value: 1,
+                            )),
+                          ])),
                       const SizedBox(height: 30),
                       DropdownMenu(
                           initialSelection: initialStatus,
@@ -520,18 +517,20 @@ class _GameViewState extends State<GameView> {
                               dropdownMenuEntries: shotResultEntries)),
                       const SizedBox(height: 20),
                       Visibility(
-                          visible: (event.eventType == 'Shot' ||
-                                  event.eventType == 'PenaltyKick') &&
-                              event.eventData == ShotResult.goal.index,
+                          visible: ((event.eventType == 'Shot' ||
+                                      event.eventType == 'PenaltyKick') &&
+                                  event.eventData == ShotResult.goal.index) ||
+                              event.eventType == 'Assist',
                           child: Row(children: [
                             Expanded(
                                 child: TextFormField(
                                     initialValue: event.eventMinute.toString(),
                                     keyboardType: TextInputType.number,
                                     decoration: const InputDecoration(
-                                        labelText: 'Game Minute (Goals Only)'),
+                                        labelText:
+                                            'Game Minute (Goals and Assists Only)'),
                                     onChanged: (minute) => event!.eventMinute =
-                                        int.parse(minute))),
+                                        int.tryParse(minute) ?? -1)),
                             Expanded(
                                 child: Checkbox(
                                     value: event.player?.id == -2,
@@ -557,15 +556,15 @@ class _GameViewState extends State<GameView> {
                             TextButton(
                                 onPressed: () async {
                                   if (mounted) {
-                                    final canSave =
-                                        event!.eventType == 'Corner' ||
-                                            ((event.eventType == 'Shot' ||
-                                                    event.eventType ==
-                                                        'PenaltyKick') &&
-                                                (event.eventData ==
-                                                    ShotResult.goal.index) &&
-                                                event.player != null &&
-                                                event.eventMinute > 0);
+                                    final canSave = ((event!.eventType ==
+                                                    'Shot' ||
+                                                event.eventType ==
+                                                    'PenaltyKick') &&
+                                            (event.eventData ==
+                                                    ShotResult.goal.index &&
+                                                event.eventMinute > 0)) ||
+                                        (event.eventType != 'Shot' ||
+                                            event.eventType != 'PenaltyKick');
                                     if (!canSave) {
                                       return;
                                     }
@@ -627,11 +626,9 @@ class _GameViewState extends State<GameView> {
               'gameId': event.game.id,
               'seasonId': event.game.seasonId,
               'eventType': event.eventType,
-              'eventLocation': '0,0',
               'eventMinute': event.eventMinute,
               'eventPeriod': event.eventPeriod,
               'eventData': event.eventData,
-              'eventTextData': null,
               'eventUrls': event.eventUrls
             },
             conflictAlgorithm: ConflictAlgorithm.replace);
@@ -644,11 +641,9 @@ class _GameViewState extends State<GameView> {
               'gameId': event.game.id,
               'seasonId': event.game.seasonId,
               'eventType': event.eventType,
-              'eventLocation': '0,0',
               'eventMinute': event.eventMinute,
               'eventPeriod': event.eventPeriod,
               'eventData': event.eventData,
-              'eventTextData': null,
               'eventUrls': event.eventUrls
             },
             where: 'id=?',

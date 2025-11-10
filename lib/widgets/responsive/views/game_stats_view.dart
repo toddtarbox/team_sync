@@ -68,7 +68,9 @@ class _GameStatsViewState extends State<GameStatsView> {
                     final event = _game.scoringEvents[index - 1];
                     final assistEvent = assistEvents
                         .where((e) =>
-                            (e.id == event.id + 1 && e.eventType == 'Assist') ||
+                            (((e.id == event.id + 1) ||
+                                    e.eventMinute == event.eventMinute) &&
+                                e.eventType == 'Assist') ||
                             e.eventData == event.id)
                         .firstOrNull;
 
