@@ -1,0 +1,26 @@
+# Paths and patterns to ignore for gitleaks scans
+# Local env files
+.env
+.env.*
+
+# Flutter/Dart generated and cache directories
+.build/
+build/
+.dart_tool/
+.pub/
+.ios/
+.android/
+
+# Node and other deps
+node_modules/
+
+# CI and config
+.github/
+
+# OS files
+.DS_Store
+
+# Allowlist any README/example files that may include example keys (non-sensitive)
+README.md
+.env.example
+
