@@ -362,7 +362,7 @@ class Game {
 
   static Future<Game?> fromId(int id) async {
     final results = await DatabaseService.instance
-        .query('Games', where: 'id=?', whereArgs: [id]);
+        .query('Games', orderByChild: 'id', equalTo: id);
     if (results.isNotEmpty) {
       return Game.fromMap(results.first);
     } else {
@@ -372,7 +372,7 @@ class Game {
 
   static Future<List<Game>> listFromSeasonId(int seasonId) async {
     final results = await DatabaseService.instance
-        .query('Games', where: 'seasonId=?', whereArgs: [seasonId]);
+        .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
 
     final games = await Future.wait(results
         .map((g) async => await Game.fromMap(g))
@@ -384,9 +384,9 @@ class Game {
 
   static Future<List<Game>> listFromTeamId(int teamId) async {
     final homeResults = await DatabaseService.instance
-        .query('Games', where: 'homeTeamId=?', whereArgs: [teamId]);
+        .query('Games', orderByChild: 'homeTeamId', equalTo: teamId);
     final awayResults = await DatabaseService.instance
-        .query('Games', where: 'awayTeamId=?', whereArgs: [teamId]);
+        .query('Games', orderByChild: 'awayTeamId', equalTo: teamId);
     final results = homeResults + awayResults;
 
     final games = await Future.wait(results
@@ -461,7 +461,7 @@ class Game {
             conflictAlgorithm: ConflictAlgorithm.replace);
       } else {
         await DatabaseService.instance
-            .update('Games', data, where: 'id=?', whereArgs: [id]);
+            .update('Games', data, key: id.toString());
       }
       return true;
     }

@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "542457934179",
+    "firebase_url": "https://team-sync-soccer-default-rtdb.firebaseio.com",
     "project_id": "team-sync-soccer",
     "storage_bucket": "team-sync-soccer.firebasestorage.app"
   },

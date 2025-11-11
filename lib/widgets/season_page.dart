@@ -322,8 +322,18 @@ class _SeasonPageState extends State<SeasonPage> {
                                   );
                                 },
                                 onDismissed: (direction) async {
-                                  await DatabaseService.instance.delete('Games',
-                                      where: 'id=?', whereArgs: [game.id]);
+                                  // Find matching child keys by id then delete by RTDB child key
+                                  final candidates = await DatabaseService
+                                      .instance
+                                      .query('Games',
+                                          orderByChild: 'id', equalTo: game.id);
+                                  for (final c in candidates) {
+                                    final k = c['_key']?.toString();
+                                    if (k != null) {
+                                      await DatabaseService.instance
+                                          .delete('Games', key: k);
+                                    }
+                                  }
                                   setState(() {});
                                 },
                                 child: gameCard);
@@ -694,8 +704,7 @@ class _SeasonPageState extends State<SeasonPage> {
       await DatabaseService.instance.update(
         'Seasons',
         {'logoUrl': imageUrl},
-        where: 'id=?',
-        whereArgs: [widget.season.id],
+        key: widget.season.id.toString(),
       );
       widget.season.logoUrl = imageUrl;
     }

@@ -51,6 +51,7 @@ class DefaultFirebaseOptions {
     appId: '1:542457934179:android:fc3f9989d51f9e2cc52356',
     messagingSenderId: '542457934179',
     projectId: 'team-sync-soccer',
+    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
     storageBucket: 'team-sync-soccer.firebasestorage.app',
   );
 
@@ -59,6 +60,7 @@ class DefaultFirebaseOptions {
     appId: '1:542457934179:ios:61b944505cc95e7bc52356',
     messagingSenderId: '542457934179',
     projectId: 'team-sync-soccer',
+    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
     storageBucket: 'team-sync-soccer.firebasestorage.app',
     androidClientId: '542457934179-7l4c1l8galtjfi36vob54gj1rp7q2530.apps.googleusercontent.com',
     iosClientId: '542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com',
@@ -71,6 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '542457934179',
     projectId: 'team-sync-soccer',
     authDomain: 'team-sync-soccer.firebaseapp.com',
+    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
     storageBucket: 'team-sync-soccer.firebasestorage.app',
     measurementId: 'G-Y5Y26V84T8',
   );

@@ -1,0 +1,19 @@
+{
+  "name": "migrate-firestore-to-realtime",
+  "version": "1.0.0",
+  "description": "Migration tool: Firestore -> Firebase Realtime Database (admin)",
+  "main": "migrate.js",
+  "scripts": {
+    "migrate": "node migrate.js"
+  },
+  "bin": {
+    "migrate-firestore-rt": "migrate.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.10.0"
+  }
+}
+

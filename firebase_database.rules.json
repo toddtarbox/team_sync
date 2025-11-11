@@ -1,0 +1,49 @@
+{
+  "rules": {
+    "subscriptionIds": {
+      "$uid": {
+        "databases": {
+          "$db": {
+            "Teams": {
+              ".indexOn": ["id"]
+            },
+            "Players": {
+              ".indexOn": ["id", "teamId", "seasonId"]
+            },
+            "Games": {
+              ".indexOn": ["id", "seasonId", "homeTeamId", "awayTeamId"]
+            },
+            "Events": {
+              ".indexOn": ["id", "gameId", "teamId", "seasonId"]
+            },
+            "Seasons": {
+              ".indexOn": ["id", "teamId"]
+            },
+            "_backups": {
+              "$backup_ts": {
+                ".read": "auth != null && auth.uid == $uid",
+                ".write": "auth != null && auth.uid == $uid"
+              }
+            },
+            // Allow the owning authenticated user OR anyone when the database
+            // has a publicShareId set (makes that DB publicly viewable).
+            ".read": "(auth != null && auth.uid == $uid) || (data.child('publicShareId').val() != null)",
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        }
+      }
+    },
+
+    // Top-level mapping maintained by Cloud Functions: shared_databases
+    "shared_databases": {
+      ".read": true,
+      // Only authenticated users or admin functions should write; allowing
+      // auth != null here is conservative — deployed functions should use
+      // admin SDK which bypasses rules when writing.
+      ".write": "auth != null",
+      "$publicId": {
+        ".validate": "newData.hasChildren(['databasePath']) && newData.child('databasePath').isString()"
+      }
+    }
+  }
+}

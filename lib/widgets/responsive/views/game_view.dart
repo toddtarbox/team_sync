@@ -213,8 +213,7 @@ class _GameViewState extends State<GameView> {
                       await DatabaseService.instance.update(
                         'Events',
                         {'index': currentEvent.index},
-                        where: 'id=?',
-                        whereArgs: [currentEvent.id],
+                        key: currentEvent.id.toString(),
                       );
                     }
 
@@ -343,7 +342,7 @@ class _GameViewState extends State<GameView> {
         },
         onDismissed: (direction) async {
           await DatabaseService.instance
-              .delete('Events', where: 'id=?', whereArgs: [event.id]);
+              .delete('Events', key: event.id.toString());
           setState(() {
             _game.updateScore();
           });
@@ -732,8 +731,7 @@ class _GameViewState extends State<GameView> {
               'eventData': event.eventData,
               'eventUrls': event.eventUrls
             },
-            where: 'id=?',
-            whereArgs: [event.id]);
+            key: event.id.toString());
       }
 
       await _game.updateScore();

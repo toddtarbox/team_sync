@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/widgets/connection_status_indicator.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget title;
@@ -12,6 +13,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final combinedActions = <Widget>[
+      const ConnectionStatusIndicator(),
+      // include any extra actions the caller provided
+      if (actions != null) ...actions!,
+    ];
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -35,7 +42,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 : Image.asset('assets/images/pngs/icon_no_background.png',
                     width: 16, height: 16)),
         title: title,
-        actions: actions,
+        actions: combinedActions,
         bottom: bottom,
         backgroundColor: Colors.transparent,
         elevation: 0,

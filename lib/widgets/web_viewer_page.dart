@@ -1,10 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
+/// Shows the contents of a Realtime Database document/tree at [databasePath].
+/// Example path: 'subscriptionIds/<uid>/databases/<dbName>'
 class WebViewerPage extends StatelessWidget {
-  final String databaseId;
+  final String databasePath;
 
-  const WebViewerPage({super.key, required this.databaseId});
+  const WebViewerPage({super.key, required this.databasePath});
 
   @override
   Widget build(BuildContext context) {
@@ -12,52 +14,88 @@ class WebViewerPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('TeamSync Database Viewer'),
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('shared_databases')
-            .doc(databaseId)
-            .get(),
+      body: FutureBuilder<DatabaseEvent>(
+        future: FirebaseDatabase.instance.ref(databasePath).once(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Database not found.'));
-          }
           if (snapshot.hasError) {
             return const Center(child: Text('Error loading database.'));
           }
+          final event = snapshot.data;
+          if (event == null || event.snapshot.value == null) {
+            return const Center(child: Text('Database not found.'));
+          }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          // The shared database mapping may contain nested tables stored as
+          // either a List or a Map keyed by id. Normalize each table into a
+          // List<Map<String, dynamic>> where each row includes an 'id' field
+          // when possible.
+          final raw = event.snapshot.value;
+          if (raw is! Map) {
+            return const Center(child: Text('Unexpected database format.'));
+          }
+
+          final data = Map<String, dynamic>.from(raw);
           final tables = data.keys.toList();
 
           return ListView.builder(
             itemCount: tables.length,
             itemBuilder: (context, index) {
               final tableName = tables[index];
-              final tableData = data[tableName] as List<dynamic>;
+              final tableRaw = data[tableName];
 
-              if (tableData.isEmpty) {
+              // Normalize rows
+              List<Map<String, dynamic>> rows = [];
+              if (tableRaw is List) {
+                rows = tableRaw
+                    .where((e) => e != null)
+                    .map((e) =>
+                        e is Map ? Map<String, dynamic>.from(e) : {'value': e})
+                    .toList();
+              } else if (tableRaw is Map) {
+                rows = (tableRaw as Map).entries.map((entry) {
+                  final key = entry.key.toString();
+                  final val = entry.value;
+                  if (val is Map) {
+                    final mapVal = Map<String, dynamic>.from(val);
+                    mapVal['id'] = key;
+                    return mapVal;
+                  }
+                  return {'id': key, 'value': val};
+                }).toList();
+              }
+
+              if (rows.isEmpty) {
                 return ExpansionTile(
-                  title: Text(tableName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(tableName,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   children: const [ListTile(title: Text('No data'))],
                 );
               }
 
-              final columns = (tableData.first as Map<String, dynamic>).keys.toList();
+              // Compute union of columns across all rows
+              final columnsSet = <String>{};
+              for (final r in rows) {
+                columnsSet.addAll(r.keys);
+              }
+              final columns = columnsSet.toList();
 
               return ExpansionTile(
-                title: Text(tableName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(tableName,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
                 children: [
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: DataTable(
-                      columns: columns.map((col) => DataColumn(label: Text(col))).toList(),
-                      rows: tableData.map((row) {
-                        final rowData = row as Map<String, dynamic>;
+                      columns: columns
+                          .map((col) => DataColumn(label: Text(col)))
+                          .toList(),
+                      rows: rows.map((row) {
                         return DataRow(
                           cells: columns.map((col) {
-                            return DataCell(Text(rowData[col]?.toString() ?? ''));
+                            return DataCell(Text(row[col]?.toString() ?? ''));
                           }).toList(),
                         );
                       }).toList(),

@@ -55,7 +55,7 @@ class Player {
     }
 
     final results = await DatabaseService.instance
-        .query('Players', where: 'id=?', whereArgs: [id]);
+        .query('Players', orderByChild: 'id', equalTo: id);
     if (results.isNotEmpty) {
       return Player.fromMap(results.first);
     } else {
@@ -67,8 +67,8 @@ class Player {
     if (ids.isEmpty) {
       return {};
     }
-    final results =
-        await DatabaseService.instance.query('Players', where: 'id IN ($ids)');
+    // 'IN' not supported by RTDB native queries; fallback to client-side filter.
+    final results = await DatabaseService.instance.query('Players');
     final players =
         results.map((p) => Player.fromMap(p)).toList(growable: false);
     return {for (var p in players) p.id: p};
@@ -76,7 +76,7 @@ class Player {
 
   static Future<Map<int, Player>> allFromTeamId(int teamId) async {
     final results = await DatabaseService.instance
-        .query('Players', where: 'teamId=?', whereArgs: [teamId]);
+        .query('Players', orderByChild: 'teamId', equalTo: teamId);
     final players =
         results.map((p) => Player.fromMap(p)).toList(growable: false);
     return {for (var p in players) p.id: p};
@@ -84,11 +84,13 @@ class Player {
 
   static Future<List<Player>> listFromTeamIdSeasonId(
       int teamId, int seasonId) async {
-    final results = await DatabaseService.instance.query('Players',
-        where: 'teamId=? AND seasonId=?', whereArgs: [teamId, seasonId]);
+    // Use native RTDB query for teamId then filter seasonId locally to reduce bandwidth
+    final results = await DatabaseService.instance
+        .query('Players', orderByChild: 'teamId', equalTo: teamId);
+    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
 
     final players =
-        results.map((p) => Player.fromMap(p)).toList(growable: false);
+        filtered.map((p) => Player.fromMap(p)).toList(growable: false);
     players.sort((a, b) => a.displayName.compareTo(b.displayName));
 
     return players;

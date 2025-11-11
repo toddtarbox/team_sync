@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/markdown_viewer.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
 
@@ -111,6 +112,23 @@ class SettingsPage extends StatelessWidget {
                   );
                 },
               ),
+              // Debug-only migration prompt: allows a developer to run
+              // Firestore -> Realtime Database import from the app.
+              if (kDebugMode) ...[
+                const Divider(),
+                ListTile(
+                  title: const Text('Debug: Import Firestore to RTDB'),
+                  leading: const Icon(Icons.cloud_upload),
+                  onTap: () {
+                    // Navigate to the debug migration page for interactive migration
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => const DebugMigrationPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           );
         },

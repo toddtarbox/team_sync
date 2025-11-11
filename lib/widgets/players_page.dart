@@ -54,14 +54,23 @@ class _PlayersPageState extends State<PlayersPage> {
                   },
                 )),
         body: FutureBuilder(
+          // Query by teamId using RTDB native query to reduce bandwidth, then
+          // filter by seasonId and sort locally by firstName to keep original behavior.
           future: DatabaseService.instance.query('Players',
-              where: 'seasonId=? AND teamId=?',
-              whereArgs: [widget.season.id, widget.season.teamId],
-              orderBy: "firstName ASC"),
+              orderByChild: 'teamId', equalTo: widget.season.teamId),
           builder: (BuildContext context,
               AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
             if (snapshot.hasData) {
-              final players = snapshot.data!;
+              // Filter results to this season and sort by firstName ASC
+              final raw = snapshot.data!;
+              final players = raw
+                  .where((p) => p['seasonId'] == widget.season.id)
+                  .toList(growable: false);
+              players.sort((a, b) {
+                final af = (a['firstName'] ?? '').toString();
+                final bf = (b['firstName'] ?? '').toString();
+                return af.compareTo(bf);
+              });
               return ListView.builder(
                   itemCount: players.length,
                   itemBuilder: (context, index) {
@@ -120,9 +129,19 @@ class _PlayersPageState extends State<PlayersPage> {
                               // Image may not exist, so we can ignore.
                             }
                           }
-                          await DatabaseService.instance.delete('Players',
-                              where: 'id=? AND seasonId=?',
-                              whereArgs: [player.id, widget.season.id]);
+                          // Find child keys where id==player.id and seasonId==widget.season.id
+                          final candidates = await DatabaseService.instance
+                              .query('Players',
+                                  orderByChild: 'id', equalTo: player.id);
+                          for (final c in candidates) {
+                            if (c['seasonId'] == widget.season.id) {
+                              final k = c['_key']?.toString();
+                              if (k != null) {
+                                await DatabaseService.instance
+                                    .delete('Players', key: k);
+                              }
+                            }
+                          }
                           setState(() {});
                         },
                         child: ListTile(
@@ -255,19 +274,30 @@ class _PlayersPageState extends State<PlayersPage> {
                                             ? nameParts.last
                                             : '';
 
-                                        await DatabaseService.instance.update(
-                                            'Players',
-                                            {
-                                              'firstName': firstName,
-                                              'lastName': lastName,
-                                              'number': playerNumber,
-                                              'profileImage': imageUrl
-                                            },
-                                            where: 'id=? AND seasonId=?',
-                                            whereArgs: [
-                                              player.id,
-                                              widget.season.id
-                                            ]);
+                                        // Safe RTDB update: locate child key(s) for this player id + seasonId
+                                        final candidates = await DatabaseService
+                                            .instance
+                                            .query('Players',
+                                                orderByChild: 'id',
+                                                equalTo: player.id);
+                                        for (final c in candidates) {
+                                          if (c['seasonId'] ==
+                                              widget.season.id) {
+                                            final k = c['_key']?.toString();
+                                            if (k != null) {
+                                              await DatabaseService.instance
+                                                  .update(
+                                                      'Players',
+                                                      {
+                                                        'firstName': firstName,
+                                                        'lastName': lastName,
+                                                        'number': playerNumber,
+                                                        'profileImage': imageUrl
+                                                      },
+                                                      key: k);
+                                            }
+                                          }
+                                        }
 
                                         setState(() {});
                                         Navigator.pop(context);

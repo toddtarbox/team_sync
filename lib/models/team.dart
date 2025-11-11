@@ -45,7 +45,7 @@ class Team extends Equatable {
 
   static Future<Team> fromId(int id) async {
     final results = await DatabaseService.instance
-        .query('Teams', where: 'id=?', whereArgs: [id]);
+        .query('Teams', orderByChild: 'id', equalTo: id);
     return Team.fromMap(results.first);
   }
 
@@ -56,14 +56,14 @@ class Team extends Equatable {
 
   Future<dynamic> fetchAllDataForCareer() async {
     return await DatabaseService.instance
-        .query('Events', where: 'teamId=?', whereArgs: [id]);
+        .query('Events', orderByChild: 'teamId', equalTo: id);
   }
 
   Future<dynamic> fetchAllDataForSeason() async {
     final seasonsFuture = Season.fromTeamId(id);
     final playersFuture = Player.allFromTeamId(id);
     final eventsFuture = DatabaseService.instance
-        .query('Events', where: 'teamId=?', whereArgs: [id]);
+        .query('Events', orderByChild: 'teamId', equalTo: id);
 
     final results =
         await Future.wait([seasonsFuture, playersFuture, eventsFuture]);
@@ -226,7 +226,7 @@ class Team extends Equatable {
   Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(
       LeaderCategory category) async {
     final results = await DatabaseService.instance
-        .query('Events', where: 'teamId=?', whereArgs: [id]);
+        .query('Events', orderByChild: 'teamId', equalTo: id);
     final stats = CareerStats.fromMap(id, results);
     final statPlayers = await stats.getStatPlayers(category);
     final sortedStats = List.from(statPlayers.entries);

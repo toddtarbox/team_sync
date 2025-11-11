@@ -135,7 +135,7 @@ class _SeasonsListViewState extends State<SeasonsListView> {
                     },
               onDismissed: (direction) async {
                 await DatabaseService.instance
-                    .delete('Seasons', where: 'id=?', whereArgs: [season.id]);
+                    .delete('Seasons', key: season.id.toString());
                 widget.seasons.removeAt(index);
                 setState(() {});
               },
@@ -180,8 +180,7 @@ class _SeasonsListViewState extends State<SeasonsListView> {
       await DatabaseService.instance.update(
         'Seasons',
         {'logoUrl': imageUrl},
-        where: 'id=?',
-        whereArgs: [season.id],
+        key: season.id.toString(),
       );
       season.logoUrl = imageUrl;
     }

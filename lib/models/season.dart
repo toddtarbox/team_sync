@@ -31,7 +31,7 @@ class Season {
 
   static Future<List<Season>> fromTeamId(int teamId) async {
     final results = await DatabaseService.instance
-        .query('Seasons', where: 'teamId=?', whereArgs: [teamId]);
+        .query('Seasons', orderByChild: 'teamId', equalTo: teamId);
     return results.map((s) => Season.fromMap(s)).toList(growable: false);
   }
 
@@ -48,7 +48,7 @@ class Season {
   Future<SeasonStats?> getStats() async {
     try {
       final results = await DatabaseService.instance
-          .query('Events', where: 'seasonId=?', whereArgs: [id]);
+          .query('Events', orderByChild: 'seasonId', equalTo: id);
       return SeasonStats.fromMap(teamId, id, results);
     } catch (ex) {
       return null;

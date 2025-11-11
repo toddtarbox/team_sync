@@ -649,8 +649,14 @@ class GameEvent {
   }
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {
-    final results = await DatabaseService.instance.query('Events',
-        where: 'gameId=?', whereArgs: [gameId], orderBy: 'index ASC');
+    final results = await DatabaseService.instance
+        .query('Events', orderByChild: 'gameId', equalTo: gameId);
+    // Apply index sort locally
+    results.sort((a, b) {
+      final ai = a['index'] ?? a['id'];
+      final bi = b['index'] ?? b['id'];
+      return (ai as int).compareTo(bi as int);
+    });
 
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(g))
@@ -661,7 +667,7 @@ class GameEvent {
 
   static Future<List<GameEvent>> listFromTeamId(int teamId) async {
     final results = await DatabaseService.instance
-        .query('Events', where: 'teamId=?', whereArgs: [teamId]);
+        .query('Events', orderByChild: 'teamId', equalTo: teamId);
     final events = await Future.wait(results
         .map((g) async => await GameEvent.fromMap(g))
         .toList(growable: false));

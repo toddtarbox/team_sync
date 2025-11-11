@@ -32,5 +32,7 @@
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:542457934179:ios:61b944505cc95e7bc52356</string>
+	<key>DATABASE_URL</key>
+	<string>https://team-sync-soccer-default-rtdb.firebaseio.com</string>
 </dict>
 </plist>

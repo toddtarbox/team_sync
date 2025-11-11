@@ -750,7 +750,7 @@ class _HomePageState extends State<HomePage> {
     await DatabaseService.instance.open(importedFile.path);
 
     final teamResult = await DatabaseService.instance
-        .query('Teams', where: 'id=?', whereArgs: [1]);
+        .query('Teams', orderByChild: 'id', equalTo: 1);
     if (teamResult.isNotEmpty) {
       _team = Team.fromMap(teamResult.first);
       await _loadSeasons();
@@ -771,17 +771,13 @@ class _HomePageState extends State<HomePage> {
 
       DatabaseService.instance.setProvider(FirebaseDBProvider());
 
-      if (!databaseName.endsWith('.db')) {
-        databaseName += '.db';
-      }
-
       await DatabaseService.instance.open(databaseName);
 
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
 
       final teamResult = await DatabaseService.instance
-          .query('Teams', where: 'id=?', whereArgs: [1]);
+          .query('Teams', orderByChild: 'id', equalTo: 1);
       if (teamResult.isNotEmpty) {
         _team = Team.fromMap(teamResult.first);
         await _loadSeasons();
@@ -804,7 +800,7 @@ class _HomePageState extends State<HomePage> {
       }
 
       final teamResult = await DatabaseService.instance
-          .query('Teams', where: 'id=?', whereArgs: [1]);
+          .query('Teams', orderByChild: 'id', equalTo: 1);
       if (teamResult.isNotEmpty) {
         _team = Team.fromMap(teamResult.first);
         await _loadSeasons();
@@ -929,12 +925,11 @@ class _HomePageState extends State<HomePage> {
       await DatabaseService.instance.update(
         'Teams',
         {'logoUrl': imageUrl},
-        where: 'id=?',
-        whereArgs: [_team!.id],
+        key: _team!.id.toString(),
       );
 
       final teamResult = await DatabaseService.instance
-          .query('Teams', where: 'id=?', whereArgs: [_team!.id]);
+          .query('Teams', orderByChild: 'id', equalTo: _team!.id);
       if (teamResult.isNotEmpty) {
         setState(() {
           _team = Team.fromMap(teamResult.first);
@@ -978,11 +973,10 @@ class _HomePageState extends State<HomePage> {
                     'color1': pickerColor1.toARGB32(),
                     'color2': pickerColor2.toARGB32()
                   },
-                  where: 'id=?',
-                  whereArgs: [_team!.id],
+                  key: _team!.id.toString(),
                 );
                 final teamResult = await DatabaseService.instance
-                    .query('Teams', where: 'id=?', whereArgs: [_team!.id]);
+                    .query('Teams', orderByChild: 'id', equalTo: _team!.id);
                 if (teamResult.isNotEmpty) {
                   setState(() {
                     _team = Team.fromMap(teamResult.first);
