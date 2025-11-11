@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: CI debug: runner info
+      - name: "CI debug: runner info"
         run: |
           set -euo pipefail
           echo "==== PATH ===="
@@ -70,7 +70,7 @@ jobs:
     needs: analyze
     steps:
       - uses: actions/checkout@v4
-      - name: CI debug: runner info
+      - name: "CI debug: runner info"
         run: |
           set -euo pipefail
           echo "==== PATH ===="
