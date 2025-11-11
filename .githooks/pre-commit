@@ -96,5 +96,22 @@ if [ $FOUND -ne 0 ]; then
   exit 1
 fi
 
+# Run flutter analyze on staged Dart files (if any) and if flutter is available
+STAGED_DART_FILES=$(echo "$FILES_TO_SCAN" | grep -E '\.dart$' || true)
+if [ -n "$STAGED_DART_FILES" ]; then
+  if command -v flutter >/dev/null 2>&1; then
+    echo "[pre-commit] running flutter analyze on staged Dart files..."
+    # Read into array to preserve filenames with spaces
+    IFS=$'\n' read -r -d '' -a DART_FILES_ARRAY <<<"$STAGED_DART_FILES" || true
+    if ! flutter analyze "${DART_FILES_ARRAY[@]}"; then
+      echo
+      echo "ERROR: flutter analyze failed. Fix analyzer issues before committing." >&2
+      exit 1
+    fi
+  else
+    echo "[pre-commit] flutter not found in PATH; skipping flutter analyze"
+  fi
+fi
+
 # No secrets found
 exit 0
