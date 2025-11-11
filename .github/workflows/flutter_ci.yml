@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-env:
-  FLUTTER_PINNED_TAG: "3.25.6"
-
 jobs:
   analyze:
     runs-on: ubuntu-latest
@@ -19,14 +16,14 @@ jobs:
         id: flutter-cache
         with:
           path: $HOME/flutter
-          key: flutter-${{ runner.os }}-v${{ env.FLUTTER_PINNED_TAG }}
+          key: flutter-${{ runner.os }}-stable
       - name: Clone Flutter SDK (cache miss)
         if: steps.flutter-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          echo "Cache miss — cloning Flutter ${FLUTTER_PINNED_TAG}"
+          echo "Cache miss — cloning Flutter stable branch"
           rm -rf "$HOME/flutter" || true
-          git clone https://github.com/flutter/flutter.git --branch "${FLUTTER_PINNED_TAG}" --depth 1 "$HOME/flutter"
+          git clone https://github.com/flutter/flutter.git --branch stable --depth 1 "$HOME/flutter"
         shell: bash
       - name: Setup Flutter environment
         run: |
@@ -61,14 +58,14 @@ jobs:
         id: flutter-cache
         with:
           path: $HOME/flutter
-          key: flutter-${{ runner.os }}-v${{ env.FLUTTER_PINNED_TAG }}
+          key: flutter-${{ runner.os }}-stable
       - name: Clone Flutter SDK (cache miss)
         if: steps.flutter-cache.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          echo "Cache miss — cloning Flutter ${FLUTTER_PINNED_TAG}"
+          echo "Cache miss — cloning Flutter stable branch"
           rm -rf "$HOME/flutter" || true
-          git clone https://github.com/flutter/flutter.git --branch "${FLUTTER_PINNED_TAG}" --depth 1 "$HOME/flutter"
+          git clone https://github.com/flutter/flutter.git --branch stable --depth 1 "$HOME/flutter"
         shell: bash
       - name: Setup Flutter environment
         run: |
