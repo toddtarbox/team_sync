@@ -6,10 +6,8 @@ on:
   pull_request:
     branches: [ main ]
 
-# Pin value for Flutter stable release tag — change this if you want a different stable release
-# Assumption: using tag '3.13.0' as a representative stable release; update if you prefer another tag
 env:
-  FLUTTER_PINNED_TAG: "3.13.0"
+  FLUTTER_PINNED_TAG: "3.25.6"
 
 jobs:
   analyze:
