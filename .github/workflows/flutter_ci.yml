@@ -16,18 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: "CI debug: runner info"
-        run: |
-          set -euo pipefail
-          echo "==== PATH ===="
-          echo "$PATH"
-          echo "==== env (filtered) ===="
-          env | egrep '(^PATH=|FLUTTER|GITHUB|RUNNER|HOME)' || true
-          echo "==== which flutter ===="
-          which flutter || true
-          echo "==== OS release ===="
-          cat /etc/os-release || true
-        shell: bash
       - name: Cache Flutter SDK
         uses: actions/cache@v4
         id: flutter-cache
@@ -70,18 +58,6 @@ jobs:
     needs: analyze
     steps:
       - uses: actions/checkout@v4
-      - name: "CI debug: runner info"
-        run: |
-          set -euo pipefail
-          echo "==== PATH ===="
-          echo "$PATH"
-          echo "==== env (filtered) ===="
-          env | egrep '(^PATH=|FLUTTER|GITHUB|RUNNER|HOME)' || true
-          echo "==== which flutter ===="
-          which flutter || true
-          echo "==== OS release ===="
-          cat /etc/os-release || true
-        shell: bash
       - name: Cache Flutter SDK
         uses: actions/cache@v4
         id: flutter-cache

@@ -1,39 +1,11 @@
-name: CI debug — list workflows
+name: CI debug — no-op
 
 on:
   workflow_dispatch: {}
-  push:
-    branches: [ main ]
 
 jobs:
-  list-workflows:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Print basic runner info
-        run: |
-          set -euo pipefail
-          echo "GITHUB_WORKFLOW=$GITHUB_WORKFLOW"
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "GITHUB_SHA=$GITHUB_SHA"
-          echo "===== /usr/bin/env ====="
-          env | sort
-      - name: List .github/workflows
-        run: |
-          set -euo pipefail
-          echo "===== workflow filenames ====="
-          ls -la .github/workflows || true
-          echo "===== search for subosito and flutter-version ====="
-          grep -R --line-number "subosito/flutter-action" . || true
-          grep -R --line-number "flutter-version" . || true
-      - name: Show matching workflow contents
-        run: |
-          set -euo pipefail
-          for f in $(grep -R --line-number "subosito/flutter-action\|flutter-version" . | cut -d: -f1 | sort -u); do
-            echo "----- $f -----"
-            sed -n '1,240p' "$f" || true
-            echo
-          done
-      - name: Print head of flutter_ci.yml
-        run: sed -n '1,240p' .github/workflows/flutter_ci.yml || true
-
+      - name: Confirm debug workflow
+        run: echo "CI debug workflow present — no-op"
