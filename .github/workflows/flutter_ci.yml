@@ -14,7 +14,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
+          flutter-version: stable
+          cache: true
       - name: Install dependencies
         run: flutter pub get
       - name: Analyze
@@ -30,7 +31,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
+          flutter-version: stable
+          cache: true
       - name: Install dependencies
         run: flutter pub get
       - name: Build web (release) with Firebase env from Secrets
@@ -85,4 +87,3 @@ jobs:
   #           --dart-define=FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID" \
   #           --dart-define=FIREBASE_DATABASE_URL="$FIREBASE_DATABASE_URL" \
   #           --dart-define=FIREBASE_STORAGE_BUCKET="$FIREBASE_STORAGE_BUCKET"
-
