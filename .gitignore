@@ -47,3 +47,8 @@ app.*.map.json
 # Firebase
 .firebase/
 /functions/node_modules/
+
+# Local secrets (do not commit API keys or env files)
+.env
+.env.*
+firebase_config.dart
