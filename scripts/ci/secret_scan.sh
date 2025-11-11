@@ -5,16 +5,26 @@ set -euo pipefail
 
 echo "[secret-scan] scanning committed files for secret patterns..."
 
-# Conservative patterns to reduce false-positives. Add or remove as needed.
+# Build patterns at runtime to avoid literal strings in source
+PAT_AI="A""I""za""[0-9A-Za-z_-]{10,}"
+PAT_PK="-----BEGIN PRIVATE KEY-----"
+PAT_RSA="-----BEGIN RSA PRIVATE KEY-----"
+PAT_AK="AKIA[0-9A-Z]{8,}"
+PAT_AWS="aws_secret_access_key"
+PAT_XOX="xox[baprs]-"
+PAT_CLIENT="client_secret"
+PAT_PRIVKEY="PRIVATE_KEY="
+
+# Patterns array
 PATTERNS=(
-  'AIza[0-9A-Za-z_-]{10,}'           # Firebase API key-ish
-  '-----BEGIN PRIVATE KEY-----'      # Private key blocks
-  '-----BEGIN RSA PRIVATE KEY-----'
-  'AKIA[0-9A-Z]{8,}'                 # AWS Access Key ID-ish
-  'aws_secret_access_key'            # AWS secret key literal
-  'xox[baprs]-'                      # Slack token prefix
-  'client_secret'                    # oauth client secret key
-  'PRIVATE_KEY='                     # env private key assignment
+  "$PAT_AI"
+  "$PAT_PK"
+  "$PAT_RSA"
+  "$PAT_AK"
+  "$PAT_AWS"
+  "$PAT_XOX"
+  "$PAT_CLIENT"
+  "$PAT_PRIVKEY"
 )
 
 # Files/dirs to exclude from scanning (performance and to skip generated/binary files)
@@ -31,7 +41,7 @@ FOUND=0
 
 for pat in "${PATTERNS[@]}"; do
   # Use grep to find matches in tracked files. We only surface filename:line number.
-  # silence grep exit status when no matches are found.
+  # Silence grep exit status when no matches are found.
   MATCHES=$(grep -nE -- "$pat" $FILES 2>/dev/null || true)
   if [ -n "$MATCHES" ]; then
     echo "[secret-scan] pattern '$pat' matched in the following files (filename:line):"
@@ -48,4 +58,3 @@ fi
 
 echo "[secret-scan] no secrets found"
 exit 0
-

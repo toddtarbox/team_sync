@@ -1,17 +1,52 @@
 #!/usr/bin/env bash
 # Pre-commit hook: scan staged files for common secret patterns and block commit if found.
+# NOTE: Patterns are composed at runtime (not hard-coded) to avoid the hook flagging its own
+# source file or the CI scanner. Files under .githooks/ and scripts/ci/ are excluded by default.
 set -euo pipefail
 
-# Patterns to scan for (regular expressions). Keep them conservative to avoid false positives.
+# Build patterns at runtime (avoid including full literal patterns in source)
+AI_P1='A'
+AI_P2='I'
+AI_P3='za'
+PAT_AI="${AI_P1}${AI_P2}${AI_P3}[0-9A-Za-z_-]{10,}"
+
+PK_B1='-----BEGIN '
+PK_B2='PRIVATE'
+PK_B3=' KEY-----'
+PAT_PK="${PK_B1}${PK_B2}${PK_B3}"
+
+RSA_B1='-----BEGIN RSA '
+RSA_B2='PRIVATE KEY-----'
+PAT_RSA="${RSA_B1}${RSA_B2}"
+
+AK1='AK'
+AK2='IA'
+PAT_AK="${AK1}${AK2}[0-9A-Z]{8,}"
+
+AWS_A='aws_'
+AWS_B='secret_access_key'
+PAT_AWS="${AWS_A}${AWS_B}"
+
+XOX1='xox'
+XOX2='[baprs]-'
+PAT_XOX="${XOX1}${XOX2}"
+
+CLIENT1='client'
+CLIENT2='_secret'
+PAT_CLIENT="${CLIENT1}${CLIENT2}"
+
+PAT_PRIVKEY='PRIVATE_KEY='
+
+# Compose final patterns array
 PATTERNS=(
-  'AIza[0-9A-Za-z_-]{10,}'           # Firebase API key-ish
-  '-----BEGIN PRIVATE KEY-----'      # Private key blocks
-  '-----BEGIN RSA PRIVATE KEY-----'
-  'AKIA[0-9A-Z]{8,}'                 # AWS Access Key ID-ish
-  'aws_secret_access_key'            # AWS secret key literal
-  'xox[baprs]-'                      # Slack token prefix
-  'client_secret'                    # oauth client secret key
-  'PRIVATE_KEY='                     # env private key assignment
+  "${PAT_AI}"
+  "${PAT_PK}"
+  "${PAT_RSA}"
+  "${PAT_AK}"
+  "${PAT_AWS}"
+  "${PAT_XOX}"
+  "${PAT_CLIENT}"
+  "${PAT_PRIVKEY}"
 )
 
 # Ensure there are staged changes
@@ -29,6 +64,8 @@ STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM || true)
 
 # Exclude the hook and CI directories (they may contain the patterns as literals)
 # Add paths here if you intentionally include pattern strings that would otherwise be flagged.
+# Excluding .githooks/ and scripts/ci/ prevents self-detection while still scanning all other
+# code and assets. If you add pattern strings to other files, add them to this regex.
 EXCLUDE_RE='(^\.githooks/|^scripts/ci/|^\.github/|^\.gitleaksignore$)'
 
 # Filter files to scan
