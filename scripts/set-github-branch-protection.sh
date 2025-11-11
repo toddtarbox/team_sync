@@ -105,7 +105,7 @@ EOF
 # Make the request and capture body + HTTP code
 resp_body_file=$(mktemp)
 http_code=$(curl -sS -o "$resp_body_file" -w "%{http_code}" -X PUT \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
   -H "Content-Type: application/json" \
   --data "$BODY" \
