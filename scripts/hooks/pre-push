@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# pre-push — client-side hook that prevents pushing directly from 'main' branch
+# Install by running scripts/install-client-hooks.sh
+
+# Get current branch
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo "Aborting push: pushing directly from '$branch' is prohibited. Create a branch and open a pull request instead."
+  exit 1
+fi
+exit 0
+
