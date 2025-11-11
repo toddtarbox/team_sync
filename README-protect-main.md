@@ -1,4 +1,4 @@
-Protecting main branch (automation and hooks)
+# Protecting main branch (automation and hooks)
 
 This repo includes scripts to help you enforce a no-direct-merge policy on the `main` branch.
 
