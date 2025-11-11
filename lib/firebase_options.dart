@@ -6,14 +6,8 @@ import 'package:flutter/foundation.dart'
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
-/// Example:
-/// ```dart
-/// import 'firebase_options.dart';
-/// // ...
-/// await Firebase.initializeApp(
-///   options: DefaultFirebaseOptions.currentPlatform,
-/// );
-/// ```
+/// This file intentionally does NOT contain secret keys. Provide values at
+/// build/run time using `--dart-define` (see `docs/FIREBASE.md` for examples).
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -46,36 +40,92 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBflWvgLKjvXjmRAYw0HpQyLfSXbhm2sEg',
-    appId: '1:542457934179:android:fc3f9989d51f9e2cc52356',
-    messagingSenderId: '542457934179',
-    projectId: 'team-sync-soccer',
-    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
-    storageBucket: 'team-sync-soccer.firebasestorage.app',
-  );
+  // Android
+  static FirebaseOptions get android {
+    const apiKey = String.fromEnvironment('FIREBASE_ANDROID_API_KEY');
+    const appId = String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
+    const messagingSenderId =
+        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
+    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCtiLAs5regSXQXpvx-zcihvMuAeK89Beo',
-    appId: '1:542457934179:ios:61b944505cc95e7bc52356',
-    messagingSenderId: '542457934179',
-    projectId: 'team-sync-soccer',
-    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
-    storageBucket: 'team-sync-soccer.firebasestorage.app',
-    androidClientId: '542457934179-7l4c1l8galtjfi36vob54gj1rp7q2530.apps.googleusercontent.com',
-    iosClientId: '542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com',
-    iosBundleId: 'com.tsquared.teamsync.soccer',
-  );
+    if (apiKey == '' || appId == '') {
+      throw UnsupportedError(
+          'Android Firebase options not provided. Pass them with --dart-define.\n'
+          'Example: --dart-define=FIREBASE_ANDROID_API_KEY=... --dart-define=FIREBASE_ANDROID_APP_ID=...');
+    }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCZVVLJIaWnHSF3rZ9JXgUtaq0fVE2s-Cs',
-    appId: '1:542457934179:web:991c3eb3d8c445bbc52356',
-    messagingSenderId: '542457934179',
-    projectId: 'team-sync-soccer',
-    authDomain: 'team-sync-soccer.firebaseapp.com',
-    databaseURL: 'https://team-sync-soccer-default-rtdb.firebaseio.com',
-    storageBucket: 'team-sync-soccer.firebasestorage.app',
-    measurementId: 'G-Y5Y26V84T8',
-  );
+    return FirebaseOptions(
+      apiKey: apiKey,
+      appId: appId,
+      messagingSenderId: messagingSenderId,
+      projectId: projectId,
+      databaseURL: databaseURL,
+      storageBucket: storageBucket,
+    );
+  }
 
+  // iOS
+  static FirebaseOptions get ios {
+    const apiKey = String.fromEnvironment('FIREBASE_IOS_API_KEY');
+    const appId = String.fromEnvironment('FIREBASE_IOS_APP_ID');
+    const messagingSenderId =
+        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
+    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
+    const androidClientId =
+        String.fromEnvironment('FIREBASE_ANDROID_CLIENT_ID');
+    const iosClientId = String.fromEnvironment('FIREBASE_IOS_CLIENT_ID');
+    const iosBundleId = String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
+
+    if (apiKey == '' || appId == '') {
+      throw UnsupportedError(
+          'iOS Firebase options not provided. Pass them with --dart-define.\n'
+          'Example: --dart-define=FIREBASE_IOS_API_KEY=... --dart-define=FIREBASE_IOS_APP_ID=...');
+    }
+
+    return FirebaseOptions(
+      apiKey: apiKey,
+      appId: appId,
+      messagingSenderId: messagingSenderId,
+      projectId: projectId,
+      databaseURL: databaseURL,
+      storageBucket: storageBucket,
+      androidClientId: androidClientId == '' ? null : androidClientId,
+      iosClientId: iosClientId == '' ? null : iosClientId,
+      iosBundleId: iosBundleId == '' ? null : iosBundleId,
+    );
+  }
+
+  // Web
+  static FirebaseOptions get web {
+    const apiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+    const appId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+    const messagingSenderId =
+        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+    const authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
+    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
+    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
+    const measurementId = String.fromEnvironment('FIREBASE_MEASUREMENT_ID');
+
+    if (apiKey == '' || appId == '') {
+      throw UnsupportedError(
+          'Web Firebase options not provided. Pass them with --dart-define.\n'
+          'Example: --dart-define=FIREBASE_WEB_API_KEY=... --dart-define=FIREBASE_WEB_APP_ID=...');
+    }
+
+    return FirebaseOptions(
+      apiKey: apiKey,
+      appId: appId,
+      messagingSenderId: messagingSenderId,
+      projectId: projectId,
+      authDomain: authDomain == '' ? null : authDomain,
+      databaseURL: databaseURL,
+      storageBucket: storageBucket,
+      measurementId: measurementId == '' ? null : measurementId,
+    );
+  }
 }

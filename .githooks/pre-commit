@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# Pre-commit hook: scan staged files for common secret patterns and block commit if found.
+set -euo pipefail
+
+# Patterns to scan for (regular expressions). Keep them conservative to avoid false positives.
+PATTERNS=(
+  'AIza[0-9A-Za-z_-]{10,}'           # Firebase API key-ish
+  '-----BEGIN PRIVATE KEY-----'      # Private key blocks
+  '-----BEGIN RSA PRIVATE KEY-----'
+  'AKIA[0-9A-Z]{8,}'                 # AWS Access Key ID-ish
+  'aws_secret_access_key'            # AWS secret key literal
+  'xox[baprs]-'                      # Slack token prefix
+  'client_secret'                    # oauth client secret key
+  'PRIVATE_KEY='                     # env private key assignment
+)
+
+# Ensure there are staged changes
+if git diff --cached --quiet; then
+  # nothing staged
+  exit 0
+fi
+
+FOUND=0
+
+echo "[pre-commit] scanning staged changes for secrets..."
+
+# Get list of staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM || true)
+
+# Exclude the hook and CI directories (they may contain the patterns as literals)
+# Add paths here if you intentionally include pattern strings that would otherwise be flagged.
+EXCLUDE_RE='(^\.githooks/|^scripts/ci/|^\.github/|^\.gitleaksignore$)'
+
+# Filter files to scan
+FILES_TO_SCAN=$(echo "$STAGED_FILES" | grep -Ev "$EXCLUDE_RE" || true)
+if [ -z "$FILES_TO_SCAN" ]; then
+  echo "[pre-commit] no staged files to scan after applying exclude patterns"
+  exit 0
+fi
+
+# Build the staged diff limited to the filtered files
+STAGED_DIFF=$(git diff --cached -U0 --no-color -- $FILES_TO_SCAN || true)
+
+for pat in "${PATTERNS[@]}"; do
+  # Search the diff for the pattern
+  MATCHES=$(echo "$STAGED_DIFF" | grep -nE -- "${pat}" 2>/dev/null || true)
+  if [ -n "$MATCHES" ]; then
+    echo "Potential secret pattern detected: $pat"
+    echo "$MATCHES"
+    FOUND=1
+  fi
+done
+
+if [ $FOUND -ne 0 ]; then
+  echo
+  echo "ERROR: Possible secrets detected in staged files. Commit aborted." >&2
+  echo "  - Remove secrets from the files, put them in a local .env (gitignored), and/or unstage them." >&2
+  echo "  - To bypass temporarily: git reset <file> && add the safe replacement then commit." >&2
+  exit 1
+fi
+
+# No secrets found
+exit 0
