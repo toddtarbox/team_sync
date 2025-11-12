@@ -63,8 +63,8 @@ get_val() {
   key="$1"; envvar="$2"; default="$3"
   val=""
   # env var present?
-  if [ -n "${!envvar}" ]; then
-    val="${!envvar}"
+  if [ -n "${!envvar:-}" ]; then
+    val="${!envvar:-}"
   else
     existing=$(read_plist "$key")
     if [ -n "$existing" ]; then
