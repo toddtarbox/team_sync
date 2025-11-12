@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,6 +14,8 @@ import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Load environment variables from .env (if present). CI env vars still take precedence.
+  await dotenv.load();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

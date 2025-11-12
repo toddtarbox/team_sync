@@ -1,54 +1,54 @@
 {
   "project_info": {
-    "project_number": "542457934179",
-    "firebase_url": "https://team-sync-soccer-default-rtdb.firebaseio.com",
-    "project_id": "team-sync-soccer",
-    "storage_bucket": "team-sync-soccer.firebasestorage.app"
+    "project_number": "<FIREBASE_PROJECT_NUMBER>",
+    "firebase_url": "<FIREBASE_DATABASE_URL>",
+    "project_id": "<FIREBASE_PROJECT_ID>",
+    "storage_bucket": "<FIREBASE_STORAGE_BUCKET>"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:542457934179:android:fc3f9989d51f9e2cc52356",
+        "mobilesdk_app_id": "<FIREBASE_MOBILE_APP_ID>",
         "android_client_info": {
           "package_name": "com.tsquared.team_sync.soccer"
         }
       },
       "oauth_client": [
         {
-          "client_id": "542457934179-7l4c1l8galtjfi36vob54gj1rp7q2530.apps.googleusercontent.com",
+          "client_id": "<OAUTH_CLIENT_ID_1>",
           "client_type": 1,
           "android_info": {
             "package_name": "com.tsquared.team_sync.soccer",
-            "certificate_hash": "05cbfd904d14609894647125e5b65dde055b0154"
+            "certificate_hash": "<CERT_HASH_1>"
           }
         },
         {
-          "client_id": "542457934179-ec5qhcqu80j9e8fi5t6paanabk02siqh.apps.googleusercontent.com",
+          "client_id": "<OAUTH_CLIENT_ID_2>",
           "client_type": 1,
           "android_info": {
             "package_name": "com.tsquared.team_sync.soccer",
-            "certificate_hash": "fa5bc0d1c844e1883e6f20a5c34d0cbaea00a0e4"
+            "certificate_hash": "<CERT_HASH_2>"
           }
         },
         {
-          "client_id": "542457934179-i5h5d289decqgjfqeajfjc64eud81brt.apps.googleusercontent.com",
+          "client_id": "<OAUTH_CLIENT_ID_3>",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBflWvgLKjvXjmRAYw0HpQyLfSXbhm2sEg"
+          "current_key": "<API_KEY>"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "542457934179-i5h5d289decqgjfqeajfjc64eud81brt.apps.googleusercontent.com",
+              "client_id": "<OAUTH_CLIENT_ID_3>",
               "client_type": 3
             },
             {
-              "client_id": "542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com",
+              "client_id": "<IOS_APPINVITE_CLIENT_ID>",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.tsquared.teamsync.soccer"

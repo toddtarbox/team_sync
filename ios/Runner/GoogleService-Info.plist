@@ -3,23 +3,23 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com</string>
+	<string><IOS_CLIENT_ID></string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.542457934179-huq726t2agepvcaa7fq2do3abob3eb1j</string>
+	<string><IOS_REVERSED_CLIENT_ID></string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>542457934179-7l4c1l8galtjfi36vob54gj1rp7q2530.apps.googleusercontent.com</string>
+	<string><IOS_ANDROID_CLIENT_ID></string>
 	<key>API_KEY</key>
-	<string>AIzaSyCtiLAs5regSXQXpvx-zcihvMuAeK89Beo</string>
+	<string><IOS_API_KEY></string>
 	<key>GCM_SENDER_ID</key>
-	<string>542457934179</string>
+	<string><IOS_GCM_SENDER_ID></string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.tsquared.teamsync.soccer</string>
+	<string><IOS_BUNDLE_ID></string>
 	<key>PROJECT_ID</key>
-	<string>team-sync-soccer</string>
+	<string><FIREBASE_PROJECT_ID></string>
 	<key>STORAGE_BUCKET</key>
-	<string>team-sync-soccer.firebasestorage.app</string>
+	<string><FIREBASE_STORAGE_BUCKET></string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -31,8 +31,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:542457934179:ios:61b944505cc95e7bc52356</string>
+	<string><IOS_GOOGLE_APP_ID></string>
 	<key>DATABASE_URL</key>
-	<string>https://team-sync-soccer-default-rtdb.firebaseio.com</string>
+	<string><FIREBASE_DATABASE_URL></string>
 </dict>
 </plist>
