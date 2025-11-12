@@ -2,6 +2,7 @@ import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/player_profile_page.dart';
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -73,6 +74,17 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                     final player = sortedStats[index - 1].key;
                                     final count = sortedStats[index - 1].value;
                                     return ListTile(
+                                      onTap: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                PlayerProfilePage(
+                                              player: player,
+                                              currentSeason: widget.season,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                       leading: CircleAvatar(
                                         child: player.profileImage != null &&
                                                 player.profileImage!.isNotEmpty

@@ -10,6 +10,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/player_profile_page.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -145,7 +146,18 @@ class _PlayersPageState extends State<PlayersPage> {
                           setState(() {});
                         },
                         child: ListTile(
-                          onTap: kIsWeb ? null : () => _editPlayer(player),
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => PlayerProfilePage(
+                                  player: player,
+                                  currentSeason: widget.season,
+                                ),
+                              ),
+                            );
+                          },
+                          onLongPress:
+                              kIsWeb ? null : () => _editPlayer(player),
                           leading: CircleAvatar(
                             child: player.profileImage != null &&
                                     player.profileImage!.isNotEmpty

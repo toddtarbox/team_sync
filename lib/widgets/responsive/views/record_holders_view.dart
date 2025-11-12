@@ -6,10 +6,13 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stat.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/widgets/player_profile_page.dart';
 
 enum StatType {
   career,
@@ -214,23 +217,35 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       title: Text(category.name.toSentenceCase().toTitleCase()),
       subtitle:
           Text('${topEntry.player.displayName} - ${topEntry.season.name}'),
-      leading: CircleAvatar(
-          child: topEntry.player.profileImage != null &&
-                  topEntry.player.profileImage!.isNotEmpty
-              ? ClipOval(
-                  child: Image.network(
-                    topEntry.player.profileImage!,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(
-                          '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}');
-                    },
-                  ),
-                )
-              : Text(
-                  '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
+      leading: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PlayerProfilePage(
+                player: topEntry.player,
+                currentSeason: topEntry.season,
+              ),
+            ),
+          );
+        },
+        child: CircleAvatar(
+            child: topEntry.player.profileImage != null &&
+                    topEntry.player.profileImage!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      topEntry.player.profileImage!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                            '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}');
+                      },
+                    ),
+                  )
+                : Text(
+                    '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
+      ),
       trailing:
           Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
       onTap: () async {
@@ -264,24 +279,36 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                       return ListTile(
                         title: Text(
                             '${entry.player.displayName} - ${entry.season.name}'),
-                        leading: CircleAvatar(
-                            child: topEntry.player.profileImage != null &&
-                                    topEntry.player.profileImage!.isNotEmpty
-                                ? ClipOval(
-                                    child: Image.network(
-                                      topEntry.player.profileImage!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Text(
-                                            '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}');
-                                      },
-                                    ),
-                                  )
-                                : Text(
-                                    '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
+                        leading: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => PlayerProfilePage(
+                                  player: entry.player,
+                                  currentSeason: entry.season,
+                                ),
+                              ),
+                            );
+                          },
+                          child: CircleAvatar(
+                              child: entry.player.profileImage != null &&
+                                      entry.player.profileImage!.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        entry.player.profileImage!,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Text(
+                                              '${entry.player.firstName[0]}${entry.player.lastName[0]}');
+                                        },
+                                      ),
+                                    )
+                                  : Text(
+                                      '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
+                        ),
                         trailing: Text(entry.value.toString(),
                             style: const TextStyle(fontSize: 24)),
                       );
@@ -303,23 +330,35 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
           '${bestStat.player.displayName} - ${bestStat.season.name} - ${bestStat.game.displayName(bestStat.player.teamId)}'),
       trailing:
           Text(bestStat.value.toString(), style: const TextStyle(fontSize: 24)),
-      leading: CircleAvatar(
-          child: bestStat.player.profileImage != null &&
-                  bestStat.player.profileImage!.isNotEmpty
-              ? ClipOval(
-                  child: Image.network(
-                    bestStat.player.profileImage!,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(
-                          '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}');
-                    },
-                  ),
-                )
-              : Text(
-                  '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}')),
+      leading: GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => PlayerProfilePage(
+                player: bestStat.player,
+                currentSeason: bestStat.season,
+              ),
+            ),
+          );
+        },
+        child: CircleAvatar(
+            child: bestStat.player.profileImage != null &&
+                    bestStat.player.profileImage!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      bestStat.player.profileImage!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                            '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}');
+                      },
+                    ),
+                  )
+                : Text(
+                    '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}')),
+      ),
       onTap: () async {
         showDialog(
             context: context,
@@ -351,24 +390,36 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                       return ListTile(
                         title: Text(
                             '${entry.player.displayName} - ${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
-                        leading: CircleAvatar(
-                            child: entry.player.profileImage != null &&
-                                    entry.player.profileImage!.isNotEmpty
-                                ? ClipOval(
-                                    child: Image.network(
-                                      entry.player.profileImage!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Text(
-                                            '${entry.player.firstName[0]}${entry.player.lastName[0]}');
-                                      },
-                                    ),
-                                  )
-                                : Text(
-                                    '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
+                        leading: GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => PlayerProfilePage(
+                                  player: entry.player,
+                                  currentSeason: entry.season,
+                                ),
+                              ),
+                            );
+                          },
+                          child: CircleAvatar(
+                              child: entry.player.profileImage != null &&
+                                      entry.player.profileImage!.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        entry.player.profileImage!,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Text(
+                                              '${entry.player.firstName[0]}${entry.player.lastName[0]}');
+                                        },
+                                      ),
+                                    )
+                                  : Text(
+                                      '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
+                        ),
                         trailing: Text(entry.value.toString(),
                             style: const TextStyle(fontSize: 24)),
                       );
@@ -388,23 +439,55 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     return ListTile(
       title: Text(category.name.toSentenceCase().toTitleCase()),
       subtitle: Text(topEntry.key.displayName),
-      leading: CircleAvatar(
-          child: topEntry.key.profileImage != null &&
-                  topEntry.key.profileImage!.isNotEmpty
-              ? ClipOval(
-                  child: Image.network(
-                    topEntry.key.profileImage!,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(
-                          '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}');
-                    },
-                  ),
-                )
-              : Text(
-                  '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}')),
+      leading: GestureDetector(
+        onTap: () async {
+          // Load the season for this player
+          showDialog(
+            context: context,
+            builder: (context) {
+              return const Center(child: CircularProgressIndicator());
+            },
+          );
+
+          final seasonResults = await DatabaseService.instance.query('Seasons',
+              orderByChild: 'id', equalTo: topEntry.key.seasonId);
+
+          if (!mounted) return;
+          Navigator.pop(context);
+
+          if (seasonResults.isNotEmpty) {
+            final season = Season.fromMap(seasonResults.first);
+            await season.load();
+
+            if (!mounted) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => PlayerProfilePage(
+                  player: topEntry.key,
+                  currentSeason: season,
+                ),
+              ),
+            );
+          }
+        },
+        child: CircleAvatar(
+            child: topEntry.key.profileImage != null &&
+                    topEntry.key.profileImage!.isNotEmpty
+                ? ClipOval(
+                    child: Image.network(
+                      topEntry.key.profileImage!,
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Text(
+                            '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}');
+                      },
+                    ),
+                  )
+                : Text(
+                    '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}')),
+      ),
       trailing:
           Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
       onTap: () async {
@@ -436,24 +519,60 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     itemBuilder: (context, index) {
                       final entry = categoryStats[index];
                       return ListTile(
-                        leading: CircleAvatar(
-                            child: entry.key.profileImage != null &&
-                                    entry.key.profileImage!.isNotEmpty
-                                ? ClipOval(
-                                    child: Image.network(
-                                      entry.key.profileImage!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Text(
-                                            '${entry.key.firstName[0]}${entry.key.lastName[0]}');
-                                      },
-                                    ),
-                                  )
-                                : Text(
-                                    '${entry.key.firstName[0]}${entry.key.lastName[0]}')),
+                        leading: GestureDetector(
+                          onTap: () async {
+                            // Load the season for this player
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              },
+                            );
+
+                            final seasonResults = await DatabaseService.instance
+                                .query('Seasons',
+                                    orderByChild: 'id',
+                                    equalTo: entry.key.seasonId);
+
+                            if (!mounted) return;
+                            Navigator.pop(context);
+
+                            if (seasonResults.isNotEmpty) {
+                              final season =
+                                  Season.fromMap(seasonResults.first);
+                              await season.load();
+
+                              if (!mounted) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => PlayerProfilePage(
+                                    player: entry.key,
+                                    currentSeason: season,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          child: CircleAvatar(
+                              child: entry.key.profileImage != null &&
+                                      entry.key.profileImage!.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        entry.key.profileImage!,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Text(
+                                              '${entry.key.firstName[0]}${entry.key.lastName[0]}');
+                                        },
+                                      ),
+                                    )
+                                  : Text(
+                                      '${entry.key.firstName[0]}${entry.key.lastName[0]}')),
+                        ),
                         title: Text(entry.key.displayName),
                         trailing: Text(entry.value.toString(),
                             style: const TextStyle(fontSize: 24)),
