@@ -52,6 +52,8 @@ jobs:
     name: Android build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Validate required secrets
         env:
           FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
@@ -127,7 +129,6 @@ jobs:
           EOF
           echo ".env created (not printed to logs for security)"
 
-      - uses: actions/checkout@v4
       - name: Cache Flutter SDK
         uses: actions/cache@v4
         id: flutter-cache
@@ -175,6 +176,8 @@ jobs:
     name: iOS build (no codesign)
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Validate required secrets (iOS)
         env:
           FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
@@ -240,8 +243,7 @@ jobs:
           IOS_GOOGLE_APP_ID=${IOS_GOOGLE_APP_ID}
           MESSAGING_SENDER_ID=${MESSAGING_SENDER_ID}
           EOF
-
-      - uses: actions/checkout@v4
+          
       - name: Cache Flutter SDK
         uses: actions/cache@v4
         id: flutter-cache
