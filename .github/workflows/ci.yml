@@ -1,0 +1,248 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  android-build:
+    name: Android build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Ensure gradlew is executable
+        run: chmod +x ./android/gradlew || true
+
+      - name: Validate required secrets
+        env:
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MOBILE_APP_ID: ${{ secrets.FIREBASE_MOBILE_APP_ID }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          API_KEY: ${{ secrets.API_KEY }}
+          MESSAGING_SENDER_ID: ${{ secrets.MESSAGING_SENDER_ID }}
+        run: |
+          echo "Validating required secrets for Android job"
+          missing=false
+          for var in FIREBASE_PROJECT_NUMBER FIREBASE_DATABASE_URL FIREBASE_PROJECT_ID FIREBASE_STORAGE_BUCKET FIREBASE_MOBILE_APP_ID API_KEY MESSAGING_SENDER_ID; do
+            if [ -z "${!var}" ]; then
+              echo "ERROR: Required secret $var is missing"
+              missing=true
+            fi
+          done
+          if [ "$missing" = true ]; then
+            echo "One or more required secrets are missing. Failing the job."
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Create .env from GitHub Secrets
+        env:
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MOBILE_APP_ID: ${{ secrets.FIREBASE_MOBILE_APP_ID }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          API_KEY: ${{ secrets.API_KEY }}
+          OAUTH_CLIENT_IDS: ${{ secrets.OAUTH_CLIENT_IDS }}
+          IOS_APPINVITE_CLIENT_ID: ${{ secrets.IOS_APPINVITE_CLIENT_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          IOS_CLIENT_ID: ${{ secrets.IOS_CLIENT_ID }}
+          IOS_REVERSED_CLIENT_ID: ${{ secrets.IOS_REVERSED_CLIENT_ID }}
+          IOS_ANDROID_CLIENT_ID: ${{ secrets.IOS_ANDROID_CLIENT_ID }}
+          IOS_API_KEY: ${{ secrets.IOS_API_KEY }}
+          IOS_GCM_SENDER_ID: ${{ secrets.IOS_GCM_SENDER_ID }}
+          IOS_GOOGLE_APP_ID: ${{ secrets.IOS_GOOGLE_APP_ID }}
+          WEB_API_KEY: ${{ secrets.WEB_API_KEY }}
+          WEB_APP_ID: ${{ secrets.WEB_APP_ID }}
+          WEB_AUTH_DOMAIN: ${{ secrets.WEB_AUTH_DOMAIN }}
+          WEB_MEASUREMENT_ID: ${{ secrets.WEB_MEASUREMENT_ID }}
+          MESSAGING_SENDER_ID: ${{ secrets.MESSAGING_SENDER_ID }}
+        run: |
+          echo "Creating .env from repo secrets (values come from GitHub Secrets)"
+          cat > .env <<EOF
+          FIREBASE_PROJECT_NUMBER=${FIREBASE_PROJECT_NUMBER}
+          FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
+          FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+          FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
+          FIREBASE_MOBILE_APP_ID=${FIREBASE_MOBILE_APP_ID}
+          ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME}
+          API_KEY=${API_KEY}
+          OAUTH_CLIENT_IDS=${OAUTH_CLIENT_IDS}
+          IOS_APPINVITE_CLIENT_ID=${IOS_APPINVITE_CLIENT_ID}
+          IOS_BUNDLE_ID=${IOS_BUNDLE_ID}
+          IOS_CLIENT_ID=${IOS_CLIENT_ID}
+          IOS_REVERSED_CLIENT_ID=${IOS_REVERSED_CLIENT_ID}
+          IOS_ANDROID_CLIENT_ID=${IOS_ANDROID_CLIENT_ID}
+          IOS_API_KEY=${IOS_API_KEY}
+          IOS_GCM_SENDER_ID=${IOS_GCM_SENDER_ID}
+          IOS_GOOGLE_APP_ID=${IOS_GOOGLE_APP_ID}
+          WEB_API_KEY=${WEB_API_KEY}
+          WEB_APP_ID=${WEB_APP_ID}
+          WEB_AUTH_DOMAIN=${WEB_AUTH_DOMAIN}
+          WEB_MEASUREMENT_ID=${WEB_MEASUREMENT_ID}
+          MESSAGING_SENDER_ID=${MESSAGING_SENDER_ID}
+          EOF
+          echo ".env created (not printed to logs for security)"
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate google-services.json
+        run: ./gradlew :app:generateGoogleServices
+
+      - name: Build Android (APK)
+        run: flutter build apk --release
+
+  ios-build:
+    name: iOS build (no codesign)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Create .env from GitHub Secrets (macOS)
+        env:
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MOBILE_APP_ID: ${{ secrets.FIREBASE_MOBILE_APP_ID }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          API_KEY: ${{ secrets.API_KEY }}
+          OAUTH_CLIENT_IDS: ${{ secrets.OAUTH_CLIENT_IDS }}
+          IOS_APPINVITE_CLIENT_ID: ${{ secrets.IOS_APPINVITE_CLIENT_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          IOS_CLIENT_ID: ${{ secrets.IOS_CLIENT_ID }}
+          IOS_REVERSED_CLIENT_ID: ${{ secrets.IOS_REVERSED_CLIENT_ID }}
+          IOS_ANDROID_CLIENT_ID: ${{ secrets.IOS_ANDROID_CLIENT_ID }}
+          IOS_API_KEY: ${{ secrets.IOS_API_KEY }}
+          IOS_GCM_SENDER_ID: ${{ secrets.IOS_GCM_SENDER_ID }}
+          IOS_GOOGLE_APP_ID: ${{ secrets.IOS_GOOGLE_APP_ID }}
+          MESSAGING_SENDER_ID: ${{ secrets.MESSAGING_SENDER_ID }}
+        run: |
+          cat > .env <<EOF
+          FIREBASE_PROJECT_NUMBER=${FIREBASE_PROJECT_NUMBER}
+          FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
+          FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+          FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
+          FIREBASE_MOBILE_APP_ID=${FIREBASE_MOBILE_APP_ID}
+          ANDROID_PACKAGE_NAME=${ANDROID_PACKAGE_NAME}
+          API_KEY=${API_KEY}
+          OAUTH_CLIENT_IDS=${OAUTH_CLIENT_IDS}
+          IOS_APPINVITE_CLIENT_ID=${IOS_APPINVITE_CLIENT_ID}
+          IOS_BUNDLE_ID=${IOS_BUNDLE_ID}
+          IOS_CLIENT_ID=${IOS_CLIENT_ID}
+          IOS_REVERSED_CLIENT_ID=${IOS_REVERSED_CLIENT_ID}
+          IOS_ANDROID_CLIENT_ID=${IOS_ANDROID_CLIENT_ID}
+          IOS_API_KEY=${IOS_API_KEY}
+          IOS_GCM_SENDER_ID=${IOS_GCM_SENDER_ID}
+          IOS_GOOGLE_APP_ID=${IOS_GOOGLE_APP_ID}
+          MESSAGING_SENDER_ID=${MESSAGING_SENDER_ID}
+          EOF
+
+      - name: Validate required secrets (iOS)
+        env:
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          IOS_CLIENT_ID: ${{ secrets.IOS_CLIENT_ID }}
+          IOS_API_KEY: ${{ secrets.IOS_API_KEY }}
+          IOS_GOOGLE_APP_ID: ${{ secrets.IOS_GOOGLE_APP_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          MESSAGING_SENDER_ID: ${{ secrets.MESSAGING_SENDER_ID }}
+        run: |
+          echo "Validating required secrets for iOS job"
+          missing=false
+          for var in FIREBASE_PROJECT_NUMBER FIREBASE_DATABASE_URL FIREBASE_PROJECT_ID FIREBASE_STORAGE_BUCKET IOS_CLIENT_ID IOS_API_KEY IOS_GOOGLE_APP_ID IOS_BUNDLE_ID MESSAGING_SENDER_ID; do
+            if [ -z "${!var}" ]; then
+              echo "ERROR: Required secret $var is missing"
+              missing=true
+            fi
+          done
+          if [ "$missing" = true ]; then
+            echo "One or more required secrets are missing. Failing the job."
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Create iOS GoogleService-Info.plist from env
+        run: |
+          cat > ios/Runner/GoogleService-Info.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CLIENT_ID</key>
+            <string>${{ secrets.IOS_CLIENT_ID }}</string>
+            <key>REVERSED_CLIENT_ID</key>
+            <string>${{ secrets.IOS_REVERSED_CLIENT_ID }}</string>
+            <key>ANDROID_CLIENT_ID</key>
+            <string>${{ secrets.IOS_ANDROID_CLIENT_ID }}</string>
+            <key>API_KEY</key>
+            <string>${{ secrets.IOS_API_KEY }}</string>
+            <key>GCM_SENDER_ID</key>
+            <string>${{ secrets.IOS_GCM_SENDER_ID }}</string>
+            <key>PLIST_VERSION</key>
+            <string>1</string>
+            <key>BUNDLE_ID</key>
+            <string>${{ secrets.IOS_BUNDLE_ID }}</string>
+            <key>PROJECT_ID</key>
+            <string>${{ secrets.FIREBASE_PROJECT_ID }}</string>
+            <key>STORAGE_BUCKET</key>
+            <string>${{ secrets.FIREBASE_STORAGE_BUCKET }}</string>
+            <key>IS_ADS_ENABLED</key>
+            <false/>
+            <key>IS_ANALYTICS_ENABLED</key>
+            <false/>
+            <key>IS_APPINVITE_ENABLED</key>
+            <true/>
+            <key>IS_GCM_ENABLED</key>
+            <true/>
+            <key>IS_SIGNIN_ENABLED</key>
+            <true/>
+            <key>GOOGLE_APP_ID</key>
+            <string>${{ secrets.IOS_GOOGLE_APP_ID }}</string>
+            <key>DATABASE_URL</key>
+            <string>${{ secrets.FIREBASE_DATABASE_URL }}</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign
+
+# Notes:
+# - Add the following repository secrets (Repository Settings -> Secrets):
+#   FIREBASE_PROJECT_NUMBER, FIREBASE_DATABASE_URL, FIREBASE_PROJECT_ID,
+#   FIREBASE_STORAGE_BUCKET, FIREBASE_MOBILE_APP_ID, ANDROID_PACKAGE_NAME,
+#   API_KEY, OAUTH_CLIENT_IDS, IOS_APPINVITE_CLIENT_ID, IOS_BUNDLE_ID,
+#   IOS_CLIENT_ID, IOS_REVERSED_CLIENT_ID, IOS_ANDROID_CLIENT_ID, IOS_API_KEY,
+#   IOS_GCM_SENDER_ID, IOS_GOOGLE_APP_ID, WEB_API_KEY, WEB_APP_ID,
+#   WEB_AUTH_DOMAIN, WEB_MEASUREMENT_ID, MESSAGING_SENDER_ID
+# - The Android job uses the Gradle task `:app:generateGoogleServices` (already in
+#   your repo) which will merge values from the generated .env and create
+#   android/app/google-services.json before building.
+# - The iOS job writes ios/Runner/GoogleService-Info.plist from secrets; in a
+#   production setup you should protect and rotate these secrets appropriately.
