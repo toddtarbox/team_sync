@@ -143,7 +143,11 @@ task generateGoogleServices {
         def project_id = esc(getVal('FIREBASE_PROJECT_ID'))
         def storage_bucket = esc(getVal('FIREBASE_STORAGE_BUCKET'))
         def mobile_app_id = esc(getVal('FIREBASE_MOBILE_APP_ID'))
-        def package_name = esc(getVal('ANDROID_PACKAGE_NAME') ?: project?.android?.defaultConfig?.applicationId ?: 'com.example.app')
+        def raw_package_name = getVal('ANDROID_PACKAGE_NAME') ?: project?.android?.defaultConfig?.applicationId
+        if (!raw_package_name || raw_package_name.toString().trim() == '') {
+            throw new GradleException("[generateGoogleServices] Could not determine package name. Please set ANDROID_PACKAGE_NAME environment variable or ensure applicationId is set in defaultConfig.")
+        }
+        def package_name = esc(raw_package_name)
         def api_key = esc(getVal('API_KEY'))
         def oauthRaw = getVal('OAUTH_CLIENT_IDS')
         def iosInviteClient = esc(getVal('IOS_APPINVITE_CLIENT_ID'))
