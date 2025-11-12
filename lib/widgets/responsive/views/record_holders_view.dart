@@ -12,6 +12,7 @@ import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 
 enum StatType {
@@ -281,6 +282,40 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                             '${entry.player.displayName} - ${entry.season.name}'),
                         leading: GestureDetector(
                           onTap: () {
+                            if (!SubscriptionService.instance.isSubscribed) {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text(AppLocalizations.of(context)!
+                                        .proFeature),
+                                    content: Text(AppLocalizations.of(context)!
+                                        .playerProfilesProFeature),
+                                    actions: [
+                                      TextButton(
+                                        child: Text(
+                                            AppLocalizations.of(context)!
+                                                .cancelButton),
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                      ),
+                                      TextButton(
+                                        child: Text(
+                                            AppLocalizations.of(context)!
+                                                .goPro),
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          await SubscriptionService.instance
+                                              .purchaseSubscription();
+                                        },
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              return;
+                            }
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => PlayerProfilePage(
@@ -392,6 +427,40 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                             '${entry.player.displayName} - ${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
                         leading: GestureDetector(
                           onTap: () {
+                            if (!SubscriptionService.instance.isSubscribed) {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text(AppLocalizations.of(context)!
+                                        .proFeature),
+                                    content: Text(AppLocalizations.of(context)!
+                                        .playerProfilesProFeature),
+                                    actions: [
+                                      TextButton(
+                                        child: Text(
+                                            AppLocalizations.of(context)!
+                                                .cancelButton),
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                      ),
+                                      TextButton(
+                                        child: Text(
+                                            AppLocalizations.of(context)!
+                                                .goPro),
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          await SubscriptionService.instance
+                                              .purchaseSubscription();
+                                        },
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              return;
+                            }
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => PlayerProfilePage(
@@ -441,6 +510,36 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       subtitle: Text(topEntry.key.displayName),
       leading: GestureDetector(
         onTap: () async {
+          if (!SubscriptionService.instance.isSubscribed) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(AppLocalizations.of(context)!.proFeature),
+                  content: Text(
+                      AppLocalizations.of(context)!.playerProfilesProFeature),
+                  actions: [
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.cancelButton),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.goPro),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await SubscriptionService.instance
+                            .purchaseSubscription();
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+            return;
+          }
+
           // Load the season for this player
           showDialog(
             context: context,

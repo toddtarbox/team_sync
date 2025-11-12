@@ -319,4 +319,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get getStarted => 'Get Started';
+
+  @override
+  String get proFeature => 'Pro Feature';
+
+  @override
+  String get playerProfilesProFeature =>
+      'Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.';
 }

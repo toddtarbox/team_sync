@@ -324,4 +324,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get getStarted => 'Comenzar';
+
+  @override
+  String get proFeature => 'Función Pro';
+
+  @override
+  String get playerProfilesProFeature =>
+      'Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera.';
 }

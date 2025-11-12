@@ -709,6 +709,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get Started'**
   String get getStarted;
+
+  /// No description provided for @proFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Pro Feature'**
+  String get proFeature;
+
+  /// No description provided for @playerProfilesProFeature.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.'**
+  String get playerProfilesProFeature;
 }
 
 class _AppLocalizationsDelegate

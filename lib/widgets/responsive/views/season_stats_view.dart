@@ -1,7 +1,9 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 
 class SeasonStatsView extends StatefulWidget {
@@ -75,6 +77,46 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                     final count = sortedStats[index - 1].value;
                                     return ListTile(
                                       onTap: () {
+                                        if (!SubscriptionService
+                                            .instance.isSubscribed) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .proFeature),
+                                                content: Text(AppLocalizations
+                                                        .of(context)!
+                                                    .playerProfilesProFeature),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .goPro),
+                                                    onPressed: () async {
+                                                      Navigator.pop(context);
+                                                      await SubscriptionService
+                                                          .instance
+                                                          .purchaseSubscription();
+                                                    },
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          return;
+                                        }
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
                                             builder: (context) =>

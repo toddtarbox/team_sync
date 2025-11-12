@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Generates ios/Runner/GoogleService-Info.plist from a .env file found by walking up from the iOS project.
 # This script prefers values from .env; if a value is not present it will try to keep existing plist value or a sensible default.
 
@@ -41,7 +41,7 @@ while IFS= read -r line || [ -n "$line" ]; do
       key="$(echo "$line" | sed -E 's/=.*$//')"
       value="$(echo "$line" | sed -E 's/^[^=]*=//')"
       # remove surrounding quotes
-      value="$(echo "$value" | sed -E 's/^"(.*)"$/\1/; s/^\'(.*)\'$/\1/')"
+      value="$(echo "$value" | sed -E 's/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/')"
       export "$key=$value"
       ;;
     *) ;;
@@ -76,20 +76,20 @@ get_val() {
   echo "$val"
 }
 
-CLIENT_ID=$(get_val "CLIENT_ID" "CLIENT_ID" "")
-if [ -z "$CLIENT_ID" ] && [ -n "$IOS_CLIENT_ID" ]; then
-  CLIENT_ID="$IOS_CLIENT_ID"
-fi
-REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "REVERSED_CLIENT_ID" "")
+CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID" "")
+REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "IOS_REVERSED_CLIENT_ID" "")
 if [ -z "$REVERSED_CLIENT_ID" ] && [ -n "$CLIENT_ID" ]; then
   REVERSED_CLIENT_ID="com.googleusercontent.apps.$CLIENT_ID"
 fi
-ANDROID_CLIENT_ID=$(get_val "ANDROID_CLIENT_ID" "ANDROID_CLIENT_ID" "")
-API_KEY=$(get_val "API_KEY" "API_KEY" "")
-GCM_SENDER_ID=$(get_val "GCM_SENDER_ID" "FIREBASE_PROJECT_NUMBER" "")
+ANDROID_CLIENT_ID=$(get_val "ANDROID_CLIENT_ID" "IOS_ANDROID_CLIENT_ID" "")
+API_KEY=$(get_val "API_KEY" "IOS_API_KEY" "")
+GCM_SENDER_ID=$(get_val "GCM_SENDER_ID" "IOS_GCM_SENDER_ID" "")
+if [ -z "$GCM_SENDER_ID" ]; then
+  GCM_SENDER_ID=$(get_val "GCM_SENDER_ID" "FIREBASE_PROJECT_NUMBER" "")
+fi
 PLIST_VERSION=$(get_val "PLIST_VERSION" "PLIST_VERSION" "1")
 # Prefer BUNDLE_ID env or Xcode's PRODUCT_BUNDLE_IDENTIFIER
-BUNDLE_ID="${BUNDLE_ID:-$PRODUCT_BUNDLE_IDENTIFIER}"
+BUNDLE_ID="${IOS_BUNDLE_ID:-$PRODUCT_BUNDLE_IDENTIFIER}"
 if [ -z "$BUNDLE_ID" ]; then
   BUNDLE_ID=$(get_val "BUNDLE_ID" "BUNDLE_ID" "${PRODUCT_BUNDLE_IDENTIFIER}")
 fi
@@ -100,9 +100,9 @@ IS_ANALYTICS_ENABLED=$(get_val "IS_ANALYTICS_ENABLED" "IS_ANALYTICS_ENABLED" "fa
 IS_APPINVITE_ENABLED=$(get_val "IS_APPINVITE_ENABLED" "IS_APPINVITE_ENABLED" "true")
 IS_GCM_ENABLED=$(get_val "IS_GCM_ENABLED" "IS_GCM_ENABLED" "true")
 IS_SIGNIN_ENABLED=$(get_val "IS_SIGNIN_ENABLED" "IS_SIGNIN_ENABLED" "true")
-GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "FIREBASE_IOS_APP_ID" "")
+GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "IOS_GOOGLE_APP_ID" "")
 if [ -z "$GOOGLE_APP_ID" ]; then
-  GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "GOOGLE_APP_ID" "")
+  GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "FIREBASE_IOS_APP_ID" "")
 fi
 DATABASE_URL=$(get_val "DATABASE_URL" "FIREBASE_DATABASE_URL" "")
 
@@ -134,15 +134,15 @@ cat > "$PLIST_PATH" <<EOF
 	<key>STORAGE_BUCKET</key>
 	<string>${STORAGE_BUCKET}</string>
 	<key>IS_ADS_ENABLED</key>
-	<${IS_ADS_ENABLED:?false}></${IS_ADS_ENABLED:?false}>
+	<${IS_ADS_ENABLED:-false}/>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<${IS_ANALYTICS_ENABLED:?false}></${IS_ANALYTICS_ENABLED:?false}>
+	<${IS_ANALYTICS_ENABLED:-false}/>
 	<key>IS_APPINVITE_ENABLED</key>
-	<${IS_APPINVITE_ENABLED:?true}></${IS_APPINVITE_ENABLED:?true}>
+	<${IS_APPINVITE_ENABLED:-true}/>
 	<key>IS_GCM_ENABLED</key>
-	<${IS_GCM_ENABLED:?true}></${IS_GCM_ENABLED:?true}>
+	<${IS_GCM_ENABLED:-true}/>
 	<key>IS_SIGNIN_ENABLED</key>
-	<${IS_SIGNIN_ENABLED:?true}></${IS_SIGNIN_ENABLED:?true}>
+	<${IS_SIGNIN_ENABLED:-true}/>
 	<key>GOOGLE_APP_ID</key>
 	<string>${GOOGLE_APP_ID}</string>
 	<key>DATABASE_URL</key>
