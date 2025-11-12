@@ -2,7 +2,7 @@
 
 This repo includes scripts to help you enforce a no-direct-merge policy on the `main` branch.
 
-What I added
+Included scripts
 - `scripts/set-github-branch-protection.sh` — uses the GitHub REST API to set branch protection rules on a repository.
 - `scripts/hooks/pre-push` — a client-side git hook that blocks pushes from `main`/`master`.
 - `scripts/install-client-hooks.sh` — helper to copy the hooks into `.git/hooks`.
