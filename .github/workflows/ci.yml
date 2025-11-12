@@ -165,7 +165,8 @@ jobs:
         run: chmod +x ./android/gradlew || true
 
       - name: Generate google-services.json
-        run: ./gradlew :app:generateGoogleServices
+        working-directory: android
+        run: ./android/gradlew :app:generateGoogleServices
 
       - name: Build Android (APK)
         run: flutter build apk --release
