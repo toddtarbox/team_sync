@@ -105,13 +105,13 @@ EOF
 # Make the request and capture body + HTTP code
 resp_body_file=$(mktemp)
 http_code=$(curl -sS -o "$resp_body_file" -w "%{http_code}" -X PUT \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
   -H "Content-Type: application/json" \
   --data "$BODY" \
   "$API")
 
-if [[ "$http_code" =~ ^[0-9]+$ ]] && (( http_code >= 200 && http_code < 300 )); then
+if (( http_code >= 200 && http_code < 300 )); then
   echo "Branch protection set for ${REPO_OWNER}/${REPO_NAME}:${BRANCH}"
   rm -f "$resp_body_file"
   exit 0

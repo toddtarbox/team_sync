@@ -1,0 +1,11 @@
+name: CI debug — no-op
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm debug workflow
+        run: echo "CI debug workflow present — no-op"

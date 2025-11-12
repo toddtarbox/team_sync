@@ -20,11 +20,13 @@ if [ ! -d "$HOOKS_DIR" ]; then
 fi
 
 for f in "$HOOKS_DIR"/*; do
-  fname=$(basename "$f")
-  dest="$GIT_HOOKS_DIR/$fname"
-  cp "$f" "$dest"
-  chmod +x "$dest"
-  echo "Installed hook: $fname"
+  if [ -f "$f" ]; then
+    fname=$(basename "$f")
+    dest="$GIT_HOOKS_DIR/$fname"
+    cp "$f" "$dest"
+    chmod +x "$dest"
+    echo "Installed hook: $fname"
+  fi
 done
 
 echo "All hooks installed."

@@ -3,11 +3,18 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
-/// This file intentionally does NOT contain secret keys. Provide values at
-/// build/run time using `--dart-define` (see `docs/FIREBASE.md` for examples).
+/// Example:
+/// ```dart
+/// import 'firebase_options.dart';
+/// // ...
+/// await Firebase.initializeApp(
+///   options: DefaultFirebaseOptions.currentPlatform,
+/// );
+/// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -40,92 +47,43 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Android
-  static FirebaseOptions get android {
-    const apiKey = String.fromEnvironment('FIREBASE_ANDROID_API_KEY');
-    const appId = String.fromEnvironment('FIREBASE_ANDROID_APP_ID');
-    const messagingSenderId =
-        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
-    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
-    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
-
-    if (apiKey == '' || appId == '') {
-      throw UnsupportedError(
-          'Android Firebase options not provided. Pass them with --dart-define.\n'
-          'Example: --dart-define=FIREBASE_ANDROID_API_KEY=... --dart-define=FIREBASE_ANDROID_APP_ID=...');
-    }
-
-    return FirebaseOptions(
-      apiKey: apiKey,
-      appId: appId,
-      messagingSenderId: messagingSenderId,
-      projectId: projectId,
-      databaseURL: databaseURL,
-      storageBucket: storageBucket,
-    );
+  // Helper to read an env var (required). Throws if missing to avoid embedding secret fallbacks.
+  static String _env(String key) {
+    final v = dotenv.env[key];
+    if (v != null && v.trim().isNotEmpty) return v.trim();
+    throw StateError(
+        'Missing required environment variable: $key. Provide it in .env or CI secrets.');
   }
 
-  // iOS
-  static FirebaseOptions get ios {
-    const apiKey = String.fromEnvironment('FIREBASE_IOS_API_KEY');
-    const appId = String.fromEnvironment('FIREBASE_IOS_APP_ID');
-    const messagingSenderId =
-        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
-    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
-    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
-    const androidClientId =
-        String.fromEnvironment('FIREBASE_ANDROID_CLIENT_ID');
-    const iosClientId = String.fromEnvironment('FIREBASE_IOS_CLIENT_ID');
-    const iosBundleId = String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
+  static FirebaseOptions get android => FirebaseOptions(
+        apiKey: _env('API_KEY'),
+        appId: _env('FIREBASE_MOBILE_APP_ID'),
+        messagingSenderId: _env('MESSAGING_SENDER_ID'),
+        projectId: _env('FIREBASE_PROJECT_ID'),
+        databaseURL: _env('FIREBASE_DATABASE_URL'),
+        storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
+      );
 
-    if (apiKey == '' || appId == '') {
-      throw UnsupportedError(
-          'iOS Firebase options not provided. Pass them with --dart-define.\n'
-          'Example: --dart-define=FIREBASE_IOS_API_KEY=... --dart-define=FIREBASE_IOS_APP_ID=...');
-    }
+  static FirebaseOptions get ios => FirebaseOptions(
+        apiKey: _env('IOS_API_KEY'),
+        appId: _env('IOS_GOOGLE_APP_ID'),
+        messagingSenderId: _env('MESSAGING_SENDER_ID'),
+        projectId: _env('FIREBASE_PROJECT_ID'),
+        databaseURL: _env('FIREBASE_DATABASE_URL'),
+        storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
+        androidClientId: _env('IOS_ANDROID_CLIENT_ID'),
+        iosClientId: _env('IOS_CLIENT_ID'),
+        iosBundleId: _env('IOS_BUNDLE_ID'),
+      );
 
-    return FirebaseOptions(
-      apiKey: apiKey,
-      appId: appId,
-      messagingSenderId: messagingSenderId,
-      projectId: projectId,
-      databaseURL: databaseURL,
-      storageBucket: storageBucket,
-      androidClientId: androidClientId == '' ? null : androidClientId,
-      iosClientId: iosClientId == '' ? null : iosClientId,
-      iosBundleId: iosBundleId == '' ? null : iosBundleId,
-    );
-  }
-
-  // Web
-  static FirebaseOptions get web {
-    const apiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
-    const appId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
-    const messagingSenderId =
-        String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
-    const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-    const authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
-    const databaseURL = String.fromEnvironment('FIREBASE_DATABASE_URL');
-    const storageBucket = String.fromEnvironment('FIREBASE_STORAGE_BUCKET');
-    const measurementId = String.fromEnvironment('FIREBASE_MEASUREMENT_ID');
-
-    if (apiKey == '' || appId == '') {
-      throw UnsupportedError(
-          'Web Firebase options not provided. Pass them with --dart-define.\n'
-          'Example: --dart-define=FIREBASE_WEB_API_KEY=... --dart-define=FIREBASE_WEB_APP_ID=...');
-    }
-
-    return FirebaseOptions(
-      apiKey: apiKey,
-      appId: appId,
-      messagingSenderId: messagingSenderId,
-      projectId: projectId,
-      authDomain: authDomain == '' ? null : authDomain,
-      databaseURL: databaseURL,
-      storageBucket: storageBucket,
-      measurementId: measurementId == '' ? null : measurementId,
-    );
-  }
+  static FirebaseOptions get web => FirebaseOptions(
+        apiKey: _env('WEB_API_KEY'),
+        appId: _env('WEB_APP_ID'),
+        messagingSenderId: _env('MESSAGING_SENDER_ID'),
+        projectId: _env('FIREBASE_PROJECT_ID'),
+        authDomain: _env('WEB_AUTH_DOMAIN'),
+        databaseURL: _env('FIREBASE_DATABASE_URL'),
+        storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
+        measurementId: _env('WEB_MEASUREMENT_ID'),
+      );
 }

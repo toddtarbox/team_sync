@@ -28,7 +28,9 @@ PATTERNS=(
 )
 
 # Files/dirs to exclude from scanning (performance and to skip generated/binary files)
-EXCLUDE_PATTERN='^(\.git/|build/|\.dart_tool/|\.pub/|\.pub-cache/|node_modules/|\.github/|android/gradle/|ios/Pods/|\.vscode/)'
+# Also exclude local hook and CI scripts (e.g., .githooks/ and scripts/) which may contain
+# example patterns or the scanner itself to avoid self-detection.
+EXCLUDE_PATTERN='^(\.git/|build/|\.dart_tool/|\.pub/|\.pub-cache/|node_modules/|functions/node_modules/|\.github/|android/gradle/|ios/Pods/|\.vscode/|\.githooks/|scripts/)'
 
 # Get list of tracked files to scan
 FILES=$(git ls-files | grep -Ev "$EXCLUDE_PATTERN" || true)

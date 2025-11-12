@@ -76,17 +76,57 @@ if [ -z "$FILES_TO_SCAN" ]; then
 fi
 
 # Build the staged diff limited to the filtered files
-STAGED_DIFF=$(git diff --cached -U0 --no-color -- $FILES_TO_SCAN || true)
+# Instead of grepping the whole combined diff (which doesn't show filenames reliably),
+# inspect each staged file's diff individually so we can report the filename with matches.
+FOUND=0
 
-for pat in "${PATTERNS[@]}"; do
-  # Search the diff for the pattern
-  MATCHES=$(echo "$STAGED_DIFF" | grep -nE -- "${pat}" 2>/dev/null || true)
-  if [ -n "$MATCHES" ]; then
-    echo "Potential secret pattern detected: $pat"
-    echo "$MATCHES"
-    FOUND=1
+while IFS= read -r file; do
+  # Skip empty lines (safety)
+  [ -z "$file" ] && continue
+  # Get the staged diff for this file only
+  FILE_DIFF=$(git diff --cached -U0 --no-color -- "$file" 2>/dev/null || true)
+  if [ -z "$FILE_DIFF" ]; then
+    continue
   fi
-done
+
+  # Parse the per-file diff to compute new-file line numbers for added lines.
+  # We'll walk the diff line-by-line, update a 'newLine' pointer from hunk headers
+  # like: @@ -oldStart,oldCount +newStart,newCount @@ and check only added lines ('+').
+  newLine=0
+  while IFS= read -r diffLine; do
+    # Hunk header
+    if [[ "$diffLine" =~ ^@@[[:space:]]+-[0-9]+(,[0-9]+)?[[:space:]]+\+([0-9]+)(,([0-9]+))?[[:space:]]+@@ ]]; then
+      newLine=${BASH_REMATCH[2]}
+      # Continue to next line after header
+      continue
+    fi
+
+    firstChar="${diffLine:0:1}"
+    # Only consider added lines (start with '+') for new-file locations
+    if [[ "$firstChar" == '+' ]]; then
+      # Strip the leading '+' to get the actual content
+      lineContent="${diffLine:1}"
+      # Check each pattern against the added line content
+      for pat in "${PATTERNS[@]}"; do
+        if echo "$lineContent" | grep -E --quiet -- "$pat" 2>/dev/null; then
+          echo "Potential secret pattern detected in file: $file (pattern: $pat)"
+          # Show the file path and computed new-file line number; do NOT print the matching content to avoid leaking secrets
+          echo "$file:${newLine}: [MATCH] (content hidden for security)"
+          FOUND=1
+        fi
+      done
+      # advance new-file line counter for added line
+      newLine=$((newLine + 1))
+    elif [[ "$firstChar" == ' ' ]]; then
+      # Context line -> advances new-file line number as well
+      newLine=$((newLine + 1))
+    else
+      # Removed lines ('-') do not advance new-file line counter
+      :
+    fi
+  done <<< "$FILE_DIFF"
+
+done <<< "$FILES_TO_SCAN"
 
 if [ $FOUND -ne 0 ]; then
   echo
@@ -94,6 +134,23 @@ if [ $FOUND -ne 0 ]; then
   echo "  - Remove secrets from the files, put them in a local .env (gitignored), and/or unstage them." >&2
   echo "  - To bypass temporarily: git reset <file> && add the safe replacement then commit." >&2
   exit 1
+fi
+
+# Run flutter analyze on staged Dart files (if any) and if flutter is available
+STAGED_DART_FILES=$(echo "$FILES_TO_SCAN" | grep -E '\.dart$' || true)
+if [ -n "$STAGED_DART_FILES" ]; then
+  if command -v flutter >/dev/null 2>&1; then
+    echo "[pre-commit] running flutter analyze on staged Dart files..."
+    # Read into array to preserve filenames with spaces
+    # Run flutter analyze on the whole project (do not pass file arguments)
+    if ! flutter analyze; then
+      echo
+      echo "ERROR: flutter analyze failed. Fix analyzer issues before committing." >&2
+      exit 1
+    fi
+  else
+    echo "[pre-commit] flutter not found in PATH; skipping flutter analyze"
+  fi
 fi
 
 # No secrets found

@@ -56,3 +56,166 @@ android {
 flutter {
     source = "../.."
 }
+
+// The following adds a Gradle task to generate (or update) google-services.json from a .env file at project root or CI environment variables (system env vars take precedence).
+// It merges values with any existing google-services.json if present, so only values provided in .env or environment variables are changed.
+
+// Note: use fully-qualified class names to avoid import resolution issues in some Gradle environments.
+
+// Helper to parse a simple .env file (KEY=VALUE, ignores comments and blank lines)
+def parseDotEnv(File envFile) {
+    def map = [:]
+    if (!envFile || !envFile.exists()) return map
+    envFile.eachLine { line ->
+        line = line?.trim()
+        if (!line || line.startsWith('#')) return
+        if (!line.contains('=')) return
+        def idx = line.indexOf('=')
+        def key = line.substring(0, idx).trim()
+        def value = line.substring(idx + 1).trim()
+        // strip surrounding quotes if present
+        if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.substring(1, value.length() - 1)
+        }
+        map[key] = value
+    }
+    return map
+}
+
+// Task: generate google-services.json in this module (android/app)
+// This task now supports reading from CI environment variables in addition to a .env file. Env vars take precedence.
+task generateGoogleServices {
+    doLast {
+        // Find .env by walking up from this project directory to filesystem root
+        def findEnvFile = {
+            def dir = project.projectDir
+            while (dir != null) {
+                def candidate = new File(dir, '.env')
+                if (candidate.exists()) return candidate
+                dir = dir.parentFile
+            }
+            return null
+        }
+
+        def envFile = findEnvFile()
+        def env = [:]
+        if (envFile == null) {
+            println "[generateGoogleServices] .env not found in project tree. Will attempt to use CI environment variables if present."
+        } else {
+            println "[generateGoogleServices] Using .env at ${envFile}"
+            env = parseDotEnv(envFile)
+        }
+
+        // System environment variables (CI) - these take precedence over .env values when present
+        def sysEnv = System.getenv()
+        def getVal = { key ->
+            def v = null
+            if (sysEnv.containsKey(key) && sysEnv[key] != null && sysEnv[key].toString().trim() != '') {
+                v = sysEnv[key].toString()
+            } else if (env.containsKey(key)) {
+                v = env[key]
+            }
+            return v
+        }
+
+        def targetFile = file('google-services.json')
+
+        // Decide if any values were provided from env or CI
+        def providedKeys = ['FIREBASE_PROJECT_NUMBER','FIREBASE_DATABASE_URL','FIREBASE_PROJECT_ID','FIREBASE_STORAGE_BUCKET','FIREBASE_MOBILE_APP_ID','API_KEY','OAUTH_CLIENT_IDS']
+        def anyProvided = providedKeys.any { k ->
+            def val = getVal(k)
+            return val != null && val.toString().trim() != ''
+        }
+
+        if (!anyProvided && targetFile.exists()) {
+            println "[generateGoogleServices] No env vars provided and google-services.json already exists; skipping generation."
+            return
+        }
+
+        // Simple JSON value escaper
+        def esc = { v ->
+            if (v == null) return ""
+            return v.toString().replace('\\','\\\\').replace('"','\\"')
+        }
+
+        def project_number = esc(getVal('FIREBASE_PROJECT_NUMBER'))
+        def firebase_url = esc(getVal('FIREBASE_DATABASE_URL'))
+        def project_id = esc(getVal('FIREBASE_PROJECT_ID'))
+        def storage_bucket = esc(getVal('FIREBASE_STORAGE_BUCKET'))
+        def mobile_app_id = esc(getVal('FIREBASE_MOBILE_APP_ID'))
+        def raw_package_name = getVal('ANDROID_PACKAGE_NAME') ?: project?.android?.defaultConfig?.applicationId
+        if (!raw_package_name || raw_package_name.toString().trim() == '') {
+            throw new GradleException("[generateGoogleServices] Could not determine package name. Please set ANDROID_PACKAGE_NAME environment variable or ensure applicationId is set in defaultConfig.")
+        }
+        def package_name = esc(raw_package_name)
+        def api_key = esc(getVal('API_KEY'))
+        def oauthRaw = getVal('OAUTH_CLIENT_IDS')
+        def iosInviteClient = esc(getVal('IOS_APPINVITE_CLIENT_ID'))
+
+        // Build oauth_client array
+        def oauthClients = [] as List
+        if (oauthRaw && oauthRaw.toString().trim() != '') {
+            oauthRaw.toString().split(',').collect { it.trim() }.findAll { it }.each { id ->
+                oauthClients << "{\"client_id\":\"${esc(id)}\",\"client_type\":1}"
+            }
+        }
+
+        // If no oauth clients provided, leave empty array
+        def oauthClientsJson = oauthClients.size() ? oauthClients.join(',') : ''
+
+        // Build other_platform_oauth_client for appinvite_service (include iosInviteClient if present)
+        def otherPlatform = [] as List
+        if (oauthRaw && oauthRaw.toString().trim() != '') {
+            oauthRaw.toString().split(',').collect { it.trim() }.findAll { it }.each { id ->
+                otherPlatform << "{\"client_id\":\"${esc(id)}\",\"client_type\":3}"
+            }
+        }
+        if (iosInviteClient && iosInviteClient.trim() != '') {
+            otherPlatform << "{\"client_id\":\"${esc(iosInviteClient)}\",\"client_type\":2,\"ios_info\":{\"bundle_id\":\"${esc(getVal('IOS_BUNDLE_ID') ?: '')}\"}}"
+        }
+        def otherPlatformJson = otherPlatform.size() ? otherPlatform.join(',') : ''
+
+        // Build JSON text
+        def jsonBuilder = new StringBuilder()
+        jsonBuilder.append('{\n')
+        jsonBuilder.append('  "project_info": {\n')
+        jsonBuilder.append('    "project_number": "' + project_number + '",\n')
+        jsonBuilder.append('    "firebase_url": "' + firebase_url + '",\n')
+        jsonBuilder.append('    "project_id": "' + project_id + '",\n')
+        jsonBuilder.append('    "storage_bucket": "' + storage_bucket + '"\n')
+        jsonBuilder.append('  },\n')
+        jsonBuilder.append('  "client": [\n')
+        jsonBuilder.append('    {\n')
+        jsonBuilder.append('      "client_info": {\n')
+        jsonBuilder.append('        "mobilesdk_app_id": "' + mobile_app_id + '",\n')
+        jsonBuilder.append('        "android_client_info": {\n')
+        jsonBuilder.append('          "package_name": "' + package_name + '"\n')
+        jsonBuilder.append('        }\n')
+        jsonBuilder.append('      },\n')
+        jsonBuilder.append('      "oauth_client": [')
+        jsonBuilder.append(oauthClientsJson)
+        jsonBuilder.append('],\n')
+        jsonBuilder.append('      "api_key": [\n')
+        jsonBuilder.append('        {\n')
+        jsonBuilder.append('          "current_key": "' + api_key + '"\n')
+        jsonBuilder.append('        }\n')
+        jsonBuilder.append('      ],\n')
+        jsonBuilder.append('      "services": {\n')
+        jsonBuilder.append('        "appinvite_service": {\n')
+        jsonBuilder.append('          "other_platform_oauth_client": [')
+        jsonBuilder.append(otherPlatformJson)
+        jsonBuilder.append(']\n')
+        jsonBuilder.append('        }\n')
+        jsonBuilder.append('      }\n')
+        jsonBuilder.append('    }\n')
+        jsonBuilder.append('  ],\n')
+        jsonBuilder.append('  "configuration_version": "1"\n')
+        jsonBuilder.append('}\n')
+
+        targetFile.text = jsonBuilder.toString()
+        println "[generateGoogleServices] Wrote ${targetFile} from ${envFile ?: 'CI environment variables'}"
+    }
+}
+
+// Ensure google-services.json is generated before Android pre-build
+preBuild.dependsOn generateGoogleServices
