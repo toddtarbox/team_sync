@@ -685,6 +685,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Best Game'**
   String get bestGame;
+
+  /// No description provided for @welcomeToTeamSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to TeamSync!'**
+  String get welcomeToTeamSync;
+
+  /// No description provided for @noDatabaseFoundMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'To get started, you\'ll need to create a new database or open an existing one. Would you like to set up your database now?'**
+  String get noDatabaseFoundMessage;
+
+  /// No description provided for @remindMeLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind Me Later'**
+  String get remindMeLater;
+
+  /// No description provided for @getStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get getStarted;
 }
 
 class _AppLocalizationsDelegate

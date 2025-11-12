@@ -144,15 +144,69 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkIfFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+    final hasSeenNoDatabasePrompt =
+        prefs.getBool('hasSeenNoDatabasePrompt') ?? false;
 
     if (isFirstLaunch) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         prefs.setBool('isFirstLaunch', false);
+
+        // Mark that we've shown the database prompt through the showcase
+        const storage = FlutterSecureStorage();
+        final lastDBUsed = await storage.read(key: 'last_db_used');
+        if (lastDBUsed == null && DatabaseService.instance.path.isEmpty) {
+          prefs.setBool('hasSeenNoDatabasePrompt', true);
+        }
 
         ShowcaseView.get().startShowCase(
           [_welcomeKey, _fabKey, _goProKey, _settingsKey],
         );
       });
+    } else if (!hasSeenNoDatabasePrompt) {
+      // Check if user has no database after first launch (e.g., reopening app without creating a database)
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        const storage = FlutterSecureStorage();
+        final lastDBUsed = await storage.read(key: 'last_db_used');
+
+        if (lastDBUsed == null && DatabaseService.instance.path.isEmpty) {
+          // User reopened app without creating a database - show prompt
+          prefs.setBool('hasSeenNoDatabasePrompt', true);
+
+          // Small delay to ensure UI is ready
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (mounted) {
+            await _showDatabaseSetupPrompt();
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _showDatabaseSetupPrompt() async {
+    final shouldShowOptions = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.welcomeToTeamSync),
+          content: Text(AppLocalizations.of(context)!.noDatabaseFoundMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(AppLocalizations.of(context)!.remindMeLater),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(AppLocalizations.of(context)!.getStarted),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldShowOptions == true && mounted) {
+      await _showCreateOptions(context);
     }
   }
 

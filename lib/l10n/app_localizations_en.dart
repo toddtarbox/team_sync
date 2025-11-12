@@ -306,4 +306,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bestGame => 'Best Game';
+
+  @override
+  String get welcomeToTeamSync => 'Welcome to TeamSync!';
+
+  @override
+  String get noDatabaseFoundMessage =>
+      'To get started, you\'ll need to create a new database or open an existing one. Would you like to set up your database now?';
+
+  @override
+  String get remindMeLater => 'Remind Me Later';
+
+  @override
+  String get getStarted => 'Get Started';
 }
