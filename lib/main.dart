@@ -15,7 +15,12 @@ import 'l10n/app_localizations.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Load environment variables from .env (if present). CI env vars still take precedence.
-  await dotenv.load();
+  try {
+    await dotenv.load();
+  } catch (e) {
+    // .env file not found or invalid - this is OK in production/CI where env vars come from system
+    debugPrint('dotenv load failed (OK if using system env vars): $e');
+  }
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
