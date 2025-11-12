@@ -24,3 +24,6 @@ node_modules/
 README.md
 .env.example
 
+**/.DS_Store
+**/README.md
+**/.env.example
