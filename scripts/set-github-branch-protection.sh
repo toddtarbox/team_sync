@@ -111,7 +111,7 @@ http_code=$(curl -sS -o "$resp_body_file" -w "%{http_code}" -X PUT \
   --data "$BODY" \
   "$API")
 
-if [[ "$http_code" =~ ^[0-9]+$ ]] && (( http_code >= 200 && http_code < 300 )); then
+if (( http_code >= 200 && http_code < 300 )); then
   echo "Branch protection set for ${REPO_OWNER}/${REPO_NAME}:${BRANCH}"
   rm -f "$resp_body_file"
   exit 0
