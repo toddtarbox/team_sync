@@ -142,8 +142,8 @@ if [ -n "$STAGED_DART_FILES" ]; then
   if command -v flutter >/dev/null 2>&1; then
     echo "[pre-commit] running flutter analyze on staged Dart files..."
     # Read into array to preserve filenames with spaces
-    IFS=$'\n' read -r -d '' -a DART_FILES_ARRAY <<<"$STAGED_DART_FILES" || true
-    if ! flutter analyze "${DART_FILES_ARRAY[@]}"; then
+    # Run flutter analyze on the whole project (do not pass file arguments)
+    if ! flutter analyze; then
       echo
       echo "ERROR: flutter analyze failed. Fix analyzer issues before committing." >&2
       exit 1
