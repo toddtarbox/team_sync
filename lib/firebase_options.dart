@@ -77,13 +77,19 @@ class DefaultFirebaseOptions {
       );
 
   static FirebaseOptions get web => FirebaseOptions(
-        apiKey: _env('WEB_API_KEY'),
-        appId: _env('WEB_APP_ID'),
-        messagingSenderId: _env('MESSAGING_SENDER_ID'),
-        projectId: _env('FIREBASE_PROJECT_ID'),
-        authDomain: _env('WEB_AUTH_DOMAIN'),
-        databaseURL: _env('FIREBASE_DATABASE_URL'),
-        storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
-        measurementId: _env('WEB_MEASUREMENT_ID'),
+        apiKey: const String.fromEnvironment('WEB_API_KEY', defaultValue: ''),
+        appId: const String.fromEnvironment('WEB_APP_ID', defaultValue: ''),
+        messagingSenderId: const String.fromEnvironment('MESSAGING_SENDER_ID',
+            defaultValue: ''),
+        projectId: const String.fromEnvironment('FIREBASE_PROJECT_ID',
+            defaultValue: ''),
+        authDomain:
+            const String.fromEnvironment('WEB_AUTH_DOMAIN', defaultValue: ''),
+        databaseURL: const String.fromEnvironment('FIREBASE_DATABASE_URL',
+            defaultValue: ''),
+        storageBucket: const String.fromEnvironment('FIREBASE_STORAGE_BUCKET',
+            defaultValue: ''),
+        measurementId: const String.fromEnvironment('WEB_MEASUREMENT_ID',
+            defaultValue: ''),
       );
 }

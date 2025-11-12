@@ -18,14 +18,11 @@ Welcome — thanks for contributing! This file explains the minimal setup requir
     ./scripts/setup-dev.sh
     ```
 
-3. Optionally run local secret scans:
+3. Optionally run local secret scan:
 
     ```bash
     # grep-based scan
     ./scripts/ci/secret_scan.sh
-
-    # gitleaks (if installed)
-    ./scripts/ci/run_gitleaks.sh
     ```
 
 4. Use the helper to run Flutter with local env injected:
@@ -37,7 +34,7 @@ Welcome — thanks for contributing! This file explains the minimal setup requir
 
 ## CI protections
 
-- Pull requests are scanned by a CI job (`.github/workflows/secret_scan.yml`) which runs a conservative grep-based scan and `gitleaks`. The job will fail if suspected secrets are detected.
+- Pull requests are scanned by a CI job (`.github/workflows/secret_scan.yml`) which runs a conservative grep-based scan. The job will fail if suspected secrets are detected.
 
 ## Branch protection recommendation
 
