@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -22,9 +23,11 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
+import 'package:team_sync/widgets/twitter_feed.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
@@ -37,6 +40,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
+  Game? _currentOrLastGame;
+  Season? _currentSeason;
   late bool _isSubscribed;
   bool _isLoading = false;
   bool _isImporting = false;
@@ -467,33 +472,65 @@ class _HomePageState extends State<HomePage> {
                           style: const TextStyle(fontSize: 24)));
                 }
 
-                return Column(children: [
-                  Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _team?.color1 ?? Theme.of(context).primaryColor,
-                            _team?.color2 ?? Theme.of(context).primaryColorDark,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Main content area
+                    Expanded(
+                      flex: kIsWeb ? 2 : 1,
+                      child: Column(children: [
+                        Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _team?.color1 ??
+                                      Theme.of(context).primaryColor,
+                                  _team?.color2 ??
+                                      Theme.of(context).primaryColorDark,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(25),
+                                bottomRight: Radius.circular(25),
+                              ),
+                            ),
+                            child: Container(
+                                color: Colors.transparent,
+                                child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Center(
+                                        child: SeasonRecord(_seasons,
+                                            singleSeason: false))))),
+                        // Scoreboard widget
+                        if (_team != null)
+                          ScoreboardWidget(
+                            game: _currentOrLastGame,
+                            season: _currentSeason,
+                            teamId: _team!.id,
+                          ),
+                        Expanded(
+                          child: SeasonsListView(seasons: _seasons),
+                        )
+                      ]),
+                    ),
+                    // Twitter feed sidebar shown only on web
+                    if (kIsWeb)
+                      Container(
+                        width: 360,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1,
+                            ),
+                          ),
                         ),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(25),
-                          bottomRight: Radius.circular(25),
-                        ),
+                        child: _buildTwitterSidebar(),
                       ),
-                      child: Container(
-                          color: Colors.transparent,
-                          child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Center(
-                                  child: SeasonRecord(_seasons,
-                                      singleSeason: false))))),
-                  Expanded(
-                    child: SeasonsListView(seasons: _seasons),
-                  )
-                ]);
+                  ],
+                );
               }
             },
           ),
@@ -888,6 +925,77 @@ class _HomePageState extends State<HomePage> {
         await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList();
     await Future.wait(_seasons.map((s) async => await s.load()));
+    await _loadCurrentOrLastGame();
+  }
+
+  Future<void> _loadCurrentOrLastGame() async {
+    if (_team == null) return;
+
+    try {
+      // Get all games for this team
+      final games = await Game.listFromTeamId(_team!.id);
+
+      if (games.isEmpty) {
+        _currentOrLastGame = null;
+        return;
+      }
+
+      final now = DateTime.now();
+
+      // Filter to only games that have started or completed (not future games)
+      // Exclude games with notStarted status (index 0) and games scheduled in the future
+      final startedOrCompletedGames = games.where((game) {
+        // Game must have started (status > 0) OR be scheduled for today or earlier
+        final isStarted = game.gameStatus.index > 0;
+        final isNotInFuture = game.date.isBefore(now) ||
+            game.date.year == now.year &&
+                game.date.month == now.month &&
+                game.date.day == now.day;
+        return isStarted || (game.gameStatus.index == 0 && isNotInFuture);
+      }).toList();
+
+      if (startedOrCompletedGames.isEmpty) {
+        _currentOrLastGame = null;
+        return;
+      }
+
+      // Sort games by date in descending order (most recent first)
+      startedOrCompletedGames.sort((a, b) => b.date.compareTo(a.date));
+
+      // First check for any live games (status between 1-8)
+      final liveGames = startedOrCompletedGames
+          .where(
+            (game) => game.gameStatus.index > 0 && game.gameStatus.index < 9,
+          )
+          .toList();
+
+      if (liveGames.isNotEmpty) {
+        // If there are live games, show the most recent one
+        _currentOrLastGame = liveGames.first;
+      } else {
+        // No live games, show the most recent completed game
+        _currentOrLastGame = startedOrCompletedGames.first;
+      }
+
+      // Find the season for this game
+      if (_currentOrLastGame != null) {
+        try {
+          _currentSeason = _seasons.firstWhere(
+            (season) => season.id == _currentOrLastGame!.seasonId,
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            print('Could not find season for game: $e');
+          }
+          _currentSeason = null;
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading current/last game: $e');
+      }
+      _currentOrLastGame = null;
+    }
   }
 
   Future<String?> _pickCloudDatabase() async {
@@ -1144,6 +1252,137 @@ class _HomePageState extends State<HomePage> {
       'color2': color2?.value,
       'logoUrl': logoUrl
     });
+  }
+
+  Widget _buildTwitterSidebar() {
+    final handle = _team?.twitterHandle ?? 'TeamSyncApp';
+    final hasCustomHandle =
+        _team?.twitterHandle != null && _team!.twitterHandle!.isNotEmpty;
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.feed,
+                  size: 20, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Twitter Feed',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                if (!hasCustomHandle)
+                  Card(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No Twitter handle configured',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Configure a Twitter handle in Settings to see your team\'s feed here.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: TwitterFeed(
+                    username: handle,
+                    onError: (String error) {
+                      // This callback can be used if we update TwitterFeed to support error callbacks
+                      return Center(
+                        child: Card(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Twitter feed unavailable',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Unable to load the Twitter feed. Please check your internet connection or try again later.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onErrorContainer,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _createSeason() async {

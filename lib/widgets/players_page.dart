@@ -146,12 +146,32 @@ class _PlayersPageState extends State<PlayersPage> {
                           setState(() {});
                         },
                         child: ListTile(
-                          onTap: kIsWeb ? null : () => _editPlayer(player),
+                          onTap: kIsWeb
+                              ? () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => PlayerProfilePage(
+                                        player: player,
+                                        currentSeason: widget.season,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              : () => _editPlayer(player),
                           onLongPress:
                               kIsWeb ? null : () => _editPlayer(player),
                           leading: GestureDetector(
                             onTap: kIsWeb
-                                ? null
+                                ? () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => PlayerProfilePage(
+                                          player: player,
+                                          currentSeason: widget.season,
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 : () {
                                     if (!SubscriptionService
                                         .instance.isSubscribed) {
