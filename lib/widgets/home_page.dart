@@ -21,13 +21,13 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
-import 'package:team_sync/widgets/twitter_feed.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
@@ -515,7 +515,7 @@ class _HomePageState extends State<HomePage> {
                         )
                       ]),
                     ),
-                    // Twitter feed sidebar shown only on web
+                    // Event stream sidebar shown only on web
                     if (kIsWeb)
                       Container(
                         width: 360,
@@ -527,7 +527,10 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        child: _buildTwitterSidebar(),
+                        child: EventStreamWidget(
+                          game: _currentOrLastGame,
+                          teamId: _team?.id,
+                        ),
                       ),
                   ],
                 );
@@ -977,8 +980,16 @@ class _HomePageState extends State<HomePage> {
         _currentOrLastGame = startedOrCompletedGames.first;
       }
 
-      // Find the season for this game
+      // Load game events for the selected game
       if (_currentOrLastGame != null) {
+        await _currentOrLastGame!.loadGameEvents();
+
+        if (kDebugMode) {
+          print(
+              'Loaded ${_currentOrLastGame!.allGameEvents.length} events for game');
+        }
+
+        // Find the season for this game
         try {
           _currentSeason = _seasons.firstWhere(
             (season) => season.id == _currentOrLastGame!.seasonId,
@@ -1252,137 +1263,6 @@ class _HomePageState extends State<HomePage> {
       'color2': color2?.value,
       'logoUrl': logoUrl
     });
-  }
-
-  Widget _buildTwitterSidebar() {
-    final handle = _team?.twitterHandle ?? 'TeamSyncApp';
-    final hasCustomHandle =
-        _team?.twitterHandle != null && _team!.twitterHandle!.isNotEmpty;
-
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.feed,
-                  size: 20, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'Twitter Feed',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                if (!hasCustomHandle)
-                  Card(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 48,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No Twitter handle configured',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Configure a Twitter handle in Settings to see your team\'s feed here.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimaryContainer,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: TwitterFeed(
-                    username: handle,
-                    onError: (String error) {
-                      // This callback can be used if we update TwitterFeed to support error callbacks
-                      return Center(
-                        child: Card(
-                          color: Theme.of(context).colorScheme.errorContainer,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.error_outline,
-                                  size: 48,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Twitter feed unavailable',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onErrorContainer,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Unable to load the Twitter feed. Please check your internet connection or try again later.',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onErrorContainer,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Future<void> _createSeason() async {

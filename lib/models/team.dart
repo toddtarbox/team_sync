@@ -20,7 +20,6 @@ class Team extends Equatable {
   final Color color1;
   final Color color2;
   final String? logoUrl;
-  final String? twitterHandle;
 
   const Team(
       {required this.id,
@@ -28,8 +27,7 @@ class Team extends Equatable {
       required this.shortName,
       this.color1 = Colors.green,
       this.color2 = Colors.green,
-      this.logoUrl,
-      this.twitterHandle});
+      this.logoUrl});
 
   factory Team.fromMap(Map<String, dynamic> map) {
     return Team(
@@ -42,8 +40,7 @@ class Team extends Equatable {
         color2: map['color2'] != null && map['color2'] != 0
             ? Color(map['color2'])
             : Colors.green,
-        logoUrl: map['logoUrl'],
-        twitterHandle: map['twitterHandle']);
+        logoUrl: map['logoUrl']);
   }
 
   static Future<Team> fromId(int id) async {

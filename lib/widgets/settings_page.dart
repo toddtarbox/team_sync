@@ -6,7 +6,6 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/markdown_viewer.dart';
-import 'package:team_sync/widgets/twitter_handle_settings_page.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -81,23 +80,6 @@ class SettingsPage extends StatelessWidget {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (context) => TwitterSettingsPage(team: team),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Visibility(
-                visible: !kIsWeb,
-                child: ListTile(
-                  title: const Text('Twitter Feed Handle'),
-                  subtitle: const Text(
-                      'Set the Twitter account used by the web feed'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            TwitterHandleSettingsPage(team: team),
                       ),
                     );
                   },
