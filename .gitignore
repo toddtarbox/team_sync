@@ -49,6 +49,7 @@ app.*.map.json
 /functions/node_modules/
 
 # Local secrets (do not commit API keys or env files)
-.env
+.env-team
+.env-club
 .env.*
 firebase_config.dart
