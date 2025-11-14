@@ -46,6 +46,8 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = false;
   bool _isImporting = false;
   bool _isSharing = false;
+  bool _isDrawerOpen =
+      false; // Track drawer state for web - collapsed by default
   final _teamIdController = TextEditingController();
 
   final _welcomeKey = GlobalKey();
@@ -362,7 +364,17 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       floatingActionButton: kIsWeb
-          ? null
+          ? (!_isDrawerOpen && _team != null
+              ? FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _isDrawerOpen = true;
+                    });
+                  },
+                  tooltip: 'Show game details',
+                  child: const Icon(Icons.event),
+                )
+              : null)
           : Showcase(
               key:
                   DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
@@ -477,7 +489,6 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     // Main content area
                     Expanded(
-                      flex: kIsWeb ? 2 : 1,
                       child: Column(children: [
                         Container(
                             decoration: BoxDecoration(
@@ -515,10 +526,11 @@ class _HomePageState extends State<HomePage> {
                         )
                       ]),
                     ),
-                    // Event stream sidebar shown only on web
-                    if (kIsWeb)
-                      Container(
-                        width: 360,
+                    // Event stream sidebar shown only on web - collapsible
+                    if (kIsWeb && _isDrawerOpen)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 450,
                         decoration: BoxDecoration(
                           border: Border(
                             left: BorderSide(
@@ -527,9 +539,33 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        child: EventStreamWidget(
-                          game: _currentOrLastGame,
-                          teamId: _team?.id,
+                        child: Stack(
+                          children: [
+                            EventStreamWidget(
+                              game: _currentOrLastGame,
+                              teamId: _team?.id,
+                            ),
+                            // Close button
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  setState(() {
+                                    _isDrawerOpen = false;
+                                  });
+                                },
+                                tooltip: 'Close sidebar',
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .surface
+                                      .withOpacity(0.9),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                   ],

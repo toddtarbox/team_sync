@@ -54,14 +54,19 @@ class ScoreboardWidget extends StatelessWidget {
     }
 
     final isHome = game!.isHomeTeam(teamId);
-    final myTeam = isHome ? game!.homeTeam : game!.awayTeam;
-    final opponentTeam = isHome ? game!.awayTeam : game!.homeTeam;
-    final myScore = isHome ? game!.homeTeamScore : game!.awayTeamScore;
-    final opponentScore = isHome ? game!.awayTeamScore : game!.homeTeamScore;
+    final leftTeam = game!.homeTeam;
+    final rightTeam = game!.awayTeam;
+    final leftScore = game!.homeTeamScore;
+    final rightScore = game!.awayTeamScore;
 
+    // Determine if user's team won/lost/tied
     final isWin = game!.isWin(teamId);
     final isTie = game!.isTie;
     final isLoss = !isWin && !isTie && game!.gameStatus.index >= 9;
+
+    // Check which team is the user's team for highlighting
+    final isLeftTeamMine = leftTeam.id == teamId;
+    final isRightTeamMine = rightTeam.id == teamId;
 
     return Card(
       margin: const EdgeInsets.all(16.0),
@@ -93,8 +98,8 @@ class ScoreboardWidget extends StatelessWidget {
             gradient: isLiveGame
                 ? LinearGradient(
                     colors: [
-                      myTeam.color1.withOpacity(0.1),
-                      myTeam.color2.withOpacity(0.1),
+                      leftTeam.color1.withOpacity(0.1),
+                      leftTeam.color2.withOpacity(0.1),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -173,39 +178,41 @@ class ScoreboardWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // My team
+                    // Home team (left)
                     Expanded(
                       child: Column(
                         children: [
-                          if (myTeam.logoUrl != null &&
-                              myTeam.logoUrl!.isNotEmpty)
+                          if (leftTeam.logoUrl != null &&
+                              leftTeam.logoUrl!.isNotEmpty)
                             CircleAvatar(
                               radius: 30,
-                              backgroundImage: NetworkImage(myTeam.logoUrl!),
-                              backgroundColor: myTeam.color1.withOpacity(0.2),
+                              backgroundImage: NetworkImage(leftTeam.logoUrl!),
+                              backgroundColor: leftTeam.color1.withOpacity(0.2),
                             )
                           else
                             CircleAvatar(
                               radius: 30,
-                              backgroundColor: myTeam.color1.withOpacity(0.2),
+                              backgroundColor: leftTeam.color1.withOpacity(0.2),
                               child: Icon(
                                 Icons.sports_soccer,
-                                color: myTeam.color1,
+                                color: leftTeam.color1,
                                 size: 30,
                               ),
                             ),
                           const SizedBox(height: 8),
                           Text(
-                            myTeam.shortName,
-                            style: const TextStyle(
+                            leftTeam.shortName,
+                            style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: isLeftTeamMine
+                                  ? FontWeight.w900
+                                  : FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            isHome ? 'HOME' : 'AWAY',
+                            'HOME',
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context)
@@ -227,13 +234,17 @@ class ScoreboardWidget extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Text(
-                                myScore.toString(),
+                                leftScore.toString(),
                                 style: TextStyle(
                                   fontSize: 48,
                                   fontWeight: FontWeight.bold,
-                                  color: isWin && !isLiveGame
+                                  color: isLeftTeamMine && isWin && !isLiveGame
                                       ? Colors.green
-                                      : Theme.of(context).colorScheme.onSurface,
+                                      : isLeftTeamMine && isLoss && !isLiveGame
+                                          ? Colors.red
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
                                 ),
                               ),
                               Padding(
@@ -251,13 +262,17 @@ class ScoreboardWidget extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                opponentScore.toString(),
+                                rightScore.toString(),
                                 style: TextStyle(
                                   fontSize: 48,
                                   fontWeight: FontWeight.bold,
-                                  color: isLoss && !isLiveGame
-                                      ? Colors.red
-                                      : Theme.of(context).colorScheme.onSurface,
+                                  color: isRightTeamMine && isWin && !isLiveGame
+                                      ? Colors.green
+                                      : isRightTeamMine && isLoss && !isLiveGame
+                                          ? Colors.red
+                                          : Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
                                 ),
                               ),
                             ],
@@ -297,42 +312,43 @@ class ScoreboardWidget extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Opponent team
+                    // Away team (right)
                     Expanded(
                       child: Column(
                         children: [
-                          if (opponentTeam.logoUrl != null &&
-                              opponentTeam.logoUrl!.isNotEmpty)
+                          if (rightTeam.logoUrl != null &&
+                              rightTeam.logoUrl!.isNotEmpty)
                             CircleAvatar(
                               radius: 30,
-                              backgroundImage:
-                                  NetworkImage(opponentTeam.logoUrl!),
+                              backgroundImage: NetworkImage(rightTeam.logoUrl!),
                               backgroundColor:
-                                  opponentTeam.color1.withOpacity(0.2),
+                                  rightTeam.color1.withOpacity(0.2),
                             )
                           else
                             CircleAvatar(
                               radius: 30,
                               backgroundColor:
-                                  opponentTeam.color1.withOpacity(0.2),
+                                  rightTeam.color1.withOpacity(0.2),
                               child: Icon(
                                 Icons.sports_soccer,
-                                color: opponentTeam.color1,
+                                color: rightTeam.color1,
                                 size: 30,
                               ),
                             ),
                           const SizedBox(height: 8),
                           Text(
-                            opponentTeam.shortName,
-                            style: const TextStyle(
+                            rightTeam.shortName,
+                            style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: isRightTeamMine
+                                  ? FontWeight.w900
+                                  : FontWeight.bold,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            isHome ? 'AWAY' : 'HOME',
+                            'AWAY',
                             style: TextStyle(
                               fontSize: 11,
                               color: Theme.of(context)

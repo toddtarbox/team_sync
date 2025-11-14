@@ -75,8 +75,17 @@ class EventStreamWidget extends StatelessWidget {
         ),
         // Event stream content
         Expanded(
+          flex: 2,
           child: _buildEventStream(context),
         ),
+        // Divider
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: Theme.of(context).dividerColor,
+        ),
+        // Game stats section
+        if (game != null) _buildGameStats(context),
       ],
     );
   }
@@ -541,4 +550,285 @@ class EventStreamWidget extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildGameStats(BuildContext context) {
+    // Calculate stats for both teams
+    final homeStats = _calculateTeamStats(game!.homeTeam.id);
+    final awayStats = _calculateTeamStats(game!.awayTeam.id);
+
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 400),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Stats header
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.bar_chart,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Game Stats',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Team headers
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  // Home team name aligned with home values
+                  SizedBox(
+                    width: 50,
+                    child: Text(
+                      game!.homeTeam.shortName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: game!.homeTeam.color1,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Home bar space
+                  const Expanded(child: SizedBox()),
+                  const SizedBox(width: 8),
+                  // Away bar space
+                  const Expanded(child: SizedBox()),
+                  const SizedBox(width: 8),
+                  // Away team name aligned with away values
+                  SizedBox(
+                    width: 50,
+                    child: Text(
+                      game!.awayTeam.shortName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: game!.awayTeam.color1,
+                      ),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, thickness: 1),
+            // Stats rows
+            _buildStatRow(context, 'Goals', homeStats.goals, awayStats.goals),
+            _buildStatRow(context, 'Shots', homeStats.shots, awayStats.shots),
+            _buildStatRow(context, 'Shots on Goal', homeStats.shotsOnGoal,
+                awayStats.shotsOnGoal),
+            _buildStatRow(context, 'Saves', homeStats.saves, awayStats.saves),
+            _buildStatRow(
+                context, 'Assists', homeStats.assists, awayStats.assists),
+            _buildStatRow(context, 'Fouls', homeStats.fouls, awayStats.fouls),
+            _buildStatRow(
+                context, 'Offsides', homeStats.offsides, awayStats.offsides),
+            _buildStatRow(
+                context, 'Yellow Cards', homeStats.yellows, awayStats.yellows),
+            _buildStatRow(context, 'Red Cards', homeStats.reds, awayStats.reds),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(
+      BuildContext context, String label, int homeValue, int awayValue) {
+    final maxValue = homeValue > awayValue ? homeValue : awayValue;
+    final homePercent = maxValue > 0 ? homeValue / maxValue : 0.0;
+    final awayPercent = maxValue > 0 ? awayValue / maxValue : 0.0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        children: [
+          // Label
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Values and bars
+          Row(
+            children: [
+              // Home value
+              SizedBox(
+                width: 30,
+                child: Text(
+                  homeValue.toString(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Home bar (right-to-left)
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FractionallySizedBox(
+                    widthFactor: homePercent,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: game!.homeTeam.color1.withOpacity(0.7),
+                        borderRadius: const BorderRadius.horizontal(
+                          left: Radius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Away bar (left-to-right)
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: awayPercent,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: game!.awayTeam.color1.withOpacity(0.7),
+                        borderRadius: const BorderRadius.horizontal(
+                          right: Radius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Away value
+              SizedBox(
+                width: 30,
+                child: Text(
+                  awayValue.toString(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  _TeamStats _calculateTeamStats(int teamId) {
+    int goals = 0;
+    int shots = 0;
+    int shotsOnGoal = 0;
+    int saves = 0;
+    int assists = 0;
+    int fouls = 0;
+    int offsides = 0;
+    int yellows = 0;
+    int reds = 0;
+
+    for (final event in game!.allGameEvents) {
+      if (event.team.id != teamId) continue;
+
+      switch (event.eventType) {
+        case 'Shot':
+          shots++;
+          if (event.eventData == ShotResult.goal.index) {
+            goals++;
+            shotsOnGoal++;
+          } else if (event.eventData == ShotResult.onTargetSave.index) {
+            shotsOnGoal++;
+          }
+          break;
+        case 'PenaltyKick':
+          if (event.eventData == ShotResult.goal.index) {
+            goals++;
+          }
+          break;
+        case 'Save':
+          saves++;
+          break;
+        case 'Assist':
+          assists++;
+          break;
+        case 'Foul':
+          fouls++;
+          break;
+        case 'Offsides':
+          offsides++;
+          break;
+        case 'Card':
+          if (event.eventData == 0) {
+            yellows++;
+          } else if (event.eventData == 1 || event.eventData == 2) {
+            reds++;
+          }
+          break;
+      }
+    }
+
+    return _TeamStats(
+      goals: goals,
+      shots: shots,
+      shotsOnGoal: shotsOnGoal,
+      saves: saves,
+      assists: assists,
+      fouls: fouls,
+      offsides: offsides,
+      yellows: yellows,
+      reds: reds,
+    );
+  }
+}
+
+class _TeamStats {
+  final int goals;
+  final int shots;
+  final int shotsOnGoal;
+  final int saves;
+  final int assists;
+  final int fouls;
+  final int offsides;
+  final int yellows;
+  final int reds;
+
+  _TeamStats({
+    required this.goals,
+    required this.shots,
+    required this.shotsOnGoal,
+    required this.saves,
+    required this.assists,
+    required this.fouls,
+    required this.offsides,
+    required this.yellows,
+    required this.reds,
+  });
 }
