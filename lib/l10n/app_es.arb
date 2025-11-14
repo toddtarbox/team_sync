@@ -95,5 +95,11 @@
   "game": "Partido",
   "calculating": "Calculando...",
   "bestSeason": "Mejor temporada",
-  "bestGame": "Mejor partido"
+  "bestGame": "Mejor partido",
+  "welcomeToTeamSync": "¡Bienvenido a TeamSync!",
+  "noDatabaseFoundMessage": "Para comenzar, necesitarás crear una nueva base de datos o abrir una existente. ¿Te gustaría configurar tu base de datos ahora?",
+  "remindMeLater": "Recordar más tarde",
+  "getStarted": "Comenzar",
+  "proFeature": "Función Pro",
+  "playerProfilesProFeature": "Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera."
 }

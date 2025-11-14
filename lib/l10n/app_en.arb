@@ -96,5 +96,11 @@
   "game": "Game",
   "calculating": "Calculating...",
   "bestSeason": "Best Season",
-  "bestGame": "Best Game"
+  "bestGame": "Best Game",
+  "welcomeToTeamSync": "Welcome to TeamSync!",
+  "noDatabaseFoundMessage": "To get started, you'll need to create a new database or open an existing one. Would you like to set up your database now?",
+  "remindMeLater": "Remind Me Later",
+  "getStarted": "Get Started",
+  "proFeature": "Pro Feature",
+  "playerProfilesProFeature": "Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history."
 }

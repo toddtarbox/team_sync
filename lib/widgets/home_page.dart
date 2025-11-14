@@ -15,13 +15,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
@@ -37,10 +40,14 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Team? _team;
   List<Season> _seasons = [];
+  Game? _currentOrLastGame;
+  Season? _currentSeason;
   late bool _isSubscribed;
   bool _isLoading = false;
   bool _isImporting = false;
   bool _isSharing = false;
+  bool _isDrawerOpen =
+      false; // Track drawer state for web - collapsed by default
   final _teamIdController = TextEditingController();
 
   final _welcomeKey = GlobalKey();
@@ -144,15 +151,69 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkIfFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     final isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
+    final hasSeenNoDatabasePrompt =
+        prefs.getBool('hasSeenNoDatabasePrompt') ?? false;
 
     if (isFirstLaunch) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         prefs.setBool('isFirstLaunch', false);
+
+        // Mark that we've shown the database prompt through the showcase
+        const storage = FlutterSecureStorage();
+        final lastDBUsed = await storage.read(key: 'last_db_used');
+        if (lastDBUsed == null && DatabaseService.instance.path.isEmpty) {
+          prefs.setBool('hasSeenNoDatabasePrompt', true);
+        }
 
         ShowcaseView.get().startShowCase(
           [_welcomeKey, _fabKey, _goProKey, _settingsKey],
         );
       });
+    } else if (!hasSeenNoDatabasePrompt) {
+      // Check if user has no database after first launch (e.g., reopening app without creating a database)
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        const storage = FlutterSecureStorage();
+        final lastDBUsed = await storage.read(key: 'last_db_used');
+
+        if (lastDBUsed == null && DatabaseService.instance.path.isEmpty) {
+          // User reopened app without creating a database - show prompt
+          prefs.setBool('hasSeenNoDatabasePrompt', true);
+
+          // Small delay to ensure UI is ready
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (mounted) {
+            await _showDatabaseSetupPrompt();
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _showDatabaseSetupPrompt() async {
+    final shouldShowOptions = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.welcomeToTeamSync),
+          content: Text(AppLocalizations.of(context)!.noDatabaseFoundMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(AppLocalizations.of(context)!.remindMeLater),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(AppLocalizations.of(context)!.getStarted),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldShowOptions == true && mounted) {
+      await _showCreateOptions(context);
     }
   }
 
@@ -303,7 +364,17 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       floatingActionButton: kIsWeb
-          ? null
+          ? (!_isDrawerOpen && _team != null
+              ? FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _isDrawerOpen = true;
+                    });
+                  },
+                  tooltip: 'Show game details',
+                  child: const Icon(Icons.event),
+                )
+              : null)
           : Showcase(
               key:
                   DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
@@ -413,33 +484,92 @@ class _HomePageState extends State<HomePage> {
                           style: const TextStyle(fontSize: 24)));
                 }
 
-                return Column(children: [
-                  Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _team?.color1 ?? Theme.of(context).primaryColor,
-                            _team?.color2 ?? Theme.of(context).primaryColorDark,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Main content area
+                    Expanded(
+                      child: Column(children: [
+                        Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _team?.color1 ??
+                                      Theme.of(context).primaryColor,
+                                  _team?.color2 ??
+                                      Theme.of(context).primaryColorDark,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(25),
+                                bottomRight: Radius.circular(25),
+                              ),
+                            ),
+                            child: Container(
+                                color: Colors.transparent,
+                                child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child: Center(
+                                        child: SeasonRecord(_seasons,
+                                            singleSeason: false))))),
+                        // Scoreboard widget
+                        if (_team != null)
+                          ScoreboardWidget(
+                            game: _currentOrLastGame,
+                            season: _currentSeason,
+                            teamId: _team!.id,
+                          ),
+                        Expanded(
+                          child: SeasonsListView(seasons: _seasons),
+                        )
+                      ]),
+                    ),
+                    // Event stream sidebar shown only on web - collapsible
+                    if (kIsWeb && _isDrawerOpen)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: 450,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            left: BorderSide(
+                              color: Theme.of(context).dividerColor,
+                              width: 1,
+                            ),
+                          ),
                         ),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(25),
-                          bottomRight: Radius.circular(25),
+                        child: Stack(
+                          children: [
+                            EventStreamWidget(
+                              game: _currentOrLastGame,
+                              teamId: _team?.id,
+                            ),
+                            // Close button
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  setState(() {
+                                    _isDrawerOpen = false;
+                                  });
+                                },
+                                tooltip: 'Close sidebar',
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .surface
+                                      .withOpacity(0.9),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Container(
-                          color: Colors.transparent,
-                          child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Center(
-                                  child: SeasonRecord(_seasons,
-                                      singleSeason: false))))),
-                  Expanded(
-                    child: SeasonsListView(seasons: _seasons),
-                  )
-                ]);
+                  ],
+                );
               }
             },
           ),
@@ -834,6 +964,85 @@ class _HomePageState extends State<HomePage> {
         await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
     _seasons = results.map((m) => Season.fromMap(m)).toList();
     await Future.wait(_seasons.map((s) async => await s.load()));
+    await _loadCurrentOrLastGame();
+  }
+
+  Future<void> _loadCurrentOrLastGame() async {
+    if (_team == null) return;
+
+    try {
+      // Get all games for this team
+      final games = await Game.listFromTeamId(_team!.id);
+
+      if (games.isEmpty) {
+        _currentOrLastGame = null;
+        return;
+      }
+
+      final now = DateTime.now();
+
+      // Filter to only games that have started or completed (not future games)
+      // Exclude games with notStarted status (index 0) and games scheduled in the future
+      final startedOrCompletedGames = games.where((game) {
+        // Game must have started (status > 0) OR be scheduled for today or earlier
+        final isStarted = game.gameStatus.index > 0;
+        final isNotInFuture = game.date.isBefore(now) ||
+            game.date.year == now.year &&
+                game.date.month == now.month &&
+                game.date.day == now.day;
+        return isStarted || (game.gameStatus.index == 0 && isNotInFuture);
+      }).toList();
+
+      if (startedOrCompletedGames.isEmpty) {
+        _currentOrLastGame = null;
+        return;
+      }
+
+      // Sort games by date in descending order (most recent first)
+      startedOrCompletedGames.sort((a, b) => b.date.compareTo(a.date));
+
+      // First check for any live games (status between 1-8)
+      final liveGames = startedOrCompletedGames
+          .where(
+            (game) => game.gameStatus.index > 0 && game.gameStatus.index < 9,
+          )
+          .toList();
+
+      if (liveGames.isNotEmpty) {
+        // If there are live games, show the most recent one
+        _currentOrLastGame = liveGames.first;
+      } else {
+        // No live games, show the most recent completed game
+        _currentOrLastGame = startedOrCompletedGames.first;
+      }
+
+      // Load game events for the selected game
+      if (_currentOrLastGame != null) {
+        await _currentOrLastGame!.loadGameEvents();
+
+        if (kDebugMode) {
+          print(
+              'Loaded ${_currentOrLastGame!.allGameEvents.length} events for game');
+        }
+
+        // Find the season for this game
+        try {
+          _currentSeason = _seasons.firstWhere(
+            (season) => season.id == _currentOrLastGame!.seasonId,
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            print('Could not find season for game: $e');
+          }
+          _currentSeason = null;
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading current/last game: $e');
+      }
+      _currentOrLastGame = null;
+    }
   }
 
   Future<String?> _pickCloudDatabase() async {

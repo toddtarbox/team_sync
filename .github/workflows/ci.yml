@@ -360,20 +360,19 @@ jobs:
           key: pub-cache-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
       - name: Install dependencies
         run: flutter pub get
-      - name: Build web (release) with Firebase env from Secrets
+      - name: Build web (release) with Firebase config from Secrets
         # Provide required Firebase values via repository secrets (see README/docs)
-        env:
-          FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
-          FIREBASE_WEB_APP_ID: ${{ secrets.FIREBASE_WEB_APP_ID }}
-          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL }}
-          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
-          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
-          FIREBASE_MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
         run: |
           set -euo pipefail
-          flutter build web --release
+          flutter build web --release \
+            --dart-define=WEB_API_KEY="${{ secrets.FIREBASE_WEB_API_KEY }}" \
+            --dart-define=WEB_APP_ID="${{ secrets.FIREBASE_WEB_APP_ID }}" \
+            --dart-define=MESSAGING_SENDER_ID="${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}" \
+            --dart-define=FIREBASE_PROJECT_ID="${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --dart-define=FIREBASE_DATABASE_URL="${{ secrets.FIREBASE_DATABASE_URL }}" \
+            --dart-define=FIREBASE_STORAGE_BUCKET="${{ secrets.FIREBASE_STORAGE_BUCKET }}" \
+            --dart-define=WEB_AUTH_DOMAIN="${{ secrets.FIREBASE_AUTH_DOMAIN }}" \
+            --dart-define=WEB_MEASUREMENT_ID="${{ secrets.FIREBASE_MEASUREMENT_ID }}"
 
 # Notes:
 # - Add the following repository secrets (Repository Settings -> Secrets):

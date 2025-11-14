@@ -311,4 +311,24 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get bestGame => 'Mejor partido';
+
+  @override
+  String get welcomeToTeamSync => '¡Bienvenido a TeamSync!';
+
+  @override
+  String get noDatabaseFoundMessage =>
+      'Para comenzar, necesitarás crear una nueva base de datos o abrir una existente. ¿Te gustaría configurar tu base de datos ahora?';
+
+  @override
+  String get remindMeLater => 'Recordar más tarde';
+
+  @override
+  String get getStarted => 'Comenzar';
+
+  @override
+  String get proFeature => 'Función Pro';
+
+  @override
+  String get playerProfilesProFeature =>
+      'Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera.';
 }

@@ -10,6 +10,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/player_profile_page.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -145,25 +146,99 @@ class _PlayersPageState extends State<PlayersPage> {
                           setState(() {});
                         },
                         child: ListTile(
-                          onTap: kIsWeb ? null : () => _editPlayer(player),
-                          leading: CircleAvatar(
-                            child: player.profileImage != null &&
-                                    player.profileImage!.isNotEmpty
-                                ? ClipOval(
-                                    child: Image.network(
-                                      player.profileImage!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Text(
-                                            '${player.firstName[0]}${player.lastName[0]}');
-                                      },
+                          onTap: kIsWeb
+                              ? () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => PlayerProfilePage(
+                                        player: player,
+                                        currentSeason: widget.season,
+                                      ),
                                     ),
-                                  )
-                                : Text(
-                                    '${player.firstName[0]}${player.lastName[0]}'),
+                                  );
+                                }
+                              : () => _editPlayer(player),
+                          onLongPress:
+                              kIsWeb ? null : () => _editPlayer(player),
+                          leading: GestureDetector(
+                            onTap: kIsWeb
+                                ? () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => PlayerProfilePage(
+                                          player: player,
+                                          currentSeason: widget.season,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : () {
+                                    if (!SubscriptionService
+                                        .instance.isSubscribed) {
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text(
+                                                AppLocalizations.of(context)!
+                                                    .proFeature),
+                                            content: Text(
+                                                AppLocalizations.of(context)!
+                                                    .playerProfilesProFeature),
+                                            actions: [
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .cancelButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context);
+                                                },
+                                              ),
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .goPro),
+                                                onPressed: () async {
+                                                  Navigator.pop(context);
+                                                  await SubscriptionService
+                                                      .instance
+                                                      .purchaseSubscription();
+                                                },
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      return;
+                                    }
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) => PlayerProfilePage(
+                                          player: player,
+                                          currentSeason: widget.season,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            child: CircleAvatar(
+                              child: player.profileImage != null &&
+                                      player.profileImage!.isNotEmpty
+                                  ? ClipOval(
+                                      child: Image.network(
+                                        player.profileImage!,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          return Text(
+                                              '${player.firstName[0]}${player.lastName[0]}');
+                                        },
+                                      ),
+                                    )
+                                  : Text(
+                                      '${player.firstName[0]}${player.lastName[0]}'),
+                            ),
                           ),
                           title: Text(player.displayName),
                           subtitle: Text('#${player.number}'),
@@ -192,8 +267,46 @@ class _PlayersPageState extends State<PlayersPage> {
                     child: Column(children: [
                       Text(AppLocalizations.of(context)!.editPlayer),
                       GestureDetector(
-                        onTap: SubscriptionService.instance.isSubscribed
-                            ? () async {
+                        onTap: kIsWeb
+                            ? null
+                            : () async {
+                                if (!SubscriptionService
+                                    .instance.isSubscribed) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .proFeature),
+                                        content: Text(
+                                            AppLocalizations.of(context)!
+                                                .playerProfilesProFeature),
+                                        actions: [
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .cancelButton),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .goPro),
+                                            onPressed: () async {
+                                              Navigator.pop(context);
+                                              await SubscriptionService.instance
+                                                  .purchaseSubscription();
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  return;
+                                }
                                 final pickedFile = await ImagePicker()
                                     .pickImage(source: ImageSource.gallery);
                                 if (pickedFile != null) {
@@ -201,8 +314,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                     _imageFile = File(pickedFile.path);
                                   });
                                 }
-                              }
-                            : null,
+                              },
                         child: CircleAvatar(
                           radius: 50,
                           backgroundImage: _imageFile != null

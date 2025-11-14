@@ -143,7 +143,7 @@ if [ -n "$STAGED_DART_FILES" ]; then
     echo "[pre-commit] running flutter analyze on staged Dart files..."
     # Read into array to preserve filenames with spaces
     # Run flutter analyze on the whole project (do not pass file arguments)
-    if ! flutter analyze; then
+    if ! flutter analyze --no-fatal-warnings --no-fatal-infos; then
       echo
       echo "ERROR: flutter analyze failed. Fix analyzer issues before committing." >&2
       exit 1

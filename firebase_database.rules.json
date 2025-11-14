@@ -3,6 +3,8 @@
     "subscriptionIds": {
       "$uid": {
         "databases": {
+          // Allow users to read their list of databases
+          ".read": "auth != null && auth.uid == $uid",
           "$db": {
             "Teams": {
               ".indexOn": ["id"]

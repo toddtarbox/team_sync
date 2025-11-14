@@ -48,22 +48,34 @@ chmod +x scripts/install-githook.sh
 ./scripts/load_firebase_env.sh build apk
 ```
 
+### Web-specific scripts
+
+For Flutter web development, use these dedicated scripts that automatically load Firebase config from `.env`:
+
+```bash
+# Run web app in development mode (opens Chrome)
+./scripts/run-web.sh
+
+# Build web app for production
+./scripts/build-web.sh
+
+# Build web app for debugging (includes source maps)
+./scripts/build-web-debug.sh
+
+# Build and deploy to Firebase Hosting (production)
+./scripts/deploy-web.sh
+
+# Build and deploy debug version to Firebase Hosting
+./scripts/deploy-web-debug.sh
+```
+
+These scripts read your `.env` file and pass all required Firebase web configuration via `--dart-define` flags, eliminating the 404 error that occurs when trying to load `.env` as an asset on web.
+
+**Debugging deployed app:** See `docs/DEBUGGING_WEB.md` for a complete debugging guide.
+
 4) CI protection: the repository has a GitHub Actions job `.github/workflows/secret_scan.yml`
 that scans committed files in pull requests for common secret patterns and will fail the PR if any are found.
 
-5) Additional robust scanning with gitleaks:
-
-- CI: The PR scanner runs `gitleaks` via the `zricethezav/gitleaks-action` (see `.github/workflows/secret_scan.yml`).
-- Local: You can run `gitleaks` locally if you have it installed. There's a helper script:
-
-```bash
-# Make sure gitleaks is installed, e.g. brew install gitleaks
-./scripts/ci/run_gitleaks.sh
-```
-
-6) gitleaks allowlist:
-
-This repository includes a `.gitleaksignore` file to configure paths and files that gitleaks should ignore (e.g., `.env` and generated build dirs). Modify it if you need to allow additional files.
 
 Security notes:
 - Never commit `.env` or any files containing secrets. If secrets were previously pushed, rotate them.
