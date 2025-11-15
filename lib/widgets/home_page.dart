@@ -31,8 +31,10 @@ import 'package:team_sync/widgets/settings_page.dart';
 class HomePage extends StatefulWidget {
   final String? databaseId;
   final int? teamId;
+  final int? clubId;
   final Club? club;
-  const HomePage({super.key, this.databaseId, this.teamId, this.club});
+  const HomePage(
+      {super.key, this.databaseId, this.teamId, this.club, this.clubId});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -274,8 +276,8 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
         team: _team,
-        title: Text(AppLocalizations.of(context)!.soccerAnalytics,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text('TeamSync',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
             preferredSize: const Size.fromHeight(40),
             child: Visibility(
@@ -933,6 +935,25 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _isLoading = true;
       });
+
+      // Get club data if we have clubId but not club object
+      Club? club = widget.club;
+      if (club == null && widget.clubId != null) {
+        club = await Club.fromId(widget.clubId!);
+      }
+
+      // If we have a club, open the club team context
+      if (club != null) {
+        final opened = await DatabaseService.instance
+            .openClubTeam(club.id, widget.teamId!);
+
+        if (!opened) {
+          setState(() {
+            _isLoading = false;
+          });
+          return false;
+        }
+      }
 
       final teamResult = await DatabaseService.instance
           .query('Teams', orderByChild: 'id', equalTo: widget.teamId);

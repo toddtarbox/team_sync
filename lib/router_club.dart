@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:team_sync/models/club.dart';
 import 'package:team_sync/widgets/club_home_page.dart';
 import 'package:team_sync/widgets/home_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
@@ -35,9 +36,18 @@ final routerClub = GoRouter(
       path: '/club/:clubId/team/:teamId',
       name: 'club-team',
       builder: (context, state) {
+        final clubId = int.tryParse(state.pathParameters['clubId']!);
         final teamId = int.tryParse(state.pathParameters['teamId']!);
-        // HomePage will load the club data internally based on the team's clubId
-        return HomePage(teamId: teamId);
+
+        // HomePage needs the club object to open the club team context
+        // We'll use extra parameter to pass the club, or load it if needed
+        final club = state.extra as Club?;
+
+        return HomePage(
+          teamId: teamId,
+          club: club,
+          clubId: clubId,
+        );
       },
     ),
 
