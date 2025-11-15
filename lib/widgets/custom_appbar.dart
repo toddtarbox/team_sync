@@ -23,38 +23,44 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     // On web, don't show back button - use browser navigation instead
     final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            team?.color1 ?? Theme.of(context).primaryColor,
-            team?.color2 ?? Theme.of(context).primaryColorDark,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return AppBar(
+      key: ValueKey('appbar_${team?.id}'), // Force AppBar rebuild
+      leading: GestureDetector(
+          onTap: () {
+            // Only allow back navigation on mobile (not web)
+            if (!kIsWeb && Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: showBackButton
+              ? const Icon(Icons.arrow_back)
+              : Image.asset('assets/images/pngs/icon_no_background.png',
+                  width: 16, height: 16)),
+      title: title,
+      actions: combinedActions,
+      bottom: bottom,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              team?.color1 ?? Theme.of(context).primaryColor,
+              team?.color2 ?? Theme.of(context).primaryColorDark,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
         ),
-      ),
-      child: AppBar(
-        leading: GestureDetector(
-            onTap: () {
-              // Only allow back navigation on mobile (not web)
-              if (!kIsWeb && Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-            child: showBackButton
-                ? const Icon(Icons.arrow_back)
-                : Image.asset('assets/images/pngs/icon_no_background.png',
-                    width: 16, height: 16)),
-        title: title,
-        actions: combinedActions,
-        bottom: bottom,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
     );
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(125);
+  Size get preferredSize {
+    // Base AppBar height is 56
+    // If we have a bottom widget, add its height
+    final bottomHeight = bottom?.preferredSize.height ?? 0;
+    return Size.fromHeight(kToolbarHeight + bottomHeight);
+  }
 }

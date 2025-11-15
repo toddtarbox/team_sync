@@ -42,7 +42,7 @@
     },
 
     "Clubs": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null && auth.token.email == 'ttarbox0603@gmail.com'",
       ".indexOn": ["id"],
       "$clubId": {
@@ -50,27 +50,27 @@
       }
     },
     "ClubTeams": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
       ".indexOn": ["clubId", "id"]
     },
     "ClubSeasons": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
       ".indexOn": ["clubId", "teamId"]
     },
     "ClubGames": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
       ".indexOn": ["clubId", "seasonId"]
     },
     "ClubPlayers": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
       ".indexOn": ["clubId", "teamId"]
     },
     "ClubEvents": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null",
       ".indexOn": ["clubId", "gameId"]
     }

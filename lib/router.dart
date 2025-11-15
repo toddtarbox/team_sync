@@ -8,7 +8,6 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/home_page.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
@@ -18,9 +17,11 @@ import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
 import 'package:team_sync/widgets/sign_in_page.dart';
+import 'package:team_sync/widgets/team_sync/team_home_page.dart';
 
 /// Router for TeamSync app with distinct URLs for each page
 ///
+/// TeamSync is designed for single-team management with subscription-based data storage.
 /// Pages handle their own data loading using FutureBuilder internally.
 /// The router only provides IDs via path parameters.
 final router = GoRouter(
@@ -32,7 +33,7 @@ final router = GoRouter(
     GoRoute(
       path: '/',
       name: 'home',
-      builder: (context, state) => const HomePage(),
+      builder: (context, state) => const TeamHomePage(),
     ),
 
     // Specific team by database ID (shared public ID)
@@ -41,7 +42,7 @@ final router = GoRouter(
       name: 'team',
       builder: (context, state) {
         final databaseId = state.pathParameters['databaseId']!;
-        return HomePage(databaseId: databaseId);
+        return TeamHomePage(databaseId: databaseId);
       },
       routes: [
         // ==================== SEASON ROUTES (nested under team) ====================
@@ -307,216 +308,6 @@ final router = GoRouter(
               },
             );
           },
-        ),
-      ],
-    ),
-
-    // Team by numeric ID with nested season routes
-    GoRoute(
-      path: '/team/id/:teamId',
-      name: 'team-id',
-      builder: (context, state) {
-        final teamId = int.tryParse(state.pathParameters['teamId']!);
-        return HomePage(teamId: teamId);
-      },
-      routes: [
-        // ==================== SEASON ROUTES (nested under team) ====================
-
-        // Season page
-        GoRoute(
-          path: 'season/:seasonId',
-          name: 'season',
-          builder: (context, state) {
-            final seasonId = int.parse(state.pathParameters['seasonId']!);
-            final season = state.extra as Season?;
-
-            if (season != null) {
-              return SeasonPage(season: season);
-            }
-
-            return FutureBuilder<Season?>(
-              future: _loadSeasonById(seasonId),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  return SeasonPage(season: snapshot.data!);
-                } else if (snapshot.hasError) {
-                  return Scaffold(
-                    appBar: AppBar(title: const Text('Error')),
-                    body: Center(
-                        child: Text('Error loading season: ${snapshot.error}')),
-                  );
-                }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              },
-            );
-          },
-          routes: [
-            // Season stats page
-            GoRoute(
-              path: 'stats',
-              name: 'season-stats',
-              builder: (context, state) {
-                final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
-
-                if (season != null) {
-                  return SeasonStatsPage(season: season);
-                }
-
-                return FutureBuilder<Season?>(
-                  future: _loadSeasonById(seasonId),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      return SeasonStatsPage(season: snapshot.data!);
-                    } else if (snapshot.hasError) {
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('Error')),
-                        body: Center(
-                            child: Text(
-                                'Error loading season: ${snapshot.error}')),
-                      );
-                    }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                );
-              },
-            ),
-
-            // Players page
-            GoRoute(
-              path: 'players',
-              name: 'season-players',
-              builder: (context, state) {
-                final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
-
-                if (season != null) {
-                  return PlayersPage(season: season);
-                }
-
-                return FutureBuilder<Season?>(
-                  future: _loadSeasonById(seasonId),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      return PlayersPage(season: snapshot.data!);
-                    } else if (snapshot.hasError) {
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('Error')),
-                        body: Center(
-                            child: Text(
-                                'Error loading season: ${snapshot.error}')),
-                      );
-                    }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                );
-              },
-              routes: [
-                // Player profile page
-                GoRoute(
-                  path: ':playerId',
-                  name: 'player-profile',
-                  builder: (context, state) {
-                    final seasonId =
-                        int.parse(state.pathParameters['seasonId']!);
-                    final playerId =
-                        int.parse(state.pathParameters['playerId']!);
-                    final extras = state.extra as Map<String, dynamic>?;
-                    final player = extras?['player'] as Player?;
-                    final season = extras?['season'] as Season?;
-
-                    if (player != null && season != null) {
-                      return PlayerProfilePage(
-                        player: player,
-                        currentSeason: season,
-                      );
-                    }
-
-                    return FutureBuilder<Map<String, dynamic>?>(
-                      future: _loadPlayerAndSeason(seasonId, playerId),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData && snapshot.data != null) {
-                          final loadedPlayer =
-                              snapshot.data!['player'] as Player;
-                          final loadedSeason =
-                              snapshot.data!['season'] as Season;
-                          return PlayerProfilePage(
-                            player: loadedPlayer,
-                            currentSeason: loadedSeason,
-                          );
-                        } else if (snapshot.hasError) {
-                          return Scaffold(
-                            appBar: AppBar(title: const Text('Error')),
-                            body: Center(
-                                child: Text(
-                                    'Error loading player: ${snapshot.error}')),
-                          );
-                        }
-                        return const Scaffold(
-                          body: Center(child: CircularProgressIndicator()),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            // Game page
-            GoRoute(
-              path: 'game/:gameId',
-              name: 'game',
-              builder: (context, state) {
-                final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final gameId = int.parse(state.pathParameters['gameId']!);
-                final extras = state.extra as Map<String, dynamic>?;
-                final season = extras?['season'] as Season?;
-                final game = extras?['game'] as Game?;
-
-                if (season != null && game != null) {
-                  if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-                    return TabletGamePage(season: season, game: game);
-                  } else {
-                    return MobileGamePage(season: season, game: game);
-                  }
-                }
-
-                return FutureBuilder<Map<String, dynamic>?>(
-                  future: _loadSeasonAndGame(seasonId, gameId),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      final loadedSeason = snapshot.data!['season'] as Season;
-                      final loadedGame = snapshot.data!['game'] as Game;
-                      if (ResponsiveBreakpoints.of(context)
-                          .largerThan(MOBILE)) {
-                        return TabletGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      } else {
-                        return MobileGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      }
-                    } else if (snapshot.hasError) {
-                      return Scaffold(
-                        appBar: AppBar(title: const Text('Error')),
-                        body: Center(
-                            child:
-                                Text('Error loading game: ${snapshot.error}')),
-                      );
-                    }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
-                  },
-                );
-              },
-            ),
-          ],
         ),
       ],
     ),

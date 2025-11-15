@@ -51,10 +51,24 @@ class _ClubHomePageState extends State<ClubHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Create a temporary team object with club colors for the appbar gradient
+    final Team? clubTeam = _club != null
+        ? Team(
+            id: _club!.id,
+            fullName: _club!.name,
+            shortName: _club!.name,
+            color1: _club!.color1,
+            color2: _club!.color2,
+            clubId: _club!.id,
+          )
+        : null;
+
     return Scaffold(
+      key: ValueKey(_club?.id), // Force rebuild when club changes
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: CustomAppBar(
-        team: null,
+        key: ValueKey('appbar_${_club?.id}'), // Force appbar rebuild
+        team: clubTeam,
         title: Text(
           _club?.name ?? 'ClubSync',
           style: const TextStyle(fontWeight: FontWeight.bold),
