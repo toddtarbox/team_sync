@@ -281,6 +281,25 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          if (_team?.logoUrl != null &&
+                              _team!.logoUrl!.isNotEmpty)
+                            CircleAvatar(
+                              radius: 20,
+                              child: ClipOval(
+                                child: Image.network(
+                                  _team!.logoUrl!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Text(_team!.fullName[0]);
+                                  },
+                                ),
+                              ),
+                            ),
+                          if (_team?.logoUrl != null &&
+                              _team!.logoUrl!.isNotEmpty)
+                            const SizedBox(width: 10),
                           Text(_team?.fullName ?? 'TeamSync',
                               style: const TextStyle(fontSize: 18)),
                         ])))
