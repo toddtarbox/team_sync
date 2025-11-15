@@ -23,8 +23,6 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
-import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/record_holders_page.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
@@ -335,22 +333,20 @@ class _HomePageState extends State<HomePage> {
               visible: _team != null,
               child: IconButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => RecordHoldersPage(team: _team!),
-                      ),
-                    );
+                    final databaseId = DatabaseService.instance.publicShareId;
+                    if (databaseId != null && _team != null) {
+                      context.go('/team/$databaseId/records', extra: _team);
+                    }
                   },
                   icon: const Icon(Icons.leaderboard))),
           Visibility(
               visible: _team != null,
               child: IconButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => HistoryVersusPage(team: _team!),
-                      ),
-                    );
+                    final databaseId = DatabaseService.instance.publicShareId;
+                    if (databaseId != null && _team != null) {
+                      context.go('/team/$databaseId/history', extra: _team);
+                    }
                   },
                   icon: const Icon(Icons.manage_history_outlined))),
           Visibility(

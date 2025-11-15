@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
@@ -10,7 +11,6 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -148,14 +148,17 @@ class _PlayersPageState extends State<PlayersPage> {
                         child: ListTile(
                           onTap: kIsWeb
                               ? () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => PlayerProfilePage(
-                                        player: player,
-                                        currentSeason: widget.season,
-                                      ),
-                                    ),
-                                  );
+                                  final databaseId =
+                                      DatabaseService.instance.publicShareId;
+                                  if (databaseId != null) {
+                                    context.go(
+                                      '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                      extra: {
+                                        'player': player,
+                                        'season': widget.season
+                                      },
+                                    );
+                                  }
                                 }
                               : () => _editPlayer(player),
                           onLongPress:
@@ -163,14 +166,17 @@ class _PlayersPageState extends State<PlayersPage> {
                           leading: GestureDetector(
                             onTap: kIsWeb
                                 ? () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => PlayerProfilePage(
-                                          player: player,
-                                          currentSeason: widget.season,
-                                        ),
-                                      ),
-                                    );
+                                    final databaseId =
+                                        DatabaseService.instance.publicShareId;
+                                    if (databaseId != null) {
+                                      context.go(
+                                        '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                        extra: {
+                                          'player': player,
+                                          'season': widget.season
+                                        },
+                                      );
+                                    }
                                   }
                                 : () {
                                     if (!SubscriptionService
@@ -211,14 +217,17 @@ class _PlayersPageState extends State<PlayersPage> {
                                       );
                                       return;
                                     }
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => PlayerProfilePage(
-                                          player: player,
-                                          currentSeason: widget.season,
-                                        ),
-                                      ),
-                                    );
+                                    final databaseId =
+                                        DatabaseService.instance.publicShareId;
+                                    if (databaseId != null) {
+                                      context.go(
+                                        '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                        extra: {
+                                          'player': player,
+                                          'season': widget.season
+                                        },
+                                      );
+                                    }
                                   },
                             child: CircleAvatar(
                               child: player.profileImage != null &&

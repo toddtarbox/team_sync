@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
+import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/home_page.dart';
+import 'package:team_sync/widgets/player_profile_page.dart';
 import 'package:team_sync/widgets/players_page.dart';
+import 'package:team_sync/widgets/record_holders_page.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
 import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
@@ -136,6 +141,55 @@ final router = GoRouter(
                   },
                 );
               },
+              routes: [
+                // Player profile page
+                GoRoute(
+                  path: ':playerId',
+                  name: 'player-profile',
+                  builder: (context, state) {
+                    final seasonId =
+                        int.parse(state.pathParameters['seasonId']!);
+                    final playerId =
+                        int.parse(state.pathParameters['playerId']!);
+                    final extras = state.extra as Map<String, dynamic>?;
+                    final player = extras?['player'] as Player?;
+                    final season = extras?['season'] as Season?;
+
+                    if (player != null && season != null) {
+                      return PlayerProfilePage(
+                        player: player,
+                        currentSeason: season,
+                      );
+                    }
+
+                    return FutureBuilder<Map<String, dynamic>?>(
+                      future: _loadPlayerAndSeason(seasonId, playerId),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          final loadedPlayer =
+                              snapshot.data!['player'] as Player;
+                          final loadedSeason =
+                              snapshot.data!['season'] as Season;
+                          return PlayerProfilePage(
+                            player: loadedPlayer,
+                            currentSeason: loadedSeason,
+                          );
+                        } else if (snapshot.hasError) {
+                          return Scaffold(
+                            appBar: AppBar(title: const Text('Error')),
+                            body: Center(
+                                child: Text(
+                                    'Error loading player: ${snapshot.error}')),
+                          );
+                        }
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
 
             // Game page
@@ -187,6 +241,72 @@ final router = GoRouter(
               },
             ),
           ],
+        ),
+
+        // ==================== TEAM STATS ROUTES ====================
+
+        // History versus page
+        GoRoute(
+          path: 'history',
+          name: 'history-versus',
+          builder: (context, state) {
+            final team = state.extra as Team?;
+
+            if (team != null) {
+              return HistoryVersusPage(team: team);
+            }
+
+            return FutureBuilder<Team?>(
+              future:
+                  _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  return HistoryVersusPage(team: snapshot.data!);
+                } else if (snapshot.hasError) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: Center(
+                        child: Text('Error loading team: ${snapshot.error}')),
+                  );
+                }
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            );
+          },
+        ),
+
+        // Record holders page
+        GoRoute(
+          path: 'records',
+          name: 'record-holders',
+          builder: (context, state) {
+            final team = state.extra as Team?;
+
+            if (team != null) {
+              return RecordHoldersPage(team: team);
+            }
+
+            return FutureBuilder<Team?>(
+              future:
+                  _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  return RecordHoldersPage(team: snapshot.data!);
+                } else if (snapshot.hasError) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: Center(
+                        child: Text('Error loading team: ${snapshot.error}')),
+                  );
+                }
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            );
+          },
         ),
       ],
     ),
@@ -297,6 +417,55 @@ final router = GoRouter(
                   },
                 );
               },
+              routes: [
+                // Player profile page
+                GoRoute(
+                  path: ':playerId',
+                  name: 'player-profile',
+                  builder: (context, state) {
+                    final seasonId =
+                        int.parse(state.pathParameters['seasonId']!);
+                    final playerId =
+                        int.parse(state.pathParameters['playerId']!);
+                    final extras = state.extra as Map<String, dynamic>?;
+                    final player = extras?['player'] as Player?;
+                    final season = extras?['season'] as Season?;
+
+                    if (player != null && season != null) {
+                      return PlayerProfilePage(
+                        player: player,
+                        currentSeason: season,
+                      );
+                    }
+
+                    return FutureBuilder<Map<String, dynamic>?>(
+                      future: _loadPlayerAndSeason(seasonId, playerId),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data != null) {
+                          final loadedPlayer =
+                              snapshot.data!['player'] as Player;
+                          final loadedSeason =
+                              snapshot.data!['season'] as Season;
+                          return PlayerProfilePage(
+                            player: loadedPlayer,
+                            currentSeason: loadedSeason,
+                          );
+                        } else if (snapshot.hasError) {
+                          return Scaffold(
+                            appBar: AppBar(title: const Text('Error')),
+                            body: Center(
+                                child: Text(
+                                    'Error loading player: ${snapshot.error}')),
+                          );
+                        }
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
 
             // Game page
@@ -417,6 +586,57 @@ Future<Map<String, dynamic>?> _loadSeasonAndGame(
 
     final game = season.games.firstWhere((g) => g.id == gameId);
     return {'season': season, 'game': game};
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to load team by database ID
+Future<Team?> _loadTeamByDatabaseId(String databaseId) async {
+  try {
+    final opened = await DatabaseService.instance.openFromId(databaseId);
+    if (!opened) return null;
+
+    final teamResult =
+        await DatabaseService.instance.query('Teams', orderByChild: 'id');
+    if (teamResult.isEmpty) return null;
+
+    // Try team with id=1 first
+    var teamMap = teamResult.firstWhere(
+      (t) => t['id'] == 1,
+      orElse: () => teamResult.first,
+    );
+
+    final team = Team.fromMap(teamMap);
+
+    // If no seasons for this team, find the team that has seasons
+    final allSeasons =
+        await DatabaseService.instance.query('Seasons', orderByChild: 'teamId');
+
+    if (allSeasons.isNotEmpty) {
+      final targetTeamId = allSeasons.first['teamId'];
+      teamMap = teamResult.firstWhere(
+        (t) => t['id'] == targetTeamId,
+        orElse: () => teamResult.first,
+      );
+      return Team.fromMap(teamMap);
+    }
+
+    return team;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to load player and season data
+Future<Map<String, dynamic>?> _loadPlayerAndSeason(
+    int seasonId, int playerId) async {
+  try {
+    final season = await _loadSeasonById(seasonId);
+    if (season == null) return null;
+
+    final player = season.players.firstWhere((p) => p.id == playerId);
+    return {'season': season, 'player': player};
   } catch (e) {
     return null;
   }

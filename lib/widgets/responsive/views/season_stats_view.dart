@@ -1,10 +1,11 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -117,15 +118,17 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                           );
                                           return;
                                         }
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                PlayerProfilePage(
-                                              player: player,
-                                              currentSeason: widget.season,
-                                            ),
-                                          ),
-                                        );
+                                        final databaseId = DatabaseService
+                                            .instance.publicShareId;
+                                        if (databaseId != null) {
+                                          context.go(
+                                            '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                            extra: {
+                                              'player': player,
+                                              'season': widget.season
+                                            },
+                                          );
+                                        }
                                       },
                                       leading: CircleAvatar(
                                         child: player.profileImage != null &&

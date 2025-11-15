@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
@@ -220,14 +221,13 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
           Text('${topEntry.player.displayName} - ${topEntry.season.name}'),
       leading: GestureDetector(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PlayerProfilePage(
-                player: topEntry.player,
-                currentSeason: topEntry.season,
-              ),
-            ),
-          );
+          final databaseId = DatabaseService.instance.publicShareId;
+          if (databaseId != null) {
+            context.go(
+              '/team/$databaseId/season/${topEntry.season.id}/players/${topEntry.player.id}',
+              extra: {'player': topEntry.player, 'season': topEntry.season},
+            );
+          }
         },
         child: CircleAvatar(
             child: topEntry.player.profileImage != null &&
