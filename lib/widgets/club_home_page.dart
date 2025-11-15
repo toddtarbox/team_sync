@@ -993,14 +993,21 @@ class _ClubHomePageState extends State<ClubHomePage> {
             ElevatedButton(
               onPressed: () async {
                 if (teamName.isNotEmpty && teamShortName.isNotEmpty) {
-                  await DatabaseService.instance.insert('Teams', {
-                    'id': DateTime.now().millisecondsSinceEpoch,
+                  final teamId = DateTime.now().millisecondsSinceEpoch;
+                  final teamData = {
+                    'id': teamId,
                     'fullName': teamName,
                     'shortName': teamShortName,
                     'clubId': _club!.id,
-                    'color1': _club!.color1.value,
-                    'color2': _club!.color2.value,
-                  });
+                    'color1': _club!.color1.toARGB32(),
+                    'color2': _club!.color2.toARGB32(),
+                  };
+
+                  // Insert directly into ClubTeams collection at root level
+                  await FirebaseDatabase.instance
+                      .ref(ClubSyncCollections.teams)
+                      .child(teamId.toString())
+                      .set(teamData);
 
                   await _loadTeams();
                   Navigator.of(context).pop();
@@ -1033,11 +1040,11 @@ class _ClubHomePageState extends State<ClubHomePage> {
                   title: Text(team.fullName),
                   subtitle: Text(team.shortName),
                   onTap: () async {
-                    await DatabaseService.instance.update(
-                      'Teams',
-                      {'clubId': _club!.id},
-                      key: team.id.toString(),
-                    );
+                    // Update team in ClubTeams collection
+                    await FirebaseDatabase.instance
+                        .ref(ClubSyncCollections.teams)
+                        .child(team.id.toString())
+                        .update({'clubId': _club!.id});
 
                     await _loadTeams();
                     Navigator.of(context).pop();
@@ -1081,11 +1088,11 @@ class _ClubHomePageState extends State<ClubHomePage> {
     );
 
     if (confirmed == true) {
-      await DatabaseService.instance.update(
-        'Teams',
-        {'clubId': null},
-        key: team.id.toString(),
-      );
+      // Remove team from club by setting clubId to null in ClubTeams collection
+      await FirebaseDatabase.instance
+          .ref(ClubSyncCollections.teams)
+          .child(team.id.toString())
+          .update({'clubId': null});
 
       await _loadTeams();
     }
