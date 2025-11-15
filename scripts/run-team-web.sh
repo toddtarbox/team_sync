@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run Flutter web in development mode with Firebase secrets from .env file
-# Usage: ./scripts/run-web.sh
+# Usage: ./scripts/run-team-web.sh
 
 set -euo pipefail
 
@@ -43,13 +43,14 @@ for var in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
-echo "Running Flutter web with Firebase configuration from .env..."
+echo "Running TeamSync web with Firebase configuration from .env..."
 echo "Project: $FIREBASE_PROJECT_ID"
 echo ""
 
-# Run Flutter web with all dart-defines
+# Run TeamSync web with all dart-defines
 cd "$PROJECT_ROOT"
 flutter run -d chrome --web-port 5000 \
+  -t lib/main_team_sync.dart \
   --dart-define=WEB_API_KEY="$WEB_API_KEY" \
   --dart-define=WEB_APP_ID="$WEB_APP_ID" \
   --dart-define=MESSAGING_SENDER_ID="$MESSAGING_SENDER_ID" \

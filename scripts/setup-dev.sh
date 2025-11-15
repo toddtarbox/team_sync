@@ -17,5 +17,3 @@ else
   echo "Skipping core.hooksPath configuration. You can run: git config core.hooksPath .githooks"
 fi
 
-echo "Done. Run './scripts/load_firebase_env.sh run -d chrome' to start the app with local env values."
-

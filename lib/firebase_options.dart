@@ -56,8 +56,8 @@ class DefaultFirebaseOptions {
   }
 
   static FirebaseOptions get android => FirebaseOptions(
-        apiKey: _env('API_KEY'),
-        appId: _env('FIREBASE_MOBILE_APP_ID'),
+        apiKey: _env('ANDROID_API_KEY'),
+        appId: _env('ANDROID_APP_ID'),
         messagingSenderId: _env('MESSAGING_SENDER_ID'),
         projectId: _env('FIREBASE_PROJECT_ID'),
         databaseURL: _env('FIREBASE_DATABASE_URL'),
@@ -66,12 +66,11 @@ class DefaultFirebaseOptions {
 
   static FirebaseOptions get ios => FirebaseOptions(
         apiKey: _env('IOS_API_KEY'),
-        appId: _env('IOS_GOOGLE_APP_ID'),
+        appId: _env('IOS_APP_ID'),
         messagingSenderId: _env('MESSAGING_SENDER_ID'),
         projectId: _env('FIREBASE_PROJECT_ID'),
         databaseURL: _env('FIREBASE_DATABASE_URL'),
         storageBucket: _env('FIREBASE_STORAGE_BUCKET'),
-        androidClientId: _env('IOS_ANDROID_CLIENT_ID'),
         iosClientId: _env('IOS_CLIENT_ID'),
         iosBundleId: _env('IOS_BUNDLE_ID'),
       );

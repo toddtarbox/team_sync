@@ -113,6 +113,14 @@ class LocalDatabaseProvider implements DatabaseProvider {
   Future<bool> open(String path) async {
     _database =
         await openDatabase(path, version: 1, onCreate: (db, version) async {
+      db.execute("create table Clubs (id integer primary key autoincrement, " +
+          "name text not null, " +
+          "description text, " +
+          "color1 integer not null, " +
+          "color2 integer not null, " +
+          "logoUrl text, " +
+          "createdAt integer not null);");
+
       db.execute(
           "create table Seasons (id integer primary key autoincrement, " +
               "name text not null, " +
@@ -122,7 +130,8 @@ class LocalDatabaseProvider implements DatabaseProvider {
           "fullName text not null, " +
           "shortName text not null, " +
           "color1 integer not null, " +
-          "color2 integer not null);");
+          "color2 integer not null, " +
+          "clubId integer);");
 
       db.execute("create table Games (id integer primary key autoincrement, " +
           "seasonId integer not null, " +
@@ -280,9 +289,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
     final data = snap.value as Map<dynamic, dynamic>?;
-    return data != null && data.containsKey('publicShareId')
-        ? data['publicShareId'] as String?
-        : null;
+    if (data != null && data.containsKey('publicShareId')) {
+      final id = data['publicShareId'];
+      // Handle both String and int types
+      return id?.toString();
+    }
+    return null;
   }
 
   @override

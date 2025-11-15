@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Build Flutter web in DEBUG mode with Firebase secrets from .env file
-# Usage: ./scripts/build-web-debug.sh
+# Run ClubSync web in development mode with Firebase secrets from .env file
+# Usage: ./scripts/run-club-web.sh
 
 set -euo pipefail
 
@@ -24,16 +24,16 @@ set -a
 source "$ENV_FILE"
 set +a
 
-# Verify required variables for web are set
+# Verify required variables for ClubSync web are set
 REQUIRED_VARS=(
   "WEB_API_KEY"
-  "WEB_APP_ID"
+  "CLUBSYNC_WEB_APP_ID"
   "MESSAGING_SENDER_ID"
   "FIREBASE_PROJECT_ID"
   "FIREBASE_DATABASE_URL"
   "FIREBASE_STORAGE_BUCKET"
-  "WEB_AUTH_DOMAIN"
-  "WEB_MEASUREMENT_ID"
+  "CLUBSYNC_WEB_AUTH_DOMAIN"
+  "CLUBSYNC_WEB_MEASUREMENT_ID"
 )
 
 for var in "${REQUIRED_VARS[@]}"; do
@@ -43,29 +43,20 @@ for var in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
-echo "Building Flutter web in DEBUG mode with Firebase configuration from .env..."
+echo "Running ClubSync web with Firebase configuration from .env..."
 echo "Project: $FIREBASE_PROJECT_ID"
 echo ""
 
-# Build Flutter web in DEBUG mode with all dart-defines
+# Run ClubSync web with all dart-defines
 cd "$PROJECT_ROOT"
-flutter build web --profile \
+flutter run -d chrome --web-port 5001 \
+  -t lib/main_club_sync.dart \
   --dart-define=WEB_API_KEY="$WEB_API_KEY" \
-  --dart-define=WEB_APP_ID="$WEB_APP_ID" \
+  --dart-define=CLUBSYNC_WEB_APP_ID="$CLUBSYNC_WEB_APP_ID" \
   --dart-define=MESSAGING_SENDER_ID="$MESSAGING_SENDER_ID" \
   --dart-define=FIREBASE_PROJECT_ID="$FIREBASE_PROJECT_ID" \
   --dart-define=FIREBASE_DATABASE_URL="$FIREBASE_DATABASE_URL" \
   --dart-define=FIREBASE_STORAGE_BUCKET="$FIREBASE_STORAGE_BUCKET" \
-  --dart-define=WEB_AUTH_DOMAIN="$WEB_AUTH_DOMAIN" \
-  --dart-define=WEB_MEASUREMENT_ID="$WEB_MEASUREMENT_ID" \
-  --source-maps
-
-echo ""
-echo "✅ Debug web build completed successfully!"
-echo "Output: $PROJECT_ROOT/build/web"
-echo ""
-echo "This build includes:"
-echo "  - Source maps for debugging"
-echo "  - Profile mode (better performance than debug, still debuggable)"
-echo "  - Full error messages and stack traces"
+  --dart-define=CLUBSYNC_WEB_AUTH_DOMAIN="$CLUBSYNC_WEB_AUTH_DOMAIN" \
+  --dart-define=CLUBSYNC_WEB_MEASUREMENT_ID="$CLUBSYNC_WEB_MEASUREMENT_ID"
 

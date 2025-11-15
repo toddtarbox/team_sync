@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
@@ -14,13 +14,9 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/game_result.dart';
-import 'package:team_sync/widgets/players_page.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
-import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
-import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
@@ -45,6 +41,7 @@ class _SeasonPageState extends State<SeasonPage> {
   @override
   Widget build(BuildContext context) {
     final logoUrl = widget.season.logoUrl;
+    final databaseId = DatabaseService.instance.publicShareId;
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -121,23 +118,22 @@ class _SeasonPageState extends State<SeasonPage> {
         actions: [
           GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SeasonStatsPage(season: widget.season),
-                  ),
-                );
+                if (databaseId != null) {
+                  context.go(
+                      '/team/$databaseId/season/${widget.season.id}/stats',
+                      extra: widget.season);
+                }
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
                   child: Icon(Icons.paste))),
           GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => PlayersPage(season: widget.season),
-                  ),
-                );
+                if (databaseId != null) {
+                  context.go(
+                      '/team/$databaseId/season/${widget.season.id}/players',
+                      extra: widget.season);
+                }
               },
               child: const Padding(
                   padding: EdgeInsets.only(right: 10),
@@ -580,21 +576,14 @@ class _SeasonPageState extends State<SeasonPage> {
   }
 
   Future<void> _goToGame(Game game) async {
-    if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) =>
-              TabletGamePage(season: widget.season, game: game),
-        ),
-      );
-    } else {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) =>
-              MobileGamePage(season: widget.season, game: game),
-        ),
-      );
-    }
+    final databaseId = DatabaseService.instance.publicShareId;
+    if (databaseId == null) return;
+
+    // Use go_router for navigation to update URL
+    context.go(
+      '/team/$databaseId/season/${widget.season.id}/game/${game.id}',
+      extra: {'season': widget.season, 'game': game},
+    );
   }
 
   void _createOpponent() {

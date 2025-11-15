@@ -4,9 +4,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:team_sync/app_config.dart';
 import 'package:team_sync/firebase_options.dart';
 import 'package:team_sync/router.dart';
 import 'package:team_sync/services/subscription_service.dart';
@@ -14,6 +16,14 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
+  // Initialize as TeamSync by default (for backward compatibility)
+  AppConfig.initialize(AppConfig.teamSync);
+
+  // Enable clean URLs for web (removes # from URL)
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  }
+
   WidgetsFlutterBinding.ensureInitialized();
 
   if (!kIsWeb) {
@@ -125,9 +135,8 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeNotifier>(
       builder: (context, themeNotifier, child) {
         return MaterialApp.router(
-          routeInformationParser: router.routeInformationParser,
-          routerDelegate: router.routerDelegate,
-          routeInformationProvider: router.routeInformationProvider,
+          title: AppConfig.current.appName,
+          routerConfig: router,
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           debugShowCheckedModeBanner: false,
           localizationsDelegates: AppLocalizations.localizationsDelegates,

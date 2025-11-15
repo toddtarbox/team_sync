@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
@@ -31,7 +32,9 @@ import 'package:team_sync/widgets/settings_page.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
-  const HomePage({super.key, this.databaseId});
+  final int? teamId;
+  final Club? club;
+  const HomePage({super.key, this.databaseId, this.teamId, this.club});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -49,6 +52,7 @@ class _HomePageState extends State<HomePage> {
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
   final _teamIdController = TextEditingController();
+  late Future<bool> _loadFuture;
 
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
@@ -64,6 +68,9 @@ class _HomePageState extends State<HomePage> {
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
     DatabaseService.instance.setProvider(FirebaseDBProvider());
+
+    // Initialize the load future once
+    _loadFuture = _load();
 
     if (!kIsWeb) {
       ShowcaseView.register(
@@ -252,7 +259,7 @@ class _HomePageState extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () {
                     if (_teamIdController.text.length == 6) {
-                      context.go('/${_teamIdController.text}');
+                      context.go('/team/${_teamIdController.text}');
                     }
                   },
                   child: const Text('Load Team'),
@@ -355,7 +362,8 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => SettingsPage(team: _team),
+                          builder: (context) =>
+                              SettingsPage(team: _team, club: widget.club),
                         ),
                       );
                     },
@@ -408,7 +416,7 @@ class _HomePageState extends State<HomePage> {
       body: Stack(
         children: [
           FutureBuilder(
-            future: _load(),
+            future: _loadFuture,
             builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
               if (!snapshot.hasData ||
                   _isLoading ||
@@ -922,18 +930,62 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _load() async {
-    if (widget.databaseId != null) {
+    if (widget.teamId != null) {
+      // Loading a specific team (e.g., from club view)
+      setState(() {
+        _isLoading = true;
+      });
+
+      final teamResult = await DatabaseService.instance
+          .query('Teams', orderByChild: 'id', equalTo: widget.teamId);
+      if (teamResult.isNotEmpty) {
+        _team = Team.fromMap(teamResult.first);
+        await _loadSeasons();
+        setState(() {});
+      } else {
+        _team = null;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } else if (widget.databaseId != null) {
       final dbId = widget.databaseId!;
       final opened = await DatabaseService.instance.openFromId(dbId);
       if (!opened) {
         return false;
       }
 
-      final teamResult = await DatabaseService.instance
-          .query('Teams', orderByChild: 'id', equalTo: 1);
+      final teamResult =
+          await DatabaseService.instance.query('Teams', orderByChild: 'id');
       if (teamResult.isNotEmpty) {
-        _team = Team.fromMap(teamResult.first);
+        // First try team with id=1
+        var teamMap = teamResult.firstWhere(
+          (t) => t['id'] == 1,
+          orElse: () => teamResult.first,
+        );
+
+        _team = Team.fromMap(teamMap);
         await _loadSeasons();
+
+        // If no seasons, find which team actually has seasons
+        if (_seasons.isEmpty) {
+          final allSeasons = await DatabaseService.instance
+              .query('Seasons', orderByChild: 'teamId');
+
+          if (allSeasons.isNotEmpty) {
+            final targetTeamId = allSeasons.first['teamId'];
+
+            teamMap = teamResult.firstWhere(
+              (t) => t['id'] == targetTeamId,
+              orElse: () => teamResult.first,
+            );
+
+            _team = Team.fromMap(teamMap);
+            await _loadSeasons();
+          }
+        }
+
         setState(() {});
       } else {
         _team = null;
@@ -959,10 +1011,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadSeasons() async {
-    if (DatabaseService.instance.path.isEmpty) return;
-    final results =
-        await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
-    _seasons = results.map((m) => Season.fromMap(m)).toList();
+    if (DatabaseService.instance.path.isEmpty || _team == null) return;
+    _seasons = await Season.fromTeamId(_team!.id);
     await Future.wait(_seasons.map((s) async => await s.load()));
     await _loadCurrentOrLastGame();
   }

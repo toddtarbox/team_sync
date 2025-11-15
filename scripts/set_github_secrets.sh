@@ -73,7 +73,7 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 # Check .env exists
-if [[ ! -f .env ]]; then
+if [[ ! -f .env-team ]]; then
   echo ".env file not found in the repo root. Create one or set environment variables for the keys."
   exit 1
 fi
@@ -88,7 +88,7 @@ get_value() {
   fi
   # Fallback: find the key in .env (strip comments/leading whitespace)
   # grep pattern: ^\s*KEY\s*=
-  line=$(grep -m1 -E "^\s*${key}\s*=" .env || true)
+  line=$(grep -m1 -E "^\s*${key}\s*=" .env-team || true)
   if [ -n "$line" ]; then
     # Extract value after first '=' (preserve '=' in value if present)
     val="${line#*=}"

@@ -32,7 +32,10 @@ class Season {
   static Future<List<Season>> fromTeamId(int teamId) async {
     final results = await DatabaseService.instance
         .query('Seasons', orderByChild: 'teamId', equalTo: teamId);
-    return results.map((s) => Season.fromMap(s)).toList(growable: false);
+    final seasons = results.map((s) => Season.fromMap(s)).toList();
+    // Sort by id in descending order (most recent first)
+    seasons.sort((a, b) => b.id.compareTo(a.id));
+    return seasons;
   }
 
   Future<void> load() async {

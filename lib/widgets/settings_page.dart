@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
+import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
@@ -10,8 +11,9 @@ import 'package:team_sync/widgets/twitter_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
   final Team? team;
+  final Club? club;
 
-  const SettingsPage({required this.team, super.key});
+  const SettingsPage({required this.team, this.club, super.key});
 
   @override
   Widget build(BuildContext context) {

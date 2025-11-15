@@ -20,27 +20,47 @@ class Team extends Equatable {
   final Color color1;
   final Color color2;
   final String? logoUrl;
+  final int? clubId;
+  final String? createdBy; // User ID of team creator (team admin)
+  final List<String>? adminIds; // List of team admin user IDs
 
-  const Team(
-      {required this.id,
-      required this.fullName,
-      required this.shortName,
-      this.color1 = Colors.green,
-      this.color2 = Colors.green,
-      this.logoUrl});
+  const Team({
+    required this.id,
+    required this.fullName,
+    required this.shortName,
+    this.color1 = Colors.green,
+    this.color2 = Colors.green,
+    this.logoUrl,
+    this.clubId,
+    this.createdBy,
+    this.adminIds,
+  });
 
   factory Team.fromMap(Map<String, dynamic> map) {
     return Team(
-        id: map['id'],
-        fullName: map['fullName'],
-        shortName: map['shortName'],
-        color1: map['color1'] != null && map['color1'] != 0
-            ? Color(map['color1'])
-            : Colors.green,
-        color2: map['color2'] != null && map['color2'] != 0
-            ? Color(map['color2'])
-            : Colors.green,
-        logoUrl: map['logoUrl']);
+      id: map['id'],
+      fullName: map['fullName'],
+      shortName: map['shortName'],
+      color1: map['color1'] != null && map['color1'] != 0
+          ? Color(map['color1'])
+          : Colors.green,
+      color2: map['color2'] != null && map['color2'] != 0
+          ? Color(map['color2'])
+          : Colors.green,
+      logoUrl: map['logoUrl'],
+      clubId: map['clubId'],
+      createdBy: map['createdBy'],
+      adminIds:
+          map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
+    );
+  }
+
+  /// Check if a user is an admin of this team
+  bool isTeamAdmin(String? userId) {
+    if (userId == null) return false;
+    if (createdBy == userId) return true;
+    if (adminIds != null && adminIds!.contains(userId)) return true;
+    return false;
   }
 
   static Future<Team> fromId(int id) async {
@@ -324,5 +344,5 @@ class Team extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, color1, color2];
+  List<Object?> get props => [id, color1, color2, clubId, createdBy, adminIds];
 }

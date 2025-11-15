@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/connection_status_indicator.dart';
@@ -19,6 +20,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       if (actions != null) ...actions!,
     ];
 
+    // On web, don't show back button - use browser navigation instead
+    final showBackButton = !kIsWeb && Navigator.of(context).canPop();
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -33,11 +37,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       child: AppBar(
         leading: GestureDetector(
             onTap: () {
-              if (Navigator.of(context).canPop()) {
+              // Only allow back navigation on mobile (not web)
+              if (!kIsWeb && Navigator.of(context).canPop()) {
                 Navigator.of(context).pop();
               }
             },
-            child: Navigator.of(context).canPop()
+            child: showBackButton
                 ? const Icon(Icons.arrow_back)
                 : Image.asset('assets/images/pngs/icon_no_background.png',
                     width: 16, height: 16)),
