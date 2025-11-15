@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 
-class EventStreamWidget extends StatelessWidget {
+class EventStreamWidget extends StatefulWidget {
   final Game? game;
   final int? teamId;
 
@@ -12,9 +14,69 @@ class EventStreamWidget extends StatelessWidget {
     this.teamId,
   }) : super(key: key);
 
+  @override
+  State<EventStreamWidget> createState() => _EventStreamWidgetState();
+}
+
+class _EventStreamWidgetState extends State<EventStreamWidget> {
+  Timer? _updateTimer;
+  Game? _currentGame;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentGame = widget.game;
+    _setupAutoUpdate();
+  }
+
+  @override
+  void didUpdateWidget(EventStreamWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game?.id != widget.game?.id) {
+      _currentGame = widget.game;
+      _setupAutoUpdate();
+    }
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _setupAutoUpdate() {
+    _updateTimer?.cancel();
+
+    if (isLiveGame) {
+      // Update every 5 seconds during live games
+      _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        await _reloadGameData();
+      });
+    }
+  }
+
+  Future<void> _reloadGameData() async {
+    if (_currentGame == null) return;
+
+    try {
+      await _currentGame!.loadGameEvents();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Silently handle errors to avoid disrupting the UI
+      debugPrint('Error reloading game events: $e');
+    }
+  }
+
   bool get isLiveGame {
-    if (game == null) return false;
-    return game!.gameStatus.index > 0 && game!.gameStatus.index < 9;
+    if (_currentGame == null) return false;
+    return _currentGame!.gameStatus.index > 0 &&
+        _currentGame!.gameStatus.index < 9;
   }
 
   @override
@@ -85,13 +147,13 @@ class EventStreamWidget extends StatelessWidget {
           color: Theme.of(context).dividerColor,
         ),
         // Game stats section
-        if (game != null) _buildGameStats(context),
+        if (_currentGame != null) _buildGameStats(context),
       ],
     );
   }
 
   Widget _buildEventStream(BuildContext context) {
-    if (game == null) {
+    if (_currentGame == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -129,7 +191,7 @@ class EventStreamWidget extends StatelessWidget {
       );
     }
 
-    final allEvents = game!.allGameEvents;
+    final allEvents = _currentGame!.allGameEvents;
 
     if (allEvents.isEmpty) {
       return Center(
@@ -184,7 +246,7 @@ class EventStreamWidget extends StatelessWidget {
     sortedEvents.sort((a, b) => b.index.compareTo(a.index));
 
     // Check if game is completed
-    final isCompleted = game!.gameStatus.index >= 9;
+    final isCompleted = _currentGame!.gameStatus.index >= 9;
 
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -202,7 +264,7 @@ class EventStreamWidget extends StatelessWidget {
   }
 
   Widget _buildEventItem(BuildContext context, GameEvent event) {
-    final isMyTeam = teamId != null && event.team.id == teamId;
+    final isMyTeam = widget.teamId != null && event.team.id == widget.teamId;
     final isPeriodEvent = event.eventType == 'Period';
     final isGoalOrAssist = _isGoalOrAssist(event);
 
@@ -468,7 +530,7 @@ class EventStreamWidget extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                game!.gameStatus.display,
+                _currentGame!.gameStatus.display,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -486,7 +548,7 @@ class EventStreamWidget extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      game!.homeTeam.shortName,
+                      _currentGame!.homeTeam.shortName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -496,7 +558,7 @@ class EventStreamWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      game!.homeTeamScore.toString(),
+                      _currentGame!.homeTeamScore.toString(),
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -524,7 +586,7 @@ class EventStreamWidget extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      game!.awayTeam.shortName,
+                      _currentGame!.awayTeam.shortName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -534,7 +596,7 @@ class EventStreamWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      game!.awayTeamScore.toString(),
+                      _currentGame!.awayTeamScore.toString(),
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -553,8 +615,8 @@ class EventStreamWidget extends StatelessWidget {
 
   Widget _buildGameStats(BuildContext context) {
     // Calculate stats for both teams
-    final homeStats = _calculateTeamStats(game!.homeTeam.id);
-    final awayStats = _calculateTeamStats(game!.awayTeam.id);
+    final homeStats = _calculateTeamStats(_currentGame!.homeTeam.id);
+    final awayStats = _calculateTeamStats(_currentGame!.awayTeam.id);
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 400),
@@ -593,11 +655,11 @@ class EventStreamWidget extends StatelessWidget {
                   SizedBox(
                     width: 50,
                     child: Text(
-                      game!.homeTeam.shortName,
+                      _currentGame!.homeTeam.shortName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: game!.homeTeam.color1,
+                        color: _currentGame!.homeTeam.color1,
                       ),
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
@@ -614,11 +676,11 @@ class EventStreamWidget extends StatelessWidget {
                   SizedBox(
                     width: 50,
                     child: Text(
-                      game!.awayTeam.shortName,
+                      _currentGame!.awayTeam.shortName,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: game!.awayTeam.color1,
+                        color: _currentGame!.awayTeam.color1,
                       ),
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
@@ -695,7 +757,7 @@ class EventStreamWidget extends StatelessWidget {
                     child: Container(
                       height: 8,
                       decoration: BoxDecoration(
-                        color: game!.homeTeam.color1.withOpacity(0.7),
+                        color: _currentGame!.homeTeam.color1.withOpacity(0.7),
                         borderRadius: const BorderRadius.horizontal(
                           left: Radius.circular(4),
                         ),
@@ -714,7 +776,7 @@ class EventStreamWidget extends StatelessWidget {
                     child: Container(
                       height: 8,
                       decoration: BoxDecoration(
-                        color: game!.awayTeam.color1.withOpacity(0.7),
+                        color: _currentGame!.awayTeam.color1.withOpacity(0.7),
                         borderRadius: const BorderRadius.horizontal(
                           right: Radius.circular(4),
                         ),
@@ -755,7 +817,7 @@ class EventStreamWidget extends StatelessWidget {
     int yellows = 0;
     int reds = 0;
 
-    for (final event in game!.allGameEvents) {
+    for (final event in _currentGame!.allGameEvents) {
       if (event.team.id != teamId) continue;
 
       switch (event.eventType) {

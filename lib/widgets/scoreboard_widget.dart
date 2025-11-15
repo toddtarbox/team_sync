@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -6,7 +8,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
 import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
 
-class ScoreboardWidget extends StatelessWidget {
+class ScoreboardWidget extends StatefulWidget {
   final Game? game;
   final Season? season;
   final int teamId;
@@ -18,14 +20,74 @@ class ScoreboardWidget extends StatelessWidget {
     required this.teamId,
   }) : super(key: key);
 
+  @override
+  State<ScoreboardWidget> createState() => _ScoreboardWidgetState();
+}
+
+class _ScoreboardWidgetState extends State<ScoreboardWidget> {
+  Timer? _updateTimer;
+  Game? _currentGame;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentGame = widget.game;
+    _setupAutoUpdate();
+  }
+
+  @override
+  void didUpdateWidget(ScoreboardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game?.id != widget.game?.id) {
+      _currentGame = widget.game;
+      _setupAutoUpdate();
+    }
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  void _setupAutoUpdate() {
+    _updateTimer?.cancel();
+
+    if (isLiveGame) {
+      // Update every 5 seconds during live games
+      _updateTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+        await _reloadGameData();
+      });
+    }
+  }
+
+  Future<void> _reloadGameData() async {
+    if (_currentGame == null) return;
+
+    try {
+      await _currentGame!.loadGameEvents();
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      // Silently handle errors to avoid disrupting the UI
+      debugPrint('Error reloading game data: $e');
+    }
+  }
+
   bool get isLiveGame {
-    if (game == null) return false;
-    return game!.gameStatus.index > 0 && game!.gameStatus.index < 9;
+    if (_currentGame == null) return false;
+    return _currentGame!.gameStatus.index > 0 &&
+        _currentGame!.gameStatus.index < 9;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (game == null) {
+    if (_currentGame == null) {
       return Card(
         margin: const EdgeInsets.all(16.0),
         child: Padding(
@@ -53,39 +115,39 @@ class ScoreboardWidget extends StatelessWidget {
       );
     }
 
-    final isHome = game!.isHomeTeam(teamId);
-    final leftTeam = game!.homeTeam;
-    final rightTeam = game!.awayTeam;
-    final leftScore = game!.homeTeamScore;
-    final rightScore = game!.awayTeamScore;
+    final isHome = _currentGame!.isHomeTeam(widget.teamId);
+    final leftTeam = _currentGame!.homeTeam;
+    final rightTeam = _currentGame!.awayTeam;
+    final leftScore = _currentGame!.homeTeamScore;
+    final rightScore = _currentGame!.awayTeamScore;
 
     // Determine if user's team won/lost/tied
-    final isWin = game!.isWin(teamId);
-    final isTie = game!.isTie;
-    final isLoss = !isWin && !isTie && game!.gameStatus.index >= 9;
+    final isWin = _currentGame!.isWin(widget.teamId);
+    final isTie = _currentGame!.isTie;
+    final isLoss = !isWin && !isTie && _currentGame!.gameStatus.index >= 9;
 
     // Check which team is the user's team for highlighting
-    final isLeftTeamMine = leftTeam.id == teamId;
-    final isRightTeamMine = rightTeam.id == teamId;
+    final isLeftTeamMine = leftTeam.id == widget.teamId;
+    final isRightTeamMine = rightTeam.id == widget.teamId;
 
     return Card(
       margin: const EdgeInsets.all(16.0),
       elevation: isLiveGame ? 4 : 2,
       child: InkWell(
-        onTap: season != null
+        onTap: widget.season != null
             ? () {
                 if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          TabletGamePage(season: season!, game: game!),
+                      builder: (context) => TabletGamePage(
+                          season: widget.season!, game: _currentGame!),
                     ),
                   );
                 } else {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) =>
-                          MobileGamePage(season: season!, game: game!),
+                      builder: (context) => MobileGamePage(
+                          season: widget.season!, game: _currentGame!),
                     ),
                   );
                 }
@@ -148,7 +210,7 @@ class ScoreboardWidget extends StatelessWidget {
                       )
                     else
                       Text(
-                        DateFormat('MMM d, yyyy').format(game!.date),
+                        DateFormat('MMM d, yyyy').format(_currentGame!.date),
                         style: TextStyle(
                           fontSize: 14,
                           color: Theme.of(context)
@@ -158,7 +220,7 @@ class ScoreboardWidget extends StatelessWidget {
                         ),
                       ),
                     Text(
-                      game!.gameStatus.display,
+                      _currentGame!.gameStatus.display,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight:
@@ -277,7 +339,7 @@ class ScoreboardWidget extends StatelessWidget {
                               ),
                             ],
                           ),
-                          if (game!.gameStatus.index >= 9)
+                          if (_currentGame!.gameStatus.index >= 9)
                             Padding(
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Container(
@@ -363,11 +425,12 @@ class ScoreboardWidget extends StatelessWidget {
                   ],
                 ),
                 // Description if available
-                if (game!.description != null && game!.description!.isNotEmpty)
+                if (_currentGame!.description != null &&
+                    _currentGame!.description!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 12.0),
                     child: Text(
-                      game!.description!,
+                      _currentGame!.description!,
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,

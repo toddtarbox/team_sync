@@ -51,6 +51,7 @@ class _HomePageState extends State<HomePage> {
       false; // Track drawer state for web - collapsed by default
   final _teamIdController = TextEditingController();
   late Future<bool> _loadFuture;
+  Timer? _liveGameUpdateTimer;
 
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
@@ -224,6 +225,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _liveGameUpdateTimer?.cancel();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
     }
@@ -1082,12 +1084,49 @@ class _HomePageState extends State<HomePage> {
           }
           _currentSeason = null;
         }
+
+        // Setup auto-refresh for live games
+        _setupLiveGameAutoRefresh();
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error loading current/last game: $e');
       }
       _currentOrLastGame = null;
+    }
+  }
+
+  void _setupLiveGameAutoRefresh() {
+    _liveGameUpdateTimer?.cancel();
+
+    // Check if current game is live
+    if (_currentOrLastGame != null &&
+        _currentOrLastGame!.gameStatus.index > 0 &&
+        _currentOrLastGame!.gameStatus.index < 9) {
+      // Game is live - refresh every 10 seconds
+      _liveGameUpdateTimer =
+          Timer.periodic(const Duration(seconds: 10), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        try {
+          // Reload the current game data
+          await _loadCurrentOrLastGame();
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error refreshing live game: $e');
+          }
+        }
+      });
+
+      if (kDebugMode) {
+        print('Auto-refresh enabled for live game');
+      }
     }
   }
 
