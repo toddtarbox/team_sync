@@ -164,8 +164,49 @@ final router = GoRouter(
                     }
 
                     return FutureBuilder<Map<String, dynamic>?>(
-                      future: _loadPlayerAndSeason(seasonId, playerId),
+                      future: _loadPlayerAndSeason(seasonId, playerId,
+                          state.pathParameters['databaseId']),
                       builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Scaffold(
+                            body: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Scaffold(
+                            appBar: AppBar(title: const Text('Error')),
+                            body: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        size: 48, color: Colors.red),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Error loading player',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineSmall,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '${snapshot.error}',
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
                         if (snapshot.hasData && snapshot.data != null) {
                           final loadedPlayer =
                               snapshot.data!['player'] as Player;
@@ -175,16 +216,14 @@ final router = GoRouter(
                             player: loadedPlayer,
                             currentSeason: loadedSeason,
                           );
-                        } else if (snapshot.hasError) {
-                          return Scaffold(
-                            appBar: AppBar(title: const Text('Error')),
-                            body: Center(
-                                child: Text(
-                                    'Error loading player: ${snapshot.error}')),
-                          );
                         }
-                        return const Scaffold(
-                          body: Center(child: CircularProgressIndicator()),
+
+                        // Should not reach here, but handle gracefully
+                        return Scaffold(
+                          appBar: AppBar(title: const Text('Error')),
+                          body: const Center(
+                            child: Text('Player not found'),
+                          ),
                         );
                       },
                     );
@@ -421,14 +460,40 @@ Future<Team?> _loadTeamByDatabaseId(String databaseId) async {
 
 // Helper function to load player and season data
 Future<Map<String, dynamic>?> _loadPlayerAndSeason(
-    int seasonId, int playerId) async {
+    int seasonId, int playerId, String? databaseId) async {
   try {
-    final season = await _loadSeasonById(seasonId);
-    if (season == null) return null;
+    // Open the database if databaseId is provided
+    if (databaseId != null) {
+      final opened = await DatabaseService.instance.openFromId(databaseId);
+      if (!opened) {
+        throw Exception('Failed to open database: $databaseId');
+      }
+    }
 
-    final player = season.players.firstWhere((p) => p.id == playerId);
+    final season = await _loadSeasonById(seasonId);
+    if (season == null) {
+      throw Exception('Season not found: $seasonId');
+    }
+
+    // Try to find player in season's player list
+    Player? player;
+    try {
+      player = season.players.firstWhere((p) => p.id == playerId);
+    } catch (e) {
+      // Player not in season's player list, load directly from database
+      final playerResults = await DatabaseService.instance
+          .query('Players', orderByChild: 'id', equalTo: playerId);
+
+      if (playerResults.isEmpty) {
+        throw Exception('Player not found: $playerId');
+      }
+
+      player = Player.fromMap(playerResults.first);
+    }
+
     return {'season': season, 'player': player};
   } catch (e) {
-    return null;
+    debugPrint('Error loading player and season: $e');
+    rethrow; // Re-throw so FutureBuilder can catch it as an error
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:change_case/change_case.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
@@ -14,7 +15,6 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
 
 enum StatType {
   career,
@@ -221,12 +221,61 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       subtitle:
           Text('${topEntry.player.displayName} - ${topEntry.season.name}'),
       leading: GestureDetector(
-        onTap: () {
-          final databaseId = DatabaseService.instance.publicShareId;
+        onTap: () async {
+          if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(AppLocalizations.of(context)!.proFeature),
+                  content: Text(
+                      AppLocalizations.of(context)!.playerProfilesProFeature),
+                  actions: [
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.cancelButton),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.goPro),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await SubscriptionService.instance
+                            .purchaseSubscription();
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+            return;
+          }
+
+          // Ensure season is loaded before navigation
+          await topEntry.season.load();
+
+          // Try to get databaseId from current route or from DatabaseService
+          final currentUri = GoRouterState.of(context).uri;
+          String? databaseId;
+
+          // Try to extract from current path
+          final pathSegments = currentUri.pathSegments;
+          if (pathSegments.isNotEmpty &&
+              pathSegments[0] == 'team' &&
+              pathSegments.length > 1) {
+            databaseId = pathSegments[1];
+          } else {
+            databaseId = DatabaseService.instance.publicShareId;
+          }
+
           if (databaseId != null) {
             context.go(
               '/team/$databaseId/season/${topEntry.season.id}/players/${topEntry.player.id}',
-              extra: {'player': topEntry.player, 'season': topEntry.season},
+              extra: {
+                'player': topEntry.player,
+                'season': topEntry.season,
+              },
             );
           }
         },
@@ -282,8 +331,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                         title: Text(
                             '${entry.player.displayName} - ${entry.season.name}'),
                         leading: GestureDetector(
-                          onTap: () {
-                            if (!SubscriptionService.instance.isSubscribed) {
+                          onTap: () async {
+                            if (!kIsWeb &&
+                                !SubscriptionService.instance.isSubscribed) {
                               showDialog(
                                 context: context,
                                 builder: (BuildContext context) {
@@ -317,14 +367,34 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               );
                               return;
                             }
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => PlayerProfilePage(
-                                  player: entry.player,
-                                  currentSeason: entry.season,
-                                ),
-                              ),
-                            );
+
+                            // Ensure season is loaded before navigation
+                            await entry.season.load();
+
+                            // Try to get databaseId from current route or from DatabaseService
+                            final currentUri = GoRouterState.of(context).uri;
+                            String? databaseId;
+
+                            // Try to extract from current path
+                            final pathSegments = currentUri.pathSegments;
+                            if (pathSegments.isNotEmpty &&
+                                pathSegments[0] == 'team' &&
+                                pathSegments.length > 1) {
+                              databaseId = pathSegments[1];
+                            } else {
+                              databaseId =
+                                  DatabaseService.instance.publicShareId;
+                            }
+
+                            if (databaseId != null) {
+                              context.go(
+                                '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                extra: {
+                                  'player': entry.player,
+                                  'season': entry.season,
+                                },
+                              );
+                            }
                           },
                           child: CircleAvatar(
                               child: entry.player.profileImage != null &&
@@ -367,15 +437,67 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       trailing:
           Text(bestStat.value.toString(), style: const TextStyle(fontSize: 24)),
       leading: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PlayerProfilePage(
-                player: bestStat.player,
-                currentSeason: bestStat.season,
-              ),
-            ),
-          );
+        onTap: () async {
+          if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text(AppLocalizations.of(context)!.proFeature),
+                  content: Text(
+                      AppLocalizations.of(context)!.playerProfilesProFeature),
+                  actions: [
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.cancelButton),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    TextButton(
+                      child: Text(AppLocalizations.of(context)!.goPro),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await SubscriptionService.instance
+                            .purchaseSubscription();
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+            return;
+          }
+
+          // Ensure season is loaded before navigation
+          await bestStat.season.load();
+
+          // Try to get databaseId from current route or from DatabaseService
+          final currentUri = GoRouterState.of(context).uri;
+          String? databaseId;
+
+          // Try to extract from current path
+          final pathSegments = currentUri.pathSegments;
+          if (pathSegments.isNotEmpty &&
+              pathSegments[0] == 'team' &&
+              pathSegments.length > 1) {
+            databaseId = pathSegments[1];
+          } else {
+            databaseId = DatabaseService.instance.publicShareId;
+          }
+
+          if (databaseId != null) {
+            print(
+                'Navigating to: /team/$databaseId/season/${bestStat.season.id}/players/${bestStat.player.id}');
+            context.go(
+              '/team/$databaseId/season/${bestStat.season.id}/players/${bestStat.player.id}',
+              extra: {
+                'player': bestStat.player,
+                'season': bestStat.season,
+              },
+            );
+          } else {
+            print('databaseId is null, cannot navigate');
+          }
         },
         child: CircleAvatar(
             child: bestStat.player.profileImage != null &&
@@ -427,8 +549,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                         title: Text(
                             '${entry.player.displayName} - ${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
                         leading: GestureDetector(
-                          onTap: () {
-                            if (!SubscriptionService.instance.isSubscribed) {
+                          onTap: () async {
+                            if (!kIsWeb &&
+                                !SubscriptionService.instance.isSubscribed) {
                               showDialog(
                                 context: context,
                                 builder: (BuildContext context) {
@@ -462,14 +585,34 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               );
                               return;
                             }
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => PlayerProfilePage(
-                                  player: entry.player,
-                                  currentSeason: entry.season,
-                                ),
-                              ),
-                            );
+
+                            // Ensure season is loaded before navigation
+                            await entry.season.load();
+
+                            // Try to get databaseId from current route or from DatabaseService
+                            final currentUri = GoRouterState.of(context).uri;
+                            String? databaseId;
+
+                            // Try to extract from current path
+                            final pathSegments = currentUri.pathSegments;
+                            if (pathSegments.isNotEmpty &&
+                                pathSegments[0] == 'team' &&
+                                pathSegments.length > 1) {
+                              databaseId = pathSegments[1];
+                            } else {
+                              databaseId =
+                                  DatabaseService.instance.publicShareId;
+                            }
+
+                            if (databaseId != null) {
+                              context.go(
+                                '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                extra: {
+                                  'player': entry.player,
+                                  'season': entry.season,
+                                },
+                              );
+                            }
                           },
                           child: CircleAvatar(
                               child: entry.player.profileImage != null &&
@@ -511,7 +654,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       subtitle: Text(topEntry.key.displayName),
       leading: GestureDetector(
         onTap: () async {
-          if (!SubscriptionService.instance.isSubscribed) {
+          if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
             showDialog(
               context: context,
               builder: (BuildContext context) {
@@ -560,14 +703,30 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             await season.load();
 
             if (!mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PlayerProfilePage(
-                  player: topEntry.key,
-                  currentSeason: season,
-                ),
-              ),
-            );
+
+            // Try to get databaseId from current route or from DatabaseService
+            final currentUri = GoRouterState.of(context).uri;
+            String? databaseId;
+
+            // Try to extract from current path
+            final pathSegments = currentUri.pathSegments;
+            if (pathSegments.isNotEmpty &&
+                pathSegments[0] == 'team' &&
+                pathSegments.length > 1) {
+              databaseId = pathSegments[1];
+            } else {
+              databaseId = DatabaseService.instance.publicShareId;
+            }
+
+            if (databaseId != null) {
+              context.go(
+                '/team/$databaseId/season/${season.id}/players/${topEntry.key.id}',
+                extra: {
+                  'player': topEntry.key,
+                  'season': season,
+                },
+              );
+            }
           }
         },
         child: CircleAvatar(
@@ -644,14 +803,31 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               await season.load();
 
                               if (!mounted) return;
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => PlayerProfilePage(
-                                    player: entry.key,
-                                    currentSeason: season,
-                                  ),
-                                ),
-                              );
+
+                              // Try to get databaseId from current route or from DatabaseService
+                              final currentUri = GoRouterState.of(context).uri;
+                              String? databaseId;
+
+                              // Try to extract from current path
+                              final pathSegments = currentUri.pathSegments;
+                              if (pathSegments.isNotEmpty &&
+                                  pathSegments[0] == 'team' &&
+                                  pathSegments.length > 1) {
+                                databaseId = pathSegments[1];
+                              } else {
+                                databaseId =
+                                    DatabaseService.instance.publicShareId;
+                              }
+
+                              if (databaseId != null) {
+                                context.go(
+                                  '/team/$databaseId/season/${season.id}/players/${entry.key.id}',
+                                  extra: {
+                                    'player': entry.key,
+                                    'season': season,
+                                  },
+                                );
+                              }
                             }
                           },
                           child: CircleAvatar(
