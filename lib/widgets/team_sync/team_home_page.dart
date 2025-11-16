@@ -275,7 +275,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: (DatabaseService.instance.path.isNotEmpty || _team != null)
             ? PreferredSize(
-                preferredSize: const Size.fromHeight(40),
+                preferredSize: const Size.fromHeight(80),
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Row(
@@ -338,6 +338,26 @@ class _TeamHomePageState extends State<TeamHomePage> {
               style: const TextStyle(color: Colors.yellow),
             ),
           ),
+        ),
+      if (_team != null)
+        IconButton(
+          onPressed: () {
+            final databaseId = DatabaseService.instance.publicShareId;
+            if (databaseId != null) {
+              context.go('/team/$databaseId/records', extra: _team);
+            }
+          },
+          icon: const Icon(Icons.leaderboard),
+        ),
+      if (_team != null)
+        IconButton(
+          onPressed: () {
+            final databaseId = DatabaseService.instance.publicShareId;
+            if (databaseId != null) {
+              context.go('/team/$databaseId/history', extra: _team);
+            }
+          },
+          icon: const Icon(Icons.manage_history_outlined),
         ),
       if (!kIsWeb)
         Showcase(
@@ -543,9 +563,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   game: _currentOrLastGame!,
                   teamId: _team!.id,
                 ),
-              if (_currentSeason != null) ...[
+              if (_seasons.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                SeasonRecord([_currentSeason!]),
+                SeasonRecord(_seasons, singleSeason: false),
               ],
               const SizedBox(height: 16),
               const Text(

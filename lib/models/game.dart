@@ -144,6 +144,9 @@ class GameStats implements StatLeaders {
       case LeaderCategory.offsides:
         sourceTable = _playerOffsides;
         break;
+      case LeaderCategory.corners:
+        // Corners are team stats, not player stats
+        return players;
       case LeaderCategory.fouls:
         sourceTable = _playerFouls;
         break;

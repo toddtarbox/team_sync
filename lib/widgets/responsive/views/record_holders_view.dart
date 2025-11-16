@@ -182,7 +182,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       itemBuilder: (context, index) {
         final category = LeaderCategory.values[index];
         if (category == LeaderCategory.ownGoalsEarned ||
-            category == LeaderCategory.secondYellowReds) {
+            category == LeaderCategory.secondYellowReds ||
+            category == LeaderCategory.corners) {
           return Container();
         }
 

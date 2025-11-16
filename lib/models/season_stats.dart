@@ -16,6 +16,7 @@ enum LeaderCategory {
   shotsOffPost,
   saves,
   offsides,
+  corners,
   fouls,
   yellows,
   secondYellowReds,
@@ -328,6 +329,8 @@ class SeasonStats implements StatLeaders {
         return _teamSaves;
       case LeaderCategory.offsides:
         return _teamOffsides;
+      case LeaderCategory.corners:
+        return _teamCorners;
       case LeaderCategory.fouls:
         return _teamFouls;
       case LeaderCategory.yellows:
@@ -361,6 +364,8 @@ class SeasonStats implements StatLeaders {
         return _opponentSaves;
       case LeaderCategory.offsides:
         return _opponentOffsides;
+      case LeaderCategory.corners:
+        return _opponentCorners;
       case LeaderCategory.fouls:
         return _opponentFouls;
       case LeaderCategory.yellows:
@@ -401,6 +406,10 @@ class SeasonStats implements StatLeaders {
       case LeaderCategory.offsides:
         sourceTable = _playerOffsides;
         break;
+
+      case LeaderCategory.corners:
+        // Corners are team stats, not player stats
+        return players;
 
       case LeaderCategory.reds:
         sourceTable = _playerReds;

@@ -145,6 +145,13 @@ class _GameStatsViewState extends State<GameStatsView> {
 
       int opponentTotalForCategory = 0;
       for (final event in _game.allGameEvents) {
+        // Count team corners separately since they don't have player stats
+        if (category == LeaderCategory.corners &&
+            event.eventType == 'Corner' &&
+            event.team.id == widget.season.teamId) {
+          teamTotalForCategory++;
+        }
+
         switch (category) {
           case LeaderCategory.goals:
             if (event.eventType == 'Shot' &&
@@ -206,6 +213,12 @@ class _GameStatsViewState extends State<GameStatsView> {
             break;
           case LeaderCategory.offsides:
             if (event.eventType == 'Offsides' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
+          case LeaderCategory.corners:
+            if (event.eventType == 'Corner' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }

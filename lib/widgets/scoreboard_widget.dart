@@ -1,12 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
-import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class ScoreboardWidget extends StatefulWidget {
   final Game? game;
@@ -136,19 +135,14 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
       child: InkWell(
         onTap: widget.season != null
             ? () {
-                if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => TabletGamePage(
-                          season: widget.season!, game: _currentGame!),
-                    ),
-                  );
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => MobileGamePage(
-                          season: widget.season!, game: _currentGame!),
-                    ),
+                final databaseId = DatabaseService.instance.publicShareId;
+                if (databaseId != null) {
+                  context.go(
+                    '/team/$databaseId/season/${widget.season!.id}/game/${_currentGame!.id}',
+                    extra: {
+                      'season': widget.season,
+                      'game': _currentGame,
+                    },
                   );
                 }
               }

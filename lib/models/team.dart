@@ -109,6 +109,13 @@ class Team extends Equatable {
   Future<Map<LeaderCategory, MapEntry<Player, int>>> calculateCareerStats(
       dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final events = data as List<Map<String, dynamic>>;
     final stats = CareerStats.fromMap(id, events);
     final careerStats = <LeaderCategory, MapEntry<Player, int>>{};
@@ -118,6 +125,9 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       final statPlayers = await stats.getStatPlayers(category);
       if (statPlayers.isNotEmpty) {
         final sortedStats = List.from(statPlayers.entries);
@@ -131,6 +141,13 @@ class Team extends Equatable {
 
   Future<Map<LeaderCategory, SeasonStat>> calculateBestSeasonStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
@@ -146,7 +163,8 @@ class Team extends Equatable {
     }
     int i = 0;
     for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+      if (category == LeaderCategory.ownGoalsEarned ||
+          category == LeaderCategory.corners) {
         i++;
         continue;
       }
@@ -154,6 +172,9 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       int bestValue = 0;
       Player? bestPlayer;
       Season? bestSeason;
@@ -186,6 +207,13 @@ class Team extends Equatable {
 
   Future<BestGameStats> calculateBestGameStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
@@ -203,7 +231,8 @@ class Team extends Equatable {
 
     int i = 0;
     for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+      if (category == LeaderCategory.ownGoalsEarned ||
+          category == LeaderCategory.corners) {
         i++;
         continue;
       }
@@ -211,6 +240,9 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       int bestValue = 0;
       Player? bestPlayer;
       Game? bestGame;
