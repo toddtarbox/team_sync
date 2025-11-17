@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -275,6 +277,17 @@ class _GameViewState extends State<GameView> {
         ? widget.game.homeTeam
         : widget.game.awayTeam;
 
+    final assistEvents = widget.game.allGameEvents
+        .where((e) => e.eventType == 'Assist')
+        .toList(growable: false);
+
+    final assistEvent = assistEvents
+        .where((e) =>
+            (((e.id == event.id + 1) || e.eventMinute == event.eventMinute) &&
+                e.eventType == 'Assist') ||
+            e.eventData == event.id)
+        .firstOrNull;
+
     final eventCard = ListTile(
         leading: eventMinuteWidget,
         trailing: scoreWidget,
@@ -293,8 +306,40 @@ class _GameViewState extends State<GameView> {
           linkWidget
         ]),
         subtitle: Visibility(
-            visible: event.eventType != 'Period',
-            child: Text(event.player?.displayName ?? event.team.shortName)),
+            visible: event.eventType != 'Period' && event.eventType != 'Assist',
+            child: event.player != null
+                ? Row(
+                    children: [
+                      if (event.player != null && event.player!.id != -2) ...[
+                        ResponsivePlayerAvatar(
+                            player: event.player!, avatarSize: 18),
+                        const SizedBox(width: 8),
+                      ],
+                      assistEvent == null
+                          ? Expanded(
+                              child: AutoSizeText(
+                                  event.player?.displayName ?? '',
+                                  minFontSize: 14))
+                          : AutoSizeText(event.player?.displayName ?? '',
+                              minFontSize: 14),
+                      if (assistEvent != null) ...[
+                        if (assistEvent.player != null &&
+                            assistEvent.player!.id != -2) ...[
+                          AutoSizeText(' - assisted by', minFontSize: 14),
+                          const SizedBox(width: 8),
+                          ResponsivePlayerAvatar(
+                              player: assistEvent.player!, avatarSize: 18),
+                          const SizedBox(width: 8),
+                        ],
+                        Expanded(
+                          child: AutoSizeText(
+                              assistEvent.player?.displayName ?? '',
+                              minFontSize: 14),
+                        ),
+                      ]
+                    ],
+                  )
+                : Text(event.team.shortName)),
         onTap: () {
           _editEvent(event: event);
         });

@@ -14,20 +14,22 @@ class ResponsiveAvatar extends StatelessWidget {
   final Widget? fallbackIcon;
 
   const ResponsiveAvatar({
-    Key? key,
+    super.key,
     this.imageUrl,
     this.backgroundImage,
     this.initials,
     this.size,
     this.backgroundColor,
     this.fallbackIcon,
-  }) : super(key: key);
+  });
 
   Size preferredSize(BuildContext context) {
-    return Size.square(_computedRadius(context));
+    return Size.square(computedRadius(context));
   }
 
-  double _computedRadius(BuildContext context) {
+  /// Compute the avatar radius based on the provided `size` or the
+  /// current screen width. Public so subclasses can call it.
+  double computedRadius(BuildContext context) {
     if (size != null) return size!;
     final w = MediaQuery.of(context).size.width;
 
@@ -41,23 +43,24 @@ class ResponsiveAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = _computedRadius(context);
+    final radius = computedRadius(context);
 
     final ImageProvider? provider = backgroundImage ??
         (imageUrl != null && imageUrl!.isNotEmpty
             ? NetworkImage(imageUrl!)
             : null);
 
-    return CircleAvatar(
+    final String? displayInitials = initials;
+
+    Widget avatar = CircleAvatar(
       radius: radius,
-      // Use the newer surfaceContainerHighest as surfaceVariant is deprecated
       backgroundColor: backgroundColor ??
           Theme.of(context).colorScheme.surfaceContainerHighest,
       backgroundImage: provider,
       child: provider == null
-          ? (initials != null
+          ? (displayInitials != null && displayInitials.isNotEmpty
               ? Text(
-                  initials!,
+                  displayInitials,
                   style: TextStyle(
                     fontSize: radius * 0.7,
                     fontWeight: FontWeight.bold,
@@ -67,5 +70,7 @@ class ResponsiveAvatar extends StatelessWidget {
               : (fallbackIcon ?? const Icon(Icons.person)))
           : null,
     );
+
+    return avatar;
   }
 }

@@ -1,4 +1,3 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:change_case/change_case.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/scoring_summary.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -50,13 +50,8 @@ class _GameStatsViewState extends State<GameStatsView> {
         future: _loadStats(),
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
           if (snapshot.hasData) {
-            final assistEvents = _game.allGameEvents
-                .where((e) => e.eventType == 'Assist')
-                .toList(growable: false);
-
             return ListView.separated(
-                itemCount:
-                    _game.scoringEvents.length + 2 + _statCategoryTiles.length,
+                itemCount: 3 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const ListTile(
@@ -64,57 +59,17 @@ class _GameStatsViewState extends State<GameStatsView> {
                             child: Text('Scoring Summary',
                                 style:
                                     TextStyle(fontWeight: FontWeight.bold))));
-                  } else if (index <= _game.scoringEvents.length) {
-                    final event = _game.scoringEvents[index - 1];
-                    final assistEvent = assistEvents
-                        .where((e) =>
-                            (((e.id == event.id + 1) ||
-                                    e.eventMinute == event.eventMinute) &&
-                                e.eventType == 'Assist') ||
-                            e.eventData == event.id)
-                        .firstOrNull;
-
-                    final opponent =
-                        !widget.game.isHomeTeam(widget.season.teamId)
-                            ? widget.game.homeTeam
-                            : widget.game.awayTeam;
-
-                    return ListTile(
-                        leading: AutoSizeText('${event.eventMinute}\'',
-                            minFontSize: 14),
-                        title: event.team.id == widget.season.team.id
-                            ? AutoSizeText(event.player?.displayName ?? '',
-                                minFontSize: 14)
-                            : AutoSizeText(event.team.shortName,
-                                minFontSize: 14),
-                        subtitle: AutoSizeText(
-                          event.team.id == widget.season.team.id &&
-                                  assistEvent != null
-                              ? assistEvent.display
-                              : event.eventType == 'PenaltyKick'
-                                  ? 'PK'
-                                  : event.team.id == widget.season.team.id
-                                      ? event.player == null ||
-                                              event.player?.id == -2
-                                          ? 'Own goal by ${opponent.shortName}'
-                                          : 'No assist'
-                                      : '',
-                        ),
-                        trailing: Text(
-                            maxLines: 1,
-                            _game.getScore(widget.season.teamId,
-                                minute: event.eventMinute),
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold)));
-                  } else if (index == _game.scoringEvents.length + 1) {
+                  } else if (index == 1) {
+                    return ScoringSummary(
+                        widget.season, widget.season.team, _game);
+                  } else if (index == 2) {
                     return const ListTile(
                         title: Center(
                             child: Text('Game Stats',
                                 style:
                                     TextStyle(fontWeight: FontWeight.bold))));
                   } else {
-                    return _statCategoryTiles[
-                        index - _game.scoringEvents.length - 2];
+                    return _statCategoryTiles[index - 3];
                   }
                 },
                 separatorBuilder: (context, index) {

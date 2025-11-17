@@ -9,7 +9,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
-import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -290,15 +290,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       child: Column(
         children: [
           // Avatar
-          ResponsiveAvatar(
-            backgroundImage: widget.player.profileImage != null &&
-                    widget.player.profileImage!.isNotEmpty
-                ? NetworkImage(widget.player.profileImage!)
-                : null,
-            initials:
-                '${widget.player.firstName[0]}${widget.player.lastName[0]}',
-            // Let ResponsiveAvatar compute a larger radius on wide screens
-          ),
+          ResponsivePlayerAvatar(player: widget.player),
+
           const SizedBox(height: 16),
 
           // Player name

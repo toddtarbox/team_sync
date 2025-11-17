@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 class ScoringSummary extends StatefulWidget {
   final Season season;
@@ -68,23 +69,52 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                             leading: AutoSizeText('${event.eventMinute}\'',
                                 minFontSize: 14),
                             title: event.team.id == widget.season.team.id
-                                ? AutoSizeText(event.player?.displayName ?? '',
-                                    minFontSize: 14)
+                                ? Row(
+                                    children: [
+                                      if (event.player != null &&
+                                          event.player!.id != -2) ...[
+                                        ResponsivePlayerAvatar(
+                                            player: event.player!,
+                                            avatarSize: 18),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      Expanded(
+                                        child: AutoSizeText(
+                                            event.player?.displayName ?? '',
+                                            minFontSize: 14),
+                                      )
+                                    ],
+                                  )
                                 : AutoSizeText(event.team.shortName,
                                     minFontSize: 14),
-                            subtitle: AutoSizeText(
-                              event.team.id == widget.team.id &&
-                                      assistEvent != null
-                                  ? assistEvent.display
-                                  : event.eventType == 'PenaltyKick'
-                                      ? 'PK'
-                                      : event.team.id == widget.season.team.id
-                                          ? (event.player == null ||
-                                                  event.player?.id == -2)
-                                              ? 'Own goal by ${opponent.shortName}'
-                                              : 'No assist'
-                                          : '',
-                            ),
+                            subtitle: (assistEvent?.player != null &&
+                                    assistEvent!.player!.id != -2)
+                                ? Row(
+                                    children: [
+                                      AutoSizeText('Assisted by ',
+                                          minFontSize: 14),
+                                      ResponsivePlayerAvatar(
+                                          player: assistEvent.player!,
+                                          avatarSize: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: AutoSizeText(
+                                            assistEvent.player!.displayName,
+                                            minFontSize: 14),
+                                      )
+                                    ],
+                                  )
+                                : AutoSizeText(
+                                    event.team.id == widget.team.id &&
+                                            event.eventType == 'PenaltyKick'
+                                        ? 'PK'
+                                        : event.team.id == widget.season.team.id
+                                            ? (event.player == null ||
+                                                    event.player?.id == -2)
+                                                ? 'Own goal by ${opponent.shortName}'
+                                                : ''
+                                            : '',
+                                    minFontSize: 14),
                             trailing: Text(
                                 maxLines: 1,
                                 widget.game.getScore(widget.season.teamId,

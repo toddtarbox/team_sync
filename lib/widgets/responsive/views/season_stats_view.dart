@@ -6,6 +6,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -130,25 +131,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                           );
                                         }
                                       },
-                                      leading: CircleAvatar(
-                                        child: player.profileImage != null &&
-                                                player.profileImage!.isNotEmpty
-                                            ? ClipOval(
-                                                child: Image.network(
-                                                  player.profileImage!,
-                                                  width: 40,
-                                                  height: 40,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (context, error,
-                                                      stackTrace) {
-                                                    return Text(
-                                                        '${player.firstName[0]}${player.lastName[0]}');
-                                                  },
-                                                ),
-                                              )
-                                            : Text(
-                                                '${player.firstName[0]}${player.lastName[0]}'),
-                                      ),
+                                      leading: ResponsivePlayerAvatar(
+                                          player: player, avatarSize: 40),
                                       title: Text(player.displayName,
                                           style: const TextStyle(
                                               fontSize: 24,

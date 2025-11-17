@@ -11,7 +11,8 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
-import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -233,11 +234,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                       );
                                     }
                                   },
-                            child: ResponsiveAvatar(
-                              imageUrl: player.profileImage,
-                              initials:
-                                  '${player.firstName[0]}${player.lastName[0]}',
-                            ),
+                            child: ResponsivePlayerAvatar(
+                                player: player, avatarSize: 40),
                           ),
                           title: Text(player.displayName),
                           subtitle: Text('#${player.number}'),
@@ -314,16 +312,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                   });
                                 }
                               },
-                        child: ResponsiveAvatar(
-                          backgroundImage: _imageFile != null
-                              ? FileImage(_imageFile!)
-                              : (player.profileImage != null &&
-                                      player.profileImage!.isNotEmpty
-                                  ? NetworkImage(player.profileImage!)
-                                  : null) as ImageProvider?,
-                          initials:
-                              '${player.firstName[0]}${player.lastName[0]}',
-                        ),
+                        child: ResponsivePlayerAvatar(
+                            player: player, avatarSize: 56),
                       ),
                       TextFormField(
                           initialValue: playerName,
@@ -449,7 +439,7 @@ class _PlayersPageState extends State<PlayersPage> {
                             });
                           }
                         },
-                        child: ResponsiveAvatar(
+                        child: generic_avatar.ResponsiveAvatar(
                           backgroundImage: _imageFile != null
                               ? FileImage(_imageFile!)
                               : null,

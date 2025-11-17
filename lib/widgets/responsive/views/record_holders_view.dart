@@ -15,7 +15,7 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 enum StatType {
   career,
@@ -280,10 +280,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             );
           }
         },
-        child: ResponsiveAvatar(
-            imageUrl: topEntry.player.profileImage,
-            initials:
-                '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}'),
+        child: ResponsivePlayerAvatar(player: topEntry.player, avatarSize: 40),
       ),
       trailing:
           Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
@@ -384,10 +381,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               );
                             }
                           },
-                          child: ResponsiveAvatar(
-                              imageUrl: entry.player.profileImage,
-                              initials:
-                                  '${entry.player.firstName[0]}${entry.player.lastName[0]}'),
+                          child: ResponsivePlayerAvatar(
+                              player: entry.player, avatarSize: 40),
                         ),
                         trailing: Text(entry.value.toString(),
                             style: const TextStyle(fontSize: 24)),
@@ -473,10 +468,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             print('databaseId is null, cannot navigate');
           }
         },
-        child: ResponsiveAvatar(
-            imageUrl: bestStat.player.profileImage,
-            initials:
-                '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}'),
+        child: ResponsivePlayerAvatar(player: bestStat.player, avatarSize: 40),
       ),
       onTap: () async {
         showDialog(
@@ -575,10 +567,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               );
                             }
                           },
-                          child: ResponsiveAvatar(
-                              imageUrl: entry.player.profileImage,
-                              initials:
-                                  '${entry.player.firstName[0]}${entry.player.lastName[0]}'),
+                          child: ResponsivePlayerAvatar(
+                              player: entry.player, avatarSize: 40),
                         ),
                         trailing: Text(entry.value.toString(),
                             style: const TextStyle(fontSize: 24)),
@@ -676,10 +666,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             }
           }
         },
-        child: ResponsiveAvatar(
-            imageUrl: topEntry.key.profileImage,
-            initials:
-                '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}'),
+        child: ResponsivePlayerAvatar(player: topEntry.key, avatarSize: 40),
       ),
       trailing:
           Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
@@ -764,10 +751,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                               }
                             }
                           },
-                          child: ResponsiveAvatar(
-                              imageUrl: entry.key.profileImage,
-                              initials:
-                                  '${entry.key.firstName[0]}${entry.key.lastName[0]}'),
+                          child: ResponsivePlayerAvatar(
+                              player: entry.key, avatarSize: 40),
                         ),
                         title: Text(entry.key.displayName),
                         trailing: Text(entry.value.toString(),
