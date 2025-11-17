@@ -59,8 +59,24 @@ final router = GoRouter(
               return SeasonPage(season: season);
             }
 
+            // Build a future that opens the shared DB from the route parameter if present,
+            // then loads the season by id. This avoids relying on Uri.base parsing here.
+            final databaseId = state.pathParameters['databaseId'];
+            final future = () async {
+              if (databaseId != null) {
+                try {
+                  await DatabaseService.instance
+                      .openFromId(databaseId)
+                      .timeout(const Duration(seconds: 10));
+                } catch (e) {
+                  debugPrint('Router: failed to open DB $databaseId: $e');
+                }
+              }
+              return await _loadSeasonById(seasonId);
+            }();
+
             return FutureBuilder<Season?>(
-              future: _loadSeasonById(seasonId),
+              future: future,
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
                   return SeasonPage(season: snapshot.data!);
@@ -251,8 +267,22 @@ final router = GoRouter(
                   }
                 }
 
+                final databaseId = state.pathParameters['databaseId'];
+                final future = () async {
+                  if (databaseId != null) {
+                    try {
+                      await DatabaseService.instance
+                          .openFromId(databaseId)
+                          .timeout(const Duration(seconds: 10));
+                    } catch (e) {
+                      debugPrint('Router: failed to open DB $databaseId: $e');
+                    }
+                  }
+                  return await _loadSeasonAndGame(seasonId, gameId);
+                }();
+
                 return FutureBuilder<Map<String, dynamic>?>(
-                  future: _loadSeasonAndGame(seasonId, gameId),
+                  future: future,
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data != null) {
                       final loadedSeason = snapshot.data!['season'] as Season;
@@ -398,7 +428,6 @@ Future<Season?> _loadSeasonById(int seasonId) async {
     final results = await DatabaseService.instance
         .query('Seasons', orderByChild: 'id', equalTo: seasonId);
     if (results.isEmpty) return null;
-
     final season = Season.fromMap(results.first);
     await season.load();
     return season;

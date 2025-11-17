@@ -15,12 +15,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class PlayerProfilePage extends StatefulWidget {
   final Player player;
-  final Season currentSeason;
+  final Season? currentSeason; // made nullable to support deep links
 
   const PlayerProfilePage({
     super.key,
     required this.player,
-    required this.currentSeason,
+    this.currentSeason,
   });
 
   @override
@@ -31,14 +31,39 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Future<Map<Season, SeasonStats>>? _seasonStatsFuture;
   Future<List<GameEvent>>? _highlightsFuture;
   Future<List<PlayerHighlight>>? _independentHighlightsFuture;
+  Future<Season?>?
+      _currentSeasonFuture; // will load if widget.currentSeason is null
+  Season? _loadedSeason;
   bool _showHighlights = true;
 
   @override
   void initState() {
     super.initState();
+    // start loading season only if not provided
+    if (widget.currentSeason == null) {
+      _currentSeasonFuture = _loadSeasonForPlayer();
+    } else {
+      _currentSeasonFuture = Future.value(widget.currentSeason);
+    }
+
     _seasonStatsFuture = _loadPlayerSeasonStats();
     _highlightsFuture = _loadPlayerHighlights();
     _independentHighlightsFuture = _loadIndependentHighlights();
+  }
+
+  Future<Season?> _loadSeasonForPlayer() async {
+    try {
+      final results = await DatabaseService.instance.query('Seasons',
+          orderByChild: 'id', equalTo: widget.player.seasonId);
+      if (results.isEmpty) return null;
+      final season = Season.fromMap(results.first);
+      await season.load();
+      _loadedSeason = season;
+      return season;
+    } catch (e) {
+      print('Error loading season for player: $e');
+      return null;
+    }
   }
 
   void _refreshHighlights() {
@@ -162,125 +187,150 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    return Scaffold(
-      appBar: CustomAppBar(
-        team: widget.currentSeason.team,
-        title: Text(
-          widget.player.displayName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          // Toggle highlights button
-          IconButton(
-            icon: Icon(_showHighlights
-                ? Icons.video_library
-                : Icons.video_library_outlined),
-            tooltip: _showHighlights ? loc.hideHighlights : loc.showHighlights,
-            onPressed: () {
-              setState(() {
-                _showHighlights = !_showHighlights;
-              });
-            },
+
+    // Build a FutureBuilder to ensure we have a season (team) available for the app bar
+    return FutureBuilder<Season?>(
+      future: _currentSeasonFuture,
+      builder: (context, seasonSnapshot) {
+        // While loading the season, show a simple scaffold with a spinner
+        if (seasonSnapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: CustomAppBar(
+              team: null,
+              title: Text(widget.player.displayName,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final Season? currentSeason =
+            seasonSnapshot.data ?? widget.currentSeason ?? _loadedSeason;
+
+        return Scaffold(
+          appBar: CustomAppBar(
+            team: currentSeason?.team,
+            title: Text(
+              widget.player.displayName,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              // Toggle highlights button
+              IconButton(
+                icon: Icon(_showHighlights
+                    ? Icons.video_library
+                    : Icons.video_library_outlined),
+                tooltip:
+                    _showHighlights ? loc.hideHighlights : loc.showHighlights,
+                onPressed: () {
+                  setState(() {
+                    _showHighlights = !_showHighlights;
+                  });
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _seasonStatsFuture == null
-          ? const Center(child: CircularProgressIndicator())
-          : FutureBuilder<Map<Season, SeasonStats>>(
-              future: _seasonStatsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          body: _seasonStatsFuture == null
+              ? const Center(child: CircularProgressIndicator())
+              : FutureBuilder<Map<Season, SeasonStats>>(
+                  future: _seasonStatsFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(loc.errorLoadingPlayerStats(
-                        snapshot.error?.toString() ?? '',
-                        snapshot.stackTrace?.toString() ?? '')),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Center(child: Text(loc.noStatsAvailable));
-                }
-
-                final seasonStats = snapshot.data!;
-                final seasons = seasonStats.keys.toList()
-                  ..sort(
-                      (a, b) => b.name.compareTo(a.name)); // Most recent first
-
-                // Build main content
-                final mainContent = ListView(
-                  children: [
-                    // Player header with avatar and basic info
-                    _buildPlayerHeader(),
-
-                    const Divider(thickness: 2),
-
-                    // Career Stats Section
-                    _buildCareerStats(seasonStats),
-
-                    const Divider(thickness: 2),
-
-                    // Stats for each season
-                    ...seasons.map((season) => _buildSeasonStats(
-                          season,
-                          seasonStats[season]!,
-                        )),
-                  ],
-                );
-
-                // Responsive layout
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWideScreen = constraints.maxWidth > 900;
-
-                    if (isWideScreen && _showHighlights) {
-                      // Two-column layout for wide screens
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Main content (left side)
-                          Expanded(
-                            flex: 2,
-                            child: mainContent,
-                          ),
-
-                          // Highlights panel (right side)
-                          Container(
-                            width: 400,
-                            decoration: BoxDecoration(
-                              border: Border(
-                                left: BorderSide(
-                                  color: Theme.of(context).dividerColor,
-                                  width: 1,
-                                ),
-                              ),
-                            ),
-                            child: _buildHighlightsPanel(),
-                          ),
-                        ],
-                      );
-                    } else {
-                      // Single column layout for narrow screens or when highlights hidden
-                      return Column(
-                        children: [
-                          Expanded(child: mainContent),
-                          if (_showHighlights) ...[
-                            const Divider(thickness: 2),
-                            SizedBox(
-                              height: 300,
-                              child: _buildHighlightsPanel(),
-                            ),
-                          ],
-                        ],
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(loc.errorLoadingPlayerStats(
+                            snapshot.error?.toString() ?? '',
+                            snapshot.stackTrace?.toString() ?? '')),
                       );
                     }
+
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(child: Text(loc.noStatsAvailable));
+                    }
+
+                    final seasonStats = snapshot.data!;
+                    final seasons = seasonStats.keys.toList()
+                      ..sort((a, b) =>
+                          b.name.compareTo(a.name)); // Most recent first
+
+                    // Build main content
+                    final mainContent = ListView(
+                      children: [
+                        // Player header with avatar and basic info
+                        _buildPlayerHeader(),
+
+                        const Divider(thickness: 2),
+
+                        // Career Stats Section
+                        _buildCareerStats(seasonStats),
+
+                        const Divider(thickness: 2),
+
+                        // Stats for each season
+                        ...seasons.map((season) => _buildSeasonStats(
+                              season,
+                              seasonStats[season]!,
+                              currentSeason,
+                            )),
+                      ],
+                    );
+
+                    // Responsive layout
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWideScreen = constraints.maxWidth > 900;
+
+                        if (isWideScreen && _showHighlights) {
+                          // Two-column layout for wide screens
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Main content (left side)
+                              Expanded(
+                                flex: 2,
+                                child: mainContent,
+                              ),
+
+                              // Highlights panel (right side)
+                              Container(
+                                width: 400,
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    left: BorderSide(
+                                      color: Theme.of(context).dividerColor,
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: _buildHighlightsPanel(),
+                              ),
+                            ],
+                          );
+                        } else {
+                          // Single column layout for narrow screens or when highlights hidden
+                          return Column(
+                            children: [
+                              Expanded(child: mainContent),
+                              if (_showHighlights) ...[
+                                const Divider(thickness: 2),
+                                SizedBox(
+                                  height: 300,
+                                  child: _buildHighlightsPanel(),
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+                      },
+                    );
                   },
-                );
-              },
-            ),
+                ),
+        );
+      },
     );
   }
 
@@ -318,7 +368,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     );
   }
 
-  Widget _buildSeasonStats(Season season, SeasonStats stats) {
+  Widget _buildSeasonStats(
+      Season season, SeasonStats stats, Season? currentSeason) {
     return FutureBuilder<Map<LeaderCategory, int>>(
       future: _getPlayerStats(stats, widget.player.id),
       builder: (context, snapshot) {
@@ -339,7 +390,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ExpansionTile(
-            initiallyExpanded: season.id == widget.currentSeason.id,
+            initiallyExpanded:
+                currentSeason != null && season.id == currentSeason.id,
             title: Text(
               season.name,
               style: const TextStyle(
