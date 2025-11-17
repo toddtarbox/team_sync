@@ -33,7 +33,7 @@ class AppConfig {
   static const clubSync = AppConfig(
     mode: AppMode.clubSync,
     appName: 'ClubSync',
-    appId: 'com.tsquared.club_sync',
+    appId: 'com.tsquared.clubsync.soccer',
     enableClubFeatures: true,
     enableTeamFeatures: true,
   );

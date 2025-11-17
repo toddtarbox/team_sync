@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/season_record.dart';
 
 class SeasonsListView extends StatefulWidget {
@@ -36,7 +36,8 @@ class _SeasonsListViewState extends State<SeasonsListView> {
           final seasonCard = GestureDetector(
               onTap: () {
                 if (databaseId != null) {
-                  context.go('/team/$databaseId/season/${season.id}',
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/season/${season.id}',
                       extra: season);
                 }
               },

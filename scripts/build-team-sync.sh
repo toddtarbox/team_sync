@@ -53,10 +53,11 @@ case $PLATFORM in
 
   android)
     echo "🤖 Building for Android..."
-    flutter build apk \
+    flutter build appbundle \
       --target=lib/main_team_sync.dart \
-      --release
-    echo "✅ Android build complete: build/app/outputs/flutter-apk/"
+      --release \
+      --flavor teamSync
+    echo "✅ Android build complete: build/app/outputs/bundle/teamSyncRelease/"
     ;;
 
   all)
@@ -77,13 +78,14 @@ case $PLATFORM in
       --dart-define=WEB_MEASUREMENT_ID="$WEB_MEASUREMENT_ID"
 
     # Android
-    flutter build apk \
+    flutter build appbundle \
       --target=lib/main_team_sync.dart \
-      --release
+      --release \
+      --flavor teamSync
 
     echo "✅ All builds complete"
     echo "   Web: build/web/"
-    echo "   Android: build/app/outputs/flutter-apk/"
+    echo "   Android: build/app/outputs/bundle/teamSyncRelease/"
     ;;
 
   *)

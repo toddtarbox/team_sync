@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 
 class ScoreboardWidget extends StatefulWidget {
   final Game? game;
@@ -137,7 +137,8 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
             ? () {
                 final databaseId = DatabaseService.instance.publicShareId;
                 if (databaseId != null) {
-                  context.go(
+                  NavigationHelper.navigateTo(
+                    context,
                     '/team/$databaseId/season/${widget.season!.id}/game/${_currentGame!.id}',
                     extra: {
                       'season': widget.season,

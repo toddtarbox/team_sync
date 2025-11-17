@@ -2,6 +2,7 @@ import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 
@@ -18,13 +19,8 @@ class MobileGameStatsPage extends StatelessWidget {
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          leading: GestureDetector(
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-              child: const Icon(Icons.arrow_back)),
+        appBar: CustomAppBar(
+          team: season.team,
           title: Text(game.displayName(season.teamId),
               style:
                   const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,7 +7,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/config/database_collections.dart';
 import 'package:team_sync/models/club.dart';
@@ -16,6 +16,7 @@ import 'package:team_sync/services/admin_service.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/admin_management_dialog.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 
@@ -35,18 +36,29 @@ class _ClubHomePageState extends State<ClubHomePage> {
   late bool _isSubscribed;
   late Future<bool> _loadFuture;
   List<Club> _allClubs = [];
+  StreamSubscription<bool>? _subscriptionListener;
+  bool _isNavigatingToSignIn = false;
 
   @override
   void initState() {
     super.initState();
-    SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
-      setState(() {
-        _isSubscribed = isSubscribed;
-      });
+    _subscriptionListener =
+        SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
+      if (mounted) {
+        setState(() {
+          _isSubscribed = isSubscribed;
+        });
+      }
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
     DatabaseService.instance.setProvider(FirebaseDBProvider());
     _loadFuture = _load(); // Create the future once
+  }
+
+  @override
+  void dispose() {
+    _subscriptionListener?.cancel();
+    super.dispose();
   }
 
   @override
@@ -78,7 +90,8 @@ class _ClubHomePageState extends State<ClubHomePage> {
             IconButton(
               icon: const Icon(Icons.bar_chart),
               onPressed: () {
-                context.go('/club/${_club!.id}/stats');
+                NavigationHelper.navigateTo(
+                    context, '/club/${_club!.id}/stats');
               },
               tooltip: 'Club Statistics',
             ),
@@ -140,7 +153,14 @@ class _ClubHomePageState extends State<ClubHomePage> {
               } else {
                 return TextButton.icon(
                   onPressed: () {
-                    context.go('/signin');
+                    if (!_isNavigatingToSignIn) {
+                      _isNavigatingToSignIn = true;
+                      NavigationHelper.navigateTo(context, '/signin');
+                      // Reset flag after a delay
+                      Future.delayed(const Duration(seconds: 2), () {
+                        _isNavigatingToSignIn = false;
+                      });
+                    }
                   },
                   icon: const Icon(Icons.login),
                   label: const Text('Sign In'),
@@ -169,9 +189,10 @@ class _ClubHomePageState extends State<ClubHomePage> {
           IconButton(
             onPressed: () {
               if (_club != null) {
-                context.go('/club/${_club!.id}/settings');
+                NavigationHelper.navigateTo(
+                    context, '/club/${_club!.id}/settings');
               } else {
-                context.go('/settings');
+                NavigationHelper.navigateTo(context, '/settings');
               }
             },
             icon: const Icon(Icons.settings),
@@ -242,7 +263,16 @@ class _ClubHomePageState extends State<ClubHomePage> {
                               const SizedBox(height: 20),
                               ElevatedButton.icon(
                                 onPressed: () {
-                                  context.go('/signin');
+                                  if (!_isNavigatingToSignIn) {
+                                    _isNavigatingToSignIn = true;
+                                    NavigationHelper.navigateTo(
+                                        context, '/signin');
+                                    // Reset flag after a delay
+                                    Future.delayed(const Duration(seconds: 2),
+                                        () {
+                                      _isNavigatingToSignIn = false;
+                                    });
+                                  }
                                 },
                                 icon: const Icon(Icons.login),
                                 label: const Text('Sign In'),
@@ -652,14 +682,15 @@ class _ClubHomePageState extends State<ClubHomePage> {
 
   Future<void> _selectClub(Club club) async {
     // Navigate to the club URL - this will trigger a rebuild with the club loaded
-    context.go('/club/${club.id}');
+    NavigationHelper.navigateTo(context, '/club/${club.id}');
   }
 
   void _openTeam(Team team) {
     if (_club != null) {
-      context.go('/club/${_club!.id}/team/${team.id}');
+      NavigationHelper.navigateTo(
+          context, '/club/${_club!.id}/team/${team.id}');
     } else {
-      context.go('/team/${team.id}');
+      NavigationHelper.navigateTo(context, '/team/${team.id}');
     }
   }
 

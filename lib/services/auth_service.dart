@@ -8,6 +8,7 @@ class AuthService {
   AuthService._internal();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  bool _isSigningIn = false;
 
   /// Get current user
   User? get currentUser => _auth.currentUser;
@@ -23,7 +24,17 @@ class AuthService {
 
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
+    // Prevent concurrent sign-in attempts on web
+    if (kIsWeb && _isSigningIn) {
+      debugPrint('Sign-in already in progress, ignoring duplicate request');
+      return null;
+    }
+
     try {
+      if (kIsWeb) {
+        _isSigningIn = true;
+      }
+
       GoogleAuthProvider provider = GoogleAuthProvider();
 
       if (kIsWeb) {
@@ -36,6 +47,10 @@ class AuthService {
     } catch (e) {
       debugPrint('Error signing in with Google: $e');
       rethrow;
+    } finally {
+      if (kIsWeb) {
+        _isSigningIn = false;
+      }
     }
   }
 
@@ -91,6 +106,12 @@ class AuthService {
   String getErrorMessage(dynamic error) {
     if (error is FirebaseAuthException) {
       switch (error.code) {
+        case 'web-context-already-presented':
+          return 'A sign-in is already in progress. Please wait.';
+        case 'popup-blocked':
+          return 'Sign-in popup was blocked. Please allow popups for this site.';
+        case 'popup-closed-by-user':
+          return 'Sign-in was cancelled.';
         case 'user-not-found':
           return 'No account found with this email.';
         case 'wrong-password':

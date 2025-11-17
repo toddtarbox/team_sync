@@ -1,22 +1,18 @@
-import 'dart:io';
-
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
+import 'package:team_sync/widgets/season_with_logo.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
@@ -49,95 +45,29 @@ class _SeasonPageState extends State<SeasonPage> {
         title: Text(widget.season.name,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(0),
-            child: Container(
-                padding: EdgeInsets.all(20),
-                child:
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  widget.season.team.logoUrl != null &&
-                          widget.season.team.logoUrl!.isNotEmpty
-                      ? CircleAvatar(
-                          child: ClipOval(
-                            child: Image.network(
-                              widget.season.team.logoUrl!,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Text(widget.season.team.fullName[0]);
-                              },
-                            ),
-                          ),
-                        )
-                      : Container(),
-                  widget.season.team.logoUrl != null
-                      ? const SizedBox(width: 10)
-                      : Container(),
-                  Text(widget.season.team.fullName,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold)),
-                  logoUrl != null && logoUrl.isNotEmpty
-                      ? const SizedBox(width: 10)
-                      : Container(),
-                  logoUrl != null && logoUrl.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () {
-                            _showSeasonPhoto(context, logoUrl);
-                          },
-                          onDoubleTap: () {
-                            if (!kIsWeb) {
-                              _pickSeasonPhoto();
-                            } else {
-                              _showSeasonPhoto(context, logoUrl);
-                            }
-                          },
-                          child: CircleAvatar(
-                            child: ClipOval(
-                              child: Image.network(
-                                logoUrl,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Text(widget.season.team.fullName[0]);
-                                },
-                              ),
-                            ),
-                          ))
-                      : kIsWeb
-                          ? Container()
-                          : IconButton(
-                              onPressed: () {
-                                _pickSeasonPhoto();
-                              },
-                              icon: const Icon(Icons.photo)),
-                  logoUrl != null && logoUrl.isNotEmpty
-                      ? const SizedBox(width: 10)
-                      : Container(),
-                ]))),
+            preferredSize: const Size.fromHeight(80),
+            child: SeasonWithLogo(season: widget.season)),
         actions: [
-          GestureDetector(
-              onTap: () {
+          IconButton(
+              icon: const Icon(Icons.paste),
+              tooltip: 'Season Stats',
+              onPressed: () {
                 if (databaseId != null) {
-                  context.go(
+                  NavigationHelper.navigateTo(context,
                       '/team/$databaseId/season/${widget.season.id}/stats',
                       extra: widget.season);
                 }
-              },
-              child: const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.paste))),
-          GestureDetector(
-              onTap: () {
+              }),
+          IconButton(
+              icon: const Icon(Icons.person),
+              tooltip: 'Season Players',
+              onPressed: () {
                 if (databaseId != null) {
-                  context.go(
+                  NavigationHelper.navigateTo(context,
                       '/team/$databaseId/season/${widget.season.id}/players',
                       extra: widget.season);
                 }
-              },
-              child: const Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: Icon(Icons.person)))
+              }),
         ],
       ),
       floatingActionButton: kIsWeb
@@ -579,8 +509,9 @@ class _SeasonPageState extends State<SeasonPage> {
     final databaseId = DatabaseService.instance.publicShareId;
     if (databaseId == null) return;
 
-    // Use go_router for navigation to update URL
-    context.go(
+    // Use NavigationHelper for platform-appropriate navigation
+    NavigationHelper.navigateTo(
+      context,
       '/team/$databaseId/season/${widget.season.id}/game/${game.id}',
       extra: {'season': widget.season, 'game': game},
     );
@@ -652,50 +583,5 @@ class _SeasonPageState extends State<SeasonPage> {
       'color1': color1.toARGB32(),
       'color2': color2.toARGB32()
     });
-  }
-
-  Future<void> _showSeasonPhoto(BuildContext context, String? logoUrl) async {
-    if (logoUrl == null || logoUrl.isEmpty) {
-      return;
-    }
-
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          child: PhotoView(
-            imageProvider: NetworkImage(logoUrl),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _pickSeasonPhoto() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      if (widget.season.logoUrl != null && widget.season.logoUrl!.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance
-              .refFromURL(widget.season.logoUrl!)
-              .delete();
-        } catch (e) {
-          // Image may not exist, so we can ignore.
-        }
-      }
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('player_images/${DateTime.now().toIso8601String()}');
-      await storageRef.putFile(File(pickedFile.path));
-      final imageUrl = await storageRef.getDownloadURL();
-
-      await DatabaseService.instance.update(
-        'Seasons',
-        {'logoUrl': imageUrl},
-        key: widget.season.id.toString(),
-      );
-      widget.season.logoUrl = imageUrl;
-    }
   }
 }

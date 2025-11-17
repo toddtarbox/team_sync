@@ -7,7 +7,7 @@ echo "🏗️  Building ClubSync (Multi-Team Club Management)..."
 
 # Set app name
 APP_NAME="ClubSync"
-BUNDLE_ID="com.tsquared.club_sync"
+BUNDLE_ID="com.tsquared.clubsync.soccer"
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,10 +53,11 @@ case $PLATFORM in
 
   android)
     echo "🤖 Building for Android..."
-    flutter build apk \
+    flutter build appbundle \
       --target=lib/main_club_sync.dart \
-      --release
-    echo "✅ Android build complete: build/app/outputs/flutter-apk/"
+      --release \
+      --flavor clubSync
+    echo "✅ Android build complete: build/app/outputs/bundle/clubSyncRelease/"
     ;;
 
   all)
@@ -77,13 +78,14 @@ case $PLATFORM in
       --dart-define=CLUBSYNC_WEB_MEASUREMENT_ID="$CLUBSYNC_WEB_MEASUREMENT_ID"
 
     # Android
-    flutter build apk \
+    flutter build appbundle \
       --target=lib/main_club_sync.dart \
-      --release
+      --release \
+      --flavor clubSync
 
     echo "✅ All builds complete"
     echo "   Web: build/web/"
-    echo "   Android: build/app/outputs/flutter-apk/"
+    echo "   Android: build/app/outputs/bundle/clubSyncRelease/"
     ;;
 
   *)

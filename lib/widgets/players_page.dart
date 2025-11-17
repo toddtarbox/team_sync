@@ -3,13 +3,13 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 
 class PlayersPage extends StatefulWidget {
@@ -151,7 +151,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                   final databaseId =
                                       DatabaseService.instance.publicShareId;
                                   if (databaseId != null) {
-                                    context.go(
+                                    NavigationHelper.navigateTo(
+                                      context,
                                       '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
                                       extra: {
                                         'player': player,
@@ -169,7 +170,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                     final databaseId =
                                         DatabaseService.instance.publicShareId;
                                     if (databaseId != null) {
-                                      context.go(
+                                      NavigationHelper.navigateTo(
+                                        context,
                                         '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
                                         extra: {
                                           'player': player,
@@ -220,7 +222,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                     final databaseId =
                                         DatabaseService.instance.publicShareId;
                                     if (databaseId != null) {
-                                      context.go(
+                                      NavigationHelper.navigateTo(
+                                        context,
                                         '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
                                         extra: {
                                           'player': player,

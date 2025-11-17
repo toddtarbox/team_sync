@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +22,7 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
@@ -56,6 +56,7 @@ class _HomePageState extends State<HomePage> {
   final _teamIdController = TextEditingController();
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
+  StreamSubscription<bool>? _subscriptionListener;
 
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
@@ -69,10 +70,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
-      setState(() {
-        _isSubscribed = isSubscribed;
-      });
+    _subscriptionListener =
+        SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
+      if (mounted) {
+        setState(() {
+          _isSubscribed = isSubscribed;
+        });
+      }
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
@@ -235,6 +239,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _subscriptionListener?.cancel();
     _liveGameUpdateTimer?.cancel();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
@@ -269,7 +274,8 @@ class _HomePageState extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () {
                     if (_teamIdController.text.length == 6) {
-                      context.go('/team/${_teamIdController.text}');
+                      NavigationHelper.navigateTo(
+                          context, '/team/${_teamIdController.text}');
                     }
                   },
                   child: const Text('Load Team'),
@@ -290,18 +296,6 @@ class _HomePageState extends State<HomePage> {
           widget.club?.name ?? 'ClubSync',
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
-        bottom: (DatabaseService.instance.path.isNotEmpty || _team != null)
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(40),
-                child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_team?.fullName ?? 'ClubSync',
-                              style: const TextStyle(fontSize: 18)),
-                        ])))
-            : null,
         actions: [
           // Show Sign In button in view-only mode
           if (_isViewOnlyMode)
@@ -309,7 +303,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.only(right: 8.0),
               child: ElevatedButton.icon(
                 onPressed: () {
-                  context.go('/signin');
+                  NavigationHelper.navigateTo(context, '/signin');
                 },
                 icon: const Icon(Icons.login),
                 label: const Text('Sign In'),
@@ -360,7 +354,9 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     final databaseId = DatabaseService.instance.publicShareId;
                     if (databaseId != null && _team != null) {
-                      context.go('/team/$databaseId/records', extra: _team);
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/records',
+                          extra: _team);
                     }
                   },
                   icon: const Icon(Icons.leaderboard))),
@@ -370,7 +366,9 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     final databaseId = DatabaseService.instance.publicShareId;
                     if (databaseId != null && _team != null) {
-                      context.go('/team/$databaseId/history', extra: _team);
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/history',
+                          extra: _team);
                     }
                   },
                   icon: const Icon(Icons.manage_history_outlined))),
