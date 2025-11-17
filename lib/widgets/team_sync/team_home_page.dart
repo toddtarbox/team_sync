@@ -670,7 +670,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
         orElse: () => teamResult.first,
       );
 
-      // Don't call setState during load - FutureBuilder will rebuild automatically
       final team = Team.fromMap(teamMap);
       if (_team == null) {
         setState(() {
@@ -828,28 +827,25 @@ class _TeamHomePageState extends State<TeamHomePage> {
       builder: (BuildContext builderContext) {
         return Wrap(
           children: [
-            if (DatabaseService.instance.path.isEmpty) ...[
-              ListTile(
-                leading: Icon(Icons.cloud_sync_rounded,
-                    color: Theme.of(context).colorScheme.secondary),
-                title: Text(
-                    AppLocalizations.of(context)!.openExistingCloudDatabase),
-                onTap: () {
-                  Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'existingCloudDatabase');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.cloud_rounded,
-                    color: Theme.of(context).colorScheme.secondary),
-                title:
-                    Text(AppLocalizations.of(context)!.createNewCloudDatabase),
-                onTap: () async {
-                  Navigator.of(builderContext).pop();
-                  await _handleSelection(context, 'newCloudDatabase');
-                },
-              ),
-            ],
+            ListTile(
+              leading: Icon(Icons.cloud_sync_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title:
+                  Text(AppLocalizations.of(context)!.openExistingCloudDatabase),
+              onTap: () {
+                Navigator.of(builderContext).pop();
+                _handleSelection(context, 'existingCloudDatabase');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.cloud_rounded,
+                  color: Theme.of(context).colorScheme.secondary),
+              title: Text(AppLocalizations.of(context)!.createNewCloudDatabase),
+              onTap: () async {
+                Navigator.of(builderContext).pop();
+                await _handleSelection(context, 'newCloudDatabase');
+              },
+            ),
             if (_team != null) ...[
               ListTile(
                 leading: Icon(Icons.calendar_today,
@@ -1042,7 +1038,16 @@ class _TeamHomePageState extends State<TeamHomePage> {
           (t) => t['id'] == 1,
           orElse: () => teamResult.first,
         );
-        _team = Team.fromMap(teamMap);
+
+        final team = Team.fromMap(teamMap);
+        if (_team == null) {
+          setState(() {
+            _team = team;
+          });
+        } else {
+          _team = team;
+        }
+
         await _loadSeasons();
       } else {
         _team = null;

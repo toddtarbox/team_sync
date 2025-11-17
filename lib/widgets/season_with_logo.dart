@@ -92,7 +92,7 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
         widget.season.team.logoUrl != null
             ? const SizedBox(width: 10)
             : Container(),
-        Text(widget.season.team.fullName,
+        Text(widget.season.name,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         logoUrl != null && logoUrl.isNotEmpty
             ? const SizedBox(width: 10)
