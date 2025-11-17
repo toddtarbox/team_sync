@@ -9,6 +9,7 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/season_record.dart';
 
 class SeasonsListView extends StatefulWidget {
@@ -62,18 +63,9 @@ class _SeasonsListViewState extends State<SeasonsListView> {
                               _showSeasonPhoto(context, logoUrl);
                             }
                           },
-                          child: CircleAvatar(
-                            child: ClipOval(
-                              child: Image.network(
-                                logoUrl,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Text(season.team.fullName[0]);
-                                },
-                              ),
-                            ),
+                          child: ResponsiveAvatar(
+                            imageUrl: logoUrl,
+                            initials: season.team.fullName[0],
                           ))
                       : kIsWeb
                           ? Container()

@@ -25,6 +25,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
@@ -1438,19 +1439,15 @@ class _HomePageState extends State<HomePage> {
                                 }
                               }
                             : null,
-                        child: CircleAvatar(
-                          radius: 50,
+                        child: ResponsiveAvatar(
                           backgroundImage: _imageFile != null
                               ? FileImage(_imageFile!)
                               : (_team!.logoUrl != null &&
                                       _team!.logoUrl!.isNotEmpty
                                   ? NetworkImage(_team!.logoUrl!)
                                   : null) as ImageProvider?,
-                          child: _imageFile == null &&
-                                  (_team!.logoUrl == null ||
-                                      _team!.logoUrl!.isEmpty)
-                              ? const Icon(Icons.add_a_photo)
-                              : null,
+                          initials: '',
+                          fallbackIcon: const Icon(Icons.add_a_photo),
                         ),
                       ),
                       TextField(

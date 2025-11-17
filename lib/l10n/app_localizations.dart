@@ -721,6 +721,246 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.'**
   String get playerProfilesProFeature;
+
+  /// No description provided for @liveBannerTapToWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE — Tap to watch the stream'**
+  String get liveBannerTapToWatch;
+
+  /// No description provided for @unableToOpenLiveLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open live link'**
+  String get unableToOpenLiveLink;
+
+  /// No description provided for @nextGamePrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Next game:'**
+  String get nextGamePrefix;
+
+  /// No description provided for @nextGameStayTuned.
+  ///
+  /// In en, this message translates to:
+  /// **'Stay tuned for the live link once it starts'**
+  String get nextGameStayTuned;
+
+  /// No description provided for @setLiveLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Set Live Link'**
+  String get setLiveLink;
+
+  /// No description provided for @liveUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Live URL'**
+  String get liveUrlLabel;
+
+  /// No description provided for @removeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removeButton;
+
+  /// Label prefix for numbered video buttons, e.g. "Video 1"
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get videoLabel;
+
+  /// Label for a single watch/play button
+  ///
+  /// In en, this message translates to:
+  /// **'Watch'**
+  String get watchLabel;
+
+  /// Tooltip text to hide highlights panel
+  ///
+  /// In en, this message translates to:
+  /// **'Hide Highlights'**
+  String get hideHighlights;
+
+  /// Tooltip text to show highlights panel
+  ///
+  /// In en, this message translates to:
+  /// **'Show Highlights'**
+  String get showHighlights;
+
+  /// Error message when player stats load fails
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading player stats: {error}\n\nStack trace: {stack}'**
+  String errorLoadingPlayerStats(Object error, Object stack);
+
+  /// No description provided for @noStatsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No stats available'**
+  String get noStatsAvailable;
+
+  /// No description provided for @careerStatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Career Stats'**
+  String get careerStatsTitle;
+
+  /// Header for the highlights section
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get highlights;
+
+  /// Tooltip/title for adding a highlight
+  ///
+  /// In en, this message translates to:
+  /// **'Add Highlight'**
+  String get addHighlight;
+
+  /// No description provided for @noHighlightsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No highlights available'**
+  String get noHighlightsAvailable;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @editHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Highlight'**
+  String get editHighlight;
+
+  /// No description provided for @addHighlightDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Highlight'**
+  String get addHighlightDialogTitle;
+
+  /// No description provided for @labelTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title *'**
+  String get labelTitleRequired;
+
+  /// No description provided for @hintTitleExample.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., Game-Winning Goal'**
+  String get hintTitleExample;
+
+  /// No description provided for @labelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get labelDescription;
+
+  /// No description provided for @hintDescriptionOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional description'**
+  String get hintDescriptionOptional;
+
+  /// No description provided for @labelVideoUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Video URL *'**
+  String get labelVideoUrlRequired;
+
+  /// No description provided for @hintVideoUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'https://...'**
+  String get hintVideoUrl;
+
+  /// No description provided for @labelDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get labelDate;
+
+  /// No description provided for @updateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateButton;
+
+  /// No description provided for @addButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get addButton;
+
+  /// No description provided for @titleUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title and URL are required'**
+  String get titleUrlRequired;
+
+  /// Snackbar text when a URL can't be opened
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open URL: {url}'**
+  String couldNotOpenUrl(Object url);
+
+  /// No description provided for @highlightSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight saved successfully'**
+  String get highlightSaved;
+
+  /// No description provided for @errorSavingHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving highlight: {error}'**
+  String errorSavingHighlight(Object error);
+
+  /// No description provided for @deleteHighlightTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Highlight'**
+  String get deleteHighlightTitle;
+
+  /// No description provided for @deleteHighlightConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{title}\"?'**
+  String deleteHighlightConfirm(Object title);
+
+  /// No description provided for @highlightDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight deleted'**
+  String get highlightDeleted;
+
+  /// No description provided for @errorDeletingHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting highlight: {error}'**
+  String errorDeletingHighlight(Object error);
+
+  /// Error when highlights fail to load
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading highlights: {error}'**
+  String errorLoadingHighlights(Object error);
+
+  /// Header for recent highlights on the team home page
+  ///
+  /// In en, this message translates to:
+  /// **'Recent highlights'**
+  String get recentHighlights;
 }
 
 class _AppLocalizationsDelegate

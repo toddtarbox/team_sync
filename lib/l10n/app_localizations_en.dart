@@ -326,4 +326,136 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get playerProfilesProFeature =>
       'Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.';
+
+  @override
+  String get liveBannerTapToWatch => 'LIVE — Tap to watch the stream';
+
+  @override
+  String get unableToOpenLiveLink => 'Unable to open live link';
+
+  @override
+  String get nextGamePrefix => 'Next game:';
+
+  @override
+  String get nextGameStayTuned => 'Stay tuned for the live link once it starts';
+
+  @override
+  String get setLiveLink => 'Set Live Link';
+
+  @override
+  String get liveUrlLabel => 'Live URL';
+
+  @override
+  String get removeButton => 'Remove';
+
+  @override
+  String get videoLabel => 'Video';
+
+  @override
+  String get watchLabel => 'Watch';
+
+  @override
+  String get hideHighlights => 'Hide Highlights';
+
+  @override
+  String get showHighlights => 'Show Highlights';
+
+  @override
+  String errorLoadingPlayerStats(Object error, Object stack) {
+    return 'Error loading player stats: $error\n\nStack trace: $stack';
+  }
+
+  @override
+  String get noStatsAvailable => 'No stats available';
+
+  @override
+  String get careerStatsTitle => 'Career Stats';
+
+  @override
+  String get highlights => 'Highlights';
+
+  @override
+  String get addHighlight => 'Add Highlight';
+
+  @override
+  String get noHighlightsAvailable => 'No highlights available';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get editHighlight => 'Edit Highlight';
+
+  @override
+  String get addHighlightDialogTitle => 'Add Highlight';
+
+  @override
+  String get labelTitleRequired => 'Title *';
+
+  @override
+  String get hintTitleExample => 'e.g., Game-Winning Goal';
+
+  @override
+  String get labelDescription => 'Description';
+
+  @override
+  String get hintDescriptionOptional => 'Optional description';
+
+  @override
+  String get labelVideoUrlRequired => 'Video URL *';
+
+  @override
+  String get hintVideoUrl => 'https://...';
+
+  @override
+  String get labelDate => 'Date';
+
+  @override
+  String get updateButton => 'Update';
+
+  @override
+  String get addButton => 'Add';
+
+  @override
+  String get titleUrlRequired => 'Title and URL are required';
+
+  @override
+  String couldNotOpenUrl(Object url) {
+    return 'Could not open URL: $url';
+  }
+
+  @override
+  String get highlightSaved => 'Highlight saved successfully';
+
+  @override
+  String errorSavingHighlight(Object error) {
+    return 'Error saving highlight: $error';
+  }
+
+  @override
+  String get deleteHighlightTitle => 'Delete Highlight';
+
+  @override
+  String deleteHighlightConfirm(Object title) {
+    return 'Are you sure you want to delete \"$title\"?';
+  }
+
+  @override
+  String get highlightDeleted => 'Highlight deleted';
+
+  @override
+  String errorDeletingHighlight(Object error) {
+    return 'Error deleting highlight: $error';
+  }
+
+  @override
+  String errorLoadingHighlights(Object error) {
+    return 'Error loading highlights: $error';
+  }
+
+  @override
+  String get recentHighlights => 'Recent highlights';
 }

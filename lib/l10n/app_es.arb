@@ -39,6 +39,7 @@
   "historyVersus": "Historial contra",
   "players": "Jugadores",
   "newPlayer": "Nuevo jugador",
+  "editPlayer": "Editar jugador",
   "playerName": "Nombre del jugador",
   "playerNumber": "Número del jugador",
   "finalText": "Final",
@@ -101,5 +102,82 @@
   "remindMeLater": "Recordar más tarde",
   "getStarted": "Comenzar",
   "proFeature": "Función Pro",
-  "playerProfilesProFeature": "Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera."
+  "playerProfilesProFeature": "Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera.",
+  "liveBannerTapToWatch": "EN VIVO — Toca para ver la transmisión",
+  "unableToOpenLiveLink": "No se puede abrir el enlace en vivo",
+  "nextGamePrefix": "Próximo partido:",
+  "nextGameStayTuned": "Mantente atento al enlace en vivo una vez que comience",
+  "setLiveLink": "Establecer enlace en vivo",
+  "liveUrlLabel": "URL en vivo",
+  "removeButton": "Eliminar",
+
+  "videoLabel": "Video",
+  "@videoLabel": { "description": "Prefijo de etiqueta para botones de video numerados, p. ej. \"Video 1\"" },
+
+  "watchLabel": "Ver",
+  "@watchLabel": { "description": "Etiqueta para un botón de ver/reproducir" },
+
+  "hideHighlights": "Ocultar destacados",
+  "@hideHighlights": { "description": "Tooltip para ocultar el panel de destacados" },
+  "showHighlights": "Mostrar destacados",
+  "@showHighlights": { "description": "Tooltip para mostrar el panel de destacados" },
+
+  "errorLoadingPlayerStats": "Error al cargar las estadísticas del jugador: {error}\n\nStack trace: {stack}",
+  "@errorLoadingPlayerStats": {
+    "description": "Mensaje de error al fallar la carga de stats del jugador",
+    "placeholders": { "error": {}, "stack": {} }
+  },
+
+  "noStatsAvailable": "No hay estadísticas disponibles",
+
+  "careerStatsTitle": "Estadísticas de carrera",
+
+  "highlights": "Destacados",
+  "@highlights": { "description": "Encabezado para la sección de destacados" },
+
+  "addHighlight": "Agregar destacado",
+  "@addHighlight": { "description": "Tooltip/título para agregar un destacado" },
+
+  "noHighlightsAvailable": "No hay destacados disponibles",
+
+  "edit": "Editar",
+  "delete": "Eliminar",
+
+  "editHighlight": "Editar destacado",
+  "addHighlightDialogTitle": "Agregar destacado",
+
+  "labelTitleRequired": "Título *",
+  "hintTitleExample": "p. ej., Gol ganador",
+  "labelDescription": "Descripción",
+  "hintDescriptionOptional": "Descripción opcional",
+  "labelVideoUrlRequired": "URL del video *",
+  "hintVideoUrl": "https://...",
+  "labelDate": "Fecha",
+
+  "updateButton": "Actualizar",
+  "addButton": "Agregar",
+
+  "titleUrlRequired": "El título y la URL son obligatorios",
+
+  "couldNotOpenUrl": "No se pudo abrir la URL: {url}",
+  "@couldNotOpenUrl": { "description": "Texto de snackbar cuando no se puede abrir una URL", "placeholders": { "url": {} } },
+
+  "highlightSaved": "Destacado guardado con éxito",
+
+  "errorSavingHighlight": "Error al guardar el destacado: {error}",
+  "@errorSavingHighlight": { "placeholders": { "error": {} } },
+
+  "deleteHighlightTitle": "Eliminar destacado",
+  "deleteHighlightConfirm": "¿Estás seguro de que deseas eliminar \"{title}\"?",
+  "@deleteHighlightConfirm": { "placeholders": { "title": {} } },
+
+  "highlightDeleted": "Destacado eliminado",
+  "errorDeletingHighlight": "Error al eliminar el destacado: {error}",
+  "@errorDeletingHighlight": { "placeholders": { "error": {} } },
+
+  "errorLoadingHighlights": "Error al cargar los destacados: {error}",
+  "@errorLoadingHighlights": { "description": "Error al cargar destacados", "placeholders": { "error": {} } },
+
+  "recentHighlights": "Destacados recientes",
+  "@recentHighlights": { "description": "Encabezado para los destacados recientes en la página de inicio del equipo" }
 }

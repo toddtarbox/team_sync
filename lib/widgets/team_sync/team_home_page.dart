@@ -8,12 +8,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -21,9 +23,12 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_with_logo.dart';
+import 'package:team_sync/widgets/video_thumbnail.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// TeamSync-specific home page for single-team management
 ///
@@ -39,6 +44,7 @@ class TeamHomePage extends StatefulWidget {
 
 class _TeamHomePageState extends State<TeamHomePage> {
   Team? _team;
+  Game? _nextUpcomingGame;
   List<Season> _seasons = [];
   Game? _currentOrLastGame;
   Season? _currentSeason;
@@ -280,12 +286,20 @@ class _TeamHomePageState extends State<TeamHomePage> {
         actions: _buildAppBarActions(),
       ),
       floatingActionButton: _buildFloatingActionButton(),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          _buildLiveBanner(),
+          // Recent highlights (web only)
+          if (kIsWeb) _buildRecentHighlights(),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
   List<Widget> _buildAppBarActions() {
     return [
+      // Mobile: allow setting a live link from the create/options menu
       if (!kIsWeb && _isSubscribed)
         IconButton(
           icon: const Icon(Icons.share, color: Colors.yellow),
@@ -293,7 +307,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
         ),
       if (!kIsWeb)
         Showcase(
-          key: DatabaseService.instance.path.isEmpty ? _goProKey : _proKeyOnly,
+          key: _goProKey,
           description: DatabaseService.instance.path.isEmpty
               ? 'Subscribe to unlock premium features'
               : _team == null
@@ -747,10 +761,17 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
       if (games.isEmpty) {
         _currentOrLastGame = null;
+        _nextUpcomingGame = null;
         return;
       }
 
       final now = DateTime.now();
+
+      // Compute upcoming games (future dates) to show a "next game" banner on web
+      final upcomingGames =
+          games.where((game) => game.date.isAfter(now)).toList();
+      upcomingGames.sort((a, b) => a.date.compareTo(b.date));
+      _nextUpcomingGame = upcomingGames.isNotEmpty ? upcomingGames.first : null;
 
       // Filter to only games that have started or completed
       final startedOrCompletedGames = games.where((game) {
@@ -786,9 +807,11 @@ class _TeamHomePageState extends State<TeamHomePage> {
       if (_currentOrLastGame != null) {
         await _currentOrLastGame!.loadGameEvents();
       }
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading current/last game: $e');
       _currentOrLastGame = null;
+      _nextUpcomingGame = null;
     }
   }
 
@@ -863,6 +886,15 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 onTap: () {
                   Navigator.of(builderContext).pop();
                   _handleSelection(context, 'teamColors');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.videocam,
+                    color: Theme.of(context).colorScheme.secondary),
+                title: Text(AppLocalizations.of(context)!.setLiveLink),
+                onTap: () {
+                  Navigator.of(builderContext).pop();
+                  _handleSelection(context, 'setLiveLink');
                 },
               ),
             ],
@@ -940,6 +972,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
         break;
       case 'teamColors':
         await _pickTeamColors();
+        break;
+      case 'setLiveLink':
+        await _editLiveLink();
         break;
     }
   }
@@ -1156,14 +1191,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                   }
                                 }
                               : null,
-                          child: CircleAvatar(
-                            radius: 50,
+                          child: ResponsiveAvatar(
                             backgroundImage: imageFile != null
                                 ? FileImage(imageFile!)
                                 : null,
-                            child: imageFile == null
-                                ? const Icon(Icons.add_a_photo)
-                                : null,
+                            initials: '',
+                            fallbackIcon: const Icon(Icons.add_a_photo),
                           ),
                         ),
                       TextField(
@@ -1383,5 +1416,359 @@ class _TeamHomePageState extends State<TeamHomePage> {
     setState(() {
       _isSharing = false;
     });
+  }
+
+  Future<void> _editLiveLink() async {
+    if (_team == null) return;
+
+    String liveLink = _team!.liveUrl ?? '';
+
+    await showModalBottomSheet(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(AppLocalizations.of(context)!.setLiveLink,
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.liveUrlLabel),
+                  controller: TextEditingController(text: liveLink),
+                  onChanged: (v) => liveLink = v,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                          onPressed: () async {
+                            // Save
+                            await DatabaseService.instance.update(
+                              'Teams',
+                              {'liveUrl': liveLink},
+                              key: _team!.id.toString(),
+                            );
+                            final teamResult = await DatabaseService.instance
+                                .query('Teams',
+                                    orderByChild: 'id', equalTo: _team!.id);
+                            if (teamResult.isNotEmpty) {
+                              setState(() {
+                                _team = Team.fromMap(teamResult.first);
+                              });
+                            }
+                            if (mounted) Navigator.pop(context);
+                          },
+                          child: Text(AppLocalizations.of(context)!.save)),
+                      TextButton(
+                          onPressed: () async {
+                            // Remove
+                            await DatabaseService.instance.update(
+                              'Teams',
+                              {'liveUrl': ''},
+                              key: _team!.id.toString(),
+                            );
+                            final teamResult = await DatabaseService.instance
+                                .query('Teams',
+                                    orderByChild: 'id', equalTo: _team!.id);
+                            if (teamResult.isNotEmpty) {
+                              setState(() {
+                                _team = Team.fromMap(teamResult.first);
+                              });
+                            }
+                            if (mounted) Navigator.pop(context);
+                          },
+                          child:
+                              Text(AppLocalizations.of(context)!.removeButton)),
+                    ])
+              ]),
+            );
+          });
+        });
+  }
+
+  /// Top banner shown on all platforms when a live game is in progress and a team-level liveUrl is set.
+  Widget _buildLiveBanner() {
+    // For the top banner treat the game as live only when a team-level liveUrl
+    // is set and the current/last game is scheduled for today (local date).
+    final nowLocal = DateTime.now();
+    final isLive = _team != null &&
+        _team!.liveUrl != null &&
+        _team!.liveUrl!.isNotEmpty &&
+        _currentOrLastGame != null &&
+        (() {
+          final g = _currentOrLastGame!.date.toLocal();
+          return g.year == nowLocal.year &&
+              g.month == nowLocal.month &&
+              g.day == nowLocal.day;
+        })();
+
+    // Live banner — only if the conditions above are met
+    if (isLive) {
+      final url = _team!.liveUrl!;
+
+      final loc = AppLocalizations.of(context)!;
+
+      return GestureDetector(
+        onTap: () async {
+          try {
+            final uri = Uri.parse(url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            } else {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(loc.unableToOpenLiveLink)));
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(loc.unableToOpenLiveLink)));
+            }
+          }
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_team!.color1, _team!.color2],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.videocam, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  loc.liveBannerTapToWatch,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Icon(Icons.open_in_new, color: Colors.white),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // If not live, show upcoming-game banner on web (stay tuned message)
+    if (kIsWeb && _nextUpcomingGame != null && _team != null) {
+      final loc = AppLocalizations.of(context)!;
+      // Show date only (no time) for the upcoming game banner
+      final fmt = DateFormat('E MMM d');
+      final when = fmt.format(_nextUpcomingGame!.date.toLocal());
+      final opponent = _nextUpcomingGame!.displayName(_team!.id);
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [_team!.color1, _team!.color2],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.schedule, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${loc.nextGamePrefix} $opponent',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$when — ${loc.nextGameStayTuned}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  /// Shows recent highlights (events with non-empty eventUrls) from the
+  /// currently selected game. Visible on web only. Limits to 6 most recent
+  /// events and shows buttons for each available URL on an event.
+  Widget _buildRecentHighlights() {
+    if (_currentOrLastGame == null || _team == null)
+      return const SizedBox.shrink();
+
+    return FutureBuilder<List<GameEvent>>(
+      future: _currentOrLastGame!
+          .loadGameEvents()
+          .then((_) => _currentOrLastGame!.allGameEvents),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        if (snapshot.hasError || snapshot.data == null)
+          return const SizedBox.shrink();
+
+        final events = snapshot.data!;
+        final loc = AppLocalizations.of(context)!;
+
+        // Filter events that have a non-empty eventUrls field
+        final eventsWithUrls = events
+            .where((e) => e.eventUrls != null && e.eventUrls!.trim().isNotEmpty)
+            .toList(growable: false);
+
+        if (eventsWithUrls.isEmpty) return const SizedBox.shrink();
+
+        // Most recent first (events are chronological); sort by index desc
+        eventsWithUrls.sort((a, b) => b.index.compareTo(a.index));
+        final displayEvents = eventsWithUrls.take(6).toList(growable: false);
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                child: Text(
+                  loc.highlights,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 120,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: displayEvents.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, idx) {
+                    final ev = displayEvents[idx];
+                    final urls = ev.eventUrls!
+                        .split(',')
+                        .map((u) => u.trim())
+                        .where((u) => u.isNotEmpty)
+                        .toList();
+
+                    return SizedBox(
+                      width: 320,
+                      child: Card(
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  // Thumbnail for the first URL (if present)
+                                  if (urls.isNotEmpty)
+                                    VideoThumbnail(urls.first,
+                                        width: 120, height: 68)
+                                  else
+                                    SizedBox(
+                                        width: 40, height: 40, child: ev.image),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(ev.display,
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${ev.game.displayName(_team!.id)} — ${ev.eventMinute}\'',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.7)),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                ],
+                              ),
+                              const Spacer(),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: urls.asMap().entries.map((entry) {
+                                  final uidx = entry.key;
+                                  final url = entry.value;
+                                  return ElevatedButton.icon(
+                                    onPressed: () async {
+                                      try {
+                                        final uri = Uri.parse(url);
+                                        if (await canLaunchUrl(uri)) {
+                                          await launchUrl(uri,
+                                              mode: LaunchMode
+                                                  .externalApplication);
+                                        } else {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        loc.couldNotOpenUrl(
+                                                            url))));
+                                          }
+                                        }
+                                      } catch (e) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(SnackBar(
+                                                  content: Text(loc
+                                                      .couldNotOpenUrl(url))));
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.play_circle_outline,
+                                        size: 16),
+                                    label: Text(urls.length > 1
+                                        ? '${loc.videoLabel} ${uidx + 1}'
+                                        : loc.watchLabel),
+                                    style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8)),
+                                  );
+                                }).toList(),
+                              )
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
   }
 }

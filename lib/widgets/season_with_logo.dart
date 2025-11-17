@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class SeasonWithLogo extends StatefulWidget {
   final Season season;
@@ -75,18 +76,10 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
       child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         widget.season.team.logoUrl != null &&
                 widget.season.team.logoUrl!.isNotEmpty
-            ? CircleAvatar(
-                child: ClipOval(
-                  child: Image.network(
-                    widget.season.team.logoUrl!,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(widget.season.team.fullName[0]);
-                    },
-                  ),
-                ),
+            ? ResponsiveAvatar(
+                size: 40,
+                imageUrl: widget.season.team.logoUrl,
+                initials: widget.season.team.fullName[0],
               )
             : Container(),
         widget.season.team.logoUrl != null
@@ -109,18 +102,9 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
                     _showSeasonPhoto(context, logoUrl);
                   }
                 },
-                child: CircleAvatar(
-                  child: ClipOval(
-                    child: Image.network(
-                      logoUrl,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Text(widget.season.team.fullName[0]);
-                      },
-                    ),
-                  ),
+                child: ResponsiveAvatar(
+                  imageUrl: logoUrl,
+                  initials: widget.season.team.fullName[0],
                 ))
             : kIsWeb
                 ? Container()

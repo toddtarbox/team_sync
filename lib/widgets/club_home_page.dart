@@ -19,6 +19,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/admin_management_dialog.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class ClubHomePage extends StatefulWidget {
   final String? clubId;
@@ -322,9 +323,8 @@ class _ClubHomePageState extends State<ClubHomePage> {
                       child: Column(
                         children: [
                           if (_club!.logoUrl != null)
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundImage: NetworkImage(_club!.logoUrl!),
+                            ResponsiveAvatar(
+                              imageUrl: _club!.logoUrl,
                             ),
                           const SizedBox(height: 10),
                           Text(
@@ -499,9 +499,8 @@ class _ClubHomePageState extends State<ClubHomePage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     if (team.logoUrl != null)
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundImage: NetworkImage(team.logoUrl!),
+                      ResponsiveAvatar(
+                        imageUrl: team.logoUrl,
                         backgroundColor: Colors.white,
                       )
                     else
@@ -631,9 +630,8 @@ class _ClubHomePageState extends State<ClubHomePage> {
           child: Row(
             children: [
               if (club.logoUrl != null)
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: NetworkImage(club.logoUrl!),
+                ResponsiveAvatar(
+                  imageUrl: club.logoUrl,
                   backgroundColor: Colors.white,
                 )
               else

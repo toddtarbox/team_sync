@@ -134,7 +134,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newPlayer => 'Nuevo jugador';
 
   @override
-  String get editPlayer => 'Edit Player';
+  String get editPlayer => 'Editar jugador';
 
   @override
   String get playerName => 'Nombre del jugador';
@@ -331,4 +331,137 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get playerProfilesProFeature =>
       'Los perfiles de jugadores son parte de la versión Pro. Actualiza para acceder a estadísticas detalladas de jugadores e historial de carrera.';
+
+  @override
+  String get liveBannerTapToWatch => 'EN VIVO — Toca para ver la transmisión';
+
+  @override
+  String get unableToOpenLiveLink => 'No se puede abrir el enlace en vivo';
+
+  @override
+  String get nextGamePrefix => 'Próximo partido:';
+
+  @override
+  String get nextGameStayTuned =>
+      'Mantente atento al enlace en vivo una vez que comience';
+
+  @override
+  String get setLiveLink => 'Establecer enlace en vivo';
+
+  @override
+  String get liveUrlLabel => 'URL en vivo';
+
+  @override
+  String get removeButton => 'Eliminar';
+
+  @override
+  String get videoLabel => 'Video';
+
+  @override
+  String get watchLabel => 'Ver';
+
+  @override
+  String get hideHighlights => 'Ocultar destacados';
+
+  @override
+  String get showHighlights => 'Mostrar destacados';
+
+  @override
+  String errorLoadingPlayerStats(Object error, Object stack) {
+    return 'Error al cargar las estadísticas del jugador: $error\n\nStack trace: $stack';
+  }
+
+  @override
+  String get noStatsAvailable => 'No hay estadísticas disponibles';
+
+  @override
+  String get careerStatsTitle => 'Estadísticas de carrera';
+
+  @override
+  String get highlights => 'Destacados';
+
+  @override
+  String get addHighlight => 'Agregar destacado';
+
+  @override
+  String get noHighlightsAvailable => 'No hay destacados disponibles';
+
+  @override
+  String get edit => 'Editar';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get editHighlight => 'Editar destacado';
+
+  @override
+  String get addHighlightDialogTitle => 'Agregar destacado';
+
+  @override
+  String get labelTitleRequired => 'Título *';
+
+  @override
+  String get hintTitleExample => 'p. ej., Gol ganador';
+
+  @override
+  String get labelDescription => 'Descripción';
+
+  @override
+  String get hintDescriptionOptional => 'Descripción opcional';
+
+  @override
+  String get labelVideoUrlRequired => 'URL del video *';
+
+  @override
+  String get hintVideoUrl => 'https://...';
+
+  @override
+  String get labelDate => 'Fecha';
+
+  @override
+  String get updateButton => 'Actualizar';
+
+  @override
+  String get addButton => 'Agregar';
+
+  @override
+  String get titleUrlRequired => 'El título y la URL son obligatorios';
+
+  @override
+  String couldNotOpenUrl(Object url) {
+    return 'No se pudo abrir la URL: $url';
+  }
+
+  @override
+  String get highlightSaved => 'Destacado guardado con éxito';
+
+  @override
+  String errorSavingHighlight(Object error) {
+    return 'Error al guardar el destacado: $error';
+  }
+
+  @override
+  String get deleteHighlightTitle => 'Eliminar destacado';
+
+  @override
+  String deleteHighlightConfirm(Object title) {
+    return '¿Estás seguro de que deseas eliminar \"$title\"?';
+  }
+
+  @override
+  String get highlightDeleted => 'Destacado eliminado';
+
+  @override
+  String errorDeletingHighlight(Object error) {
+    return 'Error al eliminar el destacado: $error';
+  }
+
+  @override
+  String errorLoadingHighlights(Object error) {
+    return 'Error al cargar los destacados: $error';
+  }
+
+  @override
+  String get recentHighlights => 'Destacados recientes';
 }

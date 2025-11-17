@@ -11,6 +11,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -232,24 +233,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                       );
                                     }
                                   },
-                            child: CircleAvatar(
-                              child: player.profileImage != null &&
-                                      player.profileImage!.isNotEmpty
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        player.profileImage!,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Text(
-                                              '${player.firstName[0]}${player.lastName[0]}');
-                                        },
-                                      ),
-                                    )
-                                  : Text(
-                                      '${player.firstName[0]}${player.lastName[0]}'),
+                            child: ResponsiveAvatar(
+                              imageUrl: player.profileImage,
+                              initials:
+                                  '${player.firstName[0]}${player.lastName[0]}',
                             ),
                           ),
                           title: Text(player.displayName),
@@ -327,19 +314,15 @@ class _PlayersPageState extends State<PlayersPage> {
                                   });
                                 }
                               },
-                        child: CircleAvatar(
-                          radius: 50,
+                        child: ResponsiveAvatar(
                           backgroundImage: _imageFile != null
                               ? FileImage(_imageFile!)
                               : (player.profileImage != null &&
                                       player.profileImage!.isNotEmpty
                                   ? NetworkImage(player.profileImage!)
                                   : null) as ImageProvider?,
-                          child: _imageFile == null &&
-                                  (player.profileImage == null ||
-                                      player.profileImage!.isEmpty)
-                              ? const Icon(Icons.add_a_photo)
-                              : null,
+                          initials:
+                              '${player.firstName[0]}${player.lastName[0]}',
                         ),
                       ),
                       TextFormField(
@@ -466,14 +449,11 @@ class _PlayersPageState extends State<PlayersPage> {
                             });
                           }
                         },
-                        child: CircleAvatar(
-                          radius: 50,
+                        child: ResponsiveAvatar(
                           backgroundImage: _imageFile != null
                               ? FileImage(_imageFile!)
                               : null,
-                          child: _imageFile == null
-                              ? const Icon(Icons.add_a_photo)
-                              : null,
+                          initials: '',
                         ),
                       ),
                       TextField(

@@ -2,14 +2,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/connection_status_indicator.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget title;
-  final PreferredSizeWidget? bottom;
+  PreferredSizeWidget? bottom;
   final List<Widget>? actions;
   final Team? team;
 
-  const CustomAppBar(
+  CustomAppBar(
       {super.key, required this.title, this.bottom, this.actions, this.team});
 
   @override
@@ -22,6 +23,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     // On web, don't show back button - use browser navigation instead
     final showBackButton = !kIsWeb && Navigator.of(context).canPop();
+
+    bottom = _commonTeamBottomWidget(context);
 
     return AppBar(
       key: ValueKey('appbar_${team?.id}'), // Force AppBar rebuild
@@ -38,7 +41,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   width: 16, height: 16)),
       title: title,
       actions: combinedActions,
-      bottom: _commonTeamBottomWidget(),
+      bottom: bottom,
       backgroundColor: Colors.transparent,
       elevation: 0,
       toolbarHeight: kToolbarHeight,
@@ -62,35 +65,28 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize {
     // Include status bar height + toolbar height + optional bottom widget height
-    final bottomHeight = bottom?.preferredSize.height ?? 80;
+    final bottomHeight = bottom?.preferredSize.height ?? 180;
     // The AppBar automatically accounts for status bar padding when used in a Scaffold
     return Size.fromHeight(kToolbarHeight + bottomHeight);
   }
 
-  PreferredSizeWidget? _commonTeamBottomWidget() {
+  PreferredSizeWidget? _commonTeamBottomWidget(BuildContext context) {
     if (bottom != null) return bottom;
 
     if (bottom == null && team != null) {
+      final responsiveAvatar = ResponsiveAvatar(
+        imageUrl: team!.logoUrl,
+        initials: team!.fullName[0],
+      );
+
       return PreferredSize(
-          preferredSize: const Size.fromHeight(80),
+          preferredSize: responsiveAvatar.preferredSize(context),
           child: Container(
               padding: EdgeInsets.all(20),
               child:
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 team!.logoUrl != null && team!.logoUrl!.isNotEmpty
-                    ? CircleAvatar(
-                        child: ClipOval(
-                          child: Image.network(
-                            team!.logoUrl!,
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Text(team!.fullName[0]);
-                            },
-                          ),
-                        ),
-                      )
+                    ? responsiveAvatar
                     : Container(),
                 team!.logoUrl != null ? const SizedBox(width: 10) : Container(),
                 Text(team!.fullName,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class SeasonRecord extends StatelessWidget {
   final List<Season> seasons;
@@ -34,18 +35,9 @@ class SeasonRecord extends StatelessWidget {
               onDoubleTap: () {
                 _showPhoto(context, logoUrl);
               },
-              child: CircleAvatar(
-                child: ClipOval(
-                  child: Image.network(
-                    logoUrl,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(team.fullName[0]);
-                    },
-                  ),
-                ),
+              child: ResponsiveAvatar(
+                imageUrl: logoUrl,
+                initials: team.fullName[0],
               ))
           : Container(),
       logoUrl != null && logoUrl.isNotEmpty

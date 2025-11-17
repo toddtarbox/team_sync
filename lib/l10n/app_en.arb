@@ -102,5 +102,86 @@
   "remindMeLater": "Remind Me Later",
   "getStarted": "Get Started",
   "proFeature": "Pro Feature",
-  "playerProfilesProFeature": "Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history."
+  "playerProfilesProFeature": "Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.",
+  "liveBannerTapToWatch": "LIVE — Tap to watch the stream",
+  "unableToOpenLiveLink": "Unable to open live link",
+  "nextGamePrefix": "Next game:",
+  "nextGameStayTuned": "Stay tuned for the live link once it starts",
+  "setLiveLink": "Set Live Link",
+  "liveUrlLabel": "Live URL",
+  "removeButton": "Remove",
+
+  "videoLabel": "Video",
+  "@videoLabel": {
+    "description": "Label prefix for numbered video buttons, e.g. \"Video 1\""
+  },
+
+  "watchLabel": "Watch",
+  "@watchLabel": {
+    "description": "Label for a single watch/play button"
+  },
+
+  "hideHighlights": "Hide Highlights",
+  "@hideHighlights": { "description": "Tooltip text to hide highlights panel" },
+  "showHighlights": "Show Highlights",
+  "@showHighlights": { "description": "Tooltip text to show highlights panel" },
+
+  "errorLoadingPlayerStats": "Error loading player stats: {error}\n\nStack trace: {stack}",
+  "@errorLoadingPlayerStats": {
+    "description": "Error message when player stats load fails",
+    "placeholders": { "error": {}, "stack": {} }
+  },
+
+  "noStatsAvailable": "No stats available",
+
+  "careerStatsTitle": "Career Stats",
+
+  "highlights": "Highlights",
+  "@highlights": { "description": "Header for the highlights section" },
+
+  "addHighlight": "Add Highlight",
+  "@addHighlight": { "description": "Tooltip/title for adding a highlight" },
+
+  "noHighlightsAvailable": "No highlights available",
+
+  "edit": "Edit",
+  "delete": "Delete",
+
+  "editHighlight": "Edit Highlight",
+  "addHighlightDialogTitle": "Add Highlight",
+
+  "labelTitleRequired": "Title *",
+  "hintTitleExample": "e.g., Game-Winning Goal",
+  "labelDescription": "Description",
+  "hintDescriptionOptional": "Optional description",
+  "labelVideoUrlRequired": "Video URL *",
+  "hintVideoUrl": "https://...",
+  "labelDate": "Date",
+
+  "updateButton": "Update",
+  "addButton": "Add",
+
+  "titleUrlRequired": "Title and URL are required",
+
+  "couldNotOpenUrl": "Could not open URL: {url}",
+  "@couldNotOpenUrl": { "description": "Snackbar text when a URL can't be opened", "placeholders": { "url": {} } },
+
+  "highlightSaved": "Highlight saved successfully",
+
+  "errorSavingHighlight": "Error saving highlight: {error}",
+  "@errorSavingHighlight": { "placeholders": { "error": {} } },
+
+  "deleteHighlightTitle": "Delete Highlight",
+  "deleteHighlightConfirm": "Are you sure you want to delete \"{title}\"?",
+  "@deleteHighlightConfirm": { "placeholders": { "title": {} } },
+
+  "highlightDeleted": "Highlight deleted",
+  "errorDeletingHighlight": "Error deleting highlight: {error}",
+  "@errorDeletingHighlight": { "placeholders": { "error": {} } },
+
+  "errorLoadingHighlights": "Error loading highlights: {error}",
+  "@errorLoadingHighlights": { "description": "Error when highlights fail to load", "placeholders": { "error": {} } },
+
+  "recentHighlights": "Recent highlights",
+  "@recentHighlights": { "description": "Header for recent highlights on the team home page" }
 }

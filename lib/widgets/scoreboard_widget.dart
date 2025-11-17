@@ -6,6 +6,7 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class ScoreboardWidget extends StatefulWidget {
   final Game? game;
@@ -241,16 +242,17 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                         children: [
                           if (leftTeam.logoUrl != null &&
                               leftTeam.logoUrl!.isNotEmpty)
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundImage: NetworkImage(leftTeam.logoUrl!),
+                            ResponsiveAvatar(
+                              imageUrl: leftTeam.logoUrl,
                               backgroundColor: leftTeam.color1.withOpacity(0.2),
                             )
                           else
-                            CircleAvatar(
-                              radius: 30,
+                            ResponsiveAvatar(
+                              initials: leftTeam.shortName.isNotEmpty
+                                  ? leftTeam.shortName[0]
+                                  : null,
                               backgroundColor: leftTeam.color1.withOpacity(0.2),
-                              child: Icon(
+                              fallbackIcon: Icon(
                                 Icons.sports_soccer,
                                 color: leftTeam.color1,
                                 size: 30,
@@ -375,18 +377,19 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                         children: [
                           if (rightTeam.logoUrl != null &&
                               rightTeam.logoUrl!.isNotEmpty)
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundImage: NetworkImage(rightTeam.logoUrl!),
+                            ResponsiveAvatar(
+                              imageUrl: rightTeam.logoUrl,
                               backgroundColor:
                                   rightTeam.color1.withOpacity(0.2),
                             )
                           else
-                            CircleAvatar(
-                              radius: 30,
+                            ResponsiveAvatar(
+                              initials: rightTeam.shortName.isNotEmpty
+                                  ? rightTeam.shortName[0]
+                                  : null,
                               backgroundColor:
                                   rightTeam.color1.withOpacity(0.2),
-                              child: Icon(
+                              fallbackIcon: Icon(
                                 Icons.sports_soccer,
                                 color: rightTeam.color1,
                                 size: 30,

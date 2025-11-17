@@ -13,6 +13,7 @@ import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_with_logo.dart';
+import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
@@ -45,7 +46,7 @@ class _SeasonPageState extends State<SeasonPage> {
         title: Text(widget.season.name,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(80),
+            preferredSize: const Size.fromHeight(180),
             child: SeasonWithLogo(season: widget.season)),
         actions: [
           IconButton(
@@ -147,12 +148,13 @@ class _SeasonPageState extends State<SeasonPage> {
 
                             final linkWidget =
                                 game.gameLinks?.isNotEmpty ?? false
-                                    ? IconButton(
-                                        icon: Icon(Icons.link,
-                                            size: 24, color: Colors.blue),
-                                        onPressed: () async {
+                                    ? GestureDetector(
+                                        onTap: () async {
                                           await _launchUrl(game.gameLinks!);
-                                        })
+                                        },
+                                        child: VideoThumbnail(game.gameLinks!,
+                                            width: 40, height: 28),
+                                      )
                                     : SizedBox(width: 24);
 
                             final gameCard = Container(

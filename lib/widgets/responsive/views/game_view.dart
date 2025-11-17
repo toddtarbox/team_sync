@@ -12,6 +12,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GameView extends StatefulWidget {
@@ -263,11 +264,11 @@ class _GameViewState extends State<GameView> {
 
     final linkWidget = event.eventUrls?.isNotEmpty ?? false
         ? Center(
-            child: IconButton(
-                icon: Icon(Icons.link, color: Colors.blue),
-                onPressed: () {
-                  _launchUrl(event.eventUrls!);
-                }))
+            child: GestureDetector(
+              onTap: () => _launchUrl(event.eventUrls!),
+              child: VideoThumbnail(event.eventUrls!, width: 40, height: 28),
+            ),
+          )
         : Container();
 
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)

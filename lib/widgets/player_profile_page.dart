@@ -1,6 +1,7 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/player_highlight.dart';
@@ -8,6 +9,8 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlayerProfilePage extends StatefulWidget {
@@ -158,6 +161,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: CustomAppBar(
         team: widget.currentSeason.team,
@@ -171,7 +175,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             icon: Icon(_showHighlights
                 ? Icons.video_library
                 : Icons.video_library_outlined),
-            tooltip: _showHighlights ? 'Hide Highlights' : 'Show Highlights',
+            tooltip: _showHighlights ? loc.hideHighlights : loc.showHighlights,
             onPressed: () {
               setState(() {
                 _showHighlights = !_showHighlights;
@@ -191,13 +195,14 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text(
-                        'Error loading player stats: ${snapshot.error}\n\nStack trace: ${snapshot.stackTrace}'),
+                    child: Text(loc.errorLoadingPlayerStats(
+                        snapshot.error?.toString() ?? '',
+                        snapshot.stackTrace?.toString() ?? '')),
                   );
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No stats available'));
+                  return Center(child: Text(loc.noStatsAvailable));
                 }
 
                 final seasonStats = snapshot.data!;
@@ -285,28 +290,14 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       child: Column(
         children: [
           // Avatar
-          CircleAvatar(
-            radius: 60,
-            child: widget.player.profileImage != null &&
+          ResponsiveAvatar(
+            backgroundImage: widget.player.profileImage != null &&
                     widget.player.profileImage!.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      widget.player.profileImage!,
-                      width: 120,
-                      height: 120,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Text(
-                          '${widget.player.firstName[0]}${widget.player.lastName[0]}',
-                          style: const TextStyle(fontSize: 40),
-                        );
-                      },
-                    ),
-                  )
-                : Text(
-                    '${widget.player.firstName[0]}${widget.player.lastName[0]}',
-                    style: const TextStyle(fontSize: 40),
-                  ),
+                ? NetworkImage(widget.player.profileImage!)
+                : null,
+            initials:
+                '${widget.player.firstName[0]}${widget.player.lastName[0]}',
+            // Let ResponsiveAvatar compute a larger radius on wide screens
           ),
           const SizedBox(height: 16),
 
@@ -398,6 +389,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Widget _buildCareerStats(Map<Season, SeasonStats> seasonStats) {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder<Map<LeaderCategory, int>>(
       future: _getCareerStats(seasonStats),
       builder: (context, snapshot) {
@@ -420,9 +412,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           color: Theme.of(context).colorScheme.primaryContainer,
           child: ExpansionTile(
             initiallyExpanded: true,
-            title: const Text(
-              'Career Stats',
-              style: TextStyle(
+            title: Text(
+              loc.careerStatsTitle,
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -465,6 +457,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Widget _buildHighlightsPanel() {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder<List<dynamic>>(
       future: Future.wait([
         _highlightsFuture ?? Future.value(<GameEvent>[]),
@@ -479,7 +472,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Text('Error loading highlights: ${snapshot.error}'),
+              child: Text(
+                  loc.errorLoadingHighlights(snapshot.error?.toString() ?? '')),
             ),
           );
         }
@@ -510,9 +504,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 children: [
                   const Icon(Icons.video_library, size: 24),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Highlights',
-                    style: TextStyle(
+                  Text(
+                    loc.highlights,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -531,7 +525,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                     IconButton(
                       icon: const Icon(Icons.add),
                       onPressed: () => _showAddHighlightDialog(),
-                      tooltip: 'Add Highlight',
+                      tooltip: loc.addHighlight,
                     ),
                   ],
                 ],
@@ -541,12 +535,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             // Highlights list
             Expanded(
               child: totalCount == 0
-                  ? const Center(
+                  ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Text(
-                          'No highlights available',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                          loc.noHighlightsAvailable,
+                          style:
+                              const TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ),
                     )
@@ -569,6 +564,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Widget _buildHighlightItem(GameEvent event) {
+    final loc = AppLocalizations.of(context)!;
     final urls = event.eventUrls
             ?.split(',')
             .map((u) => u.trim())
@@ -621,23 +617,33 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             // Video links
             if (urls.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: urls.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final url = entry.value;
-                  return ElevatedButton.icon(
-                    onPressed: () => _launchUrl(url),
-                    icon: const Icon(Icons.play_circle_outline, size: 18),
-                    label: Text(
-                        urls.length > 1 ? 'Video ${index + 1}' : 'Watch Video'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+              // Row with thumbnail and buttons
+              Row(
+                children: [
+                  VideoThumbnail(urls.first, width: 160, height: 90),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: urls.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final url = entry.value;
+                        return ElevatedButton.icon(
+                          onPressed: () => _launchUrl(url),
+                          icon: const Icon(Icons.play_circle_outline, size: 18),
+                          label: Text(urls.length > 1
+                              ? '${loc.videoLabel} ${index + 1}'
+                              : loc.watchLabel),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
+                  )
+                ],
               ),
             ],
           ],
@@ -647,6 +653,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Widget _buildIndependentHighlightItem(PlayerHighlight highlight) {
+    final loc = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       elevation: 2,
@@ -695,25 +702,33 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                     icon: const Icon(Icons.edit, size: 20),
                     onPressed: () =>
                         _showAddHighlightDialog(highlight: highlight),
-                    tooltip: 'Edit',
+                    tooltip: loc.edit,
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete, size: 20),
                     onPressed: () => _deleteHighlight(highlight),
-                    tooltip: 'Delete',
+                    tooltip: loc.delete,
                   ),
                 ],
               ],
             ),
             const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () => _launchUrl(highlight.videoUrl),
-              icon: const Icon(Icons.play_circle_outline, size: 18),
-              label: const Text('Watch Video'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
+            Row(
+              children: [
+                VideoThumbnail(highlight.videoUrl, width: 160, height: 90),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchUrl(highlight.videoUrl),
+                    icon: const Icon(Icons.play_circle_outline, size: 18),
+                    label: Text(loc.watchLabel),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                )
+              ],
             ),
           ],
         ),
@@ -722,19 +737,21 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Future<void> _launchUrl(String urlString) async {
+    final loc = AppLocalizations.of(context)!;
     final uri = Uri.parse(urlString);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open URL: $urlString')),
+          SnackBar(content: Text(loc.couldNotOpenUrl(urlString))),
         );
       }
     }
   }
 
   void _showAddHighlightDialog({PlayerHighlight? highlight}) {
+    final loc = AppLocalizations.of(context)!;
     final isEdit = highlight != null;
     final titleController = TextEditingController(text: highlight?.title ?? '');
     final descriptionController =
@@ -747,25 +764,25 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Highlight' : 'Add Highlight'),
+          title: Text(isEdit ? loc.editHighlight : loc.addHighlightDialogTitle),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Title *',
-                    hintText: 'e.g., Game-Winning Goal',
+                  decoration: InputDecoration(
+                    labelText: loc.labelTitleRequired,
+                    hintText: loc.hintTitleExample,
                   ),
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Optional description',
+                  decoration: InputDecoration(
+                    labelText: loc.labelDescription,
+                    hintText: loc.hintDescriptionOptional,
                   ),
                   maxLines: 2,
                   textCapitalization: TextCapitalization.sentences,
@@ -773,16 +790,16 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Video URL *',
-                    hintText: 'https://...',
+                  decoration: InputDecoration(
+                    labelText: loc.labelVideoUrlRequired,
+                    hintText: loc.hintVideoUrl,
                   ),
                   keyboardType: TextInputType.url,
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Date'),
+                  title: Text(loc.labelDate),
                   subtitle: Text(
                     '${selectedDate.month}/${selectedDate.day}/${selectedDate.year}',
                   ),
@@ -807,7 +824,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(loc.cancelButton),
             ),
             FilledButton(
               onPressed: () {
@@ -816,8 +833,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
                 if (title.isEmpty || url.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Title and URL are required'),
+                    SnackBar(
+                      content: Text(loc.titleUrlRequired),
                     ),
                   );
                   return;
@@ -833,7 +850,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
                 Navigator.pop(context);
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
+              child: Text(isEdit ? loc.updateButton : loc.addButton),
             ),
           ],
         ),
@@ -848,6 +865,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     required String url,
     required DateTime date,
   }) async {
+    final loc = AppLocalizations.of(context)!;
     try {
       final highlight = PlayerHighlight(
         id: id,
@@ -863,35 +881,36 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Highlight saved successfully')),
+          SnackBar(content: Text(loc.highlightSaved)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving highlight: $e')),
+          SnackBar(content: Text(loc.errorSavingHighlight(e.toString()))),
         );
       }
     }
   }
 
   Future<void> _deleteHighlight(PlayerHighlight highlight) async {
+    final loc = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Highlight'),
-        content: Text('Are you sure you want to delete "${highlight.title}"?'),
+        title: Text(loc.deleteHighlightTitle),
+        content: Text(loc.deleteHighlightConfirm(highlight.title)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(loc.cancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
             style: FilledButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Delete'),
+            child: Text(loc.delete),
           ),
         ],
       ),
@@ -904,13 +923,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Highlight deleted')),
+            SnackBar(content: Text(loc.highlightDeleted)),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting highlight: $e')),
+            SnackBar(content: Text(loc.errorDeletingHighlight(e.toString()))),
           );
         }
       }

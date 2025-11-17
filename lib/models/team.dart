@@ -23,6 +23,7 @@ class Team extends Equatable {
   final int? clubId;
   final String? createdBy; // User ID of team creator (team admin)
   final List<String>? adminIds; // List of team admin user IDs
+  final String? liveUrl;
 
   const Team({
     required this.id,
@@ -34,6 +35,7 @@ class Team extends Equatable {
     this.clubId,
     this.createdBy,
     this.adminIds,
+    this.liveUrl,
   });
 
   factory Team.fromMap(Map<String, dynamic> map) {
@@ -52,6 +54,7 @@ class Team extends Equatable {
       createdBy: map['createdBy'],
       adminIds:
           map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
+      liveUrl: map['liveUrl'],
     );
   }
 
@@ -376,5 +379,6 @@ class Team extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, color1, color2, clubId, createdBy, adminIds];
+  List<Object?> get props =>
+      [id, color1, color2, clubId, createdBy, adminIds, liveUrl];
 }
