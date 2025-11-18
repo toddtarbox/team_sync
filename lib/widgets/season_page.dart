@@ -9,6 +9,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
@@ -148,6 +149,14 @@ class _SeasonPageState extends State<SeasonPage> {
               body: Column(
                 children: [
                   CommonPageHeader(team: season.team),
+                  Breadcrumbs(
+                    items: buildTeamBreadcrumbs(
+                      databaseId: DatabaseService.instance.publicShareId ?? '',
+                      teamName: season.team.fullName,
+                      seasonName: season.name,
+                      seasonId: season.id,
+                    ),
+                  ),
                   SeasonWithLogo(season: season),
                   Expanded(
                     child: Center(
@@ -201,6 +210,14 @@ class _SeasonPageState extends State<SeasonPage> {
               body: Column(
                 children: [
                   CommonPageHeader(team: season.team),
+                  Breadcrumbs(
+                    items: buildTeamBreadcrumbs(
+                      databaseId: DatabaseService.instance.publicShareId ?? '',
+                      teamName: season.team.fullName,
+                      seasonName: season.name,
+                      seasonId: season.id,
+                    ),
+                  ),
                   SeasonWithLogo(season: season),
                   Container(
                     decoration: BoxDecoration(

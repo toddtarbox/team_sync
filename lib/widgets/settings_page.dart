@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -29,7 +31,23 @@ class SettingsPage extends StatelessWidget {
         builder: (context, themeNotifier, child) {
           return ListView(
             children: [
-              if (team != null) CommonPageHeader(team: team!),
+              if (team != null) ...[
+                CommonPageHeader(team: team!),
+                Breadcrumbs(
+                  items: club != null
+                      ? buildClubBreadcrumbs(
+                          clubName: club!.name,
+                          clubId: club!.id.toString(),
+                          additionalLabel: 'Settings',
+                        )
+                      : buildTeamBreadcrumbs(
+                          databaseId:
+                              DatabaseService.instance.publicShareId ?? '',
+                          teamName: team!.fullName,
+                          additionalLabel: 'Settings',
+                        ),
+                ),
+              ],
               SwitchListTile(
                 title: const Text('Automatic Theme'),
                 subtitle: const Text(

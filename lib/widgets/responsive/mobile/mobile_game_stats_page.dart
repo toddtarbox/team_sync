@@ -2,6 +2,8 @@ import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
@@ -32,6 +34,16 @@ class MobileGameStatsPage extends StatelessWidget {
         body: Column(
           children: [
             CommonPageHeader(team: season.team),
+            Breadcrumbs(
+              items: buildTeamBreadcrumbs(
+                databaseId: DatabaseService.instance.publicShareId ?? '',
+                teamName: season.team.fullName,
+                seasonName: season.name,
+                seasonId: season.id,
+                gameName: game.displayName(season.teamId),
+                additionalLabel: 'Stats',
+              ),
+            ),
             Expanded(
               child: GameStatsView(
                   season: season, game: game, eventEmitter: _eventEmitter),

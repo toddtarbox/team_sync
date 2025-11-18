@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
@@ -234,6 +236,15 @@ class _MobileGamePageState extends State<MobileGamePage> {
         body: Column(
           children: [
             CommonPageHeader(team: widget.season.team),
+            Breadcrumbs(
+              items: buildTeamBreadcrumbs(
+                databaseId: DatabaseService.instance.publicShareId ?? '',
+                teamName: widget.season.team.fullName,
+                seasonName: widget.season.name,
+                seasonId: widget.season.id,
+                gameName: widget.game.displayName(widget.season.teamId),
+              ),
+            ),
             Expanded(
               child: GameView(
                   season: widget.season,

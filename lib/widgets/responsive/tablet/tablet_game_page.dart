@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
@@ -293,6 +294,15 @@ class _TabletGamePageState extends State<TabletGamePage> {
             body: Column(
               children: [
                 CommonPageHeader(team: resolvedSeason.team),
+                Breadcrumbs(
+                  items: buildTeamBreadcrumbs(
+                    databaseId: DatabaseService.instance.publicShareId ?? '',
+                    teamName: resolvedSeason.team.fullName,
+                    seasonName: resolvedSeason.name,
+                    seasonId: resolvedSeason.id,
+                    gameName: _game.displayName(resolvedSeason.teamId),
+                  ),
+                ),
                 Expanded(
                   child: Row(children: [
                     SizedBox(width: width * .55, child: gameView),

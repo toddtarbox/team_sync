@@ -8,6 +8,7 @@ import 'package:team_sync/models/player_highlight.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -236,8 +237,19 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           ),
           body: Column(
             children: [
-              if (currentSeason?.team != null)
+              if (currentSeason?.team != null) ...[
                 CommonPageHeader(team: currentSeason!.team),
+                Breadcrumbs(
+                  items: buildTeamBreadcrumbs(
+                    databaseId: DatabaseService.instance.publicShareId ?? '',
+                    teamName: currentSeason.team.fullName,
+                    seasonName: currentSeason.name,
+                    seasonId: currentSeason.id,
+                    playerName: widget.player.displayName,
+                    playerId: widget.player.id,
+                  ),
+                ),
+              ],
               Expanded(
                 child: _seasonStatsFuture == null
                     ? const Center(child: CircularProgressIndicator())

@@ -10,6 +10,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
@@ -61,6 +62,15 @@ class _PlayersPageState extends State<PlayersPage> {
         body: Column(
           children: [
             CommonPageHeader(team: widget.season.team),
+            Breadcrumbs(
+              items: buildTeamBreadcrumbs(
+                databaseId: DatabaseService.instance.publicShareId ?? '',
+                teamName: widget.season.team.fullName,
+                seasonName: widget.season.name,
+                seasonId: widget.season.id,
+                additionalLabel: 'Players',
+              ),
+            ),
             Expanded(
               child: FutureBuilder(
                 // Query by teamId using RTDB native query to reduce bandwidth, then
