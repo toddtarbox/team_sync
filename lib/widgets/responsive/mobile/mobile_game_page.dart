@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class MobileGamePage extends StatefulWidget {
   final Season season;
@@ -32,7 +33,8 @@ class _MobileGamePageState extends State<MobileGamePage> {
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-        appBar: CustomAppBar(
+        appBar: buildStandardAppBar(
+          context: context,
           team: widget.season.team,
           title: Text(widget.game.displayName(widget.season.teamId),
               style:
@@ -229,9 +231,16 @@ class _MobileGamePageState extends State<MobileGamePage> {
 
                       _eventEmitter.emit('createEvent');
                     })),
-        body: GameView(
-            season: widget.season,
-            game: widget.game,
-            eventEmitter: _eventEmitter));
+        body: Column(
+          children: [
+            CommonPageHeader(team: widget.season.team),
+            Expanded(
+              child: GameView(
+                  season: widget.season,
+                  game: widget.game,
+                  eventEmitter: _eventEmitter),
+            ),
+          ],
+        ));
   }
 }

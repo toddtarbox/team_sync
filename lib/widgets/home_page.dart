@@ -23,13 +23,14 @@ import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
@@ -290,8 +291,8 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       key: ValueKey(_team?.id), // Force rebuild when team changes
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: CustomAppBar(
-        key: ValueKey('appbar_${_team?.id}'), // Force appbar rebuild
+      appBar: buildStandardAppBar(
+        context: context,
         team: _team,
         title: Text(
           widget.club?.name ?? 'ClubSync',
@@ -547,6 +548,7 @@ class _HomePageState extends State<HomePage> {
                     // Main content area
                     Expanded(
                       child: Column(children: [
+                        if (_team != null) CommonPageHeader(team: _team!),
                         Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(

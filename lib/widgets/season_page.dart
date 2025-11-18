@@ -9,12 +9,13 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_with_logo.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -119,60 +120,12 @@ class _SeasonPageState extends State<SeasonPage> {
           if (games.isEmpty) {
             // Show scaffold with app bar so deep-linked pages still show the header
             return Scaffold(
-              appBar: CustomAppBar(
+              appBar: buildStandardAppBar(
+                context: context,
                 team: season.team,
                 title: Text(season.name,
                     style: const TextStyle(
                         fontSize: 24, fontWeight: FontWeight.bold)),
-                bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(180),
-                    child: SeasonWithLogo(season: season)),
-              ),
-              floatingActionButton: kIsWeb
-                  ? null
-                  : Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [season.team.color1, season.team.color2],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                      ),
-                      child: FloatingActionButton(
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          child: const Icon(Icons.add),
-                          onPressed: () {
-                            _showGame(season: season);
-                          })),
-              body: Center(
-                  child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                    Text(AppLocalizations.of(context)!.noGamesFound,
-                        style: const TextStyle(fontSize: 24)),
-                    GestureDetector(
-                        onTap: () {
-                          _showGame(season: season);
-                        },
-                        child: Text(
-                            AppLocalizations.of(context)!.createNewGameToStart,
-                            style: const TextStyle(
-                                fontSize: 18, color: Colors.blue))),
-                  ])),
-            );
-          }
-
-          return Scaffold(
-              appBar: CustomAppBar(
-                team: season.team,
-                title: Text(season.name,
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
-                bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(180),
-                    child: SeasonWithLogo(season: season)),
               ),
               floatingActionButton: kIsWeb
                   ? null
@@ -194,16 +147,63 @@ class _SeasonPageState extends State<SeasonPage> {
                           })),
               body: Column(
                 children: [
+                  CommonPageHeader(team: season.team),
+                  SeasonWithLogo(season: season),
+                  Expanded(
+                    child: Center(
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                          Text(AppLocalizations.of(context)!.noGamesFound,
+                              style: const TextStyle(fontSize: 24)),
+                          GestureDetector(
+                              onTap: () {
+                                _showGame(season: season);
+                              },
+                              child: Text(
+                                  AppLocalizations.of(context)!
+                                      .createNewGameToStart,
+                                  style: const TextStyle(
+                                      fontSize: 18, color: Colors.blue))),
+                        ])),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return Scaffold(
+              appBar: buildStandardAppBar(
+                context: context,
+                team: season.team,
+                title: Text(season.name,
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold)),
+              ),
+              floatingActionButton: kIsWeb
+                  ? null
+                  : Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [season.team.color1, season.team.color2],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: FloatingActionButton(
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          child: const Icon(Icons.add),
+                          onPressed: () {
+                            _showGame(season: season);
+                          })),
+              body: Column(
+                children: [
+                  CommonPageHeader(team: season.team),
+                  SeasonWithLogo(season: season),
                   Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          season.team.color1,
-                          season.team.color2,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(25),
                         bottomRight: Radius.circular(25),

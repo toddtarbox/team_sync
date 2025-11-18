@@ -2,9 +2,10 @@ import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class MobileGameStatsPage extends StatelessWidget {
   final Season season;
@@ -19,7 +20,8 @@ class MobileGameStatsPage extends StatelessWidget {
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-        appBar: CustomAppBar(
+        appBar: buildStandardAppBar(
+          context: context,
           team: season.team,
           title: Text(game.displayName(season.teamId),
               style:
@@ -27,7 +29,14 @@ class MobileGameStatsPage extends StatelessWidget {
           bottom: PreferredSize(
               preferredSize: Size(width, 100), child: Scoreboard(game, season)),
         ),
-        body: GameStatsView(
-            season: season, game: game, eventEmitter: _eventEmitter));
+        body: Column(
+          children: [
+            CommonPageHeader(team: season.team),
+            Expanded(
+              child: GameStatsView(
+                  season: season, game: game, eventEmitter: _eventEmitter),
+            ),
+          ],
+        ));
   }
 }

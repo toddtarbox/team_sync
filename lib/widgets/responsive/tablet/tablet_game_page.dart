@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class TabletGamePage extends StatefulWidget {
   final Season? season; // made nullable to support deep links
@@ -77,7 +78,8 @@ class _TabletGamePageState extends State<TabletGamePage> {
         if (seasonSnapshot.connectionState == ConnectionState.waiting) {
           // Show a minimal scaffold while loading the season
           return Scaffold(
-            appBar: CustomAppBar(
+            appBar: buildStandardAppBar(
+              context: context,
               team: null,
               title: Text(_game.displayName(widget.game.seasonId),
                   style: const TextStyle(
@@ -93,7 +95,8 @@ class _TabletGamePageState extends State<TabletGamePage> {
         if (resolvedSeason == null) {
           // Season could not be loaded - show an error scaffold
           return Scaffold(
-            appBar: CustomAppBar(
+            appBar: buildStandardAppBar(
+              context: context,
               team: null,
               title: Text(_game.displayName(widget.game.seasonId),
                   style: const TextStyle(
@@ -110,7 +113,8 @@ class _TabletGamePageState extends State<TabletGamePage> {
             season: resolvedSeason, game: _game, eventEmitter: _eventEmitter);
 
         return Scaffold(
-            appBar: CustomAppBar(
+            appBar: buildStandardAppBar(
+              context: context,
               team: resolvedSeason.team,
               title: Text(_game.displayName(resolvedSeason.teamId),
                   style: const TextStyle(
@@ -286,10 +290,17 @@ class _TabletGamePageState extends State<TabletGamePage> {
                           _eventEmitter.emit('createEvent');
                           setState(() {});
                         })),
-            body: Row(children: [
-              SizedBox(width: width * .55, child: gameView),
-              SizedBox(width: width * .45, child: gameStatsView),
-            ]));
+            body: Column(
+              children: [
+                CommonPageHeader(team: resolvedSeason.team),
+                Expanded(
+                  child: Row(children: [
+                    SizedBox(width: width * .55, child: gameView),
+                    SizedBox(width: width * .45, child: gameStatsView),
+                  ]),
+                ),
+              ],
+            ));
       },
     );
   }

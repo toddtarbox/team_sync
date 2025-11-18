@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
-import 'package:team_sync/widgets/markdown_viewer.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
+
+import 'markdown_viewer.dart';
 
 class SettingsPage extends StatelessWidget {
   final Team? team;
@@ -18,7 +20,8 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: team,
         title: const Text('Settings'),
       ),
@@ -26,6 +29,7 @@ class SettingsPage extends StatelessWidget {
         builder: (context, themeNotifier, child) {
           return ListView(
             children: [
+              if (team != null) CommonPageHeader(team: team!),
               SwitchListTile(
                 title: const Text('Automatic Theme'),
                 subtitle: const Text(

@@ -3,7 +3,7 @@ import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/club_stats.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class ClubStatsPage extends StatefulWidget {
   final Club club;
@@ -50,8 +50,8 @@ class _ClubStatsPageState extends State<ClubStatsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
-        team: null,
+      appBar: buildStandardAppBar(
+        context: context,
         title: Text('${widget.club.name} Statistics'),
         bottom: TabBar(
           controller: _tabController,

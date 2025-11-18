@@ -10,9 +10,10 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class PlayersPage extends StatefulWidget {
   final Season season;
@@ -28,7 +29,8 @@ class _PlayersPageState extends State<PlayersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: CustomAppBar(
+        appBar: buildStandardAppBar(
+          context: context,
           team: widget.season.team,
           title: Text(AppLocalizations.of(context)!.players,
               style:
@@ -56,195 +58,207 @@ class _PlayersPageState extends State<PlayersPage> {
                     _createPlayer();
                   },
                 )),
-        body: FutureBuilder(
-          // Query by teamId using RTDB native query to reduce bandwidth, then
-          // filter by seasonId and sort locally by firstName to keep original behavior.
-          future: DatabaseService.instance.query('Players',
-              orderByChild: 'teamId', equalTo: widget.season.teamId),
-          builder: (BuildContext context,
-              AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
-            if (snapshot.hasData) {
-              // Filter results to this season and sort by firstName ASC
-              final raw = snapshot.data!;
-              final players = raw
-                  .where((p) => p['seasonId'] == widget.season.id)
-                  .toList(growable: false);
-              players.sort((a, b) {
-                final af = (a['firstName'] ?? '').toString();
-                final bf = (b['firstName'] ?? '').toString();
-                return af.compareTo(bf);
-              });
-              return ListView.builder(
-                  itemCount: players.length,
-                  itemBuilder: (context, index) {
-                    final player = Player.fromMap(players[index]);
-                    return Dismissible(
-                        key: Key(player.id.toString()),
-                        direction: DismissDirection
-                            .startToEnd, // Only allow right to left swipe
-                        dismissThresholds: const {
-                          DismissDirection.startToEnd:
-                              0.5, // Require 50% swipe to trigger
-                        },
-                        background: Container(color: Colors.red),
-                        confirmDismiss: kIsWeb
-                            ? (_) => Future.value(false)
-                            : (_) {
-                                return showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text(AppLocalizations.of(context)!
-                                          .confirmDelete),
-                                      content: Text(AppLocalizations.of(
-                                              context)!
-                                          .areYouSureYouWantToDeleteThisPlayer),
-                                      actions: [
-                                        TextButton(
-                                          child: Text(
-                                              AppLocalizations.of(context)!
-                                                  .continueButton),
-                                          onPressed: () {
-                                            Navigator.pop(context, true);
-                                          },
-                                        ),
-                                        TextButton(
-                                          child: Text(
-                                              AppLocalizations.of(context)!
-                                                  .cancelButton),
-                                          onPressed: () {
-                                            Navigator.pop(context, false);
-                                          },
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
+        body: Column(
+          children: [
+            CommonPageHeader(team: widget.season.team),
+            Expanded(
+              child: FutureBuilder(
+                // Query by teamId using RTDB native query to reduce bandwidth, then
+                // filter by seasonId and sort locally by firstName to keep original behavior.
+                future: DatabaseService.instance.query('Players',
+                    orderByChild: 'teamId', equalTo: widget.season.teamId),
+                builder: (BuildContext context,
+                    AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
+                  if (snapshot.hasData) {
+                    // Filter results to this season and sort by firstName ASC
+                    final raw = snapshot.data!;
+                    final players = raw
+                        .where((p) => p['seasonId'] == widget.season.id)
+                        .toList(growable: false);
+                    players.sort((a, b) {
+                      final af = (a['firstName'] ?? '').toString();
+                      final bf = (b['firstName'] ?? '').toString();
+                      return af.compareTo(bf);
+                    });
+                    return ListView.builder(
+                        itemCount: players.length,
+                        itemBuilder: (context, index) {
+                          final player = Player.fromMap(players[index]);
+                          return Dismissible(
+                              key: Key(player.id.toString()),
+                              direction: DismissDirection
+                                  .startToEnd, // Only allow right to left swipe
+                              dismissThresholds: const {
+                                DismissDirection.startToEnd:
+                                    0.5, // Require 50% swipe to trigger
                               },
-                        onDismissed: (direction) async {
-                          if (player.profileImage != null &&
-                              player.profileImage!.isNotEmpty) {
-                            try {
-                              await FirebaseStorage.instance
-                                  .refFromURL(player.profileImage!)
-                                  .delete();
-                            } catch (e) {
-                              // Image may not exist, so we can ignore.
-                            }
-                          }
-                          // Find child keys where id==player.id and seasonId==widget.season.id
-                          final candidates = await DatabaseService.instance
-                              .query('Players',
-                                  orderByChild: 'id', equalTo: player.id);
-                          for (final c in candidates) {
-                            if (c['seasonId'] == widget.season.id) {
-                              final k = c['_key']?.toString();
-                              if (k != null) {
-                                await DatabaseService.instance
-                                    .delete('Players', key: k);
-                              }
-                            }
-                          }
-                          setState(() {});
-                        },
-                        child: ListTile(
-                          onTap: kIsWeb
-                              ? () {
-                                  final databaseId =
-                                      DatabaseService.instance.publicShareId;
-                                  if (databaseId != null) {
-                                    NavigationHelper.navigateTo(
-                                      context,
-                                      '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                      extra: {
-                                        'player': player,
-                                        'season': widget.season
-                                      },
-                                    );
-                                  }
-                                }
-                              : () => _editPlayer(player),
-                          onLongPress:
-                              kIsWeb ? null : () => _editPlayer(player),
-                          leading: GestureDetector(
-                            onTap: kIsWeb
-                                ? () {
-                                    final databaseId =
-                                        DatabaseService.instance.publicShareId;
-                                    if (databaseId != null) {
-                                      NavigationHelper.navigateTo(
-                                        context,
-                                        '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                        extra: {
-                                          'player': player,
-                                          'season': widget.season
-                                        },
-                                      );
-                                    }
-                                  }
-                                : () {
-                                    if (!SubscriptionService
-                                        .instance.isSubscribed) {
-                                      showDialog(
+                              background: Container(color: Colors.red),
+                              confirmDismiss: kIsWeb
+                                  ? (_) => Future.value(false)
+                                  : (_) {
+                                      return showDialog(
                                         context: context,
                                         builder: (BuildContext context) {
                                           return AlertDialog(
                                             title: Text(
                                                 AppLocalizations.of(context)!
-                                                    .proFeature),
-                                            content: Text(
-                                                AppLocalizations.of(context)!
-                                                    .playerProfilesProFeature),
+                                                    .confirmDelete),
+                                            content: Text(AppLocalizations.of(
+                                                    context)!
+                                                .areYouSureYouWantToDeleteThisPlayer),
                                             actions: [
                                               TextButton(
                                                 child: Text(AppLocalizations.of(
                                                         context)!
-                                                    .cancelButton),
+                                                    .continueButton),
                                                 onPressed: () {
-                                                  Navigator.pop(context);
+                                                  Navigator.pop(context, true);
                                                 },
                                               ),
                                               TextButton(
                                                 child: Text(AppLocalizations.of(
                                                         context)!
-                                                    .goPro),
-                                                onPressed: () async {
-                                                  Navigator.pop(context);
-                                                  await SubscriptionService
-                                                      .instance
-                                                      .purchaseSubscription();
+                                                    .cancelButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context, false);
                                                 },
                                               ),
                                             ],
                                           );
                                         },
                                       );
-                                      return;
+                                    },
+                              onDismissed: (direction) async {
+                                if (player.profileImage != null &&
+                                    player.profileImage!.isNotEmpty) {
+                                  try {
+                                    await FirebaseStorage.instance
+                                        .refFromURL(player.profileImage!)
+                                        .delete();
+                                  } catch (e) {
+                                    // Image may not exist, so we can ignore.
+                                  }
+                                }
+                                // Find child keys where id==player.id and seasonId==widget.season.id
+                                final candidates = await DatabaseService
+                                    .instance
+                                    .query('Players',
+                                        orderByChild: 'id', equalTo: player.id);
+                                for (final c in candidates) {
+                                  if (c['seasonId'] == widget.season.id) {
+                                    final k = c['_key']?.toString();
+                                    if (k != null) {
+                                      await DatabaseService.instance
+                                          .delete('Players', key: k);
                                     }
-                                    final databaseId =
-                                        DatabaseService.instance.publicShareId;
-                                    if (databaseId != null) {
-                                      NavigationHelper.navigateTo(
-                                        context,
-                                        '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                        extra: {
-                                          'player': player,
-                                          'season': widget.season
+                                  }
+                                }
+                                setState(() {});
+                              },
+                              child: ListTile(
+                                onTap: kIsWeb
+                                    ? () {
+                                        final databaseId = DatabaseService
+                                            .instance.publicShareId;
+                                        if (databaseId != null) {
+                                          NavigationHelper.navigateTo(
+                                            context,
+                                            '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                            extra: {
+                                              'player': player,
+                                              'season': widget.season
+                                            },
+                                          );
+                                        }
+                                      }
+                                    : () => _editPlayer(player),
+                                onLongPress:
+                                    kIsWeb ? null : () => _editPlayer(player),
+                                leading: GestureDetector(
+                                  onTap: kIsWeb
+                                      ? () {
+                                          final databaseId = DatabaseService
+                                              .instance.publicShareId;
+                                          if (databaseId != null) {
+                                            NavigationHelper.navigateTo(
+                                              context,
+                                              '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                              extra: {
+                                                'player': player,
+                                                'season': widget.season
+                                              },
+                                            );
+                                          }
+                                        }
+                                      : () {
+                                          if (!SubscriptionService
+                                              .instance.isSubscribed) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: Text(
+                                                      AppLocalizations.of(
+                                                              context)!
+                                                          .proFeature),
+                                                  content: Text(AppLocalizations
+                                                          .of(context)!
+                                                      .playerProfilesProFeature),
+                                                  actions: [
+                                                    TextButton(
+                                                      child: Text(
+                                                          AppLocalizations.of(
+                                                                  context)!
+                                                              .cancelButton),
+                                                      onPressed: () {
+                                                        Navigator.pop(context);
+                                                      },
+                                                    ),
+                                                    TextButton(
+                                                      child: Text(
+                                                          AppLocalizations.of(
+                                                                  context)!
+                                                              .goPro),
+                                                      onPressed: () async {
+                                                        Navigator.pop(context);
+                                                        await SubscriptionService
+                                                            .instance
+                                                            .purchaseSubscription();
+                                                      },
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                            return;
+                                          }
+                                          final databaseId = DatabaseService
+                                              .instance.publicShareId;
+                                          if (databaseId != null) {
+                                            NavigationHelper.navigateTo(
+                                              context,
+                                              '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                              extra: {
+                                                'player': player,
+                                                'season': widget.season
+                                              },
+                                            );
+                                          }
                                         },
-                                      );
-                                    }
-                                  },
-                            child: ResponsivePlayerAvatar(
-                                player: player, avatarSize: 40),
-                          ),
-                          title: Text(player.displayName),
-                          subtitle: Text('#${player.number}'),
-                        ));
-                  });
-            } else {
-              return const Center(child: CircularProgressIndicator());
-            }
-          },
+                                  child: ResponsivePlayerAvatar(
+                                      player: player, avatarSize: 40),
+                                ),
+                                title: Text(player.displayName),
+                                subtitle: Text('#${player.number}'),
+                              ));
+                        });
+                  } else {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                },
+              ),
+            ),
+          ],
         ));
   }
 

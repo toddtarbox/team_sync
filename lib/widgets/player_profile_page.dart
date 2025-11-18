@@ -8,8 +8,9 @@ import 'package:team_sync/models/player_highlight.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -195,7 +196,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         // While loading the season, show a simple scaffold with a spinner
         if (seasonSnapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
-            appBar: CustomAppBar(
+            appBar: buildStandardAppBar(
+              context: context,
               team: null,
               title: Text(widget.player.displayName,
                   style: const TextStyle(
@@ -209,7 +211,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             seasonSnapshot.data ?? widget.currentSeason ?? _loadedSeason;
 
         return Scaffold(
-          appBar: CustomAppBar(
+          appBar: buildStandardAppBar(
+            context: context,
             team: currentSeason?.team,
             title: Text(
               widget.player.displayName,
@@ -231,104 +234,115 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               ),
             ],
           ),
-          body: _seasonStatsFuture == null
-              ? const Center(child: CircularProgressIndicator())
-              : FutureBuilder<Map<Season, SeasonStats>>(
-                  future: _seasonStatsFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+          body: Column(
+            children: [
+              if (currentSeason?.team != null)
+                CommonPageHeader(team: currentSeason!.team),
+              Expanded(
+                child: _seasonStatsFuture == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : FutureBuilder<Map<Season, SeasonStats>>(
+                        future: _seasonStatsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
 
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(loc.errorLoadingPlayerStats(
-                            snapshot.error?.toString() ?? '',
-                            snapshot.stackTrace?.toString() ?? '')),
-                      );
-                    }
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Text(loc.errorLoadingPlayerStats(
+                                  snapshot.error?.toString() ?? '',
+                                  snapshot.stackTrace?.toString() ?? '')),
+                            );
+                          }
 
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(child: Text(loc.noStatsAvailable));
-                    }
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return Center(child: Text(loc.noStatsAvailable));
+                          }
 
-                    final seasonStats = snapshot.data!;
-                    final seasons = seasonStats.keys.toList()
-                      ..sort((a, b) =>
-                          b.name.compareTo(a.name)); // Most recent first
+                          final seasonStats = snapshot.data!;
+                          final seasons = seasonStats.keys.toList()
+                            ..sort((a, b) =>
+                                b.name.compareTo(a.name)); // Most recent first
 
-                    // Build main content
-                    final mainContent = ListView(
-                      children: [
-                        // Player header with avatar and basic info
-                        _buildPlayerHeader(),
-
-                        const Divider(thickness: 2),
-
-                        // Career Stats Section
-                        _buildCareerStats(seasonStats),
-
-                        const Divider(thickness: 2),
-
-                        // Stats for each season
-                        ...seasons.map((season) => _buildSeasonStats(
-                              season,
-                              seasonStats[season]!,
-                              currentSeason,
-                            )),
-                      ],
-                    );
-
-                    // Responsive layout
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWideScreen = constraints.maxWidth > 900;
-
-                        if (isWideScreen && _showHighlights) {
-                          // Two-column layout for wide screens
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // Build main content
+                          final mainContent = ListView(
                             children: [
-                              // Main content (left side)
-                              Expanded(
-                                flex: 2,
-                                child: mainContent,
-                              ),
+                              // Player header with avatar and basic info
+                              _buildPlayerHeader(),
 
-                              // Highlights panel (right side)
-                              Container(
-                                width: 400,
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    left: BorderSide(
-                                      color: Theme.of(context).dividerColor,
-                                      width: 1,
+                              const Divider(thickness: 2),
+
+                              // Career Stats Section
+                              _buildCareerStats(seasonStats),
+
+                              const Divider(thickness: 2),
+
+                              // Stats for each season
+                              ...seasons.map((season) => _buildSeasonStats(
+                                    season,
+                                    seasonStats[season]!,
+                                    currentSeason,
+                                  )),
+                            ],
+                          );
+
+                          // Responsive layout
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isWideScreen = constraints.maxWidth > 900;
+
+                              if (isWideScreen && _showHighlights) {
+                                // Two-column layout for wide screens
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Main content (left side)
+                                    Expanded(
+                                      flex: 2,
+                                      child: mainContent,
                                     ),
-                                  ),
-                                ),
-                                child: _buildHighlightsPanel(),
-                              ),
-                            ],
+
+                                    // Highlights panel (right side)
+                                    Container(
+                                      width: 400,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          left: BorderSide(
+                                            color:
+                                                Theme.of(context).dividerColor,
+                                            width: 1,
+                                          ),
+                                        ),
+                                      ),
+                                      child: _buildHighlightsPanel(),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                // Single column layout for narrow screens or when highlights hidden
+                                return Column(
+                                  children: [
+                                    Expanded(child: mainContent),
+                                    if (_showHighlights) ...[
+                                      const Divider(thickness: 2),
+                                      SizedBox(
+                                        height: 300,
+                                        child: _buildHighlightsPanel(),
+                                      ),
+                                    ],
+                                  ],
+                                );
+                              }
+                            },
                           );
-                        } else {
-                          // Single column layout for narrow screens or when highlights hidden
-                          return Column(
-                            children: [
-                              Expanded(child: mainContent),
-                              if (_showHighlights) ...[
-                                const Divider(thickness: 2),
-                                SizedBox(
-                                  height: 300,
-                                  child: _buildHighlightsPanel(),
-                                ),
-                              ],
-                            ],
-                          );
-                        }
-                      },
-                    );
-                  },
-                ),
+                        },
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );

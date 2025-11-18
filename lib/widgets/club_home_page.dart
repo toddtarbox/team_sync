@@ -18,8 +18,8 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/admin_management_dialog.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class ClubHomePage extends StatefulWidget {
   final String? clubId;
@@ -64,24 +64,11 @@ class _ClubHomePageState extends State<ClubHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Create a temporary team object with club colors for the appbar gradient
-    final Team? clubTeam = _club != null
-        ? Team(
-            id: _club!.id,
-            fullName: _club!.name,
-            shortName: _club!.name,
-            color1: _club!.color1,
-            color2: _club!.color2,
-            clubId: _club!.id,
-          )
-        : null;
-
     return Scaffold(
       key: ValueKey(_club?.id), // Force rebuild when club changes
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: CustomAppBar(
-        key: ValueKey('appbar_${_club?.id}'), // Force appbar rebuild
-        team: clubTeam,
+      appBar: buildStandardAppBar(
+        context: context,
         title: Text(
           _club?.name ?? 'ClubSync',
           style: const TextStyle(fontWeight: FontWeight.bold),

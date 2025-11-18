@@ -21,12 +21,13 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_with_logo.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -279,7 +280,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: _team,
         title: const Text('TeamSync',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
@@ -288,6 +290,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
       floatingActionButton: _buildFloatingActionButton(),
       body: Column(
         children: [
+          if (_team != null) CommonPageHeader(team: _team!),
           _buildLiveBanner(),
           // Recent highlights (web only)
           if (kIsWeb) _buildRecentHighlights(),

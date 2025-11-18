@@ -77,7 +77,7 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
         widget.season.team.logoUrl != null &&
                 widget.season.team.logoUrl!.isNotEmpty
             ? ResponsiveAvatar(
-                size: 40,
+                size: 20,
                 imageUrl: widget.season.team.logoUrl,
                 initials: widget.season.team.fullName[0],
               )

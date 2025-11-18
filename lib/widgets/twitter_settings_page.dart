@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class TwitterSettingsPage extends StatefulWidget {
   final Team? team;
@@ -94,65 +95,73 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: widget.team,
         title: const Text('Twitter API Settings'),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _buildInfoCard(),
-                const SizedBox(height: 24),
-                _buildTextFormField(
-                  controller: _consumerKeyController,
-                  labelText: 'Consumer Key',
-                  hintText: 'Enter your API consumer key',
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _consumerSecretController,
-                  labelText: 'Consumer Secret',
-                  hintText: 'Enter your API consumer secret',
-                  isSecret: true,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _accessTokenController,
-                  labelText: 'Access Token',
-                  hintText: 'Enter your access token',
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _accessTokenSecretController,
-                  labelText: 'Access Token Secret',
-                  hintText: 'Enter your access token secret',
-                  isSecret: true,
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: _saveSettings,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+      body: Column(
+        children: [
+          if (widget.team != null) CommonPageHeader(team: widget.team!),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _buildInfoCard(),
+                      const SizedBox(height: 24),
+                      _buildTextFormField(
+                        controller: _consumerKeyController,
+                        labelText: 'Consumer Key',
+                        hintText: 'Enter your API consumer key',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextFormField(
+                        controller: _consumerSecretController,
+                        labelText: 'Consumer Secret',
+                        hintText: 'Enter your API consumer secret',
+                        isSecret: true,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextFormField(
+                        controller: _accessTokenController,
+                        labelText: 'Access Token',
+                        hintText: 'Enter your access token',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextFormField(
+                        controller: _accessTokenSecretController,
+                        labelText: 'Access Token Secret',
+                        hintText: 'Enter your access token secret',
+                        isSecret: true,
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton(
+                        onPressed: _saveSettings,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: Colors.blueAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save Settings',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'Save Settings',
-                    style: TextStyle(fontSize: 16),
-                  ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
