@@ -279,7 +279,7 @@ class FirebaseDBProvider implements DatabaseProvider {
     }
   }
 
-  late String _subscriptionId;
+  String _subscriptionId = '';
   String _path = '';
   int? _clubTeamId; // Track the current team ID when in club mode
   DatabaseEvent? _dbEvent;
@@ -288,6 +288,19 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   /// Check if we're in club mode (loading from ClubTeams collection)
   bool get _isClubMode => _path.startsWith('ClubTeams/');
+
+  /// Validate that a path is safe for Firebase Realtime Database
+  /// Firebase paths cannot contain: . $ # [ ] or have empty components
+  bool _isValidFirebasePath(String path) {
+    if (path.isEmpty) return false;
+    if (path.contains('//')) return false; // Empty path component
+    if (path.contains('.')) return false;
+    if (path.contains('\$')) return false;
+    if (path.contains('#')) return false;
+    if (path.contains('[')) return false;
+    if (path.contains(']')) return false;
+    return true;
+  }
 
   /// Translate table names for club mode
   String _getTableName(String table) {
@@ -342,30 +355,58 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   Future<void> _getSubscriptionId() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      AuthProvider provider;
-      if (Platform.isIOS) {
-        provider = AppleAuthProvider()
-            .addScope('ASAuthorizationScopeFullName')
-            .addScope('ASAuthorizationScopeEmail');
-      } else {
-        provider = GoogleAuthProvider();
-      }
-
-      var firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null) {
-        await FirebaseAuth.instance.signInWithProvider(provider);
-      }
+    // If already have a valid subscription ID, return early
+    if (_subscriptionId.isNotEmpty) {
+      return;
     }
 
-    _subscriptionId = FirebaseAuth.instance.currentUser!.uid;
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        AuthProvider provider;
+        if (Platform.isIOS) {
+          provider = AppleAuthProvider()
+              .addScope('ASAuthorizationScopeFullName')
+              .addScope('ASAuthorizationScopeEmail');
+        } else {
+          provider = GoogleAuthProvider();
+        }
+
+        var firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser == null) {
+          await FirebaseAuth.instance.signInWithProvider(provider);
+        }
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid.isNotEmpty) {
+        _subscriptionId = user.uid;
+        debugPrint('Subscription ID set to: $_subscriptionId');
+      } else {
+        debugPrint('Failed to get subscription ID - no user authenticated');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error getting subscription ID: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
   }
 
   @override
   Future<List<String>> getAvailableDatabases() async {
     await _getSubscriptionId();
 
-    final ref = _database.ref('subscriptionIds/$_subscriptionId/databases');
+    // Validate that we have a valid subscription ID
+    if (_subscriptionId.isEmpty) {
+      debugPrint('getAvailableDatabases: No subscription ID available');
+      return [];
+    }
+
+    final dbPath = 'subscriptionIds/$_subscriptionId/databases';
+    if (!_isValidFirebasePath(dbPath)) {
+      debugPrint('getAvailableDatabases: Invalid path: $dbPath');
+      return [];
+    }
+
+    final ref = _database.ref(dbPath);
     final snapshot = await ref.get();
     if (!snapshot.exists || snapshot.value == null) return [];
     final data = snapshot.value as Map<dynamic, dynamic>;
@@ -376,10 +417,21 @@ class FirebaseDBProvider implements DatabaseProvider {
   Future<bool> open(String path) async {
     await _getSubscriptionId();
 
+    // Validate that we have a valid subscription ID
+    if (_subscriptionId.isEmpty) {
+      debugPrint('open: No subscription ID available for path: $path');
+      return false;
+    }
+
     _path = path;
 
-    final ref =
-        _database.ref('subscriptionIds/$_subscriptionId/databases/$_path');
+    final dbPath = 'subscriptionIds/$_subscriptionId/databases/$_path';
+    if (!_isValidFirebasePath(dbPath)) {
+      debugPrint('open: Invalid Firebase path: $dbPath');
+      return false;
+    }
+
+    final ref = _database.ref(dbPath);
     _dbEvent = await ref.once();
     if (_dbEvent?.snapshot.exists == false) {
       await ref.set({'version': 1});
@@ -420,6 +472,18 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<bool> openFromPath(String path) async {
+    // Validate path is not empty and doesn't contain empty components
+    if (path.isEmpty) {
+      debugPrint('openFromPath: Empty path provided');
+      return false;
+    }
+
+    // Check for empty path components (consecutive slashes)
+    if (path.contains('//')) {
+      debugPrint('openFromPath: Invalid path with empty components: $path');
+      return false;
+    }
+
     final parts = path.split('/');
 
     // For club team paths (e.g., 'ClubTeams/123'), handle specially
@@ -429,64 +493,88 @@ class FirebaseDBProvider implements DatabaseProvider {
       _clubTeamId = parts.length > 1 ? int.tryParse(parts[1]) : null;
 
       // For club teams, we just need to verify the team exists
-      final ref = _database.ref(path);
-      final snapshot = await ref.once();
-      _dbEvent = snapshot;
+      try {
+        final ref = _database.ref(path);
+        final snapshot = await ref.once();
+        _dbEvent = snapshot;
 
-      if (!snapshot.snapshot.exists) {
+        if (!snapshot.snapshot.exists) {
+          debugPrint('openFromPath: Club team not found at path: $path');
+          return false;
+        }
+
+        // Subscribe to value events for this team
+        try {
+          await _dbValueSub?.cancel();
+          _dbValueSub = ref.onValue.listen((ev) {
+            _updateController.add(DateTime.now().toUtc());
+          });
+        } catch (e) {
+          debugPrint('Failed to subscribe to team value events: $e');
+        }
+
+        return true;
+      } catch (e, stackTrace) {
+        debugPrint('openFromPath: Error opening club team path: $e');
+        debugPrint('Stack trace: $stackTrace');
         return false;
       }
-
-      // Subscribe to value events for this team
-      try {
-        await _dbValueSub?.cancel();
-        _dbValueSub = ref.onValue.listen((ev) {
-          _updateController.add(DateTime.now().toUtc());
-        });
-      } catch (e) {
-        debugPrint('Failed to subscribe to team value events: $e');
-      }
-
-      return true;
     }
 
-    // For subscription-based databases, use the original logic
-    final ref = _database.ref(path);
-    _dbEvent = await ref.once();
-
+    // For subscription-based databases, parse and validate the path
+    // Expected format: subscriptionIds/{uid}/databases/{dbName}
     _path = parts.isNotEmpty ? parts.last : path;
     _subscriptionId = parts.length > 1 ? parts[1] : '';
     _clubTeamId = null; // Clear club team ID
 
-    if (_dbEvent?.snapshot.exists == false) {
+    // Validate subscription ID is not empty for subscription-based paths
+    if (_subscriptionId.isEmpty &&
+        parts.isNotEmpty &&
+        parts[0] == 'subscriptionIds') {
+      debugPrint(
+          'openFromPath: Invalid subscription path - missing subscription ID: $path');
       return false;
     }
 
-    // Subscribe to value events for this database path
     try {
-      await _dbValueSub?.cancel();
-      _dbValueSub = ref.onValue.listen((ev) {
-        try {
-          final snap = ev.snapshot;
-          if (snap.exists && snap.value != null) {
-            final map = snap.value as dynamic;
-            if (map is Map && map.containsKey('lastUpdated')) {
-              final lu = map['lastUpdated'];
-              if (lu is int) {
-                _updateController
-                    .add(DateTime.fromMillisecondsSinceEpoch(lu, isUtc: true));
-                return;
+      final ref = _database.ref(path);
+      _dbEvent = await ref.once();
+
+      if (_dbEvent?.snapshot.exists == false) {
+        debugPrint('openFromPath: Database not found at path: $path');
+        return false;
+      }
+
+      // Subscribe to value events for this database path
+      try {
+        await _dbValueSub?.cancel();
+        _dbValueSub = ref.onValue.listen((ev) {
+          try {
+            final snap = ev.snapshot;
+            if (snap.exists && snap.value != null) {
+              final map = snap.value as dynamic;
+              if (map is Map && map.containsKey('lastUpdated')) {
+                final lu = map['lastUpdated'];
+                if (lu is int) {
+                  _updateController.add(
+                      DateTime.fromMillisecondsSinceEpoch(lu, isUtc: true));
+                  return;
+                }
               }
             }
+          } catch (e) {
+            debugPrint(
+                'updateStream: failed to read lastUpdated from snapshot: $e');
           }
-        } catch (e) {
-          debugPrint(
-              'updateStream: failed to read lastUpdated from snapshot: $e');
-        }
-        _updateController.add(DateTime.now().toUtc());
-      });
-    } catch (e) {
-      debugPrint('Failed to subscribe to database value events: $e');
+          _updateController.add(DateTime.now().toUtc());
+        });
+      } catch (e) {
+        debugPrint('Failed to subscribe to database value events: $e');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('openFromPath: Error accessing path: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return false;
     }
 
     return !(await isImporting);

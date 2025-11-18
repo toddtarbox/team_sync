@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/widgets/connection_status_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Helper function to create a standard AppBar with connection status indicator.
 /// Use this throughout the app for consistent AppBar styling.
@@ -22,22 +23,42 @@ AppBar buildStandardAppBar({
   // On web, don't show back button - use browser navigation instead
   final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
+  Future<void> goToWebSite() async {
+    if (kIsWeb) {
+      final uri = Uri.parse('https://sites.google.com/view/team-sync/home');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
+
   return AppBar(
     leading: !automaticallyImplyLeading
-        ? GestureDetector(
-            onTap: () {},
+        ? InkWell(
+            onTap: () {
+              goToWebSite();
+            },
             child: Image.asset('assets/images/pngs/icon_no_background.png',
                 width: 16, height: 16),
           )
         : (showBackButton
             ? null // Let AppBar handle the back button
-            : GestureDetector(
-                onTap: () {},
+            : InkWell(
+                onTap: () {
+                  goToWebSite();
+                },
                 child: Image.asset('assets/images/pngs/icon_no_background.png',
                     width: 16, height: 16),
               )),
     automaticallyImplyLeading: showBackButton,
-    title: title,
+    title: !showBackButton
+        ? InkWell(
+            onTap: () {
+              goToWebSite();
+            },
+            child: title,
+          )
+        : title,
     actions: combinedActions,
     bottom: bottom,
     flexibleSpace: team != null

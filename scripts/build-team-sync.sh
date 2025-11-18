@@ -43,12 +43,18 @@ case $PLATFORM in
     ;;
 
   ios)
-    echo "📱 Building for iOS..."
-    flutter build ios \
+    echo "📱 Building IPA for iOS..."
+    # Note: Requires iOS schemes to be configured in Xcode
+    # See docs/IOS_FLAVORS_SETUP.md for setup instructions
+    # Requires proper code signing certificates to be configured in Xcode
+    flutter build ipa \
       --target=lib/main_team_sync.dart \
       --release \
-      --no-codesign
-    echo "✅ iOS build complete"
+      --flavor teamSync \
+      --export-options-plist=ios/ExportOptions.plist
+    echo "✅ iOS IPA build complete: build/ios/ipa/"
+    echo "⚠️  If build fails, you need to configure iOS schemes in Xcode"
+    echo "   See: docs/IOS_FLAVORS_SETUP.md"
     ;;
 
   android)
