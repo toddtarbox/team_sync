@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
@@ -8,6 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/services/database_sharing_service.dart';
 
 /// Progress event emitted during Firestore -> RTDB import.
 class ImportProgress {
@@ -362,25 +362,23 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     try {
       if (FirebaseAuth.instance.currentUser == null) {
-        AuthProvider provider;
-        if (Platform.isIOS) {
-          provider = AppleAuthProvider()
-              .addScope('ASAuthorizationScopeFullName')
-              .addScope('ASAuthorizationScopeEmail');
-        } else {
-          provider = GoogleAuthProvider();
-        }
-
-        var firebaseUser = FirebaseAuth.instance.currentUser;
-        if (firebaseUser == null) {
-          await FirebaseAuth.instance.signInWithProvider(provider);
-        }
+        debugPrint('User must be signed in before accessing cloud database');
+        return;
       }
 
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && user.uid.isNotEmpty) {
         _subscriptionId = user.uid;
         debugPrint('Subscription ID set to: $_subscriptionId');
+
+        // Register user in lookup table for sharing features
+        if (user.email != null && !kIsWeb) {
+          try {
+            await DatabaseSharingService.instance.registerUserInLookup();
+          } catch (e) {
+            debugPrint('Failed to register user for sharing: $e');
+          }
+        }
       } else {
         debugPrint('Failed to get subscription ID - no user authenticated');
       }
@@ -406,11 +404,30 @@ class FirebaseDBProvider implements DatabaseProvider {
       return [];
     }
 
+    // Get user's own databases
     final ref = _database.ref(dbPath);
     final snapshot = await ref.get();
-    if (!snapshot.exists || snapshot.value == null) return [];
-    final data = snapshot.value as Map<dynamic, dynamic>;
-    return data.keys.map((k) => k.toString()).toList();
+    final ownDatabases = <String>[];
+    if (snapshot.exists && snapshot.value != null) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      ownDatabases.addAll(data.keys.map((k) => k.toString()));
+    }
+
+    // Get shared databases (for Pro users only)
+    final sharedDatabases = <String>[];
+    try {
+      final shared = await DatabaseSharingService.instance.getSharedDatabases();
+      for (final sharedDb in shared) {
+        // Add with prefix to distinguish from own databases
+        final displayName =
+            '${sharedDb['ownerEmail']} - ${sharedDb['databaseName']}';
+        sharedDatabases.add(displayName);
+      }
+    } catch (e) {
+      debugPrint('getAvailableDatabases: Error getting shared databases: $e');
+    }
+
+    return [...ownDatabases, ...sharedDatabases];
   }
 
   @override
@@ -982,7 +999,9 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     final data = doc.value as Map<dynamic, dynamic>?;
     if (data != null && data.containsKey('publicShareId')) {
-      return data['publicShareId'] as String?;
+      // Handle both String and int types from Firebase
+      final id = data['publicShareId'];
+      return id?.toString();
     }
 
     // Generate a random 6-digit id and ensure it doesn't collide with existing mapping.
@@ -1540,6 +1559,118 @@ class DatabaseService {
 
   /// Check if the current database context is a club team
   bool get isClubTeam => _provider.path.startsWith('ClubTeams/');
+
+  /// Open a shared database by owner and database name.
+  /// Returns true if the database was opened successfully and user has access.
+  Future<bool> openSharedDatabase(String ownerId, String databaseName) async {
+    if (_provider is! FirebaseDBProvider) {
+      setProvider(FirebaseDBProvider());
+    }
+
+    // Check if user has access
+    final accessLevel = await DatabaseSharingService.instance
+        .checkDatabaseAccess(ownerId, databaseName);
+
+    if (accessLevel == null) {
+      debugPrint(
+          'openSharedDatabase: No access to database $databaseName owned by $ownerId');
+      return false;
+    }
+
+    // Construct the path to the shared database
+    final sharedDbPath = 'subscriptionIds/$ownerId/databases/$databaseName';
+
+    // Open the database
+    final opened =
+        await (_provider as FirebaseDBProvider).openFromPath(sharedDbPath);
+
+    if (opened) {
+      debugPrint(
+          'openSharedDatabase: Opened shared database with $accessLevel access');
+    }
+
+    return opened;
+  }
+
+  /// Get information about shared databases available to the current user.
+  Future<List<Map<String, dynamic>>> getSharedDatabasesInfo() async {
+    return await DatabaseSharingService.instance.getSharedDatabases();
+  }
+
+  /// Grant access to the current database to another user (Pro only).
+  Future<bool> shareDatabaseWithUser(String userEmail,
+      {String accessLevel = 'read'}) async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('shareDatabaseWithUser: Can only share cloud databases');
+      return false;
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('shareDatabaseWithUser: No database currently open');
+      return false;
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance.grantDatabaseAccess(
+      databaseName,
+      userEmail,
+      accessLevel: accessLevel,
+    );
+  }
+
+  /// Revoke access to the current database from a user (Pro only).
+  Future<bool> unshareDatabaseFromUser(String userEmail) async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('unshareDatabaseFromUser: Can only manage cloud databases');
+      return false;
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('unshareDatabaseFromUser: No database currently open');
+      return false;
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance.revokeDatabaseAccess(
+      databaseName,
+      userEmail,
+    );
+  }
+
+  /// Get list of users who have access to the current database.
+  Future<List<Map<String, dynamic>>> getDatabaseAccessList() async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('getDatabaseAccessList: Can only manage cloud databases');
+      return [];
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('getDatabaseAccessList: No database currently open');
+      return [];
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance
+        .getDatabaseAccessList(databaseName);
+  }
 
   Future<bool> exists(String dbName) async {
     final databases = await getAvailableDatabases();

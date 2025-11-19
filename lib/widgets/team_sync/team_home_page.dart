@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,7 +19,9 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/database_sharing_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
@@ -844,6 +847,194 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   // Action handlers
+  /// Ensures user is signed in before accessing cloud features.
+  /// Shows sign-in dialog if not signed in.
+  /// Returns true if user is signed in, false otherwise.
+  Future<bool> _ensureUserSignedIn() async {
+    if (FirebaseAuth.instance.currentUser != null) {
+      return true;
+    }
+
+    if (!mounted) return false;
+
+    // Show sign-in dialog
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign In Required'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'You need to sign in to access cloud databases.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.g_mobiledata),
+                  label: const Text('Sign in with Google'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                  ),
+                  onPressed: () async {
+                    try {
+                      await AuthService.instance.signInWithGoogle();
+                      if (mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    } catch (e) {
+                      debugPrint('Google sign-in error: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Sign-in failed: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.apple),
+                  label: const Text('Sign in with Apple'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    try {
+                      await AuthService.instance.signInWithApple();
+                      if (mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    } catch (e) {
+                      debugPrint('Apple sign-in error: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Sign-in failed: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    return result == true;
+  }
+
+  /// Get the name of the authentication provider (Google or Apple)
+  String _getAuthProviderName() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'Unknown';
+
+    // Check provider data to determine which provider was used
+    for (var provider in user.providerData) {
+      if (provider.providerId == 'google.com') {
+        return 'Google';
+      } else if (provider.providerId == 'apple.com') {
+        return 'Apple';
+      }
+    }
+
+    // Fallback - check email domain or display name
+    if (user.email?.contains('@privaterelay.appleid.com') == true) {
+      return 'Apple';
+    }
+
+    return 'Unknown';
+  }
+
+  /// Handle user logout
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Log Out'),
+          content: const Text(
+            'Are you sure you want to log out? You will need to sign in again to access cloud databases.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      try {
+        // Close any open database
+        await DatabaseService.instance.close();
+
+        // Sign out from Firebase
+        await AuthService.instance.signOut();
+
+        if (mounted) {
+          // Clear local state
+          setState(() {
+            _team = null;
+            _seasons = [];
+            _currentOrLastGame = null;
+            _nextUpcomingGame = null;
+            _currentSeason = null;
+          });
+
+          // Show confirmation
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Logged out successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error during logout: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error logging out: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _showCreateOptions(BuildContext context) async {
     await showModalBottomSheet(
       context: context,
@@ -1061,6 +1252,11 @@ class _TeamHomePageState extends State<TeamHomePage> {
         return;
       }
 
+      // Check if user is signed in first
+      if (!await _ensureUserSignedIn()) {
+        return;
+      }
+
       DatabaseService.instance.setProvider(FirebaseDBProvider());
 
       await DatabaseService.instance.open(databaseName);
@@ -1098,6 +1294,11 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Future<String?> _pickCloudDatabase() async {
+    // Check if user is signed in first
+    if (!await _ensureUserSignedIn()) {
+      return null;
+    }
+
     if (DatabaseService.instance.isLocalDatabase) {
       await DatabaseService.instance.close();
       DatabaseService.instance.setProvider(FirebaseDBProvider());
@@ -1381,30 +1582,14 @@ class _TeamHomePageState extends State<TeamHomePage> {
     try {
       final id = await DatabaseService.instance.shareDatabase();
       final url = 'https://team-sync-soccer.web.app/#/team/$id';
+      final databaseName = DatabaseService.instance.path;
 
       if (mounted) {
-        showDialog(
+        await showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Share this URL'),
-            content: SelectableText(url,
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy),
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: url));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied to clipboard!')),
-                  );
-                },
-              ),
-            ],
+          builder: (context) => _DatabaseSharingDialog(
+            publicUrl: url,
+            databaseName: databaseName,
           ),
         );
       }
@@ -1772,6 +1957,462 @@ class _TeamHomePageState extends State<TeamHomePage> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Database Sharing Dialog with Public URL and User Access Management
+class _DatabaseSharingDialog extends StatefulWidget {
+  final String publicUrl;
+  final String databaseName;
+
+  const _DatabaseSharingDialog({
+    required this.publicUrl,
+    required this.databaseName,
+  });
+
+  @override
+  State<_DatabaseSharingDialog> createState() => _DatabaseSharingDialogState();
+}
+
+class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
+  final _emailController = TextEditingController();
+  String _accessLevel = 'read';
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _sharedWith = [];
+  bool _isProUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isProUser = SubscriptionService.instance.isSubscribed;
+    _loadSharedUsers();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSharedUsers() async {
+    if (!_isProUser) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final users = await DatabaseSharingService.instance
+          .getDatabaseAccessList(widget.databaseName);
+      if (mounted) {
+        setState(() {
+          _sharedWith = users;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading shared users: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _grantAccess() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an email address')),
+      );
+      return;
+    }
+
+    // Basic email validation
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final success = await DatabaseSharingService.instance.grantDatabaseAccess(
+        widget.databaseName,
+        email,
+        accessLevel: _accessLevel,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Access granted to $email')),
+          );
+          _emailController.clear();
+          await _loadSharedUsers();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to grant access. User may not exist.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error granting access: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _revokeAccess(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      final success = await DatabaseSharingService.instance
+          .revokeDatabaseAccess(widget.databaseName, email);
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Access revoked for $email')),
+          );
+          await _loadSharedUsers();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to revoke access'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error revoking access: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Share Database'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Public URL Section
+              Text(
+                'Public Share URL',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SelectableText(
+                        widget.publicUrl,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.copy,
+                          color: Theme.of(context).colorScheme.primary),
+                      onPressed: () {
+                        Clipboard.setData(
+                            ClipboardData(text: widget.publicUrl));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('URL copied to clipboard!')),
+                        );
+                      },
+                      tooltip: 'Copy URL',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Anyone with this URL can view this database (read-only)',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const Divider(height: 32),
+
+              // User-Specific Sharing Section (Pro Only)
+              if (_isProUser) ...[
+                Text(
+                  'Share with Specific Users',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Grant read or write access to specific TeamSync users',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                ),
+                const SizedBox(height: 16),
+
+                // Email Input
+                TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'User Email',
+                    hintText: 'user@example.com',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  enabled: !_isLoading,
+                ),
+                const SizedBox(height: 12),
+
+                // Access Level Selector
+                Text(
+                  'Access Level',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment<String>(
+                      value: 'read',
+                      label: Text('Read Only'),
+                      icon: Icon(Icons.visibility),
+                    ),
+                    ButtonSegment<String>(
+                      value: 'write',
+                      label: Text('Read & Write'),
+                      icon: Icon(Icons.edit),
+                    ),
+                  ],
+                  selected: {_accessLevel},
+                  onSelectionChanged: _isLoading
+                      ? null
+                      : (Set<String> selected) {
+                          setState(() => _accessLevel = selected.first);
+                        },
+                ),
+                const SizedBox(height: 12),
+
+                // Grant Access Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _grantAccess,
+                    icon: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.person_add),
+                    label: const Text('Grant Access'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Shared Users List
+                if (_sharedWith.isNotEmpty) ...[
+                  Text(
+                    'Users with Access (${_sharedWith.length})',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _sharedWith.length,
+                      itemBuilder: (context, index) {
+                        final user = _sharedWith[index];
+                        final email = user['email']?.toString() ?? 'Unknown';
+                        final accessLevel =
+                            user['accessLevel']?.toString() ?? 'read';
+                        final grantedAt = user['grantedAt'];
+
+                        String timeAgo = '';
+                        if (grantedAt != null) {
+                          try {
+                            final timestamp = grantedAt is int
+                                ? grantedAt
+                                : int.tryParse(grantedAt.toString());
+                            if (timestamp != null) {
+                              final date = DateTime.fromMillisecondsSinceEpoch(
+                                  timestamp);
+                              final diff = DateTime.now().difference(date);
+                              if (diff.inDays > 0) {
+                                timeAgo = '${diff.inDays}d ago';
+                              } else if (diff.inHours > 0) {
+                                timeAgo = '${diff.inHours}h ago';
+                              } else {
+                                timeAgo = '${diff.inMinutes}m ago';
+                              }
+                            }
+                          } catch (e) {
+                            // Ignore parsing errors
+                          }
+                        }
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            child: Text(
+                              email.isNotEmpty ? email[0].toUpperCase() : '?',
+                            ),
+                          ),
+                          title: Text(email),
+                          subtitle: Text(
+                            '${accessLevel == 'read' ? 'Read Only' : 'Read & Write'}${timeAgo.isNotEmpty ? ' • $timeAgo' : ''}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.remove_circle_outline),
+                            onPressed:
+                                _isLoading ? null : () => _revokeAccess(email),
+                            tooltip: 'Revoke access',
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ] else if (!_isLoading) ...[
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'No users have been granted access yet',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                      ),
+                    ),
+                  ),
+                ],
+              ] else ...[
+                // Pro Upgrade Prompt
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.amber[900]?.withValues(alpha: 0.2)
+                        : Colors.amber[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.amber[700]!
+                          : Colors.amber[300]!,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.star,
+                          size: 48,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.amber[400]
+                              : Colors.amber[700]),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Upgrade to Pro',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Upgrade to Pro to share your database with specific users and grant them read or write access.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await SubscriptionService.instance
+                              .purchaseSubscription();
+                          if (mounted) {
+                            setState(() {
+                              _isProUser =
+                                  SubscriptionService.instance.isSubscribed;
+                            });
+                            if (_isProUser) {
+                              await _loadSharedUsers();
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.upgrade),
+                        label: const Text('Upgrade Now'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.amber[700]
+                                  : Colors.amber[700],
+                          foregroundColor: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

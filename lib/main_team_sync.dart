@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/app_config.dart';
 import 'package:team_sync/firebase_options.dart';
 import 'package:team_sync/router.dart';
+import 'package:team_sync/services/database_sharing_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 
 import 'l10n/app_localizations.dart';
@@ -36,6 +38,18 @@ Future<void> _initializeApp() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await SubscriptionService.instance.initialize();
+
+  // Register user in lookup table if already signed in
+  if (!kIsWeb) {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.email != null) {
+        await DatabaseSharingService.instance.registerUserInLookup();
+      }
+    } catch (e) {
+      debugPrint('Failed to register user in lookup: $e');
+    }
+  }
 
   runApp(ChangeNotifierProvider(
     create: (_) => ThemeNotifier(),

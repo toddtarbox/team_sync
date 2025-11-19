@@ -54,6 +54,39 @@ class AuthService {
     }
   }
 
+  /// Sign in with Apple
+  Future<UserCredential?> signInWithApple() async {
+    // Prevent concurrent sign-in attempts on web
+    if (kIsWeb && _isSigningIn) {
+      debugPrint('Sign-in already in progress, ignoring duplicate request');
+      return null;
+    }
+
+    try {
+      if (kIsWeb) {
+        _isSigningIn = true;
+      }
+
+      AppleAuthProvider provider =
+          AppleAuthProvider().addScope('email').addScope('name');
+
+      if (kIsWeb) {
+        // Web sign-in with popup
+        return await _auth.signInWithPopup(provider);
+      } else {
+        // Mobile sign-in with provider (uses native Apple Sign-In)
+        return await _auth.signInWithProvider(provider);
+      }
+    } catch (e) {
+      debugPrint('Error signing in with Apple: $e');
+      rethrow;
+    } finally {
+      if (kIsWeb) {
+        _isSigningIn = false;
+      }
+    }
+  }
+
   /// Sign in with email and password
   Future<UserCredential> signInWithEmailPassword(
       String email, String password) async {

@@ -1,51 +1,7 @@
 import 'dart:async';
 
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_web_plugins/url_strategy.dart';
-import 'package:provider/provider.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:team_sync/app_config.dart';
-import 'package:team_sync/firebase_options.dart';
-import 'package:team_sync/router.dart';
-import 'package:team_sync/services/subscription_service.dart';
-
-import 'l10n/app_localizations.dart';
-
-void main() async {
-  // Initialize as TeamSync by default (for backward compatibility)
-  AppConfig.initialize(AppConfig.teamSync);
-
-  // Enable clean URLs for web (removes # from URL)
-  if (kIsWeb) {
-    usePathUrlStrategy();
-  }
-
-  WidgetsFlutterBinding.ensureInitialized();
-
-  if (!kIsWeb) {
-    // Load environment variables from .env (if present). CI env vars still take precedence.
-    try {
-      await dotenv.load();
-    } catch (e) {
-      // .env file not found or invalid - this is OK in production/CI where env vars come from system
-      debugPrint('dotenv load failed (OK if using system env vars): $e');
-    }
-  }
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await SubscriptionService.instance.initialize();
-
-  runApp(ChangeNotifierProvider(
-    create: (_) => ThemeNotifier(),
-    child: const MyApp(),
-  ));
-}
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
@@ -124,69 +80,5 @@ class ThemeNotifier extends ChangeNotifier {
     }
     notifyListeners();
     _savePreferences();
-  }
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<ThemeNotifier>(
-      builder: (context, themeNotifier, child) {
-        return MaterialApp.router(
-          title: AppConfig.current.appName,
-          routerConfig: router,
-          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-          debugShowCheckedModeBanner: false,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color.fromRGBO(22, 148, 123, 1),
-              brightness: Brightness.light,
-            ),
-            cardTheme: const CardThemeData(
-              elevation: 4.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(16)),
-              ),
-            ),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.grey.shade900,
-              elevation: 0,
-            ),
-          ),
-          darkTheme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color.fromRGBO(22, 148, 123, 1),
-              brightness: Brightness.dark,
-            ),
-            cardTheme: const CardThemeData(
-              elevation: 4.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(16)),
-              ),
-            ),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.grey.shade900,
-              elevation: 0,
-            ),
-          ),
-          themeMode: themeNotifier.themeMode,
-          builder: (context, child) => ResponsiveBreakpoints.builder(
-            breakpoints: [
-              const Breakpoint(start: 0, end: 450, name: MOBILE),
-              const Breakpoint(start: 451, end: 800, name: TABLET),
-              const Breakpoint(start: 801, end: 1920, name: DESKTOP),
-              const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
-            ],
-            child: child!,
-          ),
-        );
-      },
-    );
   }
 }

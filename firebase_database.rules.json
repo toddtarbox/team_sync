@@ -1,5 +1,25 @@
 {
   "rules": {
+    "database_access": {
+      "$ownerId": {
+        ".read": "$ownerId === auth.uid",
+        ".write": "$ownerId === auth.uid",
+        ".indexOn": ["email"]
+      }
+    },
+    "user_database_access": {
+      "$userId": {
+        ".read": "$userId === auth.uid",
+        ".write": false
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "$userId === auth.uid"
+      },
+      ".indexOn": ["email"]
+    },
     "subscriptionIds": {
       "$uid": {
         "databases": {
@@ -26,8 +46,8 @@
                 ".write": "auth != null && auth.uid == $uid"
               }
             },
-            ".read": "(auth != null && auth.uid == $uid) || (data.child('publicShareId').val() != null)",
-            ".write": "auth != null && auth.uid == $uid"
+            ".read": "(auth != null && auth.uid == $uid) || (data.child('publicShareId').val() != null) || (auth != null && root.child('user_database_access').child(auth.uid).child($uid).child($db).exists())",
+            ".write": "(auth != null && auth.uid == $uid) || (auth != null && root.child('user_database_access').child(auth.uid).child($uid).child($db).child('accessLevel').val() === 'write')"
           }
         }
       }
