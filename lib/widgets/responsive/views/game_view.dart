@@ -48,12 +48,17 @@ class _GameViewState extends State<GameView> {
     });
 
     widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
-      await AdhocTweetDialog.show(context);
+      await AdhocTweetDialog.show(context, teamId: widget.season.teamId);
     });
 
     widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
-      await TwitterService.instance.initializeWithLocalCredentials();
+      // Initialize with team credentials if available, fallback to local
+      final success = await TwitterService.instance
+          .initializeWithTeamCredentials(widget.season.teamId);
+      if (!success) {
+        await TwitterService.instance.initializeWithLocalCredentials();
+      }
     });
     widget.eventEmitter.emit('loadSettings');
 

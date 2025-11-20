@@ -22,6 +22,7 @@ class TwitterService {
   /// Uses flutter_secure_storage for legacy local credentials.
   Future<bool> initializeWithLocalCredentials() async {
     if (kIsWeb) {
+      debugPrint('Twitter init: Skipping on web');
       return false;
     }
 
@@ -38,6 +39,13 @@ class TwitterService {
           consumerSecret.isEmpty ||
           accessToken.isEmpty ||
           accessTokenSecret.isEmpty) {
+        debugPrint('Twitter init: Missing credentials');
+        debugPrint('  consumerKey: ${consumerKey.isEmpty ? "empty" : "set"}');
+        debugPrint(
+            '  consumerSecret: ${consumerSecret.isEmpty ? "empty" : "set"}');
+        debugPrint('  accessToken: ${accessToken.isEmpty ? "empty" : "set"}');
+        debugPrint(
+            '  accessTokenSecret: ${accessTokenSecret.isEmpty ? "empty" : "set"}');
         return false;
       }
 
@@ -50,6 +58,8 @@ class TwitterService {
         ),
       );
 
+      debugPrint(
+          'Twitter init: Successfully initialized with local credentials');
       return true;
     } catch (e) {
       debugPrint('Error initializing Twitter with local credentials: $e');
@@ -95,22 +105,42 @@ class TwitterService {
     }
 
     if (teamId != null) {
-      return await TwitterCredentialsService.hasCredentials(teamId);
+      final hasTeamCreds =
+          await TwitterCredentialsService.hasCredentials(teamId);
+      debugPrint('Twitter isConfigured (team $teamId): $hasTeamCreds');
+      return hasTeamCreds;
     }
 
     // Check local credentials
-    const storage = FlutterSecureStorage();
-    final consumerKey = await storage.read(key: 'twitter_consumer_key') ?? '';
-    final consumerSecret =
-        await storage.read(key: 'twitter_consumer_secret') ?? '';
-    final accessToken = await storage.read(key: 'twitter_access_token') ?? '';
-    final accessTokenSecret =
-        await storage.read(key: 'twitter_access_token_secret') ?? '';
+    try {
+      const storage = FlutterSecureStorage();
+      final consumerKey = await storage.read(key: 'twitter_consumer_key') ?? '';
+      final consumerSecret =
+          await storage.read(key: 'twitter_consumer_secret') ?? '';
+      final accessToken = await storage.read(key: 'twitter_access_token') ?? '';
+      final accessTokenSecret =
+          await storage.read(key: 'twitter_access_token_secret') ?? '';
 
-    return consumerKey.isNotEmpty &&
-        consumerSecret.isNotEmpty &&
-        accessToken.isNotEmpty &&
-        accessTokenSecret.isNotEmpty;
+      final isConfigured = consumerKey.isNotEmpty &&
+          consumerSecret.isNotEmpty &&
+          accessToken.isNotEmpty &&
+          accessTokenSecret.isNotEmpty;
+
+      debugPrint('Twitter isConfigured (local): $isConfigured');
+      if (!isConfigured) {
+        debugPrint('  consumerKey: ${consumerKey.isEmpty ? "empty" : "set"}');
+        debugPrint(
+            '  consumerSecret: ${consumerSecret.isEmpty ? "empty" : "set"}');
+        debugPrint('  accessToken: ${accessToken.isEmpty ? "empty" : "set"}');
+        debugPrint(
+            '  accessTokenSecret: ${accessTokenSecret.isEmpty ? "empty" : "set"}');
+      }
+
+      return isConfigured;
+    } catch (e) {
+      debugPrint('Error checking Twitter configuration: $e');
+      return false;
+    }
   }
 
   /// Send a tweet with the configured credentials.

@@ -23,6 +23,7 @@ import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/database_sharing_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
@@ -337,7 +338,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             onSelected: (value) async {
               switch (value) {
                 case 'tweet':
-                  await AdhocTweetDialog.show(context);
+                  await AdhocTweetDialog.show(context, teamId: _team?.id);
                   break;
                 case 'share':
                   await _shareDatabase();
@@ -1796,6 +1797,190 @@ class _TeamHomePageState extends State<TeamHomePage> {
         });
   }
 
+  /// Generate and send a promotional tweet for the upcoming game
+  Future<void> _tweetUpcomingGame() async {
+    if (_nextUpcomingGame == null || _team == null) {
+      return;
+    }
+
+    // Generate promotional tweet text
+    final tweetText = _generateUpcomingGameTweet();
+
+    // Show dialog with pre-filled tweet text that user can edit
+    final textController = TextEditingController(text: tweetText);
+    String editedText = tweetText;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: const Text('Promote Upcoming Game'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Review and edit the promotional tweet below:',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: textController,
+                      decoration: const InputDecoration(
+                        hintText: 'Tweet text',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 5,
+                      maxLength: 280,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          editedText = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${editedText.length}/280 characters',
+                      style: TextStyle(
+                        color:
+                            editedText.length > 280 ? Colors.red : Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: editedText.isEmpty || editedText.length > 280
+                      ? null
+                      : () {
+                          Navigator.pop(context, true);
+                        },
+                  child: const Text('Send Tweet'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true && editedText.isNotEmpty) {
+      // Initialize Twitter with team credentials
+      bool success = false;
+      if (_team != null) {
+        success = await TwitterService.instance
+            .initializeWithTeamCredentials(_team!.id);
+      } else {
+        success =
+            await TwitterService.instance.initializeWithLocalCredentials();
+      }
+
+      if (!success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Twitter is not configured. Please configure Twitter in Settings.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      final tweetSuccess = await TwitterService.instance.sendTweet(editedText);
+
+      if (mounted) {
+        if (tweetSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Game promotion tweet sent successfully! ⚽'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send tweet. Please try again.'),
+              duration: Duration(seconds: 3),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  /// Generate promotional tweet text for upcoming game
+  String _generateUpcomingGameTweet() {
+    if (_nextUpcomingGame == null || _team == null) {
+      return '';
+    }
+
+    final game = _nextUpcomingGame!;
+    final team = _team!;
+
+    // Format date and time
+    final dateFormat = DateFormat('EEEE, MMMM d');
+    final timeFormat = DateFormat('h:mm a');
+    final date = dateFormat.format(game.date.toLocal());
+    final time = timeFormat.format(game.date.toLocal());
+
+    // Get opponent name
+    final opponent = game.displayName(team.id);
+
+    // Determine if home or away
+    final isHome = game.homeTeam.id == team.id;
+    final location = isHome ? 'vs' : '@';
+
+    // Check if live URL is available
+    final hasLiveUrl = team.liveUrl != null && team.liveUrl!.isNotEmpty;
+
+    // Build the tweet with emojis
+    final StringBuffer tweet = StringBuffer();
+
+    // Add header with emoji
+    tweet.writeln('⚽ GAME DAY! ⚽\n');
+
+    // Add matchup
+    tweet.writeln('$location $opponent');
+
+    // Add date and time
+    tweet.writeln('📅 $date');
+    tweet.writeln('⏰ $time');
+
+    // Add live streaming URL if available
+    if (hasLiveUrl) {
+      tweet.writeln('\n🔴 Watch Live:');
+      tweet.writeln(team.liveUrl!);
+    }
+
+    // Add call to action
+    tweet.write('\n');
+    if (hasLiveUrl) {
+      tweet.write('Join us for the match! 🎉');
+    } else {
+      tweet.write('Come support the team! 💪');
+    }
+
+    // Add hashtags (keep it short to stay under 280 chars)
+    final teamHashtag = team.shortName.replaceAll(' ', '');
+    tweet.write(' #$teamHashtag #GameDay');
+
+    return tweet.toString();
+  }
+
   /// Top banner shown on all platforms when a live game is in progress and a team-level liveUrl is set.
   Widget _buildLiveBanner() {
     // For the top banner treat the game as live only when a team-level liveUrl
@@ -1865,8 +2050,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
       );
     }
 
-    // If not live, show upcoming-game banner on web (stay tuned message)
-    if (kIsWeb && _nextUpcomingGame != null && _team != null) {
+    // If not live, show upcoming-game banner (stay tuned message)
+    if (_nextUpcomingGame != null && _team != null) {
       final loc = AppLocalizations.of(context)!;
       // Show date only (no time) for the upcoming game banner
       final fmt = DateFormat('E MMM d');
@@ -1904,6 +2089,13 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 ],
               ),
             ),
+            // Tweet button - show on mobile to promote upcoming game
+            if (!kIsWeb)
+              IconButton(
+                icon: const Icon(Icons.send, color: Colors.white),
+                tooltip: 'Promote game on Twitter',
+                onPressed: () => _tweetUpcomingGame(),
+              ),
           ],
         ),
       );
