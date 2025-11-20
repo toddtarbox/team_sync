@@ -33,6 +33,7 @@ class GameView extends StatefulWidget {
 
 class _GameViewState extends State<GameView> {
   GameEvent? _autoCreateSave;
+  GameEvent? _autoCreateAssist;
   late Game _game;
 
   @override
@@ -79,6 +80,42 @@ class _GameViewState extends State<GameView> {
       }
     }
 
+    if (_autoCreateAssist != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final shouldCreateAssist = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Add Assist?"),
+              content: const Text(
+                  "Was this goal assisted? Select 'Yes' to assign an assist or 'No' for unassisted goal."),
+              actions: [
+                TextButton(
+                  child: const Text("Yes"),
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                ),
+                TextButton(
+                  child: const Text("No"),
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+
+        if (shouldCreateAssist == true) {
+          await _editEvent(event: _autoCreateAssist);
+        }
+        setState(() {
+          _autoCreateAssist = null;
+        });
+      });
+    }
+
     return FutureBuilder(
         future: _loadGameEvents(),
         builder:
@@ -113,7 +150,12 @@ class _GameViewState extends State<GameView> {
                 return Visibility(
                     key: ValueKey('scoring-${event.id}'),
                     visible: showScoringEvents,
-                    child: _getEventTile(event));
+                    child: Column(
+                      children: [
+                        _getEventTile(event),
+                        const Divider(height: 1),
+                      ],
+                    ));
               }
 
               if (index == _game.scoringEvents.length + 1) {
@@ -131,7 +173,12 @@ class _GameViewState extends State<GameView> {
                     _game.gameEvents[index - _game.scoringEvents.length - 2];
                 return KeyedSubtree(
                     key: ValueKey('event-${event.id}'),
-                    child: _getEventTile(event));
+                    child: Column(
+                      children: [
+                        _getEventTile(event),
+                        const Divider(height: 1),
+                      ],
+                    ));
               }
 
               if (_game.shootoutEvents.isNotEmpty) {
@@ -155,7 +202,12 @@ class _GameViewState extends State<GameView> {
                       1];
                   return KeyedSubtree(
                       key: ValueKey('shootout-${event.id}'),
-                      child: _getEventTile(event));
+                      child: Column(
+                        children: [
+                          _getEventTile(event),
+                          const Divider(height: 1),
+                        ],
+                      ));
                 }
               }
 
@@ -427,7 +479,12 @@ class _GameViewState extends State<GameView> {
       '2nd Yellow Card',
       'Red Card'
     ]
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     final eventPeriods = [
@@ -437,7 +494,12 @@ class _GameViewState extends State<GameView> {
       '2nd Half Overtime',
       'Penalty Kicks'
     ]
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     List<Player> awayTeamPlayers =
@@ -494,14 +556,20 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 16)))
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
         .toList();
 
     List<DropdownMenuEntry> awayPlayerEntries = awayTeamPlayers
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 16)))
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
         .toList();
 
     var playerEntries = event.team.id == _game.homeTeam.id
@@ -509,7 +577,12 @@ class _GameViewState extends State<GameView> {
         : awayPlayerEntries;
 
     final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     final ownGoalPlayer = Player(
@@ -580,7 +653,9 @@ class _GameViewState extends State<GameView> {
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Period'),
+                          textStyle: const TextStyle(fontSize: 18),
+                          label: const Text('Select Period',
+                              style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
                       DropdownMenu(
@@ -605,7 +680,9 @@ class _GameViewState extends State<GameView> {
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Event Type'),
+                          textStyle: const TextStyle(fontSize: 18),
+                          label: const Text('Select Event Type',
+                              style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventEntries),
                       Visibility(
                           visible: playerEntries.isNotEmpty,
@@ -625,7 +702,9 @@ class _GameViewState extends State<GameView> {
                                 });
                               },
                               width: double.infinity,
-                              label: const Text('Select Player'),
+                              textStyle: const TextStyle(fontSize: 18),
+                              label: const Text('Select Player',
+                                  style: TextStyle(fontSize: 18)),
                               dropdownMenuEntries: playerEntries)),
                       const SizedBox(height: 30),
                       Visibility(
@@ -653,7 +732,9 @@ class _GameViewState extends State<GameView> {
                                 });
                               },
                               width: double.infinity,
-                              label: const Text('Shot Result'),
+                              textStyle: const TextStyle(fontSize: 18),
+                              label: const Text('Shot Result',
+                                  style: TextStyle(fontSize: 18)),
                               dropdownMenuEntries: shotResultEntries)),
                       const SizedBox(height: 20),
                       Visibility(
@@ -822,11 +903,31 @@ class _GameViewState extends State<GameView> {
             seasonId: _game.seasonId,
             eventType: 'Save',
             eventMinute: event.eventMinute,
-            eventPeriod: -1,
+            eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: 0);
+            eventData: event.id);
         setState(() {
           _autoCreateSave = saveEvent;
+        });
+      } else if (event.eventType == 'Shot' &&
+          event.eventData == ShotResult.goal.index &&
+          event.player?.id != -2 &&
+          event.team.id == widget.season.teamId) {
+        // Auto-create an Assist event for goals by our team (excluding own goals)
+        final assistEvent = Assist(
+            id: -1,
+            index: -1,
+            player: null,
+            team: event.team,
+            game: _game,
+            seasonId: _game.seasonId,
+            eventType: 'Assist',
+            eventMinute: event.eventMinute,
+            eventPeriod: event.eventPeriod,
+            eventUrls: event.eventUrls ?? '',
+            eventData: event.id);
+        setState(() {
+          _autoCreateAssist = assistEvent;
         });
       } else {
         setState(() {});

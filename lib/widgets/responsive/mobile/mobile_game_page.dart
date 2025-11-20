@@ -7,10 +7,9 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 
 class MobileGamePage extends StatefulWidget {
@@ -180,8 +179,14 @@ class _MobileGamePageState extends State<MobileGamePage> {
                           child: Icon(Icons.paste, size: 24))),
                 ],
           bottom: PreferredSize(
-              preferredSize: Size(width, 100),
-              child: Scoreboard(widget.game, widget.season)),
+              preferredSize: Size(width, 150),
+              child: ScoreboardWidget(
+                compact: true,
+                margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
+                season: widget.season,
+                game: widget.game,
+                teamId: widget.season.team.id,
+              )),
         ),
         floatingActionButton: kIsWeb
             ? null
@@ -243,7 +248,6 @@ class _MobileGamePageState extends State<MobileGamePage> {
                     })),
         body: Column(
           children: [
-            CommonPageHeader(team: widget.season.team),
             Breadcrumbs(
               items: buildTeamBreadcrumbs(
                 databaseId: DatabaseService.instance.publicShareId ?? '',

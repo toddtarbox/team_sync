@@ -13,7 +13,7 @@ import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/game_result.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/season_with_logo.dart';
@@ -714,7 +714,11 @@ class _SeasonPageState extends State<SeasonPage> {
                           onChanged: (links) => game!.gameLinks = links),
                       const SizedBox(height: 30),
                       const Divider(),
-                      Scoreboard(game, s, color: Colors.black, shortName: true),
+                      ScoreboardWidget(
+                          compact: true,
+                          game: game,
+                          season: season,
+                          teamId: season!.team.id),
                       const Divider(),
                       const SizedBox(height: 30),
                       game.id != -1

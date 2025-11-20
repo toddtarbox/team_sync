@@ -6,10 +6,9 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 
 class TabletGamePage extends StatefulWidget {
@@ -116,129 +115,135 @@ class _TabletGamePageState extends State<TabletGamePage> {
 
         return Scaffold(
             appBar: buildStandardAppBar(
-              context: context,
-              team: resolvedSeason.team,
-              title: Text(_game.displayName(resolvedSeason.teamId),
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold)),
-              actions: _game.gameStatus.index < 9
-                  ? [
-                      GestureDetector(
-                          onTap: () {
-                            AdhocTweetDialog.show(context);
-                          },
-                          child: const Padding(
-                              padding: EdgeInsets.all(5),
-                              child: Icon(Icons.send, size: 24))),
-                      GestureDetector(
-                          onTap: () async {
-                            await showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: const Text("Advance Game"),
-                                    content: const Text(
-                                        "Are you sure you want to advance to the next period?"),
-                                    actions: [
-                                      TextButton(
-                                        child: const Text("Continue"),
-                                        onPressed: () async {
-                                          Navigator.pop(context, true);
-                                          _eventEmitter.emit('advanceGame');
-                                          setState(() {});
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: const Text("Cancel"),
-                                        onPressed: () {
-                                          Navigator.pop(context, false);
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                });
-                          },
-                          child: const Padding(
-                              padding: EdgeInsets.all(5),
-                              child: Icon(Icons.add, size: 24))),
-                      GestureDetector(
-                          onTap: () async {
-                            final selectedStatus = await showDialog<int>(
-                                context: context,
-                                builder: (context) {
-                                  int? status = 9;
-
-                                  return StatefulBuilder(builder:
-                                      (BuildContext context,
-                                          StateSetter setModalState) {
+                context: context,
+                team: resolvedSeason.team,
+                title: Text(_game.displayName(resolvedSeason.teamId),
+                    style: const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.bold)),
+                actions: _game.gameStatus.index < 9
+                    ? [
+                        GestureDetector(
+                            onTap: () {
+                              AdhocTweetDialog.show(context);
+                            },
+                            child: const Padding(
+                                padding: EdgeInsets.all(5),
+                                child: Icon(Icons.send, size: 24))),
+                        GestureDetector(
+                            onTap: () async {
+                              await showDialog(
+                                  context: context,
+                                  builder: (context) {
                                     return AlertDialog(
-                                      title: const Text('End Game'),
-                                      content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            RadioListTile(
-                                              title: const Text('Final'),
-                                              value: 9,
-                                              groupValue: status,
-                                              onChanged: (i) {
-                                                setModalState(() {
-                                                  status = i;
-                                                });
-                                              },
-                                            ),
-                                            RadioListTile(
-                                              title: const Text('Final OT'),
-                                              value: 10,
-                                              groupValue: status,
-                                              onChanged: (i) {
-                                                setModalState(() {
-                                                  status = i;
-                                                });
-                                              },
-                                            ),
-                                            RadioListTile(
-                                              title: const Text('Final PKs'),
-                                              value: 11,
-                                              groupValue: status,
-                                              onChanged: (i) {
-                                                setModalState(() {
-                                                  status = i;
-                                                });
-                                              },
-                                            )
-                                          ]),
+                                      title: const Text("Advance Game"),
+                                      content: const Text(
+                                          "Are you sure you want to advance to the next period?"),
                                       actions: [
                                         TextButton(
                                           child: const Text("Continue"),
-                                          onPressed: () {
-                                            Navigator.pop(context, status);
+                                          onPressed: () async {
+                                            Navigator.pop(context, true);
+                                            _eventEmitter.emit('advanceGame');
+                                            setState(() {});
                                           },
                                         ),
                                         TextButton(
                                           child: const Text("Cancel"),
                                           onPressed: () {
-                                            Navigator.pop(context, null);
+                                            Navigator.pop(context, false);
                                           },
                                         ),
                                       ],
                                     );
                                   });
-                                });
+                            },
+                            child: const Padding(
+                                padding: EdgeInsets.all(5),
+                                child: Icon(Icons.add, size: 24))),
+                        GestureDetector(
+                            onTap: () async {
+                              final selectedStatus = await showDialog<int>(
+                                  context: context,
+                                  builder: (context) {
+                                    int? status = 9;
 
-                            if (selectedStatus != null) {
-                              _game.endGame(selectedStatus);
-                              setState(() {});
-                            }
-                          },
-                          child: const Padding(
-                              padding: EdgeInsets.all(5),
-                              child: Icon(Icons.close, size: 24)))
-                    ]
-                  : [],
-              bottom: PreferredSize(
-                  preferredSize: Size(width, 100),
-                  child: Scoreboard(_game, resolvedSeason)),
-            ),
+                                    return StatefulBuilder(builder:
+                                        (BuildContext context,
+                                            StateSetter setModalState) {
+                                      return AlertDialog(
+                                        title: const Text('End Game'),
+                                        content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              RadioListTile(
+                                                title: const Text('Final'),
+                                                value: 9,
+                                                groupValue: status,
+                                                onChanged: (i) {
+                                                  setModalState(() {
+                                                    status = i;
+                                                  });
+                                                },
+                                              ),
+                                              RadioListTile(
+                                                title: const Text('Final OT'),
+                                                value: 10,
+                                                groupValue: status,
+                                                onChanged: (i) {
+                                                  setModalState(() {
+                                                    status = i;
+                                                  });
+                                                },
+                                              ),
+                                              RadioListTile(
+                                                title: const Text('Final PKs'),
+                                                value: 11,
+                                                groupValue: status,
+                                                onChanged: (i) {
+                                                  setModalState(() {
+                                                    status = i;
+                                                  });
+                                                },
+                                              )
+                                            ]),
+                                        actions: [
+                                          TextButton(
+                                            child: const Text("Continue"),
+                                            onPressed: () {
+                                              Navigator.pop(context, status);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: const Text("Cancel"),
+                                            onPressed: () {
+                                              Navigator.pop(context, null);
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    });
+                                  });
+
+                              if (selectedStatus != null) {
+                                _game.endGame(selectedStatus);
+                                setState(() {});
+                              }
+                            },
+                            child: const Padding(
+                                padding: EdgeInsets.all(5),
+                                child: Icon(Icons.close, size: 24)))
+                      ]
+                    : [],
+                bottom: PreferredSize(
+                    preferredSize: Size(width, 150),
+                    child: ScoreboardWidget(
+                      compact: true,
+                      margin: EdgeInsets.only(
+                          left: 20, right: 20, top: 5, bottom: 10),
+                      season: resolvedSeason,
+                      game: _game,
+                      teamId: resolvedSeason.team.id,
+                    ))),
             floatingActionButtonLocation:
                 FloatingActionButtonLocation.centerFloat,
             floatingActionButton: kIsWeb
@@ -301,7 +306,6 @@ class _TabletGamePageState extends State<TabletGamePage> {
                         })),
             body: Column(
               children: [
-                CommonPageHeader(team: resolvedSeason.team),
                 Breadcrumbs(
                   items: buildTeamBreadcrumbs(
                     databaseId: DatabaseService.instance.publicShareId ?? '',

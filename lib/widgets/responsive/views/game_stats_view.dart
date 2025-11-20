@@ -6,6 +6,7 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 
 class GameStatsView extends StatefulWidget {
@@ -213,9 +214,9 @@ class _GameStatsViewState extends State<GameStatsView> {
             child: Text(category.name.toSentenceCase().toTitleCase(),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 24))),
-        leading: GestureDetector(
+        leading: InkWell(
             onTap: () async {
-              if (playerStats.isNotEmpty) {
+              if (teamTotalForCategory != 0) {
                 final sortedStats = List.from(playerStats[category]!.entries);
                 sortedStats.sort((a, b) => b.value.compareTo(a.value));
 
@@ -241,11 +242,14 @@ class _GameStatsViewState extends State<GameStatsView> {
                             final player = sortedStats[index - 1].key;
                             final count = sortedStats[index - 1].value;
                             return ListTile(
-                              leading: Text(player.displayName,
+                              leading: ResponsivePlayerAvatar(
+                                  player: player, avatarSize: 40),
+                              title: Text(player.displayName,
                                   style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold)),
-                              title: Text(count.toString(),
+                              subtitle: Text('#${player.number}'),
+                              trailing: Text(count.toString(),
                                   style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold)),
@@ -258,16 +262,17 @@ class _GameStatsViewState extends State<GameStatsView> {
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 24,
-                    decoration: category.name != 'Corners' &&
-                            _game.allGameEvents
-                                .where((e) =>
-                                    e.eventType == category.name &&
-                                    e.team.id == widget.season.teamId)
-                                .isNotEmpty
-                        ? TextDecoration.underline
-                        : null))),
-        trailing: Text(opponentTotalForCategory.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                    decoration:
+                        category.name != 'corners' && teamTotalForCategory != 0
+                            ? TextDecoration.underline
+                            : null))),
+        trailing: category.name == 'assists'
+            ? Text('-',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24))
+            : Text(opponentTotalForCategory.toString(),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
       );
     }).toList(growable: false);
 

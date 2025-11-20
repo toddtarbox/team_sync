@@ -147,51 +147,59 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                 ),
               ],
-              // Account Section
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-                child: Text(
-                  'Account',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
+              // Account Section (hidden on web)
+              Visibility(
+                visible: !kIsWeb,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                      child: Text(
+                        'Account',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                    if (user != null) ...[
+                      ListTile(
+                        leading: const Icon(Icons.account_circle),
+                        title: Text(user.email ?? 'No email'),
+                        subtitle: Row(
+                          children: [
+                            Icon(
+                              authProvider == 'Google'
+                                  ? Icons.g_mobiledata
+                                  : Icons.apple,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text('Signed in with $authProvider'),
+                          ],
+                        ),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.logout, color: Colors.red),
+                        title: const Text(
+                          'Log Out',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        onTap: _handleLogout,
+                      ),
+                    ] else ...[
+                      const ListTile(
+                        leading: Icon(Icons.account_circle),
+                        title: Text('Not signed in'),
+                        subtitle: Text('Sign in to access cloud databases'),
+                      ),
+                    ],
+                    const Divider(),
+                  ],
                 ),
               ),
-              if (user != null) ...[
-                ListTile(
-                  leading: const Icon(Icons.account_circle),
-                  title: Text(user.email ?? 'No email'),
-                  subtitle: Row(
-                    children: [
-                      Icon(
-                        authProvider == 'Google'
-                            ? Icons.g_mobiledata
-                            : Icons.apple,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      Text('Signed in with $authProvider'),
-                    ],
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text(
-                    'Log Out',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: _handleLogout,
-                ),
-              ] else ...[
-                const ListTile(
-                  leading: Icon(Icons.account_circle),
-                  title: Text('Not signed in'),
-                  subtitle: Text('Sign in to access cloud databases'),
-                ),
-              ],
-              const Divider(),
               // Appearance Section
               const Padding(
                 padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),

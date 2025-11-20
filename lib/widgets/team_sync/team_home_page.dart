@@ -11,6 +11,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
@@ -31,7 +32,6 @@ import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
-import 'package:team_sync/widgets/season_with_logo.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -284,7 +284,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       appBar: buildStandardAppBar(
         context: context,
         team: _team,
@@ -722,9 +722,83 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 ),
               if (_seasons.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                SeasonRecord(_seasons, singleSeason: false),
+                // Enhanced Overall Record Card
+                Card(
+                  elevation: 4,
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context)
+                              .colorScheme
+                              .primaryContainer
+                              .withValues(alpha: 0.3),
+                          Theme.of(context).colorScheme.surfaceContainerHigh,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.emoji_events,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _getTeamPerformanceTitle(),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SeasonRecord(_seasons,
+                            singleSeason: false, isOverall: true),
+                      ],
+                    ),
+                  ),
+                ),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              // Section header for individual seasons
+              if (_seasons.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: Text(
+                    'Seasons',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
             ]),
           ),
         ),
@@ -745,16 +819,81 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     }
                   },
                   child: Card(
+                    elevation: 3,
+                    clipBehavior: Clip.antiAlias,
+                    color: Theme.of(context).colorScheme.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: 1,
+                      ),
+                    ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SeasonWithLogo(season: season),
+                        // Header section with gradient background
                         Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
                           ),
-                          padding: const EdgeInsets.all(5),
-                          margin: const EdgeInsets.all(10),
-                          child: Center(child: SeasonRecord([season])),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                season.team.color1.withValues(alpha: 0.15),
+                                season.team.color2.withValues(alpha: 0.10),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (season.team.logoUrl != null &&
+                                  season.team.logoUrl!.isNotEmpty) ...[
+                                ResponsiveAvatar(
+                                  size: 24,
+                                  imageUrl: season.team.logoUrl,
+                                  initials: season.team.fullName[0],
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              Flexible(
+                                child: Text(
+                                  season.name,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (season.logoUrl != null &&
+                                  season.logoUrl!.isNotEmpty) ...[
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () {
+                                    _showSeasonPhoto(context, season.logoUrl);
+                                  },
+                                  child: ResponsiveAvatar(
+                                    size: 24,
+                                    imageUrl: season.logoUrl,
+                                    initials: season.name[0],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        // Stats section
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: SeasonRecord([season]),
                         ),
                       ],
                     ),
@@ -771,7 +910,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   Widget _buildLoadingOverlay() {
     return Container(
-      color: Colors.black.withValues(alpha: 0.75),
+      color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.75),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -782,7 +921,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 _isSharing
                     ? 'Generating Share ID...'
                     : AppLocalizations.of(context)!.importingDatabase,
-                style: const TextStyle(fontSize: 16)),
+                style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
       ),
@@ -883,6 +1024,26 @@ class _TeamHomePageState extends State<TeamHomePage> {
       await _loadCurrentOrLastGame();
       _startLiveGameUpdateTimer();
     }
+  }
+
+  /// Get Team Performance title with "since YYYY" from oldest season
+  String _getTeamPerformanceTitle() {
+    if (_seasons.isEmpty) {
+      return 'Team Performance';
+    }
+
+    // Seasons are sorted most recent first, so the last one is the oldest
+    final oldestSeason = _seasons.last;
+
+    // Try to extract a 4-digit year from the season name
+    final yearMatch = RegExp(r'\b(19|20)\d{2}\b').firstMatch(oldestSeason.name);
+
+    if (yearMatch != null) {
+      final year = yearMatch.group(0);
+      return 'Team Performance (Since $year)';
+    }
+
+    return 'Team Performance';
   }
 
   Future<void> _loadCurrentOrLastGame() async {
@@ -1019,7 +1180,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Sign-in failed: ${e.toString()}'),
-                            backgroundColor: Colors.red,
+                            backgroundColor:
+                                Theme.of(context).colorScheme.error,
                           ),
                         );
                       }
@@ -1037,8 +1199,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     label: const Text('Sign in with Apple'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.all(16),
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
                     ),
                     onPressed: () async {
                       try {
@@ -1052,7 +1215,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Sign-in failed: ${e.toString()}'),
-                              backgroundColor: Colors.red,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.error,
                             ),
                           );
                         }
@@ -1145,9 +1309,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
           // Show confirmation
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Logged out successfully'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: const Text('Logged out successfully'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
         }
@@ -1157,7 +1321,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error logging out: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -1269,12 +1433,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
           await DatabaseService.instance.importToCloud();
           scaffoldMessenger.showSnackBar(SnackBar(
             content: Text(AppLocalizations.of(context)!.databaseImported),
-            backgroundColor: Colors.green,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ));
         } catch (e) {
           scaffoldMessenger.showSnackBar(SnackBar(
             content: Text('Error during import: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ));
         } finally {
           setState(() {
@@ -1714,9 +1878,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Error during share, please try again'),
-            backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('Error during share, please try again'),
+            backgroundColor: Theme.of(context).colorScheme.error));
       }
       debugPrint(e.toString());
     }
@@ -1844,8 +2008,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     Text(
                       '${editedText.length}/280 characters',
                       style: TextStyle(
-                        color:
-                            editedText.length > 280 ? Colors.red : Colors.grey,
+                        color: editedText.length > 280
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     ),
@@ -1903,18 +2068,18 @@ class _TeamHomePageState extends State<TeamHomePage> {
       if (mounted) {
         if (tweetSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Game promotion tweet sent successfully! ⚽'),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: const Text('Game promotion tweet sent successfully! ⚽'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to send tweet. Please try again.'),
-              duration: Duration(seconds: 3),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to send tweet. Please try again.'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -2269,6 +2434,23 @@ class _TeamHomePageState extends State<TeamHomePage> {
       },
     );
   }
+
+  Future<void> _showSeasonPhoto(BuildContext context, String? logoUrl) async {
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: PhotoView(
+            imageProvider: NetworkImage(logoUrl),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Database Sharing Dialog with Public URL and User Access Management
@@ -2360,9 +2542,10 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
           await _loadSharedUsers();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to grant access. User may not exist.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content:
+                  const Text('Failed to grant access. User may not exist.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -2374,7 +2557,7 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
         setState(() => _isLoading = false);
@@ -2396,9 +2579,9 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
           await _loadSharedUsers();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to revoke access'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Failed to revoke access'),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -2410,7 +2593,7 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
         setState(() => _isLoading = false);
@@ -2492,7 +2675,7 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
                 Text(
                   'Grant read or write access to specific TeamSync users',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
                 const SizedBox(height: 16),
@@ -2703,10 +2886,9 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
                         label: const Text('Upgrade Now'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.amber[700]
-                                  : Colors.amber[700],
-                          foregroundColor: Colors.black,
+                              Theme.of(context).colorScheme.tertiary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onTertiary,
                         ),
                       ),
                     ],

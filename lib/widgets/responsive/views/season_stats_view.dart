@@ -38,7 +38,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     child: Text(category.name.toSentenceCase().toTitleCase(),
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 20))),
-                leading: GestureDetector(
+                leading: InkWell(
                     onTap: () async {
                       showModalBottomSheet(
                           context: context,
@@ -147,42 +147,36 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                             });
                       }
                     },
-                    child: Text(
-                        '${stats.teamStat(category)} (${(stats.teamStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            decoration: stats.teamStat(category) > 0
-                                ? TextDecoration.underline
-                                : null))),
-                trailing: Text(
-                    '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18)),
+                    child: SizedBox(
+                        width: 150,
+                        child: Text(
+                            '${stats.teamStat(category)} (${(stats.teamStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                decoration: stats.teamStat(category) > 0
+                                    ? TextDecoration.underline
+                                    : null)))),
+                trailing: SizedBox(
+                    width: 120,
+                    child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: category.name == 'assists'
+                            ? Text('--',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18))
+                            : Text(
+                                '${stats.opponentStat(category)} (${(stats.opponentStat(category) / gamesPlayed).toStringAsFixed(1)}/g)',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18)))),
               );
             }).toList(growable: false);
 
             return ListView.separated(
-                itemCount: statCategoryTiles.length + 1,
+                itemCount: statCategoryTiles.length,
                 itemBuilder: (context, index) {
-                  if (index < statCategoryTiles.length) {
-                    return statCategoryTiles[index];
-                  } else {
-                    return ListTile(
-                      title: const Center(
-                          child: Text('Corners',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 20))),
-                      leading: Text(
-                          '${stats.teamCorners.toString()} (${(stats.teamCorners / gamesPlayed).toStringAsFixed(1)}/g)',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
-                      trailing: Text(
-                          '${stats.opponentCorners.toString()} (${(stats.opponentCorners / gamesPlayed).toStringAsFixed(1)}/g)',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
-                    );
-                  }
+                  return statCategoryTiles[index];
                 },
                 separatorBuilder: (context, index) {
                   return const Divider(height: 1);

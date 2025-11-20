@@ -58,7 +58,7 @@ class ResponsiveAvatar extends StatelessWidget {
         ? Text(
             displayInitials,
             style: TextStyle(
-              fontSize: radius * 0.7,
+              fontSize: radius * 0.5,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
