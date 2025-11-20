@@ -620,6 +620,9 @@ class FirebaseDBProvider implements DatabaseProvider {
   @override
   String get path => _path;
 
+  /// Get the current subscription ID (user ID who owns the database)
+  String get subscriptionId => _subscriptionId;
+
   @override
   Future<void> close() async {
     // Tear down any active subscriptions when provider is closed.
@@ -1467,6 +1470,15 @@ class DatabaseService {
   }
 
   String get path => _provider.path;
+
+  /// Get the current subscription ID (user ID who owns the database)
+  /// Returns empty string if not using FirebaseDBProvider or if no subscription
+  String get subscriptionId {
+    if (_provider is FirebaseDBProvider) {
+      return (_provider as FirebaseDBProvider).subscriptionId;
+    }
+    return '';
+  }
 
   Future<void> close() async => await _provider.close();
 

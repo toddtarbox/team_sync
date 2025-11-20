@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
@@ -122,6 +123,13 @@ class _TabletGamePageState extends State<TabletGamePage> {
                       fontSize: 24, fontWeight: FontWeight.bold)),
               actions: _game.gameStatus.index < 9
                   ? [
+                      GestureDetector(
+                          onTap: () {
+                            AdhocTweetDialog.show(context);
+                          },
+                          child: const Padding(
+                              padding: EdgeInsets.all(5),
+                              child: Icon(Icons.send, size: 24))),
                       GestureDetector(
                           onTap: () async {
                             await showDialog(

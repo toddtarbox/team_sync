@@ -1,10 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
-import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game.dart';
@@ -13,6 +10,8 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/services/twitter_service.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,13 +32,8 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
-  final format = DateFormat('E MMM dd, yyyy');
-
+  GameEvent? _autoCreateSave;
   late Game _game;
-
-  late TwitterApi _twitterAPI;
-
-  Save? _autoCreateSave;
 
   @override
   void initState() {
@@ -53,17 +47,13 @@ class _GameViewState extends State<GameView> {
       await _advanceGame();
     });
 
+    widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
+      await AdhocTweetDialog.show(context);
+    });
+
     widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
-      const storage = FlutterSecureStorage();
-      _twitterAPI = TwitterApi(
-          client: TwitterClient(
-        consumerKey: await storage.read(key: 'twitter_consumer_key') ?? '',
-        consumerSecret:
-            await storage.read(key: 'twitter_consumer_secret') ?? '',
-        token: await storage.read(key: 'twitter_access_token') ?? '',
-        secret: await storage.read(key: 'twitter_access_token_secret') ?? '',
-      ));
+      await TwitterService.instance.initializeWithLocalCredentials();
     });
     widget.eventEmitter.emit('loadSettings');
 
@@ -799,16 +789,18 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      try {
-        if (event.shouldTweet) {
-          final tweetText = event.tweetText(_game);
-          if (tweetText.isNotEmpty) {
-            await _twitterAPI.tweetService.update(
-              status: tweetText,
-            );
-          }
+      // Only send tweets when game is in progress
+      final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
+          _game.gameStatus != GameStatus.gameFinal &&
+          _game.gameStatus != GameStatus.gameFinalOT &&
+          _game.gameStatus != GameStatus.gameFinalPKs;
+
+      if (event.shouldTweet && gameInProgress) {
+        final tweetText = event.tweetText(_game);
+        if (tweetText.isNotEmpty) {
+          await TwitterService.instance.sendTweet(tweetText);
         }
-      } catch (e) {}
+      }
 
       if (event.eventType == 'Shot' &&
           event.eventData == ShotResult.onTargetSave.index) {

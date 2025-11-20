@@ -378,6 +378,38 @@ final router = GoRouter(
             );
           },
         ),
+
+        // Team settings page
+        GoRoute(
+          path: 'settings',
+          name: 'team-settings',
+          builder: (context, state) {
+            final team = state.extra as Team?;
+
+            if (team != null) {
+              return SettingsPage(team: team, club: null);
+            }
+
+            return FutureBuilder<Team?>(
+              future:
+                  _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  return SettingsPage(team: snapshot.data!, club: null);
+                } else if (snapshot.hasError) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: Center(
+                        child: Text('Error loading team: ${snapshot.error}')),
+                  );
+                }
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              },
+            );
+          },
+        ),
       ],
     ),
 

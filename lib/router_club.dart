@@ -5,6 +5,7 @@ import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/club_home_page.dart';
 import 'package:team_sync/widgets/club_stats_page.dart';
@@ -246,6 +247,42 @@ final routerClub = GoRouter(
                         body: Center(
                             child:
                                 Text('Error loading game: ${snapshot.error}')),
+                      );
+                    }
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                );
+              },
+            ),
+
+            // Team settings within club
+            GoRoute(
+              path: 'settings',
+              name: 'club-team-settings',
+              builder: (context, state) {
+                final teamId = int.tryParse(state.pathParameters['teamId']!);
+                final extras = state.extra as Map<String, dynamic>?;
+                final club = extras?['club'] as Club?;
+                final team = extras?['team'] as Team?;
+
+                if (team != null) {
+                  return SettingsPage(team: team, club: club);
+                }
+
+                // Load team if not passed
+                return FutureBuilder<Team?>(
+                  future: teamId != null ? Team.fromId(teamId) : null,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data != null) {
+                      return SettingsPage(team: snapshot.data!, club: club);
+                    } else if (snapshot.hasError) {
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('Error')),
+                        body: Center(
+                            child:
+                                Text('Error loading team: ${snapshot.error}')),
                       );
                     }
                     return const Scaffold(

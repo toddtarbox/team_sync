@@ -5,6 +5,7 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
@@ -52,6 +53,13 @@ class _MobileGamePageState extends State<MobileGamePage> {
                       child: const Padding(
                           padding: EdgeInsets.all(5),
                           child: Icon(Icons.paste, size: 24))),
+                  GestureDetector(
+                      onTap: () {
+                        AdhocTweetDialog.show(context);
+                      },
+                      child: const Padding(
+                          padding: EdgeInsets.all(5),
+                          child: Icon(Icons.send, size: 24))),
                   GestureDetector(
                       onTap: () async {
                         await showDialog(

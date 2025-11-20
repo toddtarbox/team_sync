@@ -59,10 +59,16 @@ class Team extends Equatable {
   }
 
   /// Check if a user is an admin of this team
+  /// Includes: team creator, team admins, and database owner (subscription ID)
   bool isTeamAdmin(String? userId) {
     if (userId == null) return false;
     if (createdBy == userId) return true;
     if (adminIds != null && adminIds!.contains(userId)) return true;
+
+    // Check if user is the database owner (subscription ID)
+    final subscriptionId = DatabaseService.instance.subscriptionId;
+    if (subscriptionId.isNotEmpty && subscriptionId == userId) return true;
+
     return false;
   }
 

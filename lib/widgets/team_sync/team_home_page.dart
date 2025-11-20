@@ -24,6 +24,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/database_sharing_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
@@ -305,13 +306,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   List<Widget> _buildAppBarActions() {
     return [
-      // Mobile: allow setting a live link from the create/options menu
-      if (!kIsWeb && _isSubscribed)
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.yellow),
-          onPressed: () => _shareDatabase(),
-        ),
-      if (!kIsWeb)
+      // Show "Go Pro" button only if not subscribed and not on web
+      if (!kIsWeb && !_isSubscribed)
         Showcase(
           key: _goProKey,
           description: DatabaseService.instance.path.isEmpty
@@ -321,56 +317,192 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   : 'You have premium access',
           child: TextButton(
             onPressed: () async {
-              if (!_isSubscribed) {
-                await SubscriptionService.instance.purchaseSubscription();
-                setState(() {});
-              }
+              await SubscriptionService.instance.purchaseSubscription();
+              setState(() {});
             },
-            child: Text(
-              _isSubscribed ? 'Pro' : 'Go Pro',
-              style: const TextStyle(color: Colors.yellow),
+            child: const Text(
+              'Go Pro',
+              style: TextStyle(color: Colors.yellow),
             ),
           ),
         ),
-      if (_team != null) ...[
-        IconButton(
-          onPressed: () {
-            final databaseId = DatabaseService.instance.publicShareId;
-            if (databaseId != null) {
-              NavigationHelper.navigateTo(context, '/team/$databaseId/records',
-                  extra: _team);
-            }
-          },
-          icon: const Icon(Icons.leaderboard),
-        ),
-        IconButton(
-          onPressed: () {
-            final databaseId = DatabaseService.instance.publicShareId;
-            if (databaseId != null) {
-              NavigationHelper.navigateTo(context, '/team/$databaseId/history',
-                  extra: _team);
-            }
-          },
-          icon: const Icon(Icons.manage_history_outlined),
-        ),
-      ],
+      // More menu with all other actions
       if (!kIsWeb)
         Showcase(
           key: _settingsKey,
-          description: 'Configure your team settings',
-          child: IconButton(
-            onPressed: () {
-              NavigationHelper.navigateTo(context, '/settings');
+          description:
+              'Tap here to access settings, records, history, and more',
+          child: PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              switch (value) {
+                case 'tweet':
+                  await AdhocTweetDialog.show(context);
+                  break;
+                case 'share':
+                  await _shareDatabase();
+                  break;
+                case 'records':
+                  final databaseId = DatabaseService.instance.publicShareId;
+                  if (databaseId != null) {
+                    NavigationHelper.navigateTo(
+                        context, '/team/$databaseId/records',
+                        extra: _team);
+                  }
+                  break;
+                case 'history':
+                  final databaseId = DatabaseService.instance.publicShareId;
+                  if (databaseId != null) {
+                    NavigationHelper.navigateTo(
+                        context, '/team/$databaseId/history',
+                        extra: _team);
+                  }
+                  break;
+                case 'settings':
+                  final databaseId = DatabaseService.instance.publicShareId;
+                  if (databaseId != null) {
+                    NavigationHelper.navigateTo(
+                        context, '/team/$databaseId/settings',
+                        extra: _team);
+                  }
+                  break;
+              }
             },
-            icon: const Icon(Icons.settings),
+            itemBuilder: (BuildContext context) {
+              return [
+                // Tweet option - show on mobile when team exists
+                if (!kIsWeb && _team != null)
+                  const PopupMenuItem<String>(
+                    value: 'tweet',
+                    child: Row(
+                      children: [
+                        Icon(Icons.send),
+                        SizedBox(width: 12),
+                        Text('Send Tweet'),
+                      ],
+                    ),
+                  ),
+                // Share option - show on mobile when subscribed
+                if (!kIsWeb && _isSubscribed)
+                  const PopupMenuItem<String>(
+                    value: 'share',
+                    child: Row(
+                      children: [
+                        Icon(Icons.share, color: Colors.yellow),
+                        SizedBox(width: 12),
+                        Text('Share Database'),
+                      ],
+                    ),
+                  ),
+                // Records option - show when team exists
+                if (_team != null)
+                  const PopupMenuItem<String>(
+                    value: 'records',
+                    child: Row(
+                      children: [
+                        Icon(Icons.leaderboard),
+                        SizedBox(width: 12),
+                        Text('Records'),
+                      ],
+                    ),
+                  ),
+                // History option - show when team exists
+                if (_team != null)
+                  const PopupMenuItem<String>(
+                    value: 'history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.manage_history_outlined),
+                        SizedBox(width: 12),
+                        Text('History'),
+                      ],
+                    ),
+                  ),
+                // Settings option - always show
+                const PopupMenuItem<String>(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings),
+                      SizedBox(width: 12),
+                      Text('Settings'),
+                    ],
+                  ),
+                ),
+              ];
+            },
           ),
         )
       else
-        IconButton(
-          onPressed: () {
-            NavigationHelper.navigateTo(context, '/settings');
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) async {
+            switch (value) {
+              case 'records':
+                final databaseId = DatabaseService.instance.publicShareId;
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/records',
+                      extra: _team);
+                }
+                break;
+              case 'history':
+                final databaseId = DatabaseService.instance.publicShareId;
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/history',
+                      extra: _team);
+                }
+                break;
+              case 'settings':
+                final databaseId = DatabaseService.instance.publicShareId;
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/settings',
+                      extra: _team);
+                }
+                break;
+            }
           },
-          icon: const Icon(Icons.settings),
+          itemBuilder: (BuildContext context) {
+            return [
+              // Records option - show when team exists
+              if (_team != null)
+                const PopupMenuItem<String>(
+                  value: 'records',
+                  child: Row(
+                    children: [
+                      Icon(Icons.leaderboard),
+                      SizedBox(width: 12),
+                      Text('Records'),
+                    ],
+                  ),
+                ),
+              // History option - show when team exists
+              if (_team != null)
+                const PopupMenuItem<String>(
+                  value: 'history',
+                  child: Row(
+                    children: [
+                      Icon(Icons.manage_history_outlined),
+                      SizedBox(width: 12),
+                      Text('History'),
+                    ],
+                  ),
+                ),
+              // Settings option - always show
+              const PopupMenuItem<String>(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings),
+                    SizedBox(width: 12),
+                    Text('Settings'),
+                  ],
+                ),
+              ),
+            ];
+          },
         ),
     ];
   }
