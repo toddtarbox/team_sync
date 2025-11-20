@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
@@ -43,8 +44,8 @@ class SeasonRecord extends StatelessWidget {
       logoUrl != null && logoUrl.isNotEmpty
           ? const SizedBox(width: 10)
           : Container(),
-      Text('$leading Record ($wins - $losses - $ties)',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))
+      AutoSizeText('$leading Record ($wins - $losses - $ties)',
+          minFontSize: 18, style: const TextStyle(fontWeight: FontWeight.bold))
     ]);
   }
 

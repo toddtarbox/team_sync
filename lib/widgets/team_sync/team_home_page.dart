@@ -681,8 +681,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
       return false;
     }
 
-    final teamResult =
-        await DatabaseService.instance.query('Teams', orderByChild: 'id');
+    final teamResult = await DatabaseService.instance
+        .query('Teams', orderBy: 'id', equalTo: 1);
     if (teamResult.isNotEmpty) {
       // First try team with id=1
       var teamMap = teamResult.firstWhere(
@@ -713,16 +713,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
 
       if (DatabaseService.instance.path.isNotEmpty) {
-        final teamResult =
-            await DatabaseService.instance.query('Teams', orderByChild: 'id');
-
+        final teamResult = await DatabaseService.instance
+            .query('Teams', orderBy: 'id', equalTo: 1);
         if (teamResult.isNotEmpty) {
-          var teamMap = teamResult.firstWhere(
-            (t) => t['id'] == 1,
-            orElse: () => teamResult.first,
-          );
-
-          _team = Team.fromMap(teamMap);
+          _team = Team.fromMap(teamResult.first);
           await _loadSeasons();
         }
       }
@@ -900,37 +894,40 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   },
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.apple),
-                  label: const Text('Sign in with Apple'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.all(16),
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
+              // Only show Apple sign-in on iOS and web
+              if (AuthService.instance.isAppleSignInAvailable) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.apple),
+                    label: const Text('Sign in with Apple'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () async {
+                      try {
+                        await AuthService.instance.signInWithApple();
+                        if (mounted) {
+                          Navigator.of(context).pop(true);
+                        }
+                      } catch (e) {
+                        debugPrint('Apple sign-in error: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Sign-in failed: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
                   ),
-                  onPressed: () async {
-                    try {
-                      await AuthService.instance.signInWithApple();
-                      if (mounted) {
-                        Navigator.of(context).pop(true);
-                      }
-                    } catch (e) {
-                      debugPrint('Apple sign-in error: $e');
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Sign-in failed: ${e.toString()}'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
                 ),
-              ),
+              ],
             ],
           ),
           actions: [
@@ -1227,15 +1224,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     await DatabaseService.instance.open(importedFile.path);
 
-    final teamResult =
-        await DatabaseService.instance.query('Teams', orderByChild: 'id');
+    final teamResult = await DatabaseService.instance
+        .query('Teams', orderBy: 'id', equalTo: 1);
     if (teamResult.isNotEmpty) {
-      // First try team with id=1
-      var teamMap = teamResult.firstWhere(
-        (t) => t['id'] == 1,
-        orElse: () => teamResult.first,
-      );
-      _team = Team.fromMap(teamMap);
+      _team = Team.fromMap(teamResult.first);
       await _loadSeasons();
     } else {
       _team = null;
@@ -1264,16 +1256,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
 
-      final teamResult =
-          await DatabaseService.instance.query('Teams', orderByChild: 'id');
+      final teamResult = await DatabaseService.instance
+          .query('Teams', orderBy: 'id', equalTo: 1);
       if (teamResult.isNotEmpty) {
-        // First try team with id=1
-        var teamMap = teamResult.firstWhere(
-          (t) => t['id'] == 1,
-          orElse: () => teamResult.first,
-        );
-
-        final team = Team.fromMap(teamMap);
+        final team = Team.fromMap(teamResult.first);
         if (_team == null) {
           setState(() {
             _team = team;

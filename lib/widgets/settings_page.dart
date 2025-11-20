@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/club.dart';
@@ -79,6 +81,10 @@ class _SettingsPageState extends State<SettingsPage> {
         // Close any open database
         await DatabaseService.instance.close();
 
+        // Clear last used database from secure storage
+        const storage = FlutterSecureStorage();
+        await storage.delete(key: 'last_db_used');
+
         // Sign out from Firebase
         await AuthService.instance.signOut();
 
@@ -91,11 +97,9 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           );
 
-          // Update UI
-          setState(() {});
-
-          // Navigate back to trigger home page refresh
-          Navigator.of(context).pop();
+          // Navigate to home to trigger fresh state
+          // Using go instead of pop to ensure TeamHomePage rebuilds with clean state
+          context.go('/');
         }
       } catch (e) {
         debugPrint('Error during logout: $e');

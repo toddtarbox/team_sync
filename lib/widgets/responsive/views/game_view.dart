@@ -283,8 +283,11 @@ class _GameViewState extends State<GameView> {
 
     final assistEvent = assistEvents
         .where((e) =>
-            (((e.id == event.id + 1) || e.eventMinute == event.eventMinute) &&
-                e.eventType == 'Assist') ||
+            event.eventType == 'Shot' &&
+                event.eventData == ShotResult.goal.index &&
+                (((e.id == event.id + 1) ||
+                        e.eventMinute == event.eventMinute) &&
+                    e.eventType == 'Assist') ||
             e.eventData == event.id)
         .firstOrNull;
 
@@ -308,33 +311,41 @@ class _GameViewState extends State<GameView> {
         subtitle: Visibility(
             visible: event.eventType != 'Period' && event.eventType != 'Assist',
             child: event.player != null
-                ? Row(
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (event.player != null && event.player!.id != -2) ...[
-                        ResponsivePlayerAvatar(
-                            player: event.player!, avatarSize: 18),
-                        const SizedBox(width: 8),
-                      ],
-                      assistEvent == null
-                          ? Expanded(
-                              child: AutoSizeText(
-                                  event.player?.displayName ?? '',
-                                  minFontSize: 14))
-                          : AutoSizeText(event.player?.displayName ?? '',
-                              minFontSize: 14),
-                      if (assistEvent != null) ...[
-                        if (assistEvent.player != null &&
-                            assistEvent.player!.id != -2) ...[
-                          AutoSizeText(' - assisted by', minFontSize: 14),
-                          const SizedBox(width: 8),
-                          ResponsivePlayerAvatar(
-                              player: assistEvent.player!, avatarSize: 18),
-                          const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          if (event.player != null &&
+                              event.player!.id != -2) ...[
+                            ResponsivePlayerAvatar(
+                                player: event.player!, avatarSize: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: AutoSizeText(event.player?.displayName ?? '',
+                                minFontSize: 14),
+                          ),
                         ],
-                        Expanded(
-                          child: AutoSizeText(
-                              assistEvent.player?.displayName ?? '',
-                              minFontSize: 14),
+                      ),
+                      if (assistEvent != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (assistEvent.player != null &&
+                                assistEvent.player!.id != -2) ...[
+                              AutoSizeText('Assisted by', minFontSize: 14),
+                              const SizedBox(width: 8),
+                              ResponsivePlayerAvatar(
+                                  player: assistEvent.player!, avatarSize: 18),
+                              const SizedBox(width: 8),
+                            ],
+                            Expanded(
+                              child: AutoSizeText(
+                                  assistEvent.player?.displayName ?? '',
+                                  minFontSize: 14),
+                            ),
+                          ],
                         ),
                       ]
                     ],
@@ -485,11 +496,17 @@ class _GameViewState extends State<GameView> {
                         : '';
 
     List<DropdownMenuEntry> homePlayerEntries = homeTeamPlayers
-        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .map((p) => DropdownMenuEntry<Player>(
+            value: p,
+            label: p.displayName,
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 16)))
         .toList();
 
     List<DropdownMenuEntry> awayPlayerEntries = awayTeamPlayers
-        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .map((p) => DropdownMenuEntry<Player>(
+            value: p,
+            label: p.displayName,
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 16)))
         .toList();
 
     var playerEntries = event.team.id == _game.homeTeam.id

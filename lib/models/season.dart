@@ -42,9 +42,7 @@ class Season {
     team = await Team.fromId(teamId);
     games = await Game.listFromSeasonId(id);
     players = await Player.listFromTeamIdSeasonId(team.id, id);
-
-    final teamResults = await DatabaseService.instance.query('Teams');
-    teams = teamResults.map((g) => Team.fromMap(g)).toList(growable: false);
+    teams = await Team.listFromSeasonId(id);
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }
 

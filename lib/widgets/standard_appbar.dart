@@ -61,6 +61,17 @@ AppBar buildStandardAppBar({
         : title,
     actions: combinedActions,
     bottom: bottom,
+    // Set icon and title colors to white when using gradient, otherwise use theme defaults
+    iconTheme: team != null ? const IconThemeData(color: Colors.white) : null,
+    actionsIconTheme:
+        team != null ? const IconThemeData(color: Colors.white) : null,
+    titleTextStyle: team != null
+        ? const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+          )
+        : null,
     flexibleSpace: team != null
         ? Container(
             decoration: BoxDecoration(

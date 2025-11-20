@@ -96,6 +96,17 @@ class Player {
     return players;
   }
 
+  static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
+    final results = await DatabaseService.instance
+        .query('Players', orderByChild: 'id', equalTo: id);
+    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
+    if (filtered.isEmpty) {
+      return null;
+    }
+
+    return Player.fromMap(filtered.first);
+  }
+
   @override
   int get hashCode => id.hashCode;
 

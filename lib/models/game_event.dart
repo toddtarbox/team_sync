@@ -507,12 +507,14 @@ class GameEvent {
   }
 
   static Future<GameEvent?> fromMap(Map<String, dynamic> map) async {
-    final team = await Team.fromId(map['teamId']);
-    final player = await Player.fromId(map['playerId']);
     final game = await Game.fromId(map['gameId']);
     if (game == null) {
       return null;
     }
+
+    final team = await Team.fromId(map['teamId']);
+    final player =
+        await Player.singleFromIdSeasonId(map['playerId'], game.seasonId);
 
     final eventType = map['eventType'];
     if (eventType == 'Period') {

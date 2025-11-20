@@ -52,23 +52,25 @@ class ResponsiveAvatar extends StatelessWidget {
 
     final String? displayInitials = initials;
 
+    // Create child widget (initials or fallback icon)
+    // This will show when there's no image OR when image loading fails
+    Widget? childWidget = displayInitials != null && displayInitials.isNotEmpty
+        ? Text(
+            displayInitials,
+            style: TextStyle(
+              fontSize: radius * 0.7,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          )
+        : (fallbackIcon ?? const Icon(Icons.person));
+
     Widget avatar = CircleAvatar(
       radius: radius,
       backgroundColor: backgroundColor ??
           Theme.of(context).colorScheme.surfaceContainerHighest,
       backgroundImage: provider,
-      child: provider == null
-          ? (displayInitials != null && displayInitials.isNotEmpty
-              ? Text(
-                  displayInitials,
-                  style: TextStyle(
-                    fontSize: radius * 0.7,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                )
-              : (fallbackIcon ?? const Icon(Icons.person)))
-          : null,
+      child: provider == null ? childWidget : null,
     );
 
     return avatar;

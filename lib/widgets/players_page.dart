@@ -287,7 +287,7 @@ class _PlayersPageState extends State<PlayersPage> {
                     padding: const EdgeInsets.all(50),
                     child: Column(children: [
                       Text(AppLocalizations.of(context)!.editPlayer),
-                      GestureDetector(
+                      InkWell(
                         onTap: kIsWeb
                             ? null
                             : () async {
@@ -337,7 +337,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                 }
                               },
                         child: ResponsivePlayerAvatar(
-                            player: player, avatarSize: 56),
+                            player: player, avatarSize: 56, isEdit: true),
                       ),
                       TextFormField(
                           initialValue: playerName,

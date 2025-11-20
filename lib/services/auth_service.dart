@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -22,6 +24,9 @@ class AuthService {
   /// Stream of auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Check if Apple sign-in is available on current platform
+  bool get isAppleSignInAvailable => kIsWeb || Platform.isIOS;
+
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     // Prevent concurrent sign-in attempts on web
@@ -33,15 +38,12 @@ class AuthService {
     try {
       if (kIsWeb) {
         _isSigningIn = true;
-      }
-
-      GoogleAuthProvider provider = GoogleAuthProvider();
-
-      if (kIsWeb) {
         // Web sign-in with popup
+        GoogleAuthProvider provider = GoogleAuthProvider().addScope('email');
         return await _auth.signInWithPopup(provider);
       } else {
-        // Mobile sign-in with provider (uses native Google Sign-In)
+        // Use Firebase's built-in provider flow
+        GoogleAuthProvider provider = GoogleAuthProvider().addScope('email');
         return await _auth.signInWithProvider(provider);
       }
     } catch (e) {
@@ -56,6 +58,11 @@ class AuthService {
 
   /// Sign in with Apple
   Future<UserCredential?> signInWithApple() async {
+    // Apple sign-in is only supported on iOS and web
+    if (!kIsWeb && !Platform.isIOS) {
+      throw UnsupportedError('Apple sign-in is not supported on this platform');
+    }
+
     // Prevent concurrent sign-in attempts on web
     if (kIsWeb && _isSigningIn) {
       debugPrint('Sign-in already in progress, ignoring duplicate request');
@@ -65,16 +72,11 @@ class AuthService {
     try {
       if (kIsWeb) {
         _isSigningIn = true;
-      }
-
-      AppleAuthProvider provider =
-          AppleAuthProvider().addScope('email').addScope('name');
-
-      if (kIsWeb) {
         // Web sign-in with popup
+        AppleAuthProvider provider = AppleAuthProvider().addScope('email');
         return await _auth.signInWithPopup(provider);
       } else {
-        // Mobile sign-in with provider (uses native Apple Sign-In)
+        AppleAuthProvider provider = AppleAuthProvider().addScope('email');
         return await _auth.signInWithProvider(provider);
       }
     } catch (e) {

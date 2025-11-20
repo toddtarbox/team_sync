@@ -70,6 +70,15 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
             useMaterial3: true,
+            appBarTheme: const AppBarTheme(
+              iconTheme: IconThemeData(color: Colors.green),
+              actionsIconTheme: IconThemeData(color: Colors.green),
+              titleTextStyle: TextStyle(
+                color: Colors.green,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(

@@ -111,57 +111,77 @@ class LocalDatabaseProvider implements DatabaseProvider {
 
   @override
   Future<bool> open(String path) async {
-    _database =
-        await openDatabase(path, version: 1, onCreate: (db, version) async {
-      db.execute("create table Clubs (id integer primary key autoincrement, " +
-          "name text not null, " +
-          "description text, " +
-          "color1 integer not null, " +
-          "color2 integer not null, " +
-          "logoUrl text, " +
-          "createdAt integer not null);");
+    _database = await openDatabase(
+      path,
+      version: 2,
+      onCreate: (db, version) async {
+        db.execute(
+            "create table Clubs (id integer primary key autoincrement, " +
+                "name text not null, " +
+                "description text, " +
+                "color1 integer not null, " +
+                "color2 integer not null, " +
+                "logoUrl text, " +
+                "createdAt integer not null);");
 
-      db.execute(
-          "create table Seasons (id integer primary key autoincrement, " +
-              "name text not null, " +
-              "teamId integer not null);");
+        db.execute(
+            "create table Seasons (id integer primary key autoincrement, " +
+                "name text not null, " +
+                "teamId integer not null);");
 
-      db.execute("create table Teams (id integer primary key autoincrement, " +
-          "fullName text not null, " +
-          "shortName text not null, " +
-          "color1 integer not null, " +
-          "color2 integer not null, " +
-          "clubId integer);");
+        db.execute(
+            "create table Teams (id integer primary key autoincrement, " +
+                "fullName text not null, " +
+                "shortName text not null, " +
+                "color1 integer not null, " +
+                "color2 integer not null, " +
+                "clubId integer);");
 
-      db.execute("create table Games (id integer primary key autoincrement, " +
-          "seasonId integer not null, " +
-          "homeTeamId integer not null, " +
-          "awayTeamId integer not null, " +
-          "homeTeamScore integer not null, " +
-          "awayTeamScore integer not null, " +
-          "date text not null, " +
-          "gameStatus text not null, " +
-          "milliSecondsLeft long not null);");
+        db.execute(
+            "create table Games (id integer primary key autoincrement, " +
+                "seasonId integer not null, " +
+                "homeTeamId integer not null, " +
+                "awayTeamId integer not null, " +
+                "homeTeamScore integer not null, " +
+                "awayTeamScore integer not null, " +
+                "date text not null, " +
+                "gameStatus text not null, " +
+                "milliSecondsLeft long not null);");
 
-      db.execute("create table Players (id integer not null, " +
-          "teamId integer not null, " +
-          "seasonId integer not null, " +
-          "firstName string not null, " +
-          "lastName string not null, " +
-          "number integer not null, primary key(id, teamId, seasonId));");
+        db.execute("create table Players (id integer not null, " +
+            "teamId integer not null, " +
+            "seasonId integer not null, " +
+            "firstName string not null, " +
+            "lastName string not null, " +
+            "number integer not null, " +
+            "profileImage text, " +
+            "primary key(id, teamId, seasonId));");
 
-      db.execute("create table Events (id integer primary key autoincrement, " +
-          "playerId integer not null, " +
-          "teamId integer not null, " +
-          "gameId integer not null, " +
-          "seasonId integer not null, " +
-          "eventType text not null, " +
-          "eventLocation text not null, " +
-          "eventMinute integer not null, " +
-          "eventPeriod integer not null, " +
-          "eventData integer not null, " +
-          "eventTextData text);");
-    });
+        db.execute(
+            "create table Events (id integer primary key autoincrement, " +
+                "playerId integer not null, " +
+                "teamId integer not null, " +
+                "gameId integer not null, " +
+                "seasonId integer not null, " +
+                "eventType text not null, " +
+                "eventLocation text not null, " +
+                "eventMinute integer not null, " +
+                "eventPeriod integer not null, " +
+                "eventData integer not null, " +
+                "eventTextData text);");
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add profileImage column to Players table
+          try {
+            await db
+                .execute("ALTER TABLE Players ADD COLUMN profileImage text;");
+          } catch (e) {
+            debugPrint('Migration failed: $e');
+          }
+        }
+      },
+    );
 
     return true;
   }
@@ -663,7 +683,11 @@ class FirebaseDBProvider implements DatabaseProvider {
           for (final entry in val.entries) {
             final v = entry.value;
             if (v is Map) {
-              final m = Map<String, dynamic>.from(v);
+              // Use more robust map conversion that preserves all fields
+              final m = <String, dynamic>{};
+              v.forEach((key, value) {
+                m[key.toString()] = value;
+              });
               m['_key'] = entry.key.toString();
               rows.add(m);
             }
@@ -708,13 +732,22 @@ class FirebaseDBProvider implements DatabaseProvider {
     if (value is List) {
       for (final e in value) {
         if (e == null) continue;
-        if (e is Map) rows.add(Map<String, dynamic>.from(e));
+        if (e is Map) {
+          final m = <String, dynamic>{};
+          e.forEach((key, value) {
+            m[key.toString()] = value;
+          });
+          rows.add(m);
+        }
       }
     } else if (value is Map) {
       for (final entry in value.entries) {
         final v = entry.value;
         if (v is Map) {
-          final m = Map<String, dynamic>.from(v);
+          final m = <String, dynamic>{};
+          v.forEach((key, value) {
+            m[key.toString()] = value;
+          });
           m['_key'] = entry.key.toString();
           rows.add(m);
         }
