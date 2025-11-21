@@ -27,25 +27,6 @@ enum LineupStyle {
 
 /// Widget to generate and capture a starting lineup/formation image
 class LineupGenerator {
-  /// Generate a lineup image that can be shared (simplified version)
-  /// In a full implementation, this would use screenshot package or similar
-  static Future<Uint8List?> generateLineupImage({
-    required BuildContext context,
-    required Team team,
-    required List<Player> players,
-    required String formation,
-    Game? game,
-  }) async {
-    // This is a placeholder for actual image generation
-    // In production, you would use packages like:
-    // - screenshot package
-    // - widgets_to_image package
-    // - or native platform screenshot APIs
-
-    // For now, return null to indicate not implemented
-    return null;
-  }
-
   /// Show dialog to configure and generate lineup
   static Future<void> showLineupDialog(
     BuildContext context, {

@@ -2544,11 +2544,14 @@ $liveLink
 
     // Show the lineup generator dialog
     if (mounted) {
+      // Use next upcoming game or current live game (not the last played game)
+      final gameForLineup = _nextUpcomingGame ?? _currentOrLastGame;
+
       await LineupGenerator.showLineupDialog(
         context,
         team: _team!,
         players: players,
-        game: _currentOrLastGame,
+        game: gameForLineup,
       );
     }
   }
