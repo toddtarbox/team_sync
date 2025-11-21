@@ -3,6 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'main_team_sync.dart' as team_sync;
+
+// Default entry point delegates to TeamSync
+void main() {
+  team_sync.main();
+}
+
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   bool _isAutoMode = false;

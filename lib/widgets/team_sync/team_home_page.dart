@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -18,6 +19,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
+import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
@@ -29,6 +31,7 @@ import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
+import 'package:team_sync/widgets/lineup_generator.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
@@ -53,6 +56,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
   Game? _nextUpcomingGame;
   List<Season> _seasons = [];
   Game? _currentOrLastGame;
+  List<Game> _lastFiveGames = []; // For carousel when no live game
+  int _currentCarouselPage = 0; // Track current page in carousel
   Season? _currentSeason;
   late bool _isSubscribed;
   bool _isImporting = false;
@@ -654,57 +659,204 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   Widget _buildSeasonsView() {
     if (kIsWeb && _isDrawerOpen) {
-      return Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: _buildSeasonsList(),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    color: Theme.of(context).dividerColor,
-                    width: 1,
-                  ),
+      final screenWidth = MediaQuery.of(context).size.width;
+      final useOverlay = screenWidth < 900; // Use overlay on smaller screens
+
+      if (useOverlay) {
+        // Overlay mode for smaller screens
+        return Stack(
+          children: [
+            _buildSeasonsList(),
+            // Semi-transparent backdrop
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _isDrawerOpen = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.5),
                 ),
               ),
-              child: Stack(
-                children: [
-                  EventStreamWidget(
-                    game: _currentOrLastGame,
-                    teamId: _team?.id,
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        setState(() {
-                          _isDrawerOpen = false;
-                        });
-                      },
-                      tooltip: 'Close sidebar',
-                      style: IconButton.styleFrom(
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .surface
-                            .withValues(alpha: 0.9),
+            ),
+            // Drawer sliding in from right
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: screenWidth * 0.85, // 85% of screen width
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(-2, 0),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    EventStreamWidget(
+                      game: _currentOrLastGame,
+                      teamId: _team?.id,
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          setState(() {
+                            _isDrawerOpen = false;
+                          });
+                        },
+                        tooltip: 'Close sidebar',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withValues(alpha: 0.9),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      );
+          ],
+        );
+      } else {
+        // Side-by-side mode for larger screens
+        return Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _buildSeasonsList(),
+            ),
+            Expanded(
+              flex: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: Theme.of(context).dividerColor,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    EventStreamWidget(
+                      game: _currentOrLastGame,
+                      teamId: _team?.id,
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          setState(() {
+                            _isDrawerOpen = false;
+                          });
+                        },
+                        tooltip: 'Close sidebar',
+                        style: IconButton.styleFrom(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surface
+                              .withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
     }
 
     return _buildSeasonsList();
+  }
+
+  Widget _buildGamesCarousel() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 8),
+          child: Row(
+            children: [
+              Icon(
+                Icons.history,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Recent Games',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 200, // Fixed height for the carousel
+          child: PageView.builder(
+            controller: PageController(viewportFraction: 0.9),
+            itemCount: _lastFiveGames.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentCarouselPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final game = _lastFiveGames[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: ScoreboardWidget(
+                  season: _currentSeason!,
+                  game: game,
+                  teamId: _team!.id,
+                  compact: true,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Page indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _lastFiveGames.length,
+            (index) => Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: index == _currentCarouselPage
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildSeasonsList() {
@@ -714,72 +866,90 @@ class _TeamHomePageState extends State<TeamHomePage> {
           padding: const EdgeInsets.all(16.0),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              if (_currentSeason != null && _currentOrLastGame != null)
-                ScoreboardWidget(
-                  season: _currentSeason!,
-                  game: _currentOrLastGame!,
-                  teamId: _team!.id,
-                ),
+              // Show carousel of last 5 games or single live/last game
+              if (_currentSeason != null && _currentOrLastGame != null) ...[
+                if (_lastFiveGames.isEmpty)
+                  // Show single live or last game
+                  ScoreboardWidget(
+                    season: _currentSeason!,
+                    game: _currentOrLastGame!,
+                    teamId: _team!.id,
+                  )
+                else
+                  // Show carousel of last 5 games
+                  _buildGamesCarousel(),
+              ],
               if (_seasons.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 // Enhanced Overall Record Card
-                Card(
-                  elevation: 4,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context)
-                              .colorScheme
-                              .primaryContainer
-                              .withValues(alpha: 0.3),
-                          Theme.of(context).colorScheme.surfaceContainerHigh,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                InkWell(
+                  onTap: () {
+                    final databaseId = DatabaseService.instance.publicShareId;
+                    if (databaseId != null) {
+                      context.go(
+                        '/team/$databaseId/history',
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Card(
+                    elevation: 4,
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: 0.3),
+                        width: 2,
                       ),
                     ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.emoji_events,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                _getTeamPerformanceTitle(),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withValues(alpha: 0.3),
+                            Theme.of(context).colorScheme.surfaceContainerHigh,
                           ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 16),
-                        SeasonRecord(_seasons,
-                            singleSeason: false, isOverall: true),
-                      ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.emoji_events,
+                                color: Theme.of(context).colorScheme.primary,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  _getTeamPerformanceTitle(),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SeasonRecord(_seasons,
+                              singleSeason: false, isOverall: true),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1093,8 +1263,21 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
       if (liveGames.isNotEmpty) {
         _currentOrLastGame = liveGames.first;
+        // Clear carousel when there's a live game
+        _lastFiveGames = [];
+        _currentCarouselPage = 0;
       } else {
         _currentOrLastGame = startedOrCompletedGames.first;
+        // Get last 5 completed games for carousel (only completed games, status 9+)
+        _lastFiveGames = startedOrCompletedGames
+            .where((game) => game.gameStatus.index >= 9)
+            .take(5)
+            .toList();
+        _currentCarouselPage = 0; // Reset to first page
+        // Load game events for each of the last 5 games
+        for (final game in _lastFiveGames) {
+          await game.loadGameEvents();
+        }
       }
 
       // Load game events for the selected game
@@ -1106,6 +1289,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
       debugPrint('Error loading current/last game: $e');
       _currentOrLastGame = null;
       _nextUpcomingGame = null;
+      _lastFiveGames = [];
     }
   }
 
@@ -1385,6 +1569,15 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   _handleSelection(context, 'setLiveLink');
                 },
               ),
+              ListTile(
+                leading: Icon(Icons.sports_soccer,
+                    color: Theme.of(context).colorScheme.secondary),
+                title: const Text('Generate Lineup Image'),
+                onTap: () {
+                  Navigator.of(builderContext).pop();
+                  _handleSelection(context, 'generateLineup');
+                },
+              ),
             ],
             if (DatabaseService.instance.path.isNotEmpty && _team == null)
               ListTile(
@@ -1463,6 +1656,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
         break;
       case 'setLiveLink':
         await _editLiveLink();
+        break;
+      case 'generateLineup':
+        await _generateLineup();
         break;
     }
   }
@@ -1959,6 +2155,55 @@ class _TeamHomePageState extends State<TeamHomePage> {
             );
           });
         });
+  }
+
+  Future<void> _generateLineup() async {
+    if (_team == null) return;
+
+    // Get current season or let user pick one
+    Season? selectedSeason = _currentSeason;
+
+    if (selectedSeason == null && _seasons.isNotEmpty) {
+      selectedSeason = _seasons.first;
+    }
+
+    if (selectedSeason == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please create a season first to generate a lineup'),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Load players for the selected season
+    final players = await Player.listFromTeamIdSeasonId(
+      _team!.id,
+      selectedSeason.id,
+    );
+
+    if (players.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please add players to the season first'),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show the lineup generator dialog
+    if (mounted) {
+      await LineupGenerator.showLineupDialog(
+        context,
+        team: _team!,
+        players: players,
+        game: _currentOrLastGame,
+      );
+    }
   }
 
   /// Generate and send a promotional tweet for the upcoming game
