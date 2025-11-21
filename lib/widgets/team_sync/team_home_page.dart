@@ -2085,19 +2085,68 @@ class _TeamHomePageState extends State<TeamHomePage> {
     });
   }
 
-  Future<void> _editLiveLink() async {
+  Future<void> _editLiveLink({Game? game}) async {
     if (_team == null) return;
 
-    String liveLink = _team!.liveUrl ?? '';
+    // Use provided game or default to next upcoming game
+    final targetGame = game ?? _nextUpcomingGame ?? _currentOrLastGame;
+
+    if (targetGame == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No game available to set live link'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    String liveLink = targetGame.gameLinks ?? '';
+    final hasLiveLink = liveLink.isNotEmpty;
 
     await showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 20,
+                right: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // Show which game this link is for
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: _team!.color1.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _team!.color1.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.sports_soccer, color: _team!.color1, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          targetGame.displayName(_team!.id),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Text(AppLocalizations.of(context)!.setLiveLink,
                     style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
@@ -2113,48 +2162,346 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     children: [
                       TextButton(
                           onPressed: () async {
-                            // Save
+                            // Save to game
                             await DatabaseService.instance.update(
-                              'Teams',
-                              {'liveUrl': liveLink},
-                              key: _team!.id.toString(),
+                              'Games',
+                              {'gameLinks': liveLink},
+                              key: targetGame.id.toString(),
                             );
-                            final teamResult = await DatabaseService.instance
-                                .query('Teams',
-                                    orderByChild: 'id', equalTo: _team!.id);
-                            if (teamResult.isNotEmpty) {
-                              setState(() {
-                                _team = Team.fromMap(teamResult.first);
-                              });
-                            }
+
+                            // Update local game object
+                            targetGame.gameLinks = liveLink;
+
+                            // Refresh state
+                            setState(() {});
+
                             if (mounted) Navigator.pop(context);
+
+                            // After saving, offer to tweet if link is not empty
+                            if (liveLink.isNotEmpty && mounted) {
+                              _promptTweetGameDay(liveLink, targetGame);
+                            }
                           },
                           child: Text(AppLocalizations.of(context)!.save)),
                       TextButton(
                           onPressed: () async {
-                            // Remove
+                            // Remove from game
                             await DatabaseService.instance.update(
-                              'Teams',
-                              {'liveUrl': ''},
-                              key: _team!.id.toString(),
+                              'Games',
+                              {'gameLinks': ''},
+                              key: targetGame.id.toString(),
                             );
-                            final teamResult = await DatabaseService.instance
-                                .query('Teams',
-                                    orderByChild: 'id', equalTo: _team!.id);
-                            if (teamResult.isNotEmpty) {
-                              setState(() {
-                                _team = Team.fromMap(teamResult.first);
-                              });
-                            }
+
+                            // Update local game object
+                            targetGame.gameLinks = '';
+
+                            // Refresh state
+                            setState(() {});
+
                             if (mounted) Navigator.pop(context);
                           },
                           child:
                               Text(AppLocalizations.of(context)!.removeButton)),
-                    ])
+                    ]),
+                // Show "Tweet Game Day" button if link already exists
+                if (hasLiveLink) ...[
+                  const SizedBox(height: 12),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _promptTweetGameDay(liveLink, targetGame);
+                      },
+                      icon: const Icon(Icons.send, size: 18),
+                      label: const Text('Tweet Game Day'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1DA1F2),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
               ]),
             );
           });
         });
+  }
+
+  /// Public method to initiate game day tweet flow
+  /// Reuses live link logic: prompts to set link if missing, checks game time, then tweets
+  Future<void> _tweetGameDay() async {
+    if (_team == null) return;
+
+    final gameForTweet = _nextUpcomingGame ?? _currentOrLastGame;
+
+    if (gameForTweet == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No game available to tweet about'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    final liveLink = gameForTweet.gameLinks ?? '';
+
+    if (liveLink.isEmpty) {
+      // Prompt to set live link first
+      final shouldSetLink = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.link, color: Colors.blue),
+              SizedBox(width: 12),
+              Expanded(child: Text('Set Live Stream Link')),
+            ],
+          ),
+          content: Text(
+            'Would you like to add a live stream link for ${gameForTweet.displayName(_team!.id)}?\n\n'
+            'This helps fans find where to watch the game.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Skip'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Add Link'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldSetLink == true && mounted) {
+        // Show live link dialog for this specific game
+        await _editLiveLink(game: gameForTweet);
+        // After setting link, the dialog will automatically proceed with tweet
+      } else if (shouldSetLink == false && mounted) {
+        // User chose to skip, proceed without link (will generate generic tweet)
+        await _promptTweetGameDay('', gameForTweet);
+      }
+      // If null (cancelled), do nothing
+    } else {
+      // Live link exists on this game, proceed with game day tweet
+      await _promptTweetGameDay(liveLink, gameForTweet);
+    }
+  }
+
+  Future<void> _promptTweetGameDay(String liveLink, Game? game) async {
+    if (_team == null) return;
+
+    // Check if Twitter is configured
+    final isConfigured =
+        await TwitterService.instance.isConfigured(teamId: _team!.id);
+
+    if (!isConfigured) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Twitter is not configured. Please set up Twitter credentials in Settings.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Check if game time is not set (midnight/00:00)
+    if (game != null && game.date.hour == 0 && game.date.minute == 0) {
+      // Prompt user to set game time first
+      final shouldSetTime = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.access_time, color: Colors.orange),
+              SizedBox(width: 12),
+              Expanded(child: Text('Set Game Time')),
+            ],
+          ),
+          content: const Text(
+            'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Skip'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Set Time'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldSetTime == true && mounted) {
+        // Show time picker
+        final selectedTime = await showTimePicker(
+          context: context,
+          initialTime: const TimeOfDay(hour: 19, minute: 0), // Default 7:00 PM
+          helpText: 'Select game time',
+        );
+
+        if (selectedTime != null && mounted) {
+          // Update game with new time
+          final updatedGameDate = DateTime(
+            game.date.year,
+            game.date.month,
+            game.date.day,
+            selectedTime.hour,
+            selectedTime.minute,
+          );
+
+          // Save to database in ISO8601 format (Game.fromMap now handles this)
+          try {
+            await DatabaseService.instance.update(
+              'Games',
+              {'date': updatedGameDate.toIso8601String()},
+              key: game.id.toString(),
+            );
+
+            // Update the game object's date directly
+            game.date = updatedGameDate;
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: Colors.white, size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Game time set to ${selectedTime.format(context)}',
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error updating game time: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+        } else {
+          // User cancelled time picker
+          return;
+        }
+      } else if (shouldSetTime == false) {
+        // User chose to skip, continue with tweet
+      } else {
+        // User cancelled dialog
+        return;
+      }
+    }
+
+    // Generate tweet text
+    String tweetText = _generateGameDayTweet(game, liveLink);
+
+    // Show dialog to preview and edit tweet
+    await showDialog(
+      context: context,
+      builder: (context) => _GameDayTweetDialog(
+        team: _team!,
+        game: game,
+        liveLink: liveLink,
+        initialTweetText: tweetText,
+      ),
+    );
+  }
+
+  String _generateGameDayTweet(Game? game, String liveLink) {
+    if (_team == null) return '';
+
+    final teamName = _team!.shortName;
+    final now = DateTime.now();
+
+    if (game != null) {
+      final gameDate = game.date;
+      final isToday = gameDate.year == now.year &&
+          gameDate.month == now.month &&
+          gameDate.day == now.day;
+
+      final opponent = game
+          .displayName(_team!.id)
+          .replaceAll('vs ', '')
+          .replaceAll('@ ', '');
+      final isHome = game.displayName(_team!.id).startsWith('vs');
+      final location = isHome ? 'home' : 'away';
+
+      // Format time in 12-hour format
+      final hour = gameDate.hour == 0
+          ? 12
+          : (gameDate.hour > 12 ? gameDate.hour - 12 : gameDate.hour);
+      final period = gameDate.hour >= 12 ? 'PM' : 'AM';
+      final minute = gameDate.minute.toString().padLeft(2, '0');
+      final timeStr = '$hour:$minute $period';
+
+      if (isToday) {
+        return '''🚨 GAME DAY! 🚨
+
+$teamName takes on $opponent $location TODAY at $timeStr!
+
+Watch LIVE: $liveLink
+
+#$teamName #GameDay #Soccer ⚽🔥''';
+      } else {
+        final month = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec'
+        ][gameDate.month - 1];
+        final dateStr = '$month ${gameDate.day}';
+
+        return '''🚨 GAME DAY! 🚨
+
+$teamName vs $opponent
+📅 $dateStr at $timeStr
+🏟️ ${isHome ? 'Home' : 'Away'} game
+
+Watch LIVE: $liveLink
+
+#$teamName #Soccer''';
+      }
+    } else {
+      // No game info, just generic announcement
+      return '''🔴 LIVE STREAM AVAILABLE! 🔴
+
+Watch $teamName in action!
+
+$liveLink
+
+#$teamName #LiveSoccer ⚽''';
+    }
   }
 
   Future<void> _generateLineup() async {
@@ -2207,209 +2554,41 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   /// Generate and send a promotional tweet for the upcoming game
+  /// Now uses the unified Tweet Game Day dialog
   Future<void> _tweetUpcomingGame() async {
-    if (_nextUpcomingGame == null || _team == null) {
-      return;
-    }
-
-    // Generate promotional tweet text
-    final tweetText = _generateUpcomingGameTweet();
-
-    // Show dialog with pre-filled tweet text that user can edit
-    final textController = TextEditingController(text: tweetText);
-    String editedText = tweetText;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            return AlertDialog(
-              title: const Text('Promote Upcoming Game'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Review and edit the promotional tweet below:',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: textController,
-                      decoration: const InputDecoration(
-                        hintText: 'Tweet text',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 5,
-                      maxLength: 280,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          editedText = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '${editedText.length}/280 characters',
-                      style: TextStyle(
-                        color: editedText.length > 280
-                            ? Theme.of(context).colorScheme.error
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context, false);
-                  },
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: editedText.isEmpty || editedText.length > 280
-                      ? null
-                      : () {
-                          Navigator.pop(context, true);
-                        },
-                  child: const Text('Send Tweet'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result == true && editedText.isNotEmpty) {
-      // Initialize Twitter with team credentials
-      bool success = false;
-      if (_team != null) {
-        success = await TwitterService.instance
-            .initializeWithTeamCredentials(_team!.id);
-      } else {
-        success =
-            await TwitterService.instance.initializeWithLocalCredentials();
-      }
-
-      if (!success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Twitter is not configured. Please configure Twitter in Settings.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
-
-      final tweetSuccess = await TwitterService.instance.sendTweet(editedText);
-
-      if (mounted) {
-        if (tweetSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Game promotion tweet sent successfully! ⚽'),
-              duration: const Duration(seconds: 3),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Failed to send tweet. Please try again.'),
-              duration: const Duration(seconds: 3),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
-      }
-    }
+    // Use the unified Tweet Game Day flow which handles everything:
+    // - Live link checking/setting
+    // - Game time validation
+    // - Smart tweet generation
+    // - Professional tweet dialog
+    await _tweetGameDay();
   }
 
-  /// Generate promotional tweet text for upcoming game
-  String _generateUpcomingGameTweet() {
-    if (_nextUpcomingGame == null || _team == null) {
-      return '';
-    }
-
-    final game = _nextUpcomingGame!;
-    final team = _team!;
-
-    // Format date and time
-    final dateFormat = DateFormat('EEEE, MMMM d');
-    final timeFormat = DateFormat('h:mm a');
-    final date = dateFormat.format(game.date.toLocal());
-    final time = timeFormat.format(game.date.toLocal());
-
-    // Get opponent name
-    final opponent = game.displayName(team.id);
-
-    // Determine if home or away
-    final isHome = game.homeTeam.id == team.id;
-    final location = isHome ? 'vs' : '@';
-
-    // Check if live URL is available
-    final hasLiveUrl = team.liveUrl != null && team.liveUrl!.isNotEmpty;
-
-    // Build the tweet with emojis
-    final StringBuffer tweet = StringBuffer();
-
-    // Add header with emoji
-    tweet.writeln('⚽ GAME DAY! ⚽\n');
-
-    // Add matchup
-    tweet.writeln('$location $opponent');
-
-    // Add date and time
-    tweet.writeln('📅 $date');
-    tweet.writeln('⏰ $time');
-
-    // Add live streaming URL if available
-    if (hasLiveUrl) {
-      tweet.writeln('\n🔴 Watch Live:');
-      tweet.writeln(team.liveUrl!);
-    }
-
-    // Add call to action
-    tweet.write('\n');
-    if (hasLiveUrl) {
-      tweet.write('Join us for the match! 🎉');
-    } else {
-      tweet.write('Come support the team! 💪');
-    }
-
-    // Add hashtags (keep it short to stay under 280 chars)
-    final teamHashtag = team.shortName.replaceAll(' ', '');
-    tweet.write(' #$teamHashtag #GameDay');
-
-    return tweet.toString();
-  }
-
-  /// Top banner shown on all platforms when a live game is in progress and a team-level liveUrl is set.
+  /// Top banner shown on all platforms when a live game is in progress and the game has a live link.
   Widget _buildLiveBanner() {
-    // For the top banner treat the game as live only when a team-level liveUrl
-    // is set and the current/last game is scheduled for today (local date).
+    // For the top banner treat the game as live only when the game has a gameLinks
+    // and the current/last game is scheduled for today (local date).
     final nowLocal = DateTime.now();
-    final isLive = _team != null &&
-        _team!.liveUrl != null &&
-        _team!.liveUrl!.isNotEmpty &&
+
+    bool isLive = false;
+    if (_team != null &&
         _currentOrLastGame != null &&
-        (() {
-          final g = _currentOrLastGame!.date.toLocal();
-          return g.year == nowLocal.year &&
-              g.month == nowLocal.month &&
-              g.day == nowLocal.day;
-        })();
+        _currentOrLastGame!.gameLinks != null &&
+        _currentOrLastGame!.gameLinks!.isNotEmpty) {
+      try {
+        final g = _currentOrLastGame!.date.toLocal();
+        isLive = g.year == nowLocal.year &&
+            g.month == nowLocal.month &&
+            g.day == nowLocal.day;
+      } catch (e) {
+        debugPrint('Error checking live game date: $e');
+        isLive = false;
+      }
+    }
 
     // Live banner — only if the conditions above are met
     if (isLive) {
-      final url = _team!.liveUrl!;
+      final url = _currentOrLastGame!.gameLinks!;
 
       final loc = AppLocalizations.of(context)!;
 
@@ -2463,50 +2642,110 @@ class _TeamHomePageState extends State<TeamHomePage> {
     // If not live, show upcoming-game banner (stay tuned message)
     if (_nextUpcomingGame != null && _team != null) {
       final loc = AppLocalizations.of(context)!;
-      // Show date only (no time) for the upcoming game banner
-      final fmt = DateFormat('E MMM d');
-      final when = fmt.format(_nextUpcomingGame!.date.toLocal());
-      final opponent = _nextUpcomingGame!.displayName(_team!.id);
 
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [_team!.color1, _team!.color2],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.schedule, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${loc.nextGamePrefix} $opponent',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$when — ${loc.nextGameStayTuned}',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
+      // Safely get game date
+      DateTime gameDate;
+      try {
+        gameDate = _nextUpcomingGame!.date.toLocal();
+      } catch (e) {
+        // If date conversion fails, skip banner
+        debugPrint('Error converting game date: $e');
+        return const SizedBox.shrink();
+      }
+
+      final opponent = _nextUpcomingGame!.displayName(_team!.id);
+      final hasLiveLink = _nextUpcomingGame!.gameLinks != null &&
+          _nextUpcomingGame!.gameLinks!.isNotEmpty;
+
+      // Check if time is set (not midnight/00:00)
+      final hasTime = gameDate.hour != 0 || gameDate.minute != 0;
+
+      // Format date
+      final dateFmt = DateFormat('E MMM d');
+      final dateStr = dateFmt.format(gameDate);
+
+      // Format time if set
+      String whenText = dateStr;
+      if (hasTime) {
+        final hour = gameDate.hour == 0
+            ? 12
+            : (gameDate.hour > 12 ? gameDate.hour - 12 : gameDate.hour);
+        final period = gameDate.hour >= 12 ? 'PM' : 'AM';
+        final minute = gameDate.minute.toString().padLeft(2, '0');
+        whenText = '$dateStr at $hour:$minute $period';
+      }
+
+      return GestureDetector(
+        // Make banner tappable if live link exists
+        onTap: hasLiveLink
+            ? () async {
+                final url = _nextUpcomingGame!.gameLinks!;
+                try {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                  }
+                }
+              }
+            : null,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_team!.color1, _team!.color2],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
-            // Tweet button - show on mobile to promote upcoming game
-            if (!kIsWeb)
-              IconButton(
-                icon: const Icon(Icons.send, color: Colors.white),
-                tooltip: 'Promote game on Twitter',
-                onPressed: () => _tweetUpcomingGame(),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasLiveLink ? Icons.videocam : Icons.schedule,
+                color: Colors.white,
               ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${loc.nextGamePrefix} $opponent',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      hasLiveLink
+                          ? '$whenText — Tap to watch live! 📺'
+                          : '$whenText — ${loc.nextGameStayTuned}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              // Tweet button - show on mobile to promote upcoming game
+              if (!kIsWeb)
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.white),
+                  tooltip: 'Promote game on Twitter',
+                  onPressed: () => _tweetUpcomingGame(),
+                ),
+              // Show external link icon if live link exists
+              if (hasLiveLink)
+                const Icon(Icons.open_in_new, color: Colors.white),
+            ],
+          ),
         ),
       );
     }
@@ -3148,6 +3387,247 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Dialog for composing and sending game day tweet with live link
+class _GameDayTweetDialog extends StatefulWidget {
+  final Team team;
+  final Game? game;
+  final String liveLink;
+  final String initialTweetText;
+
+  const _GameDayTweetDialog({
+    Key? key,
+    required this.team,
+    required this.game,
+    required this.liveLink,
+    required this.initialTweetText,
+  }) : super(key: key);
+
+  @override
+  State<_GameDayTweetDialog> createState() => _GameDayTweetDialogState();
+}
+
+class _GameDayTweetDialogState extends State<_GameDayTweetDialog> {
+  late TextEditingController _tweetController;
+  bool _isSending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tweetController = TextEditingController(text: widget.initialTweetText);
+  }
+
+  @override
+  void dispose() {
+    _tweetController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendTweet() async {
+    if (_tweetController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tweet cannot be empty')),
+      );
+      return;
+    }
+
+    if (_tweetController.text.length > 280) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tweet must be 280 characters or less')),
+      );
+      return;
+    }
+
+    setState(() => _isSending = true);
+
+    try {
+      // Initialize Twitter with team credentials
+      final initialized = await TwitterService.instance
+          .initializeWithTeamCredentials(widget.team.id);
+
+      if (!initialized) {
+        // Try local credentials as fallback
+        final localInit =
+            await TwitterService.instance.initializeWithLocalCredentials();
+        if (!localInit) {
+          throw Exception('Failed to initialize Twitter');
+        }
+      }
+
+      // Send the tweet
+      final success =
+          await TwitterService.instance.sendTweet(_tweetController.text);
+
+      if (success && mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                const Text('Game day tweet sent successfully! 🎉'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1DA1F2),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (mounted) {
+        throw Exception('Failed to send tweet');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending tweet: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final characterCount = _tweetController.text.length;
+    final isOverLimit = characterCount > 280;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1DA1F2).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.send,
+              color: Color(0xFF1DA1F2),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Tweet Game Day',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Game info if available
+            if (widget.game != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: widget.team.color1.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: widget.team.color1.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_soccer,
+                      color: widget.team.color1,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.game!.displayName(widget.team.id),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Tweet text field
+            TextField(
+              controller: _tweetController,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: 'Compose your game day tweet...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: colorScheme.surfaceContainerHighest,
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+
+            // Character count
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  '$characterCount/280',
+                  style: TextStyle(
+                    color: isOverLimit
+                        ? Colors.red
+                        : characterCount > 260
+                            ? Colors.orange
+                            : Colors.grey,
+                    fontWeight:
+                        isOverLimit ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSending ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isSending || isOverLimit ? null : _sendTweet,
+          icon: _isSending
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.send, size: 18),
+          label: Text(_isSending ? 'Sending...' : 'Send Tweet'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1DA1F2),
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          ),
         ),
       ],
     );

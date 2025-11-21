@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
@@ -345,7 +346,21 @@ class Game {
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
-    final date = DateFormat('MM.dd.yyyy').parse(map['date']);
+    // Try to parse date in multiple formats for backward compatibility
+    DateTime date;
+    try {
+      // First try ISO8601 format (includes time)
+      date = DateTime.parse(map['date']);
+    } catch (e) {
+      try {
+        // Fallback to old MM.dd.yyyy format (date only)
+        date = DateFormat('MM.dd.yyyy').parse(map['date']);
+      } catch (e2) {
+        // If both fail, use current date as fallback
+        debugPrint('Error parsing date "${map['date']}": $e, $e2');
+        date = DateTime.now();
+      }
+    }
 
     final homeTeam = await Team.fromId(map['homeTeamId']);
     final awayTeam = await Team.fromId(map['awayTeamId']);
@@ -444,8 +459,8 @@ class Game {
 
   Future<bool> saveGame() async {
     if (homeTeam.id > 0 && awayTeam.id > 0) {
-      final saveFormat = DateFormat('MM.dd.yyyy');
-
+      // Use ISO8601 format to preserve time information
+      // The fromMap method now handles both old (MM.dd.yyyy) and new (ISO8601) formats
       final data = {
         'id': id == -1 ? DateTime.now().millisecondsSinceEpoch : id,
         'seasonId': seasonId,
@@ -453,7 +468,7 @@ class Game {
         'awayTeamId': awayTeam.id,
         'homeTeamScore': homeTeamScore,
         'awayTeamScore': awayTeamScore,
-        'date': saveFormat.format(date),
+        'date': date.toIso8601String(),
         'gameStatus': gameStatus.index,
         'description': description,
         'gameLinks': gameLinks,
