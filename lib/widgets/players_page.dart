@@ -11,7 +11,6 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -27,6 +26,13 @@ class PlayersPage extends StatefulWidget {
 class _PlayersPageState extends State<PlayersPage> {
   File? _imageFile;
   File? _actionPhotoFile; // For action photos (baseball card style)
+
+  int _calculateCrossAxisCount(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width > 900) return 4; // Large screens/desktop
+    if (width > 600) return 3; // Tablets
+    return 2; // Phones
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +68,6 @@ class _PlayersPageState extends State<PlayersPage> {
                 )),
         body: Column(
           children: [
-            CommonPageHeader(team: widget.season.team),
             Breadcrumbs(
               items: buildTeamBreadcrumbs(
                 databaseId: DatabaseService.instance.publicShareId ?? '',
@@ -91,11 +96,31 @@ class _PlayersPageState extends State<PlayersPage> {
                       final bf = (b['firstName'] ?? '').toString();
                       return af.compareTo(bf);
                     });
-                    return ListView.builder(
-                        itemCount: players.length,
-                        itemBuilder: (context, index) {
-                          final player = Player.fromMap(players[index]);
-                          return Dismissible(
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount =
+                            _calculateCrossAxisCount(context);
+                        final totalSpacing =
+                            (crossAxisCount - 1) * 16; // crossAxisSpacing
+                        final totalPadding = 32; // 16 left + 16 right
+                        final availableWidth =
+                            constraints.maxWidth - totalPadding - totalSpacing;
+                        final itemWidth = availableWidth / crossAxisCount;
+
+                        return GridView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            childAspectRatio: itemWidth / (itemWidth / 0.85),
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                          ),
+                          itemCount: players.length,
+                          itemBuilder: (context, index) {
+                            final player = Player.fromMap(players[index]);
+                            return Dismissible(
                               key: Key(player.id.toString()),
                               direction: DismissDirection
                                   .startToEnd, // Only allow right to left swipe
@@ -166,7 +191,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                 }
                                 setState(() {});
                               },
-                              child: ListTile(
+                              child: GestureDetector(
                                 onTap: kIsWeb
                                     ? () {
                                         final databaseId = DatabaseService
@@ -185,84 +210,77 @@ class _PlayersPageState extends State<PlayersPage> {
                                     : () => _editPlayer(player),
                                 onLongPress:
                                     kIsWeb ? null : () => _editPlayer(player),
-                                leading: GestureDetector(
-                                  onTap: kIsWeb
-                                      ? () {
-                                          final databaseId = DatabaseService
-                                              .instance.publicShareId;
-                                          if (databaseId != null) {
-                                            NavigationHelper.navigateTo(
-                                              context,
-                                              '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                              extra: {
-                                                'player': player,
-                                                'season': widget.season
-                                              },
-                                            );
-                                          }
-                                        }
-                                      : () {
-                                          if (!SubscriptionService
-                                              .instance.isSubscribed) {
-                                            showDialog(
-                                              context: context,
-                                              builder: (BuildContext context) {
-                                                return AlertDialog(
-                                                  title: Text(
-                                                      AppLocalizations.of(
-                                                              context)!
-                                                          .proFeature),
-                                                  content: Text(AppLocalizations
-                                                          .of(context)!
-                                                      .playerProfilesProFeature),
-                                                  actions: [
-                                                    TextButton(
-                                                      child: Text(
-                                                          AppLocalizations.of(
-                                                                  context)!
-                                                              .cancelButton),
-                                                      onPressed: () {
-                                                        Navigator.pop(context);
-                                                      },
-                                                    ),
-                                                    TextButton(
-                                                      child: Text(
-                                                          AppLocalizations.of(
-                                                                  context)!
-                                                              .goPro),
-                                                      onPressed: () async {
-                                                        Navigator.pop(context);
-                                                        await SubscriptionService
-                                                            .instance
-                                                            .purchaseSubscription();
-                                                      },
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            );
-                                            return;
-                                          }
-                                          final databaseId = DatabaseService
-                                              .instance.publicShareId;
-                                          if (databaseId != null) {
-                                            NavigationHelper.navigateTo(
-                                              context,
-                                              '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                              extra: {
-                                                'player': player,
-                                                'season': widget.season
-                                              },
-                                            );
-                                          }
-                                        },
-                                  child: ResponsivePlayerAvatar(
-                                      player: player, avatarSize: 40),
+                                child: Card(
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // Player avatar
+                                        Flexible(
+                                          flex: 3,
+                                          child: ResponsivePlayerAvatar(
+                                            player: player,
+                                            avatarSize: 80,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        // Player name
+                                        Flexible(
+                                          flex: 2,
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8),
+                                            child: Text(
+                                              player.displayName,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Player number
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: widget.season.team.color1
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '#${player.number}',
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              color: widget.season.team.color1,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                                title: Text(player.displayName),
-                                subtitle: Text('#${player.number}'),
-                              ));
-                        });
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
                   } else {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -703,6 +721,80 @@ class _PlayersPageState extends State<PlayersPage> {
                                         style: const TextStyle(fontSize: 20)),
                                     onTap: () async {
                                       if (playerName.isNotEmpty) {
+                                        // Check for existing players with the same name
+                                        final nameParts = playerName.split(' ');
+                                        final firstName = nameParts.first;
+                                        final lastName = nameParts.length > 1
+                                            ? nameParts.last
+                                            : '';
+
+                                        // Query all players in this team
+                                        final allPlayers = await DatabaseService
+                                            .instance
+                                            .query('Players',
+                                                orderByChild: 'teamId',
+                                                equalTo: widget.season.teamId);
+
+                                        // Check if any existing player has the same name
+                                        final duplicates =
+                                            allPlayers.where((p) {
+                                          final existingFirst =
+                                              (p['firstName'] ?? '')
+                                                  .toString()
+                                                  .toLowerCase();
+                                          final existingLast =
+                                              (p['lastName'] ?? '')
+                                                  .toString()
+                                                  .toLowerCase();
+                                          return existingFirst ==
+                                                  firstName.toLowerCase() &&
+                                              existingLast ==
+                                                  lastName.toLowerCase();
+                                        }).toList();
+
+                                        if (duplicates.isNotEmpty) {
+                                          // Show confirmation dialog
+                                          final shouldContinue =
+                                              await showDialog<bool>(
+                                            context: context,
+                                            builder:
+                                                (BuildContext dialogContext) {
+                                              return AlertDialog(
+                                                title: const Text(
+                                                    'Duplicate Player Name'),
+                                                content: Text(
+                                                  'A player named "$playerName" already exists. Are you sure you want to create another player with the same name?',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(
+                                                          dialogContext, false);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: const Text(
+                                                        'Create Anyway'),
+                                                    onPressed: () {
+                                                      Navigator.pop(
+                                                          dialogContext, true);
+                                                    },
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+
+                                          if (shouldContinue != true) {
+                                            return; // User cancelled
+                                          }
+                                        }
+
+                                        // Proceed with creating the player
                                         String? imageUrl;
                                         if (_imageFile != null) {
                                           final storageRef = FirebaseStorage
@@ -714,12 +806,6 @@ class _PlayersPageState extends State<PlayersPage> {
                                           imageUrl =
                                               await storageRef.getDownloadURL();
                                         }
-
-                                        final nameParts = playerName.split(' ');
-                                        final firstName = nameParts.first;
-                                        final lastName = nameParts.length > 1
-                                            ? nameParts.last
-                                            : '';
 
                                         await DatabaseService.instance
                                             .insert('Players', {
