@@ -106,8 +106,23 @@ final router = GoRouter(
                   return SeasonStatsPage(season: season);
                 }
 
+                // Open the database first if we have a databaseId, then load the season
+                final databaseId = state.pathParameters['databaseId'];
+                final future = () async {
+                  if (databaseId != null) {
+                    try {
+                      await DatabaseService.instance
+                          .openFromId(databaseId)
+                          .timeout(const Duration(seconds: 10));
+                    } catch (e) {
+                      debugPrint('Router: failed to open DB $databaseId: $e');
+                    }
+                  }
+                  return await _loadSeasonById(seasonId);
+                }();
+
                 return FutureBuilder<Season?>(
-                  future: _loadSeasonById(seasonId),
+                  future: future,
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data != null) {
                       return SeasonStatsPage(season: snapshot.data!);
@@ -139,8 +154,23 @@ final router = GoRouter(
                   return PlayersPage(season: season);
                 }
 
+                // Open the database first if we have a databaseId, then load the season
+                final databaseId = state.pathParameters['databaseId'];
+                final future = () async {
+                  if (databaseId != null) {
+                    try {
+                      await DatabaseService.instance
+                          .openFromId(databaseId)
+                          .timeout(const Duration(seconds: 10));
+                    } catch (e) {
+                      debugPrint('Router: failed to open DB $databaseId: $e');
+                    }
+                  }
+                  return await _loadSeasonById(seasonId);
+                }();
+
                 return FutureBuilder<Season?>(
-                  future: _loadSeasonById(seasonId),
+                  future: future,
                   builder: (context, snapshot) {
                     if (snapshot.hasData && snapshot.data != null) {
                       return PlayersPage(season: snapshot.data!);

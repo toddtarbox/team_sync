@@ -26,6 +26,42 @@ class PlayersPage extends StatefulWidget {
 class _PlayersPageState extends State<PlayersPage> {
   File? _imageFile;
   File? _actionPhotoFile; // For action photos (baseball card style)
+  bool _isLoading = true;
+  bool _loadError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureSeasonLoaded();
+  }
+
+  Future<void> _ensureSeasonLoaded() async {
+    try {
+      // Try to access team - if it throws, it means it's not initialized
+      final _ = widget.season.team;
+      // Team is loaded
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Team not loaded yet, load the season first
+      try {
+        await widget.season.load();
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      } catch (loadError) {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _loadError = true;
+          });
+        }
+      }
+    }
+  }
 
   int _calculateCrossAxisCount(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -36,6 +72,26 @@ class _PlayersPageState extends State<PlayersPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loadError) {
+      return Scaffold(
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.players)),
+        body: const Center(
+          child: Text('Error loading season data'),
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.players)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return _buildContent(context);
+  }
+
+  Widget _buildContent(BuildContext context) {
     return Scaffold(
         appBar: buildStandardAppBar(
           context: context,

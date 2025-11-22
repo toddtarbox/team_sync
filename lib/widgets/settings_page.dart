@@ -10,7 +10,6 @@ import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
 
@@ -131,7 +130,6 @@ class _SettingsPageState extends State<SettingsPage> {
           return ListView(
             children: [
               if (widget.team != null) ...[
-                CommonPageHeader(team: widget.team!),
                 Breadcrumbs(
                   items: widget.club != null
                       ? buildClubBreadcrumbs(

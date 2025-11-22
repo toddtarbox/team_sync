@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -105,6 +106,13 @@ class _SeasonPageState extends State<SeasonPage> {
     });
   }
 
+  String _getDatabaseId(BuildContext context, Season season) {
+    // Get databaseId from current route to preserve it in navigation
+    return GoRouterState.of(context).pathParameters['databaseId'] ??
+        DatabaseService.instance.publicShareId ??
+        season.team.id.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Resolve the season using FutureBuilder so deep links without a provided
@@ -129,14 +137,16 @@ class _SeasonPageState extends State<SeasonPage> {
                   actions: [
                     IconButton(
                         onPressed: () {
+                          final databaseId = _getDatabaseId(context, season);
                           NavigationHelper.navigateTo(context,
-                              '/team/${season.team.id}/season/${season.id}/players');
+                              '/team/$databaseId/season/${season.id}/players');
                         },
                         icon: const Icon(Icons.person_sharp)),
                     IconButton(
                         onPressed: () {
+                          final databaseId = _getDatabaseId(context, season);
                           NavigationHelper.navigateTo(context,
-                              '/team/${season.team.id}/season/${season.id}/stats');
+                              '/team/$databaseId/season/${season.id}/stats');
                         },
                         icon: const Icon(Icons.paste_sharp)),
                   ]),
@@ -202,14 +212,16 @@ class _SeasonPageState extends State<SeasonPage> {
                   actions: [
                     IconButton(
                         onPressed: () {
+                          final databaseId = _getDatabaseId(context, season);
                           NavigationHelper.navigateTo(context,
-                              '/team/${season.team.id}/season/${season.id}/players');
+                              '/team/$databaseId/season/${season.id}/players');
                         },
                         icon: const Icon(Icons.person_sharp)),
                     IconButton(
                         onPressed: () {
+                          final databaseId = _getDatabaseId(context, season);
                           NavigationHelper.navigateTo(context,
-                              '/team/${season.team.id}/season/${season.id}/stats');
+                              '/team/$databaseId/season/${season.id}/stats');
                         },
                         icon: const Icon(Icons.paste_sharp)),
                   ]),

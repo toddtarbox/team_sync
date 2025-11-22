@@ -3,7 +3,6 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/season_stats_view.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 
@@ -26,7 +25,6 @@ class SeasonStatsPage extends StatelessWidget {
       ),
       body: Column(
         children: [
-          CommonPageHeader(team: season.team),
           Breadcrumbs(
             items: buildTeamBreadcrumbs(
               databaseId: DatabaseService.instance.publicShareId ?? '',

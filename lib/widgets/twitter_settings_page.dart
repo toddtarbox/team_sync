@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/twitter_credentials_service.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 
 class TwitterSettingsPage extends StatefulWidget {
@@ -190,7 +189,6 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
       ),
       body: Column(
         children: [
-          if (widget.team != null) CommonPageHeader(team: widget.team!),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
