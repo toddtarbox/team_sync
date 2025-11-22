@@ -196,9 +196,46 @@ echo ""
 # Exit with error if any build failed
 if [ $ANDROID_SUCCESS -eq 1 ] && [ $IOS_SUCCESS -eq 1 ]; then
   echo -e "${GREEN}🎉 All builds completed successfully!${NC}"
+
+  # Ask if user wants to deploy to TestFlight and Google Play
+  echo ""
+  read -p "$(echo -e ${YELLOW}Deploy to TestFlight and Google Play Internal Test Track? [y/N]: ${NC})" -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo ""
+    echo -e "${BLUE}🚀 Starting deployment...${NC}"
+    if "$SCRIPT_DIR/deploy-mobile.sh" all; then
+      echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+    else
+      echo -e "${YELLOW}⚠️  Deployment had some issues. Check the output above.${NC}"
+    fi
+  else
+    echo -e "${BLUE}ℹ️  Skipping deployment. You can deploy later with:${NC}"
+    echo "   ./scripts/deploy-mobile.sh all"
+  fi
+
   exit 0
 elif [ $ANDROID_SUCCESS -eq 1 ] || [ $IOS_SUCCESS -eq 1 ]; then
   echo -e "${YELLOW}⚠️  Some builds completed, but some failed${NC}"
+
+  # Offer to deploy what succeeded
+  if [ $ANDROID_SUCCESS -eq 1 ]; then
+    echo ""
+    read -p "$(echo -e ${YELLOW}Deploy Android to Google Play Internal Test Track? [y/N]: ${NC})" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      "$SCRIPT_DIR/deploy-mobile.sh" android
+    fi
+  fi
+
+  if [ $IOS_SUCCESS -eq 1 ]; then
+    echo ""
+    read -p "$(echo -e ${YELLOW}Deploy iOS to TestFlight? [y/N]: ${NC})" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      "$SCRIPT_DIR/deploy-mobile.sh" ios
+    fi
+  fi
   exit 1
 else
   echo -e "${RED}❌ All builds failed${NC}"

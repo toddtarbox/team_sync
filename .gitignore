@@ -60,3 +60,4 @@ android/app/src/teamSync/google-services.json
 ios/Runner/GoogleService-Info.plist
 ios/Runner/Info.plist
 
+android/play-service-account.json
