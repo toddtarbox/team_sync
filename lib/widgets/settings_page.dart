@@ -2,13 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -98,8 +98,8 @@ class _SettingsPageState extends State<SettingsPage> {
           );
 
           // Navigate to home to trigger fresh state
-          // Using go instead of pop to ensure TeamHomePage rebuilds with clean state
-          context.go('/');
+          // Using replaceRoute to ensure TeamHomePage rebuilds with clean state
+          NavigationHelper.replaceRoute(context, '/');
         }
       } catch (e) {
         debugPrint('Error during logout: $e');

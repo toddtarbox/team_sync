@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -130,13 +129,13 @@ class _SeasonPageState extends State<SeasonPage> {
                   actions: [
                     IconButton(
                         onPressed: () {
-                          context.go(
+                          NavigationHelper.navigateTo(context,
                               '/team/${season.team.id}/season/${season.id}/players');
                         },
                         icon: const Icon(Icons.person_sharp)),
                     IconButton(
                         onPressed: () {
-                          context.go(
+                          NavigationHelper.navigateTo(context,
                               '/team/${season.team.id}/season/${season.id}/stats');
                         },
                         icon: const Icon(Icons.paste_sharp)),

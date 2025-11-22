@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -887,7 +886,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   onTap: () {
                     final databaseId = DatabaseService.instance.publicShareId;
                     if (databaseId != null) {
-                      context.go(
+                      NavigationHelper.navigateTo(
+                        context,
                         '/team/$databaseId/history',
                       );
                     }

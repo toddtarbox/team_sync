@@ -1,11 +1,11 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 class SeasonStatsView extends StatefulWidget {
@@ -122,7 +122,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                         final databaseId = DatabaseService
                                             .instance.publicShareId;
                                         if (databaseId != null) {
-                                          context.go(
+                                          NavigationHelper.navigateTo(
+                                            context,
                                             '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
                                             extra: {
                                               'player': player,

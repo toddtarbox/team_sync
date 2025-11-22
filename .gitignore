@@ -52,3 +52,11 @@ app.*.map.json
 .env
 .env.*
 firebase_config.dart
+
+# Sensitive configuration files with API keys
+android/app/google-services.json
+android/app/src/clubSync/google-services.json
+android/app/src/teamSync/google-services.json
+ios/Runner/GoogleService-Info.plist
+ios/Runner/Info.plist
+
