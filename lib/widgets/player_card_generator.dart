@@ -1,6 +1,4 @@
 // Web-specific imports
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html show AnchorElement, Blob, Url;
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -11,9 +9,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
+
+// Conditional import for web
+import 'player_card_web_download.dart'
+    if (dart.library.io) 'player_card_web_download_stub.dart';
 
 /// Card styles for player cards
 enum PlayerCardStyle {
@@ -176,10 +179,43 @@ class _PlayerCardDialog extends StatefulWidget {
   State<_PlayerCardDialog> createState() => _PlayerCardDialogState();
 }
 
-class _PlayerCardDialogState extends State<_PlayerCardDialog> {
+class _PlayerCardDialogState extends State<_PlayerCardDialog>
+    with SingleTickerProviderStateMixin {
   PlayerCardStyle _selectedStyle = PlayerCardStyle.classic;
   final GlobalKey _cardKey = GlobalKey();
   bool _isGenerating = false;
+  late AnimationController _flipController;
+  late Animation<double> _flipAnimation;
+  bool _showingBack = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _flipController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _flipController.dispose();
+    super.dispose();
+  }
+
+  void _flipCard() {
+    if (_showingBack) {
+      _flipController.reverse();
+    } else {
+      _flipController.forward();
+    }
+    setState(() {
+      _showingBack = !_showingBack;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -260,13 +296,94 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
             // Card preview
             Expanded(
               child: Center(
-                child: RepaintBoundary(
-                  key: _cardKey,
-                  child: _PlayerCardWidget(
-                    team: widget.team,
-                    player: widget.player,
-                    style: _selectedStyle,
-                    eventContext: widget.eventContext,
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Flip button with high contrast for dark mode
+                        Container(
+                          decoration: BoxDecoration(
+                            color: widget.team.color1,
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    widget.team.color1.withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextButton.icon(
+                            onPressed: _flipCard,
+                            icon: Icon(
+                              _showingBack
+                                  ? Icons.flip_to_front
+                                  : Icons.flip_to_back,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            label: Text(
+                              _showingBack ? 'Show Front' : 'Show Stats',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Animated flip card
+                        AnimatedBuilder(
+                          animation: _flipAnimation,
+                          builder: (context, child) {
+                            final angle =
+                                _flipAnimation.value * 3.14159; // π radians
+                            final transform = Matrix4.identity()
+                              ..setEntry(3, 2, 0.001) // perspective
+                              ..rotateY(angle);
+
+                            return Transform(
+                              transform: transform,
+                              alignment: Alignment.center,
+                              child: angle < 3.14159 / 2
+                                  ? RepaintBoundary(
+                                      key: _cardKey,
+                                      child: _PlayerCardWidget(
+                                        team: widget.team,
+                                        player: widget.player,
+                                        style: _selectedStyle,
+                                        eventContext: widget.eventContext,
+                                      ),
+                                    )
+                                  : Transform(
+                                      transform: Matrix4.identity()
+                                        ..rotateY(3.14159),
+                                      alignment: Alignment.center,
+                                      child: RepaintBoundary(
+                                        key: _cardKey,
+                                        child: _PlayerCardBackWidget(
+                                          team: widget.team,
+                                          player: widget.player,
+                                          style: _selectedStyle,
+                                        ),
+                                      ),
+                                    ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -293,7 +410,11 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.download, size: 18),
-                      label: Text(_isGenerating ? 'Generating...' : 'Download'),
+                      label: Text(_isGenerating
+                          ? 'Generating...'
+                          : _showingBack
+                              ? 'Download Stats'
+                              : 'Download Card'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: widget.team.color1,
                         foregroundColor: Colors.white,
@@ -304,15 +425,16 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
                   Row(
                       children: [
                         Expanded(
-                          child: OutlinedButton.icon(
+                          child: ElevatedButton.icon(
                             onPressed: _isGenerating
                                 ? null
                                 : () => _captureAndShare(false),
                             icon: const Icon(Icons.share, size: 18),
-                            label: const Text('Share'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: widget.team.color1,
-                              side: BorderSide(color: widget.team.color1),
+                            label: Text(
+                                _showingBack ? 'Share Stats' : 'Share Card'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.team.color1,
+                              foregroundColor: Colors.white,
                             ),
                           ),
                         ),
@@ -330,8 +452,11 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
                                         strokeWidth: 2),
                                   )
                                 : const Icon(Icons.send, size: 18),
-                            label:
-                                Text(_isGenerating ? 'Generating...' : 'Tweet'),
+                            label: Text(_isGenerating
+                                ? 'Generating...'
+                                : _showingBack
+                                    ? 'Tweet Stats'
+                                    : 'Tweet Card'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1DA1F2),
                               foregroundColor: Colors.white,
@@ -421,15 +546,12 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
       } else {
         // Share functionality
         if (kIsWeb) {
-          // On web, download the image
-          // ignore: avoid_web_libraries_in_flutter
-          final blob = html.Blob([pngBytes]);
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          final anchor = html.AnchorElement(href: url)
-            ..setAttribute('download',
-                'player_card_${widget.player.displayName.replaceAll(' ', '_')}.png')
-            ..click();
-          html.Url.revokeObjectUrl(url);
+          // On web, download the image using helper function
+          final filename = _showingBack
+              ? 'player_card_stats_${widget.player.displayName.replaceAll(' ', '_')}.png'
+              : 'player_card_${widget.player.displayName.replaceAll(' ', '_')}.png';
+
+          downloadFile(pngBytes, filename);
 
           if (mounted) {
             Navigator.of(context).pop();
@@ -440,7 +562,9 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog> {
                     const Icon(Icons.check_circle,
                         color: Colors.white, size: 20),
                     const SizedBox(width: 12),
-                    const Text('Player card downloaded!'),
+                    Text(_showingBack
+                        ? 'Player stats downloaded!'
+                        : 'Player card downloaded!'),
                   ],
                 ),
                 backgroundColor: Colors.green,
@@ -723,7 +847,7 @@ class _PlayerCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      team.shortName.toUpperCase(),
+                      team.fullName.toUpperCase(),
                       style: TextStyle(
                         color: config.backgroundColor,
                         fontSize: 13,
@@ -742,24 +866,38 @@ class _PlayerCardWidget extends StatelessWidget {
   }
 
   Widget _buildPhotoPlaceholder(_StyleConfig config) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.person,
-            size: 80,
-            color: config.textColor.withValues(alpha: 0.3),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No Photo',
-            style: TextStyle(
-              color: config.textColor.withValues(alpha: 0.5),
-              fontSize: 16,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            config.photoBackgroundColor,
+            config.photoBackgroundColor.withValues(alpha: 0.7),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Background circle
+            Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: config.accentColor.withValues(alpha: 0.1),
+              ),
             ),
-          ),
-        ],
+            // Soccer player in action icon
+            Icon(
+              Icons.sports_soccer,
+              size: 120,
+              color: config.accentColor.withValues(alpha: 0.3),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -834,4 +972,382 @@ class _StyleConfig {
     required this.infoBackgroundColor,
     this.gradient,
   });
+}
+
+/// Player card back widget showing stats
+class _PlayerCardBackWidget extends StatefulWidget {
+  final Team team;
+  final Player player;
+  final PlayerCardStyle style;
+
+  const _PlayerCardBackWidget({
+    Key? key,
+    required this.team,
+    required this.player,
+    required this.style,
+  }) : super(key: key);
+
+  @override
+  State<_PlayerCardBackWidget> createState() => _PlayerCardBackWidgetState();
+}
+
+class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
+  int _goals = 0;
+  int _assists = 0;
+  int _saves = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      // Query all events for this player
+      final events = await DatabaseService.instance.query(
+        'Events',
+        orderByChild: 'playerId',
+        equalTo: widget.player.id,
+      );
+
+      // Calculate stats
+      int goals = 0;
+      int assists = 0;
+      int saves = 0;
+      Set<int> gameIds = {};
+
+      for (var event in events) {
+        final eventType = event['eventType'];
+        final gameId = event['gameId'];
+
+        // Count goals (Shot or PenaltyKick with result = goal)
+        if ((eventType == 'Shot' || eventType == 'PenaltyKick') &&
+            event['eventData'] == 0) {
+          // 0 = ShotResult.goal
+          goals++;
+        }
+
+        // Count assists
+        if (eventType == 'Assist') {
+          assists++;
+        }
+
+        // Count saves
+        if (eventType == 'Save') {
+          saves++;
+        }
+
+        // Track unique games
+        if (gameId != null) {
+          gameIds.add(gameId);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _goals = goals;
+          _assists = assists;
+          _saves = saves;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading player stats: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final config = _getStyleConfig(widget.style);
+
+    return Container(
+      width: 300,
+      height: 450,
+      decoration: BoxDecoration(
+        color: config.backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: config.borderColor, width: 3),
+        gradient: config.gradient,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: config.accentColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Center(
+              child: Text(
+                'CAREER STATS',
+                style: TextStyle(
+                  color: config.backgroundColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+          ),
+
+          // Player info
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Player number circle
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: config.accentColor,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '#${widget.player.number}',
+                      style: TextStyle(
+                        color: config.backgroundColor,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Player name
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.player.displayName.toUpperCase(),
+                        style: TextStyle(
+                          color: config.textColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        widget.team.fullName.toUpperCase(),
+                        style: TextStyle(
+                          color: config.textColor.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // Stats section
+          Expanded(
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: config.accentColor,
+                    ),
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Only show stats if they are greater than 0
+                        if (_goals > 0)
+                          _StatRow(
+                            label: 'GOALS',
+                            value: _goals.toString(),
+                            icon: Icons.sports_soccer,
+                            config: config,
+                          ),
+                        if (_assists > 0)
+                          _StatRow(
+                            label: 'ASSISTS',
+                            value: _assists.toString(),
+                            icon: Icons.people,
+                            config: config,
+                          ),
+                        if (_saves > 0)
+                          _StatRow(
+                            label: 'SAVES',
+                            value: _saves.toString(),
+                            icon: Icons.back_hand,
+                            config: config,
+                          ),
+                        // Show message if no stats
+                        if (_goals == 0 && _assists == 0 && _saves == 0)
+                          Center(
+                            child: Text(
+                              'No stats yet',
+                              style: TextStyle(
+                                color: config.textColor.withValues(alpha: 0.5),
+                                fontSize: 16,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+
+          // Footer
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: config.accentColor.withValues(alpha: 0.1),
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(13)),
+            ),
+            child: Center(
+              child: Text(
+                widget.team.fullName.toUpperCase(),
+                style: TextStyle(
+                  color: config.textColor.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  _StyleConfig _getStyleConfig(PlayerCardStyle style) {
+    switch (style) {
+      case PlayerCardStyle.classic:
+        return _StyleConfig(
+          backgroundColor: Colors.white,
+          borderColor: widget.team.color1,
+          accentColor: widget.team.color1,
+          textColor: Colors.black,
+          photoBackgroundColor: Colors.grey[200]!,
+          infoBackgroundColor: Colors.white,
+        );
+      case PlayerCardStyle.modern:
+        return _StyleConfig(
+          backgroundColor: Colors.grey[900]!,
+          borderColor: widget.team.color1,
+          accentColor: widget.team.color1,
+          textColor: Colors.white,
+          photoBackgroundColor: Colors.grey[800]!,
+          infoBackgroundColor: Colors.grey[900]!,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.grey[900]!, Colors.black],
+          ),
+        );
+      case PlayerCardStyle.vintage:
+        return _StyleConfig(
+          backgroundColor: const Color(0xFFF5E6D3),
+          borderColor: const Color(0xFF8B4513),
+          accentColor: const Color(0xFF8B4513),
+          textColor: const Color(0xFF3E2723),
+          photoBackgroundColor: const Color(0xFFE8D5C4),
+          infoBackgroundColor: const Color(0xFFF5E6D3),
+        );
+      case PlayerCardStyle.neon:
+        return _StyleConfig(
+          backgroundColor: Colors.black,
+          borderColor: widget.team.color1,
+          accentColor: widget.team.color1,
+          textColor: widget.team.color1,
+          photoBackgroundColor: Colors.grey[900]!,
+          infoBackgroundColor: Colors.black,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.black, widget.team.color1.withValues(alpha: 0.2)],
+          ),
+        );
+    }
+  }
+}
+
+/// Stat row widget for the back of the card
+class _StatRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final _StyleConfig config;
+
+  const _StatRow({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.config,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: config.accentColor,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: config.textColor.withValues(alpha: 0.8),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: config.accentColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: config.accentColor.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              color: config.textColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
