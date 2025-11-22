@@ -178,15 +178,6 @@ class _MobileGamePageState extends State<MobileGamePage> {
                           padding: EdgeInsets.only(right: 10),
                           child: Icon(Icons.paste, size: 24))),
                 ],
-          bottom: PreferredSize(
-              preferredSize: Size(width, 150),
-              child: ScoreboardWidget(
-                compact: true,
-                margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
-                season: widget.season,
-                game: widget.game,
-                teamId: widget.season.team.id,
-              )),
         ),
         floatingActionButton: kIsWeb
             ? null
@@ -248,6 +239,13 @@ class _MobileGamePageState extends State<MobileGamePage> {
                     })),
         body: Column(
           children: [
+            ScoreboardWidget(
+              compact: true,
+              margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
+              season: widget.season,
+              game: widget.game,
+              teamId: widget.season.team.id,
+            ),
             Breadcrumbs(
               items: buildTeamBreadcrumbs(
                 databaseId: DatabaseService.instance.publicShareId ?? '',

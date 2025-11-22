@@ -8,6 +8,7 @@ class Player {
   String lastName;
   int number;
   String? profileImage;
+  String? actionPhoto; // Action photo for baseball-style player cards
 
   String get displayName {
     return '$firstName $lastName';
@@ -20,7 +21,8 @@ class Player {
       required this.firstName,
       required this.lastName,
       required this.number,
-      this.profileImage});
+      this.profileImage,
+      this.actionPhoto});
 
   static initial({required int teamId, required int seasonId}) {
     return Player(
@@ -40,7 +42,8 @@ class Player {
         firstName: map['firstName'],
         lastName: map['lastName'],
         number: map['number'],
-        profileImage: map['profileImage']);
+        profileImage: map['profileImage'],
+        actionPhoto: map['actionPhoto']);
   }
 
   static Future<Player?> fromId(int id) async {

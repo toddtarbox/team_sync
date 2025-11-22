@@ -1,6 +1,7 @@
 import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/twitter_credentials_service.dart';
 
 /// Service for sending tweets using configured team Twitter credentials.
@@ -166,6 +167,68 @@ class TwitterService {
     } catch (e) {
       debugPrint('Error sending tweet: $e');
       return false;
+    }
+  }
+
+  /// Get the Twitter handle for a team (from stored credentials or API)
+  Future<String?> getTwitterHandle({int? teamId}) async {
+    if (kIsWeb) {
+      return null;
+    }
+
+    try {
+      // First, try to get stored handle from team data
+      if (teamId != null) {
+        final results = await DatabaseService.instance.query(
+          'Teams',
+          orderByChild: 'id',
+          equalTo: teamId,
+        );
+
+        if (results.isNotEmpty) {
+          final teamData = results.first;
+          final storedHandle = teamData['twitterHandle'] as String?;
+          if (storedHandle != null && storedHandle.isNotEmpty) {
+            return storedHandle;
+          }
+        }
+      }
+
+      // If no stored handle, try to get from local credentials
+      const storage = FlutterSecureStorage();
+      final localHandle = await storage.read(key: 'twitter_handle');
+      if (localHandle != null && localHandle.isNotEmpty) {
+        return localHandle;
+      }
+
+      // If still no handle and we have initialized API, try to fetch from Twitter API
+      if (_twitterAPI != null) {
+        try {
+          final user = await _twitterAPI!.userService.usersShow();
+          final handle = user.screenName;
+
+          // Cache the handle for future use
+          if (handle != null && teamId != null) {
+            await DatabaseService.instance.update(
+              'Teams',
+              {'twitterHandle': handle},
+              orderByChild: 'id',
+              equalTo: teamId,
+            );
+          } else if (handle != null) {
+            await storage.write(key: 'twitter_handle', value: handle);
+          }
+
+          return handle;
+        } catch (e) {
+          debugPrint('Error fetching Twitter handle from API: $e');
+        }
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error getting Twitter handle: $e');
+      return null;
     }
   }
 

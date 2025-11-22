@@ -5,6 +5,9 @@
   "database": {
     "rules": "firebase_database.rules.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": [
     {
       "target": "team-sync-soccer",

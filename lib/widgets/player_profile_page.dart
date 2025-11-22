@@ -10,6 +10,7 @@ import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
+import 'package:team_sync/widgets/player_card_generator.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
@@ -220,6 +221,19 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             actions: [
+              // Generate Player Card button (Pro feature)
+              if (currentSeason?.team != null)
+                IconButton(
+                  icon: const Icon(Icons.stars),
+                  tooltip: 'Generate Player Card',
+                  onPressed: () async {
+                    await PlayerCardGenerator.showPlayerCardDialog(
+                      context,
+                      team: currentSeason!.team,
+                      player: widget.player,
+                    );
+                  },
+                ),
               // Toggle highlights button
               IconButton(
                 icon: Icon(_showHighlights
@@ -389,6 +403,44 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               color: Colors.grey,
             ),
           ),
+
+          // Generate Player Card button (mobile only)
+          if (!kIsWeb && _loadedSeason?.team != null) ...[
+            const SizedBox(height: 20),
+            FutureBuilder<Season?>(
+              future: _currentSeasonFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data?.team == null) {
+                  return const SizedBox.shrink();
+                }
+
+                final team = snapshot.data!.team;
+
+                return ElevatedButton.icon(
+                  onPressed: () async {
+                    await PlayerCardGenerator.showPlayerCardDialog(
+                      context,
+                      team: team,
+                      player: widget.player,
+                    );
+                  },
+                  icon: const Icon(Icons.stars, size: 20),
+                  label: const Text('Generate Player Card'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: team.color1,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

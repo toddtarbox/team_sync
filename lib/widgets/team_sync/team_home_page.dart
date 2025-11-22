@@ -36,6 +36,7 @@ import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
+import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -2418,16 +2419,60 @@ class _TeamHomePageState extends State<TeamHomePage> {
     // Generate tweet text
     String tweetText = _generateGameDayTweet(game, liveLink);
 
-    // Show dialog to preview and edit tweet
-    await showDialog(
-      context: context,
-      builder: (context) => _GameDayTweetDialog(
-        team: _team!,
-        game: game,
-        liveLink: liveLink,
-        initialTweetText: tweetText,
-      ),
+    // Show preview dialog using common component
+    final finalTweetText = await TweetPreviewDialog.show(
+      context,
+      initialText: tweetText,
+      team: _team!,
     );
+
+    // If user confirmed, send the tweet
+    if (finalTweetText != null && finalTweetText.isNotEmpty) {
+      try {
+        // Initialize Twitter with team credentials
+        final initialized = await TwitterService.instance
+            .initializeWithTeamCredentials(_team!.id);
+
+        if (!initialized) {
+          // Try local credentials as fallback
+          final localInit =
+              await TwitterService.instance.initializeWithLocalCredentials();
+          if (!localInit) {
+            throw Exception('Failed to initialize Twitter');
+          }
+        }
+
+        // Send the tweet
+        final success = await TwitterService.instance.sendTweet(finalTweetText);
+
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  const Text('Game day tweet sent successfully! 🎉'),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1DA1F2),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (!success && mounted) {
+          throw Exception('Failed to send tweet');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error sending tweet: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   String _generateGameDayTweet(Game? game, String liveLink) {
@@ -3390,247 +3435,6 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close'),
-        ),
-      ],
-    );
-  }
-}
-
-/// Dialog for composing and sending game day tweet with live link
-class _GameDayTweetDialog extends StatefulWidget {
-  final Team team;
-  final Game? game;
-  final String liveLink;
-  final String initialTweetText;
-
-  const _GameDayTweetDialog({
-    Key? key,
-    required this.team,
-    required this.game,
-    required this.liveLink,
-    required this.initialTweetText,
-  }) : super(key: key);
-
-  @override
-  State<_GameDayTweetDialog> createState() => _GameDayTweetDialogState();
-}
-
-class _GameDayTweetDialogState extends State<_GameDayTweetDialog> {
-  late TextEditingController _tweetController;
-  bool _isSending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _tweetController = TextEditingController(text: widget.initialTweetText);
-  }
-
-  @override
-  void dispose() {
-    _tweetController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _sendTweet() async {
-    if (_tweetController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tweet cannot be empty')),
-      );
-      return;
-    }
-
-    if (_tweetController.text.length > 280) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tweet must be 280 characters or less')),
-      );
-      return;
-    }
-
-    setState(() => _isSending = true);
-
-    try {
-      // Initialize Twitter with team credentials
-      final initialized = await TwitterService.instance
-          .initializeWithTeamCredentials(widget.team.id);
-
-      if (!initialized) {
-        // Try local credentials as fallback
-        final localInit =
-            await TwitterService.instance.initializeWithLocalCredentials();
-        if (!localInit) {
-          throw Exception('Failed to initialize Twitter');
-        }
-      }
-
-      // Send the tweet
-      final success =
-          await TwitterService.instance.sendTweet(_tweetController.text);
-
-      if (success && mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 12),
-                const Text('Game day tweet sent successfully! 🎉'),
-              ],
-            ),
-            backgroundColor: const Color(0xFF1DA1F2),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      } else if (mounted) {
-        throw Exception('Failed to send tweet');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending tweet: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSending = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final characterCount = _tweetController.text.length;
-    final isOverLimit = characterCount > 280;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return AlertDialog(
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1DA1F2).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.send,
-              color: Color(0xFF1DA1F2),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Tweet Game Day',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Game info if available
-            if (widget.game != null) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: widget.team.color1.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: widget.team.color1.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sports_soccer,
-                      color: widget.team.color1,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.game!.displayName(widget.team.id),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Tweet text field
-            TextField(
-              controller: _tweetController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                hintText: 'Compose your game day tweet...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerHighest,
-              ),
-              onChanged: (value) => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-
-            // Character count
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  '$characterCount/280',
-                  style: TextStyle(
-                    color: isOverLimit
-                        ? Colors.red
-                        : characterCount > 260
-                            ? Colors.orange
-                            : Colors.grey,
-                    fontWeight:
-                        isOverLimit ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSending ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton.icon(
-          onPressed: _isSending || isOverLimit ? null : _sendTweet,
-          icon: _isSending
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : const Icon(Icons.send, size: 18),
-          label: Text(_isSending ? 'Sending...' : 'Send Tweet'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1DA1F2),
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          ),
         ),
       ],
     );

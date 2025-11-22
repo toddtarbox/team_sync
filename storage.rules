@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for TeamSync
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user is the owner
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Helper function to validate image file
+    function isValidImage() {
+      return request.resource.size < 10 * 1024 * 1024 // Max 10MB
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // Player profile images
+    // Path: player_images/{timestamp}
+    match /player_images/{imageId} {
+      // Allow authenticated users to read
+      allow read: if isAuthenticated();
+
+      // Allow authenticated users to write (upload)
+      allow write: if isAuthenticated()
+                   && isValidImage();
+
+      // Allow delete for cleanup
+      allow delete: if isAuthenticated();
+    }
+
+    // Player action photos (for baseball cards)
+    // Path: player_action_photos/{timestamp}
+    match /player_action_photos/{imageId} {
+      // Allow authenticated users to read
+      allow read: if isAuthenticated();
+
+      // Allow authenticated users to write (upload)
+      allow write: if isAuthenticated()
+                   && isValidImage();
+
+      // Allow delete for cleanup
+      allow delete: if isAuthenticated();
+    }
+
+    // Team logos/images
+    // Path: team_images/{imageId}
+    match /team_images/{imageId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImage();
+      allow delete: if isAuthenticated();
+    }
+
+    // User subscription data (per user)
+    // Path: subscriptionIds/{uid}/databases/{dbId}/{path}
+    match /subscriptionIds/{uid}/databases/{dbId}/{allPaths=**} {
+      // Users can only access their own subscription data
+      allow read, write: if isOwner(uid);
+    }
+
+    // Shared database files (public share feature)
+    // Path: sharedDatabases/{shareId}/{path}
+    match /sharedDatabases/{shareId}/{allPaths=**} {
+      // Allow read for authenticated users (shared databases)
+      allow read: if isAuthenticated();
+
+      // Only the owner can write/delete
+      allow write, delete: if isAuthenticated();
+    }
+
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

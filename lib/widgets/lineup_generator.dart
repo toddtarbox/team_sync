@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +13,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
+import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 
 /// Visual styles for lineup display
 enum LineupStyle {
@@ -1571,26 +1571,94 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
     setState(() => _isSharing = true);
 
     try {
-      // Note: In a full implementation with image capture:
-      // 1. Capture the RepaintBoundary as an image
-      // 2. Save to temporary file
-      // 3. Upload to Twitter API or use share intent
+      // Find the RepaintBoundary
+      final boundary = _repaintKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
 
-      // For now, we'll show a text-based tweet dialog
+      if (boundary == null) {
+        throw Exception('Could not find render boundary');
+      }
+
+      // Capture the image at high quality
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        throw Exception('Could not convert image to bytes');
+      }
+
+      final pngBytes = byteData.buffer.asUint8List();
+
+      // Save to temporary file for Twitter
+      final tempDir = await getTemporaryDirectory();
+      final filename =
+          'lineup_${widget.team.shortName}_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File('${tempDir.path}/$filename');
+      await file.writeAsBytes(pngBytes);
+
+      // Generate initial tweet text
       final tweetText = _generateTweetText();
 
-      // Use the existing adhoc tweet dialog
-      if (mounted) {
-        Navigator.of(context).pop(); // Close preview dialog
+      // Show tweet preview dialog with lineup image (don't close lineup preview yet)
+      if (!mounted) return;
 
-        // Import and use AdhocTweetDialog from the app
-        await _showTweetDialog(tweetText);
+      final finalTweetText = await TweetPreviewDialog.show(
+        context,
+        initialText: tweetText,
+        team: widget.team,
+        imageFile: file,
+        eventContext: 'Starting XI',
+      );
+
+      // If user confirmed, send the tweet
+      if (finalTweetText != null && finalTweetText.isNotEmpty) {
+        // Initialize Twitter with team credentials
+        bool initialized = await TwitterService.instance
+            .initializeWithTeamCredentials(widget.team.id);
+
+        if (!initialized) {
+          // Try local credentials as fallback
+          initialized =
+              await TwitterService.instance.initializeWithLocalCredentials();
+        }
+
+        if (!initialized) {
+          throw Exception('Twitter not configured');
+        }
+
+        // Send the tweet
+        final success = await TwitterService.instance.sendTweet(finalTweetText);
+
+        if (mounted) {
+          // Close lineup preview dialog on success
+          Navigator.of(context).pop();
+
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: Colors.white, size: 20),
+                    const SizedBox(width: 12),
+                    const Text('Lineup tweeted successfully! 🎉'),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF1DA1F2),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          } else {
+            throw Exception('Failed to send tweet');
+          }
+        }
       }
+      // If user cancelled (finalTweetText is null), lineup preview stays open
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error sharing: $e'),
+            content: Text('Error sharing to Twitter: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -1611,82 +1679,6 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
 $teamName takes the field in $formationText formation!
 
 #$teamName #MatchDay #StartingXI #Soccer ⚽''';
-  }
-
-  Future<void> _showTweetDialog(String tweetText) async {
-    // Show a simple dialog with the tweet text
-    // In production, this would integrate with your Twitter service
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.send, color: Color(0xFF1DA1F2)),
-            SizedBox(width: 12),
-            Text('Share on Twitter'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your lineup has been generated!',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: SelectableText(
-                tweetText,
-                style: const TextStyle(fontSize: 14),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Note: Image sharing coming soon! For now, copy this text to share.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              // Copy to clipboard
-              Clipboard.setData(ClipboardData(text: tweetText));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Tweet text copied to clipboard!'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-              Navigator.of(context).pop();
-            },
-            icon: const Icon(Icons.copy),
-            label: const Text('Copy Text'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1DA1F2),
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

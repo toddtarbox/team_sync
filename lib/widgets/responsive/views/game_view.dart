@@ -884,7 +884,26 @@ class _GameViewState extends State<GameView> {
       if (event.shouldTweet && gameInProgress) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
-          await TwitterService.instance.sendTweet(tweetText);
+          // Ensure Twitter is initialized before sending
+          bool isConfigured = await TwitterService.instance
+              .isConfigured(teamId: widget.season.teamId);
+          if (!isConfigured) {
+            // Try to initialize with team credentials
+            isConfigured = await TwitterService.instance
+                .initializeWithTeamCredentials(widget.season.teamId);
+            if (!isConfigured) {
+              // Fallback to local credentials
+              isConfigured = await TwitterService.instance
+                  .initializeWithLocalCredentials();
+            }
+          }
+
+          if (isConfigured) {
+            // Only send if configured
+            await TwitterService.instance.sendTweet(tweetText);
+          } else {
+            debugPrint('Twitter not configured - skipping tweet: $tweetText');
+          }
         }
       }
 

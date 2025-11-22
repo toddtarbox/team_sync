@@ -4,7 +4,6 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
-import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -19,8 +18,6 @@ class MobileGameStatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
     return Scaffold(
         appBar: buildStandardAppBar(
           context: context,
@@ -28,19 +25,16 @@ class MobileGameStatsPage extends StatelessWidget {
           title: Text(game.displayName(season.teamId),
               style:
                   const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          bottom: PreferredSize(
-              preferredSize: Size(width, 100),
-              child: ScoreboardWidget(
-                compact: true,
-                margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
-                season: season,
-                game: game,
-                teamId: season.team.id,
-              )),
         ),
         body: Column(
           children: [
-            CommonPageHeader(team: season.team),
+            ScoreboardWidget(
+              compact: true,
+              margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
+              season: season,
+              game: game,
+              teamId: season.team.id,
+            ),
             Breadcrumbs(
               items: buildTeamBreadcrumbs(
                 databaseId: DatabaseService.instance.publicShareId ?? '',

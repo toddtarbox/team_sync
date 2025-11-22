@@ -26,6 +26,7 @@ class PlayersPage extends StatefulWidget {
 
 class _PlayersPageState extends State<PlayersPage> {
   File? _imageFile;
+  File? _actionPhotoFile; // For action photos (baseball card style)
 
   @override
   Widget build(BuildContext context) {
@@ -276,6 +277,7 @@ class _PlayersPageState extends State<PlayersPage> {
     late String playerName = player.displayName;
     late int playerNumber = player.number;
     _imageFile = null;
+    _actionPhotoFile = null; // Reset action photo file
 
     showModalBottomSheet(
         context: context,
@@ -287,58 +289,231 @@ class _PlayersPageState extends State<PlayersPage> {
                     padding: const EdgeInsets.all(50),
                     child: Column(children: [
                       Text(AppLocalizations.of(context)!.editPlayer),
-                      InkWell(
-                        onTap: kIsWeb
-                            ? null
-                            : () async {
-                                if (!SubscriptionService
-                                    .instance.isSubscribed) {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: Text(
-                                            AppLocalizations.of(context)!
-                                                .proFeature),
-                                        content: Text(
-                                            AppLocalizations.of(context)!
-                                                .playerProfilesProFeature),
-                                        actions: [
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .cancelButton),
-                                            onPressed: () {
-                                              Navigator.pop(context);
+                      const SizedBox(height: 16),
+                      // Profile and Action Photo Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Profile Photo
+                          Column(
+                            children: [
+                              InkWell(
+                                onTap: kIsWeb
+                                    ? null
+                                    : () async {
+                                        if (!SubscriptionService
+                                            .instance.isSubscribed) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .proFeature),
+                                                content: Text(AppLocalizations
+                                                        .of(context)!
+                                                    .playerProfilesProFeature),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .goPro),
+                                                    onPressed: () async {
+                                                      Navigator.pop(context);
+                                                      await SubscriptionService
+                                                          .instance
+                                                          .purchaseSubscription();
+                                                    },
+                                                  ),
+                                                ],
+                                              );
                                             },
-                                          ),
-                                          TextButton(
-                                            child: Text(
-                                                AppLocalizations.of(context)!
-                                                    .goPro),
-                                            onPressed: () async {
-                                              Navigator.pop(context);
-                                              await SubscriptionService.instance
-                                                  .purchaseSubscription();
+                                          );
+                                          return;
+                                        }
+                                        final pickedFile = await ImagePicker()
+                                            .pickImage(
+                                                source: ImageSource.gallery);
+                                        if (pickedFile != null) {
+                                          setModalState(() {
+                                            _imageFile = File(pickedFile.path);
+                                          });
+                                        }
+                                      },
+                                child: ResponsivePlayerAvatar(
+                                    player: player,
+                                    avatarSize: 56,
+                                    isEdit: true),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Profile Photo',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          // Action Photo
+                          Column(
+                            children: [
+                              InkWell(
+                                onTap: kIsWeb
+                                    ? null
+                                    : () async {
+                                        if (!SubscriptionService
+                                            .instance.isSubscribed) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .proFeature),
+                                                content: const Text(
+                                                    'Action photos for player cards are a Pro feature!'),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .goPro),
+                                                    onPressed: () async {
+                                                      Navigator.pop(context);
+                                                      await SubscriptionService
+                                                          .instance
+                                                          .purchaseSubscription();
+                                                    },
+                                                  ),
+                                                ],
+                                              );
                                             },
+                                          );
+                                          return;
+                                        }
+                                        final pickedFile = await ImagePicker()
+                                            .pickImage(
+                                                source: ImageSource.gallery);
+                                        if (pickedFile != null) {
+                                          setModalState(() {
+                                            _actionPhotoFile =
+                                                File(pickedFile.path);
+                                          });
+                                        }
+                                      },
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: widget.season.team.color1,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _actionPhotoFile != null
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Image.file(
+                                            _actionPhotoFile!,
+                                            fit: BoxFit.cover,
                                           ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                  return;
-                                }
-                                final pickedFile = await ImagePicker()
-                                    .pickImage(source: ImageSource.gallery);
-                                if (pickedFile != null) {
-                                  setModalState(() {
-                                    _imageFile = File(pickedFile.path);
-                                  });
-                                }
-                              },
-                        child: ResponsivePlayerAvatar(
-                            player: player, avatarSize: 56, isEdit: true),
+                                        )
+                                      : player.actionPhoto != null &&
+                                              player.actionPhoto!.isNotEmpty
+                                          ? ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              child: player.actionPhoto!
+                                                      .startsWith('http')
+                                                  ? Image.network(
+                                                      player.actionPhoto!,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (context,
+                                                          error, stackTrace) {
+                                                        return const Icon(
+                                                          Icons.photo_camera,
+                                                          size: 28,
+                                                          color: Colors.grey,
+                                                        );
+                                                      },
+                                                      loadingBuilder: (context,
+                                                          child,
+                                                          loadingProgress) {
+                                                        if (loadingProgress ==
+                                                            null) return child;
+                                                        return Center(
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            value: loadingProgress
+                                                                        .expectedTotalBytes !=
+                                                                    null
+                                                                ? loadingProgress
+                                                                        .cumulativeBytesLoaded /
+                                                                    loadingProgress
+                                                                        .expectedTotalBytes!
+                                                                : null,
+                                                          ),
+                                                        );
+                                                      },
+                                                    )
+                                                  : Image.file(
+                                                      File(player.actionPhoto!),
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (context,
+                                                          error, stackTrace) {
+                                                        return const Icon(
+                                                          Icons.photo_camera,
+                                                          size: 28,
+                                                          color: Colors.grey,
+                                                        );
+                                                      },
+                                                    ),
+                                            )
+                                          : const Icon(
+                                              Icons.photo_camera,
+                                              size: 28,
+                                              color: Colors.grey,
+                                            ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Action Photo',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                              const Text(
+                                '(for player cards)',
+                                style:
+                                    TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 16),
                       TextFormField(
                           initialValue: playerName,
                           autofocus: true,
@@ -367,6 +542,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                     onTap: () async {
                                       if (playerName.isNotEmpty) {
                                         String? imageUrl = player.profileImage;
+                                        String? actionPhotoUrl =
+                                            player.actionPhoto;
+
+                                        // Handle profile image upload
                                         if (_imageFile != null) {
                                           if (player.profileImage != null &&
                                               player.profileImage!.isNotEmpty) {
@@ -387,6 +566,31 @@ class _PlayersPageState extends State<PlayersPage> {
                                           await storageRef.putFile(_imageFile!);
                                           imageUrl =
                                               await storageRef.getDownloadURL();
+                                        }
+
+                                        // Handle action photo upload
+                                        if (_actionPhotoFile != null) {
+                                          if (player.actionPhoto != null &&
+                                              player.actionPhoto!.isNotEmpty) {
+                                            try {
+                                              await FirebaseStorage.instance
+                                                  .refFromURL(
+                                                      player.actionPhoto!)
+                                                  .delete();
+                                            } catch (e) {
+                                              // Image may not exist, so we can ignore.
+                                            }
+                                          }
+                                          final actionStorageRef = FirebaseStorage
+                                              .instance
+                                              .ref()
+                                              .child(
+                                                  'player_action_photos/${DateTime.now().toIso8601String()}');
+                                          await actionStorageRef
+                                              .putFile(_actionPhotoFile!);
+                                          actionPhotoUrl =
+                                              await actionStorageRef
+                                                  .getDownloadURL();
                                         }
 
                                         final nameParts = playerName.split(' ');
@@ -413,7 +617,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                                         'firstName': firstName,
                                                         'lastName': lastName,
                                                         'number': playerNumber,
-                                                        'profileImage': imageUrl
+                                                        'profileImage':
+                                                            imageUrl,
+                                                        'actionPhoto':
+                                                            actionPhotoUrl,
                                                       },
                                                       key: k);
                                             }
@@ -442,6 +649,7 @@ class _PlayersPageState extends State<PlayersPage> {
     late String playerName;
     late int playerNumber;
     _imageFile = null;
+    _actionPhotoFile = null; // Reset action photo file
 
     showModalBottomSheet(
         context: context,

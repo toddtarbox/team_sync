@@ -161,7 +161,7 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
 
         return Card(
           margin: effectiveMargin,
-          elevation: isLiveGame ? 8 : 4,
+          elevation: isLiveGame ? 10 : 8,
           shadowColor: isLiveGame ? Colors.amber.withOpacity(0.5) : null,
           child: InkWell(
             onTap: widget.season != null
