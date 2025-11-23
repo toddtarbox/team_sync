@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/player_highlight.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/pin_entry_dialog.dart';
 import 'package:team_sync/widgets/player_card_generator.dart';
+import 'package:team_sync/widgets/player_profile_editor.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
@@ -33,10 +36,12 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Future<Map<Season, SeasonStats>>? _seasonStatsFuture;
   Future<List<GameEvent>>? _highlightsFuture;
   Future<List<PlayerHighlight>>? _independentHighlightsFuture;
+  Future<List<PlayerAward>>? _awardsFuture;
   Future<Season?>?
       _currentSeasonFuture; // will load if widget.currentSeason is null
   Season? _loadedSeason;
   bool _showHighlights = true;
+  bool _isEditMode = false;
 
   @override
   void initState() {
@@ -51,6 +56,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     _seasonStatsFuture = _loadPlayerSeasonStats();
     _highlightsFuture = _loadPlayerHighlights();
     _independentHighlightsFuture = _loadIndependentHighlights();
+    _awardsFuture = _loadAwards();
   }
 
   Future<Season?> _loadSeasonForPlayer() async {
@@ -147,6 +153,15 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     }
   }
 
+  Future<List<PlayerAward>> _loadAwards() async {
+    try {
+      return await PlayerAward.listFromPlayerId(widget.player.id);
+    } catch (e) {
+      print('Error loading awards: $e');
+      return [];
+    }
+  }
+
   Future<Map<LeaderCategory, int>> _getPlayerStats(
       SeasonStats stats, int playerId) async {
     final Map<LeaderCategory, int> playerStats = {};
@@ -186,6 +201,30 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     return careerStats;
   }
 
+  Future<void> _showPinDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => PinEntryDialog(player: widget.player),
+    );
+
+    if (result == true) {
+      setState(() {
+        _isEditMode = true;
+      });
+    }
+  }
+
+  void _exitEditMode() {
+    setState(() {
+      _isEditMode = false;
+      // Reload data to show any changes
+      _seasonStatsFuture = _loadPlayerSeasonStats();
+      _highlightsFuture = _loadPlayerHighlights();
+      _independentHighlightsFuture = _loadIndependentHighlights();
+      _awardsFuture = _loadAwards();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -220,6 +259,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             actions: [
+              // Edit Profile button (web only)
+              if (kIsWeb && !_isEditMode)
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: loc.editProfile,
+                  onPressed: () => _showPinDialog(),
+                ),
               // Generate Player Card button (Pro feature)
               if (currentSeason?.team != null)
                 IconButton(
@@ -234,18 +280,19 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   },
                 ),
               // Toggle highlights button
-              IconButton(
-                icon: Icon(_showHighlights
-                    ? Icons.video_library
-                    : Icons.video_library_outlined),
-                tooltip:
-                    _showHighlights ? loc.hideHighlights : loc.showHighlights,
-                onPressed: () {
-                  setState(() {
-                    _showHighlights = !_showHighlights;
-                  });
-                },
-              ),
+              if (!_isEditMode)
+                IconButton(
+                  icon: Icon(_showHighlights
+                      ? Icons.video_library
+                      : Icons.video_library_outlined),
+                  tooltip:
+                      _showHighlights ? loc.hideHighlights : loc.showHighlights,
+                  onPressed: () {
+                    setState(() {
+                      _showHighlights = !_showHighlights;
+                    });
+                  },
+                ),
             ],
           ),
           body: Column(
@@ -263,107 +310,119 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 ),
               ],
               Expanded(
-                child: _seasonStatsFuture == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : FutureBuilder<Map<Season, SeasonStats>>(
-                        future: _seasonStatsFuture,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          }
+                child: _isEditMode
+                    ? ListView(
+                        children: [
+                          PlayerProfileEditor(
+                            player: widget.player,
+                            onExitEditMode: _exitEditMode,
+                          ),
+                        ],
+                      )
+                    : _seasonStatsFuture == null
+                        ? const Center(child: CircularProgressIndicator())
+                        : FutureBuilder<Map<Season, SeasonStats>>(
+                            future: _seasonStatsFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              }
 
-                          if (snapshot.hasError) {
-                            return Center(
-                              child: Text(loc.errorLoadingPlayerStats(
-                                  snapshot.error?.toString() ?? '',
-                                  snapshot.stackTrace?.toString() ?? '')),
-                            );
-                          }
-
-                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                            return Center(child: Text(loc.noStatsAvailable));
-                          }
-
-                          final seasonStats = snapshot.data!;
-                          final seasons = seasonStats.keys.toList()
-                            ..sort((a, b) =>
-                                b.name.compareTo(a.name)); // Most recent first
-
-                          // Build main content
-                          final mainContent = ListView(
-                            children: [
-                              // Player header with avatar and basic info
-                              _buildPlayerHeader(),
-
-                              const Divider(thickness: 2),
-
-                              // Career Stats Section
-                              _buildCareerStats(seasonStats),
-
-                              const Divider(thickness: 2),
-
-                              // Stats for each season
-                              ...seasons.map((season) => _buildSeasonStats(
-                                    season,
-                                    seasonStats[season]!,
-                                    currentSeason,
-                                  )),
-                            ],
-                          );
-
-                          // Responsive layout
-                          return LayoutBuilder(
-                            builder: (context, constraints) {
-                              final isWideScreen = constraints.maxWidth > 900;
-
-                              if (isWideScreen && _showHighlights) {
-                                // Two-column layout for wide screens
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Main content (left side)
-                                    Expanded(
-                                      flex: 2,
-                                      child: mainContent,
-                                    ),
-
-                                    // Highlights panel (right side)
-                                    Container(
-                                      width: 400,
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          left: BorderSide(
-                                            color:
-                                                Theme.of(context).dividerColor,
-                                            width: 1,
-                                          ),
-                                        ),
-                                      ),
-                                      child: _buildHighlightsPanel(),
-                                    ),
-                                  ],
-                                );
-                              } else {
-                                // Single column layout for narrow screens or when highlights hidden
-                                return Column(
-                                  children: [
-                                    Expanded(child: mainContent),
-                                    if (_showHighlights) ...[
-                                      const Divider(thickness: 2),
-                                      SizedBox(
-                                        height: 300,
-                                        child: _buildHighlightsPanel(),
-                                      ),
-                                    ],
-                                  ],
+                              if (snapshot.hasError) {
+                                return Center(
+                                  child: Text(loc.errorLoadingPlayerStats(
+                                      snapshot.error?.toString() ?? '',
+                                      snapshot.stackTrace?.toString() ?? '')),
                                 );
                               }
+
+                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                return Center(
+                                    child: Text(loc.noStatsAvailable));
+                              }
+
+                              final seasonStats = snapshot.data!;
+                              final seasons = seasonStats.keys.toList()
+                                ..sort((a, b) => b.name
+                                    .compareTo(a.name)); // Most recent first
+
+                              // Build main content
+                              final mainContent = ListView(
+                                children: [
+                                  // Player header with avatar and basic info
+                                  _buildPlayerHeader(),
+
+                                  const Divider(thickness: 2),
+
+                                  // Career Stats Section
+                                  _buildCareerStats(seasonStats),
+
+                                  const Divider(thickness: 2),
+
+                                  // Stats for each season
+                                  ...seasons.map((season) => _buildSeasonStats(
+                                        season,
+                                        seasonStats[season]!,
+                                        currentSeason,
+                                      )),
+                                ],
+                              );
+
+                              // Responsive layout
+                              return LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isWideScreen =
+                                      constraints.maxWidth > 900;
+
+                                  if (isWideScreen && _showHighlights) {
+                                    // Two-column layout for wide screens
+                                    return Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Main content (left side)
+                                        Expanded(
+                                          flex: 2,
+                                          child: mainContent,
+                                        ),
+
+                                        // Highlights panel (right side)
+                                        Container(
+                                          width: 400,
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              left: BorderSide(
+                                                color: Theme.of(context)
+                                                    .dividerColor,
+                                                width: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          child: _buildHighlightsPanel(),
+                                        ),
+                                      ],
+                                    );
+                                  } else {
+                                    // Single column layout for narrow screens or when highlights hidden
+                                    return Column(
+                                      children: [
+                                        Expanded(child: mainContent),
+                                        if (_showHighlights) ...[
+                                          const Divider(thickness: 2),
+                                          SizedBox(
+                                            height: 300,
+                                            child: _buildHighlightsPanel(),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  }
+                                },
+                              );
                             },
-                          );
-                        },
-                      ),
+                          ),
               ),
             ],
           ),
@@ -583,6 +642,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       future: Future.wait([
         _highlightsFuture ?? Future.value(<GameEvent>[]),
         _independentHighlightsFuture ?? Future.value(<PlayerHighlight>[]),
+        _awardsFuture ?? Future.value(<PlayerAward>[]),
       ]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -603,13 +663,14 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             (snapshot.data?[0] as List<GameEvent>?) ?? [];
         final independentHighlights =
             (snapshot.data?[1] as List<PlayerHighlight>?) ?? [];
-        final totalCount =
+        final awards = (snapshot.data?[2] as List<PlayerAward>?) ?? [];
+        final totalHighlights =
             gameEventHighlights.length + independentHighlights.length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Highlights Header
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -634,7 +695,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   ),
                   const Spacer(),
                   Text(
-                    '$totalCount',
+                    '$totalHighlights',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -653,10 +714,44 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               ),
             ),
 
-            // Highlights list
+            // Content (Highlights and Awards)
             Expanded(
-              child: totalCount == 0
-                  ? Center(
+              child: ListView(
+                padding: const EdgeInsets.all(8.0),
+                children: [
+                  // Awards Section (at top)
+                  if (awards.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.emoji_events, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            loc.awards,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${awards.length}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...awards.map((award) => _buildAwardCard(award)),
+                    const Divider(height: 32, thickness: 2),
+                  ],
+
+                  // Highlights Section
+                  if (totalHighlights == 0 && awards.isEmpty)
+                    Center(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Text(
@@ -666,21 +761,76 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                         ),
                       ),
                     )
-                  : ListView(
-                      padding: const EdgeInsets.all(8.0),
-                      children: [
-                        // Independent highlights first
-                        ...independentHighlights.map((highlight) =>
-                            _buildIndependentHighlightItem(highlight)),
-                        // Then game event highlights
-                        ...gameEventHighlights
-                            .map((event) => _buildHighlightItem(event)),
-                      ],
-                    ),
+                  else ...[
+                    // Independent highlights first
+                    ...independentHighlights.map((highlight) =>
+                        _buildIndependentHighlightItem(highlight)),
+                    // Then game event highlights
+                    ...gameEventHighlights
+                        .map((event) => _buildHighlightItem(event)),
+                  ],
+                ],
+              ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildAwardCard(PlayerAward award) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 2,
+      child: ListTile(
+        leading: award.imageUrl != null
+            ? CircleAvatar(
+                radius: 20,
+                backgroundImage: NetworkImage(award.imageUrl!),
+              )
+            : const CircleAvatar(
+                radius: 20,
+                child: Icon(Icons.emoji_events, size: 20),
+              ),
+        title: Text(
+          award.title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (award.description != null && award.description!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  award.description!,
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: FutureBuilder<String>(
+                future: award.getSeasonName(),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? 'Season ${award.seasonId}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

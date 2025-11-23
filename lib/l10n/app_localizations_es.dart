@@ -464,4 +464,110 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recentHighlights => 'Destacados recientes';
+
+  @override
+  String get editProfile => 'Editar perfil';
+
+  @override
+  String get enterPinToEdit => 'Ingrese PIN para editar perfil';
+
+  @override
+  String get enterFourDigitPin => 'Ingrese PIN de 4 dígitos';
+
+  @override
+  String get pinLabel => 'PIN';
+
+  @override
+  String get unlockButton => 'Desbloquear';
+
+  @override
+  String get invalidPin => 'El PIN debe tener 4 dígitos';
+
+  @override
+  String get exitEditMode => 'Salir del modo de edición';
+
+  @override
+  String get profilePicture => 'Foto de perfil';
+
+  @override
+  String get actionPhoto => 'Foto de acción';
+
+  @override
+  String get awards => 'Premios';
+
+  @override
+  String get addAward => 'Agregar premio';
+
+  @override
+  String get noAwardsAvailable => 'No hay premios disponibles';
+
+  @override
+  String get editAward => 'Editar premio';
+
+  @override
+  String get addAwardDialogTitle => 'Agregar premio';
+
+  @override
+  String get deleteAwardTitle => 'Eliminar premio';
+
+  @override
+  String deleteAwardConfirm(Object title) {
+    return '¿Está seguro de que desea eliminar \"$title\"?';
+  }
+
+  @override
+  String get awardSaved => 'Premio guardado correctamente';
+
+  @override
+  String errorSavingAward(Object error) {
+    return 'Error al guardar el premio: $error';
+  }
+
+  @override
+  String get awardDeleted => 'Premio eliminado';
+
+  @override
+  String errorDeletingAward(Object error) {
+    return 'Error al eliminar el premio: $error';
+  }
+
+  @override
+  String errorLoadingAwards(Object error) {
+    return 'Error al cargar los premios: $error';
+  }
+
+  @override
+  String get uploadImage => 'Subir imagen';
+
+  @override
+  String get changeImage => 'Cambiar imagen';
+
+  @override
+  String get removeImage => 'Eliminar imagen';
+
+  @override
+  String get selectImageSource => 'Seleccionar fuente de imagen';
+
+  @override
+  String get camera => 'Cámara';
+
+  @override
+  String get gallery => 'Galería';
+
+  @override
+  String get profileUpdated => 'Perfil actualizado correctamente';
+
+  @override
+  String errorUpdatingProfile(Object error) {
+    return 'Error al actualizar el perfil: $error';
+  }
+
+  @override
+  String get labelAwardTitle => 'Título del premio *';
+
+  @override
+  String get hintAwardTitle => 'ej., MVP, All-Star, Máximo goleador';
+
+  @override
+  String get labelAwardImage => 'Imagen del premio (opcional)';
 }

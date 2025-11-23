@@ -961,6 +961,198 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent highlights'**
   String get recentHighlights;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfile;
+
+  /// No description provided for @enterPinToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN to Edit Profile'**
+  String get enterPinToEdit;
+
+  /// No description provided for @enterFourDigitPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 4-digit PIN'**
+  String get enterFourDigitPin;
+
+  /// No description provided for @pinLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN'**
+  String get pinLabel;
+
+  /// No description provided for @unlockButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get unlockButton;
+
+  /// No description provided for @invalidPin.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN must be 4 digits'**
+  String get invalidPin;
+
+  /// No description provided for @exitEditMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit Edit Mode'**
+  String get exitEditMode;
+
+  /// No description provided for @profilePicture.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile Picture'**
+  String get profilePicture;
+
+  /// No description provided for @actionPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Action Photo'**
+  String get actionPhoto;
+
+  /// No description provided for @awards.
+  ///
+  /// In en, this message translates to:
+  /// **'Awards'**
+  String get awards;
+
+  /// No description provided for @addAward.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Award'**
+  String get addAward;
+
+  /// No description provided for @noAwardsAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No awards available'**
+  String get noAwardsAvailable;
+
+  /// No description provided for @editAward.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Award'**
+  String get editAward;
+
+  /// No description provided for @addAwardDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Award'**
+  String get addAwardDialogTitle;
+
+  /// No description provided for @deleteAwardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Award'**
+  String get deleteAwardTitle;
+
+  /// No description provided for @deleteAwardConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{title}\"?'**
+  String deleteAwardConfirm(Object title);
+
+  /// No description provided for @awardSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Award saved successfully'**
+  String get awardSaved;
+
+  /// No description provided for @errorSavingAward.
+  ///
+  /// In en, this message translates to:
+  /// **'Error saving award: {error}'**
+  String errorSavingAward(Object error);
+
+  /// No description provided for @awardDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Award deleted'**
+  String get awardDeleted;
+
+  /// No description provided for @errorDeletingAward.
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting award: {error}'**
+  String errorDeletingAward(Object error);
+
+  /// No description provided for @errorLoadingAwards.
+  ///
+  /// In en, this message translates to:
+  /// **'Error loading awards: {error}'**
+  String errorLoadingAwards(Object error);
+
+  /// No description provided for @uploadImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Image'**
+  String get uploadImage;
+
+  /// No description provided for @changeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Image'**
+  String get changeImage;
+
+  /// No description provided for @removeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Image'**
+  String get removeImage;
+
+  /// No description provided for @selectImageSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Image Source'**
+  String get selectImageSource;
+
+  /// No description provided for @camera.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get camera;
+
+  /// No description provided for @gallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get gallery;
+
+  /// No description provided for @profileUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated successfully'**
+  String get profileUpdated;
+
+  /// No description provided for @errorUpdatingProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Error updating profile: {error}'**
+  String errorUpdatingProfile(Object error);
+
+  /// No description provided for @labelAwardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Award Title *'**
+  String get labelAwardTitle;
+
+  /// No description provided for @hintAwardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., MVP, All-Star, Top Scorer'**
+  String get hintAwardTitle;
+
+  /// No description provided for @labelAwardImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Award Image (optional)'**
+  String get labelAwardImage;
 }
 
 class _AppLocalizationsDelegate

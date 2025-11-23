@@ -98,8 +98,64 @@ git diff --cached --name-status | while IFS=$'\t' read -r status file; do
 done
 echo ""
 
+# Function to handle push
+do_push() {
+  echo ""
+  echo -e "${YELLOW}🚀 Push to remote?${NC}"
+  echo -e "   Branch: ${GREEN}$CURRENT_BRANCH${NC}"
+  read -p "$(echo -e "${YELLOW}Push changes? [y/N]: ${NC}")" -n 1 -r
+  echo ""
+
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${BLUE}📤 Pushing to $CURRENT_BRANCH...${NC}"
+
+    if git ls-remote --heads origin "$CURRENT_BRANCH" | grep -q "$CURRENT_BRANCH"; then
+      git push origin "$CURRENT_BRANCH"
+    else
+      echo -e "${YELLOW}⚠️  Remote branch doesn't exist, creating...${NC}"
+      git push -u origin "$CURRENT_BRANCH"
+    fi
+
+    if [ $? -eq 0 ]; then
+      echo -e "${GREEN}✅ Successfully pushed to origin/$CURRENT_BRANCH${NC}"
+    else
+      echo -e "${RED}❌ Push failed${NC}"
+      exit 1
+    fi
+  else
+    echo -e "${YELLOW}⏭️  Skipped push${NC}"
+    echo -e "${CYAN}💡 You can push later with: ${NC}git push origin $CURRENT_BRANCH"
+  fi
+
+  echo ""
+  echo -e "${GREEN}🎉 Done!${NC}"
+  exit 0
+}
+
 # Generate commit message based on changes
 echo -e "${BLUE}🤖 Generating commit message...${NC}"
+echo ""
+
+# Check if GitHub Copilot CLI is available
+# Note: As of late 2024/2025, GitHub Copilot CLI has undergone changes
+# The gh-copilot extension is deprecated, and GitHub is transitioning to new tooling
+COPILOT_AVAILABLE=false
+
+# For now, we'll disable Copilot integration until the new CLI is stable
+# Uncomment and update when the new Copilot CLI is available and stable
+# if command -v github-copilot-cli &> /dev/null; then
+#   COPILOT_AVAILABLE=true
+# fi
+
+# Skip Copilot for now - it's in transition
+if [ "$COPILOT_AVAILABLE" = true ]; then
+  echo -e "${CYAN}🤖 GitHub Copilot CLI detected! Generating AI commit message...${NC}"
+  # Copilot integration code would go here
+  # Currently disabled due to GitHub's CLI changes
+fi
+
+# Use traditional commit message generation
+echo -e "${CYAN}📝 Generating commit message...${NC}"
 
 # Analyze changes
 ADDED_FILES=$(git diff --cached --name-status | grep -E "^A" | wc -l | tr -d ' ')
@@ -244,42 +300,11 @@ if [ $? -eq 0 ]; then
   echo ""
   echo -e "${CYAN}📊 Commit details:${NC}"
   git log -1 --stat --color=always | head -20
+
+  do_push
 else
   echo -e "${RED}❌ Commit failed${NC}"
   exit 1
 fi
 
-# Prompt to push
-echo ""
-echo -e "${YELLOW}🚀 Push to remote?${NC}"
-echo -e "   Branch: ${GREEN}$CURRENT_BRANCH${NC}"
-read -p "$(echo -e ${YELLOW}Push changes? [y/N]: ${NC})" -n 1 -r
-echo ""
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo -e "${BLUE}📤 Pushing to $CURRENT_BRANCH...${NC}"
-
-  # Check if remote branch exists
-  if git ls-remote --heads origin "$CURRENT_BRANCH" | grep -q "$CURRENT_BRANCH"; then
-    # Remote branch exists, just push
-    git push origin "$CURRENT_BRANCH"
-  else
-    # Remote branch doesn't exist, set upstream
-    echo -e "${YELLOW}⚠️  Remote branch doesn't exist, creating...${NC}"
-    git push -u origin "$CURRENT_BRANCH"
-  fi
-
-  if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Successfully pushed to origin/$CURRENT_BRANCH${NC}"
-  else
-    echo -e "${RED}❌ Push failed${NC}"
-    exit 1
-  fi
-else
-  echo -e "${YELLOW}⏭️  Skipped push${NC}"
-  echo -e "${CYAN}💡 You can push later with: ${NC}git push origin $CURRENT_BRANCH"
-fi
-
-echo ""
-echo -e "${GREEN}🎉 Done!${NC}"
 

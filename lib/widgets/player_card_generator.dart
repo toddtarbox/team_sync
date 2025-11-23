@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
@@ -995,12 +996,27 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   int _goals = 0;
   int _assists = 0;
   int _saves = 0;
+  List<PlayerAward> _awards = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadAwards();
+  }
+
+  Future<void> _loadAwards() async {
+    try {
+      final awards = await PlayerAward.listFromPlayerId(widget.player.id);
+      if (mounted) {
+        setState(() {
+          _awards = awards.take(3).toList(); // Show max 3 awards on card
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading player awards: $e');
+    }
   }
 
   Future<void> _loadStats() async {
@@ -1175,35 +1191,113 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                 : Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        // Only show stats if they are greater than 0
-                        if (_goals > 0)
-                          _StatRow(
-                            label: 'GOALS',
-                            value: _goals.toString(),
-                            icon: Icons.sports_soccer,
-                            config: config,
+                        // Stats section
+                        if (_goals > 0 || _assists > 0 || _saves > 0) ...[
+                          if (_goals > 0)
+                            _StatRow(
+                              label: 'GOALS',
+                              value: _goals.toString(),
+                              icon: Icons.sports_soccer,
+                              config: config,
+                            ),
+                          if (_assists > 0)
+                            _StatRow(
+                              label: 'ASSISTS',
+                              value: _assists.toString(),
+                              icon: Icons.people,
+                              config: config,
+                            ),
+                          if (_saves > 0)
+                            _StatRow(
+                              label: 'SAVES',
+                              value: _saves.toString(),
+                              icon: Icons.back_hand,
+                              config: config,
+                            ),
+                        ],
+
+                        // Awards section
+                        if (_awards.isNotEmpty) ...[
+                          if (_goals > 0 || _assists > 0 || _saves > 0)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Divider(
+                                color: config.textColor.withValues(alpha: 0.3),
+                                thickness: 1,
+                              ),
+                            ),
+                          Text(
+                            'AWARDS',
+                            style: TextStyle(
+                              color: config.accentColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5,
+                            ),
                           ),
-                        if (_assists > 0)
-                          _StatRow(
-                            label: 'ASSISTS',
-                            value: _assists.toString(),
-                            icon: Icons.people,
-                            config: config,
-                          ),
-                        if (_saves > 0)
-                          _StatRow(
-                            label: 'SAVES',
-                            value: _saves.toString(),
-                            icon: Icons.back_hand,
-                            config: config,
-                          ),
-                        // Show message if no stats
-                        if (_goals == 0 && _assists == 0 && _saves == 0)
+                          const SizedBox(height: 8),
+                          ..._awards.map((award) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.emoji_events,
+                                      size: 16,
+                                      color: config.accentColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            award.title.toUpperCase(),
+                                            style: TextStyle(
+                                              color: config.textColor,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          FutureBuilder<String>(
+                                            future: award.getSeasonName(),
+                                            builder: (context, snapshot) {
+                                              if (!snapshot.hasData) {
+                                                return const SizedBox.shrink();
+                                              }
+                                              return Text(
+                                                snapshot.data!,
+                                                style: TextStyle(
+                                                  color: config.textColor
+                                                      .withValues(alpha: 0.7),
+                                                  fontSize: 10,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )),
+                        ],
+
+                        // Show message if no stats and no awards
+                        if (_goals == 0 &&
+                            _assists == 0 &&
+                            _saves == 0 &&
+                            _awards.isEmpty)
                           Center(
                             child: Text(
-                              'No stats yet',
+                              'No stats or awards yet',
                               style: TextStyle(
                                 color: config.textColor.withValues(alpha: 0.5),
                                 fontSize: 16,

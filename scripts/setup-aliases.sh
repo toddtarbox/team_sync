@@ -23,22 +23,32 @@ echo ""
 
 # Remove old aliases if they exist
 sed -i.bak '/alias commit=/d' "$SHELL_RC" 2>/dev/null
-sed -i.bak '/alias build=/d' "$SHELL_RC" 2>/dev/null
+sed -i.bak '/alias build-mobile=/d' "$SHELL_RC" 2>/dev/null
+sed -i.bak '/alias deploy-mobile=/d' "$SHELL_RC" 2>/dev/null
+sed -i.bak '/alias deploy-web=/d' "$SHELL_RC" 2>/dev/null
 rm -f "$SHELL_RC.bak"
 
 # Add new aliases with absolute paths
 echo "alias commit='$PROJECT_ROOT/scripts/smart-commit.sh'" >> "$SHELL_RC"
 echo "✅ Added 'commit' alias"
 
-echo "alias build='$PROJECT_ROOT/scripts/quick-build.sh'" >> "$SHELL_RC"
-echo "✅ Added 'build' alias"
+echo "alias build-mobile='$PROJECT_ROOT/scripts/quick-build.sh'" >> "$SHELL_RC"
+echo "✅ Added 'build-mobile' alias"
+
+echo "alias deploy-mobile='$PROJECT_ROOT/scripts/deploy-mobile.sh'" >> "$SHELL_RC"
+echo "✅ Added 'deploy-mobile' alias"
+
+echo "alias deploy-web='$PROJECT_ROOT/scripts/deploy-web.sh'" >> "$SHELL_RC"
+echo "✅ Added 'deploy-web' alias"
 
 echo ""
 echo "🎉 Aliases configured!"
 echo ""
 echo "📝 Added aliases:"
 echo "   commit - Run smart-commit.sh"
-echo "   build  - Run quick-build.sh"
+echo "   build-mobile  - Run quick-build.sh"
+echo "   deploy-mobile  - Run deploy-mobile.sh"
+echo "   deploy-web  - Run deploy-web.sh"
 echo ""
 echo "⚡ To use immediately, run:"
 echo "   source $SHELL_RC"

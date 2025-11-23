@@ -9,6 +9,7 @@ class Player {
   int number;
   String? profileImage;
   String? actionPhoto; // Action photo for baseball-style player cards
+  String? editPin; // 4-digit PIN for player self-editing on web
 
   String get displayName {
     return '$firstName $lastName';
@@ -22,7 +23,8 @@ class Player {
       required this.lastName,
       required this.number,
       this.profileImage,
-      this.actionPhoto});
+      this.actionPhoto,
+      this.editPin});
 
   static initial({required int teamId, required int seasonId}) {
     return Player(
@@ -43,7 +45,8 @@ class Player {
         lastName: map['lastName'],
         number: map['number'],
         profileImage: map['profileImage'],
-        actionPhoto: map['actionPhoto']);
+        actionPhoto: map['actionPhoto'],
+        editPin: map['editPin']);
   }
 
   static Future<Player?> fromId(int id) async {
@@ -120,5 +123,38 @@ class Player {
     }
 
     return false;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'teamId': teamId,
+      'seasonId': seasonId,
+      'firstName': firstName,
+      'lastName': lastName,
+      'number': number,
+      'profileImage': profileImage,
+      'actionPhoto': actionPhoto,
+      'editPin': editPin,
+    };
+  }
+
+  Future<void> save() async {
+    // Find the database key for this player
+    final candidates = await DatabaseService.instance
+        .query('Players', orderByChild: 'id', equalTo: id);
+    for (final c in candidates) {
+      if (c['seasonId'] == seasonId) {
+        final k = c['_key']?.toString();
+        if (k != null) {
+          await DatabaseService.instance.update(
+            'Players',
+            toMap(),
+            key: k,
+          );
+          return;
+        }
+      }
+    }
   }
 }

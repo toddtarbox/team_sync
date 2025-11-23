@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -603,6 +604,57 @@ class _PlayersPageState extends State<PlayersPage> {
                                   AppLocalizations.of(context)!.playerNumber),
                           onChanged: (number) =>
                               playerNumber = int.parse(number)),
+                      const SizedBox(height: 16),
+                      // PIN Field with Generate Button
+                      StatefulBuilder(
+                        builder: (context, setFieldState) {
+                          final pinController =
+                              TextEditingController(text: player.editPin ?? '');
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: pinController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Player Edit PIN (4 digits)',
+                                    hintText:
+                                        'Optional PIN for web self-editing',
+                                    helperText:
+                                        'Allow player to edit their profile on web',
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 4,
+                                  onChanged: (pin) {
+                                    player.editPin = pin.isEmpty ? null : pin;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    final random = Random();
+                                    final pin = (random.nextInt(9000) + 1000)
+                                        .toString();
+                                    pinController.text = pin;
+                                    player.editPin = pin;
+                                    setFieldState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Generated PIN: $pin'),
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Generate'),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                       const Spacer(),
                       TextButton(
                           onPressed: () {},
@@ -695,6 +747,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                             imageUrl,
                                                         'actionPhoto':
                                                             actionPhotoUrl,
+                                                        'editPin':
+                                                            player.editPin,
                                                       },
                                                       key: k);
                                             }
@@ -722,6 +776,8 @@ class _PlayersPageState extends State<PlayersPage> {
   void _createPlayer() {
     late String playerName;
     late int playerNumber;
+    String? playerPin;
+    final pinController = TextEditingController();
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
 
@@ -765,6 +821,46 @@ class _PlayersPageState extends State<PlayersPage> {
                                   AppLocalizations.of(context)!.playerNumber),
                           onChanged: (number) =>
                               playerNumber = int.parse(number)),
+                      const SizedBox(height: 16),
+                      // PIN Field with Generate Button
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                                controller: pinController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Player Edit PIN (4 digits)',
+                                  hintText: 'Optional PIN for web self-editing',
+                                ),
+                                keyboardType: TextInputType.number,
+                                maxLength: 4,
+                                onChanged: (pin) =>
+                                    playerPin = pin.isEmpty ? null : pin),
+                          ),
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 24),
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                final random = Random();
+                                final pin =
+                                    (random.nextInt(9000) + 1000).toString();
+                                pinController.text = pin;
+                                playerPin = pin;
+                                setModalState(() {});
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Generated PIN: $pin'),
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Generate'),
+                            ),
+                          ),
+                        ],
+                      ),
                       const Spacer(),
                       TextButton(
                           onPressed: () {},
@@ -872,7 +968,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                           'number': playerNumber,
                                           'seasonId': widget.season.id,
                                           'teamId': widget.season.teamId,
-                                          'profileImage': imageUrl
+                                          'profileImage': imageUrl,
+                                          'editPin': playerPin,
                                         });
 
                                         setState(() {});

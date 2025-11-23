@@ -458,4 +458,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recentHighlights => 'Recent highlights';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get enterPinToEdit => 'Enter PIN to Edit Profile';
+
+  @override
+  String get enterFourDigitPin => 'Enter 4-digit PIN';
+
+  @override
+  String get pinLabel => 'PIN';
+
+  @override
+  String get unlockButton => 'Unlock';
+
+  @override
+  String get invalidPin => 'PIN must be 4 digits';
+
+  @override
+  String get exitEditMode => 'Exit Edit Mode';
+
+  @override
+  String get profilePicture => 'Profile Picture';
+
+  @override
+  String get actionPhoto => 'Action Photo';
+
+  @override
+  String get awards => 'Awards';
+
+  @override
+  String get addAward => 'Add Award';
+
+  @override
+  String get noAwardsAvailable => 'No awards available';
+
+  @override
+  String get editAward => 'Edit Award';
+
+  @override
+  String get addAwardDialogTitle => 'Add Award';
+
+  @override
+  String get deleteAwardTitle => 'Delete Award';
+
+  @override
+  String deleteAwardConfirm(Object title) {
+    return 'Are you sure you want to delete \"$title\"?';
+  }
+
+  @override
+  String get awardSaved => 'Award saved successfully';
+
+  @override
+  String errorSavingAward(Object error) {
+    return 'Error saving award: $error';
+  }
+
+  @override
+  String get awardDeleted => 'Award deleted';
+
+  @override
+  String errorDeletingAward(Object error) {
+    return 'Error deleting award: $error';
+  }
+
+  @override
+  String errorLoadingAwards(Object error) {
+    return 'Error loading awards: $error';
+  }
+
+  @override
+  String get uploadImage => 'Upload Image';
+
+  @override
+  String get changeImage => 'Change Image';
+
+  @override
+  String get removeImage => 'Remove Image';
+
+  @override
+  String get selectImageSource => 'Select Image Source';
+
+  @override
+  String get camera => 'Camera';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get profileUpdated => 'Profile updated successfully';
+
+  @override
+  String errorUpdatingProfile(Object error) {
+    return 'Error updating profile: $error';
+  }
+
+  @override
+  String get labelAwardTitle => 'Award Title *';
+
+  @override
+  String get hintAwardTitle => 'e.g., MVP, All-Star, Top Scorer';
+
+  @override
+  String get labelAwardImage => 'Award Image (optional)';
 }

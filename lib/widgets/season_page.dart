@@ -6,8 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/team_award.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
@@ -269,6 +272,8 @@ class _SeasonPageState extends State<SeasonPage> {
                       ),
                     ),
                   ),
+                  // Awards Section
+                  _buildAwardsSection(season),
                   Expanded(
                     child: Card(
                       child: ListView.builder(
@@ -853,5 +858,226 @@ class _SeasonPageState extends State<SeasonPage> {
       'color1': color1.toARGB32(),
       'color2': color2.toARGB32()
     });
+  }
+
+  Widget _buildAwardsSection(Season season) {
+    final loc = AppLocalizations.of(context)!;
+
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        _loadPlayerAwards(season.id),
+        _loadTeamAwards(season.id),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        if (snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final playerAwards =
+            (snapshot.data?[0] as List<Map<String, dynamic>>?) ?? [];
+        final teamAwards = (snapshot.data?[1] as List<TeamAward>?) ?? [];
+
+        // Don't show section if no awards
+        if (playerAwards.isEmpty && teamAwards.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          elevation: 4,
+          child: ExpansionTile(
+            initiallyExpanded: true,
+            leading:
+                const Icon(Icons.emoji_events, size: 28, color: Colors.amber),
+            title: Text(
+              loc.awards,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              '${playerAwards.length + teamAwards.length} ${playerAwards.length + teamAwards.length == 1 ? 'award' : 'awards'}',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Team Awards Section
+                    if (teamAwards.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.emoji_events,
+                              size: 20, color: Colors.amber),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Team Awards',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...teamAwards.map((award) => _buildTeamAwardCard(award)),
+                      if (playerAwards.isNotEmpty) const Divider(height: 24),
+                    ],
+
+                    // Player Awards Section
+                    if (playerAwards.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          const Icon(Icons.person, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Player Awards',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...playerAwards.map((awardData) => _buildPlayerAwardCard(
+                            awardData['award'] as PlayerAward,
+                            awardData['player'] as Player,
+                            season,
+                          )),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadPlayerAwards(int seasonId) async {
+    try {
+      // Get all player awards for this season
+      final results = await DatabaseService.instance
+          .query('PlayerAwards', orderByChild: 'seasonId', equalTo: seasonId);
+
+      final List<Map<String, dynamic>> awardWithPlayers = [];
+
+      for (var result in results) {
+        final award = PlayerAward.fromMap(result);
+        // Load the player for this award
+        final player = await Player.fromId(award.playerId);
+        if (player != null) {
+          awardWithPlayers.add({
+            'award': award,
+            'player': player,
+          });
+        }
+      }
+
+      // Sort by player name
+      awardWithPlayers.sort((a, b) => (a['player'] as Player)
+          .displayName
+          .compareTo((b['player'] as Player).displayName));
+
+      return awardWithPlayers;
+    } catch (e) {
+      print('Error loading player awards: $e');
+      return [];
+    }
+  }
+
+  Future<List<TeamAward>> _loadTeamAwards(int seasonId) async {
+    try {
+      return await TeamAward.listFromSeasonId(seasonId);
+    } catch (e) {
+      print('Error loading team awards: $e');
+      return [];
+    }
+  }
+
+  Widget _buildTeamAwardCard(TeamAward award) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: award.imageUrl != null
+            ? CircleAvatar(
+                radius: 24,
+                backgroundImage: NetworkImage(award.imageUrl!),
+              )
+            : const CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.amber,
+                child: Icon(Icons.emoji_events, color: Colors.white),
+              ),
+        title: Text(
+          award.title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: award.description != null && award.description!.isNotEmpty
+            ? Text(award.description!)
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildPlayerAwardCard(
+      PlayerAward award, Player player, Season season) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: player.profileImage != null
+            ? CircleAvatar(
+                radius: 24,
+                backgroundImage: NetworkImage(player.profileImage!),
+              )
+            : CircleAvatar(
+                radius: 24,
+                child: Text(
+                  player.displayName.substring(0, 1).toUpperCase(),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                award.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 16),
+          ],
+        ),
+        subtitle: Text(player.displayName),
+        onTap: () {
+          final databaseId = _getDatabaseId(context, season);
+          NavigationHelper.navigateTo(
+            context,
+            '/team/$databaseId/season/${season.id}/player/${player.id}',
+          );
+        },
+      ),
+    );
   }
 }
