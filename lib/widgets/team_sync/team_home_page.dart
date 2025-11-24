@@ -98,6 +98,18 @@ class _TeamHomePageState extends State<TeamHomePage> {
       _setupShowcase();
       _checkIfFirstLaunch();
     }
+
+    // Check authentication status after load completes (for mobile only)
+    if (!kIsWeb) {
+      _loadFuture.then((_) {
+        // Check if user is signed in after a short delay to let the UI settle
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && FirebaseAuth.instance.currentUser == null) {
+            _ensureUserSignedIn();
+          }
+        });
+      });
+    }
   }
 
   void _setupShowcase() {
@@ -311,6 +323,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   List<Widget> _buildAppBarActions() {
+    if (FirebaseAuth.instance.currentUser == null) {
+      return [];
+    }
+
     return [
       // Show "Go Pro" button only if not subscribed and not on web
       if (!kIsWeb && !_isSubscribed)
@@ -365,12 +381,13 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   }
                   break;
                 case 'settings':
-                  final databaseId = DatabaseService.instance.publicShareId;
-                  if (databaseId != null) {
-                    NavigationHelper.navigateTo(
-                        context, '/team/$databaseId/settings',
-                        extra: _team);
-                  }
+                  // For settings, use publicShareId if available, otherwise use 'local'
+                  // Settings should work even when not signed in for local databases
+                  final databaseId =
+                      DatabaseService.instance.publicShareId ?? 'local';
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/settings',
+                      extra: _team);
                   break;
               }
             },
@@ -388,8 +405,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
                       ],
                     ),
                   ),
-                // Share option - show on mobile when subscribed
-                if (!kIsWeb && _isSubscribed)
+                // Share option - show on mobile when subscribed AND signed in
+                if (!kIsWeb &&
+                    _isSubscribed &&
+                    FirebaseAuth.instance.currentUser != null)
                   const PopupMenuItem<String>(
                     value: 'share',
                     child: Row(
@@ -461,12 +480,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 }
                 break;
               case 'settings':
-                final databaseId = DatabaseService.instance.publicShareId;
-                if (databaseId != null) {
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/settings',
-                      extra: _team);
-                }
+                // For settings on web, use publicShareId if available, otherwise use 'local'
+                final databaseId =
+                    DatabaseService.instance.publicShareId ?? 'local';
+                NavigationHelper.navigateTo(
+                    context, '/team/$databaseId/settings',
+                    extra: _team);
                 break;
             }
           },
@@ -1412,106 +1431,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
               ],
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-          ],
+          actions: [],
         );
       },
     );
 
     return result == true;
-  }
-
-  /// Get the name of the authentication provider (Google or Apple)
-  String _getAuthProviderName() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return 'Unknown';
-
-    // Check provider data to determine which provider was used
-    for (var provider in user.providerData) {
-      if (provider.providerId == 'google.com') {
-        return 'Google';
-      } else if (provider.providerId == 'apple.com') {
-        return 'Apple';
-      }
-    }
-
-    // Fallback - check email domain or display name
-    if (user.email?.contains('@privaterelay.appleid.com') == true) {
-      return 'Apple';
-    }
-
-    return 'Unknown';
-  }
-
-  /// Handle user logout
-  Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Log Out'),
-          content: const Text(
-            'Are you sure you want to log out? You will need to sign in again to access cloud databases.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: const Text('Log Out'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      try {
-        // Close any open database
-        await DatabaseService.instance.close();
-
-        // Sign out from Firebase
-        await AuthService.instance.signOut();
-
-        if (mounted) {
-          // Clear local state
-          setState(() {
-            _team = null;
-            _seasons = [];
-            _currentOrLastGame = null;
-            _nextUpcomingGame = null;
-            _currentSeason = null;
-          });
-
-          // Show confirmation
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Logged out successfully'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint('Error during logout: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error logging out: $e'),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
-      }
-    }
   }
 
   Future<void> _showCreateOptions(BuildContext context) async {
@@ -1607,38 +1532,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
           await _openCloudDatabase(databaseName);
         }
         return;
-      case 'existingBackupDatabase':
-        if (!kIsWeb) {
-          final existingDB = await _pickFile();
-          if (existingDB != null) {
-            await _openBackupDatabase(existingDB);
-          }
-        }
-        return;
       case 'newCloudDatabase':
         await _createDatabase();
-        break;
-      case 'importCloudDatabase':
-        setState(() {
-          _isImporting = true;
-        });
-
-        try {
-          await DatabaseService.instance.importToCloud();
-          scaffoldMessenger.showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.databaseImported),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ));
-        } catch (e) {
-          scaffoldMessenger.showSnackBar(SnackBar(
-            content: Text('Error during import: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ));
-        } finally {
-          setState(() {
-            _isImporting = false;
-          });
-        }
         break;
       case 'team':
         await _createTeam();
@@ -1665,6 +1560,11 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Future<void> _createDatabase() async {
+    // Check if user is signed in first
+    if (!await _ensureUserSignedIn()) {
+      return;
+    }
+
     String databaseName = '';
     await showModalBottomSheet(
         context: context,

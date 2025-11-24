@@ -9,6 +9,7 @@ class TeamAward {
   final String title;
   final String? description;
   final String? imageUrl;
+  final String? url;
 
   TeamAward({
     required this.id,
@@ -17,6 +18,7 @@ class TeamAward {
     required this.title,
     this.description,
     this.imageUrl,
+    this.url,
   });
 
   factory TeamAward.fromMap(Map<String, dynamic> map) {
@@ -27,6 +29,7 @@ class TeamAward {
       title: map['title'],
       description: map['description'],
       imageUrl: map['imageUrl'],
+      url: map['url'],
     );
   }
 
@@ -38,6 +41,7 @@ class TeamAward {
       'title': title,
       'description': description,
       'imageUrl': imageUrl,
+      'url': url,
     };
   }
 
@@ -48,6 +52,21 @@ class TeamAward {
 
     // Sort by title
     awards.sort((a, b) => a.title.compareTo(b.title));
+
+    return awards;
+  }
+
+  static Future<List<TeamAward>> listFromTeamId(int teamId) async {
+    final results = await DatabaseService.instance
+        .query('TeamAwards', orderByChild: 'teamId', equalTo: teamId);
+    final awards = results.map((a) => TeamAward.fromMap(a)).toList();
+
+    // Sort by season ID (most recent first), then by title
+    awards.sort((a, b) {
+      final seasonCompare = b.seasonId.compareTo(a.seasonId);
+      if (seasonCompare != 0) return seasonCompare;
+      return a.title.compareTo(b.title);
+    });
 
     return awards;
   }

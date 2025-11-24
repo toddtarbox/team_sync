@@ -28,9 +28,15 @@ class ResponsivePlayerAvatar extends ResponsiveAvatar {
 
   @override
   Widget build(BuildContext context) {
+    // Use profileImage if available, otherwise fall back to actionPhoto
+    final imageUrl =
+        (player.profileImage != null && player.profileImage!.isNotEmpty)
+            ? player.profileImage
+            : player.actionPhoto;
+
     // Build a generic ResponsiveAvatar with player-derived data
     final responsiveAvatar = ResponsiveAvatar(
-      imageUrl: player.profileImage,
+      imageUrl: imageUrl,
       initials:
           '${player.firstName.isNotEmpty ? player.firstName[0] : ''}${player.lastName.isNotEmpty ? player.lastName[0] : ''}',
       size: avatarSize,
@@ -62,7 +68,11 @@ class ResponsivePlayerAvatar extends ResponsiveAvatar {
                     currentLocation.contains(playerProfileLocation);
 
                 // If already on the player profile page, show larger view
-                if (isOnPlayerProfile && player.profileImage != null) {
+                if (isOnPlayerProfile &&
+                    ((player.profileImage != null &&
+                            player.profileImage!.isNotEmpty) ||
+                        (player.actionPhoto != null &&
+                            player.actionPhoto!.isNotEmpty))) {
                   _showLargeProfileImage(context);
                 } else {
                   // Navigate to player profile page
@@ -79,6 +89,12 @@ class ResponsivePlayerAvatar extends ResponsiveAvatar {
 
   /// Shows a larger view of the player's profile image in a dialog
   void _showLargeProfileImage(BuildContext context) {
+    // Use profileImage if available, otherwise fall back to actionPhoto
+    final imageUrl =
+        (player.profileImage != null && player.profileImage!.isNotEmpty)
+            ? player.profileImage
+            : player.actionPhoto;
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -106,9 +122,9 @@ class ResponsivePlayerAvatar extends ResponsiveAvatar {
                 Flexible(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: player.profileImage != null
+                    child: imageUrl != null
                         ? Image.network(
-                            player.profileImage!,
+                            imageUrl,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(

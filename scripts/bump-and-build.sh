@@ -14,9 +14,52 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PUBSPEC_FILE="$PROJECT_ROOT/pubspec.yaml"
+PID_FILE="$PROJECT_ROOT/build/.build_in_progress.pid"
 
 echo -e "${BLUE}🚀 TeamSync Version Bump & Build${NC}"
 echo "================================================"
+
+# Check for ongoing builds
+if [ -f "$PID_FILE" ]; then
+  OLD_PID=$(cat "$PID_FILE")
+  if ps -p "$OLD_PID" > /dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Found ongoing build (PID: $OLD_PID)${NC}"
+    read -p "$(echo -e ${YELLOW}Cancel the ongoing build and start a new one? [y/N]: ${NC})" -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo -e "${BLUE}🛑 Cancelling ongoing build...${NC}"
+      # Kill the process group to ensure all child processes are terminated
+      pkill -TERM -P "$OLD_PID" 2>/dev/null || true
+      kill -TERM "$OLD_PID" 2>/dev/null || true
+      sleep 2
+      # Force kill if still running
+      if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        pkill -KILL -P "$OLD_PID" 2>/dev/null || true
+        kill -KILL "$OLD_PID" 2>/dev/null || true
+      fi
+      rm -f "$PID_FILE"
+      echo -e "${GREEN}✅ Previous build cancelled${NC}"
+    else
+      echo -e "${RED}❌ Cannot start new build while another is in progress${NC}"
+      echo "   Wait for the current build to finish or manually kill PID $OLD_PID"
+      exit 1
+    fi
+  else
+    # PID file exists but process is not running (stale file)
+    echo -e "${BLUE}ℹ️  Cleaning up stale build lock file${NC}"
+    rm -f "$PID_FILE"
+  fi
+fi
+
+# Create PID file for this build
+mkdir -p "$PROJECT_ROOT/build"
+echo $$ > "$PID_FILE"
+
+# Cleanup function to remove PID file on exit
+cleanup() {
+  rm -f "$PID_FILE"
+}
+trap cleanup EXIT INT TERM
 
 # Check if pubspec.yaml exists
 if [ ! -f "$PUBSPEC_FILE" ]; then
@@ -113,7 +156,7 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 ANDROID_LOG="$BUILD_LOG_DIR/android_${TIMESTAMP}.log"
 IOS_LOG="$BUILD_LOG_DIR/ios_${TIMESTAMP}.log"
 
-# Function to build Android
+# Function to build and deploy Android
 build_android() {
   echo -e "${BLUE}🤖 Starting Android build...${NC}" | tee "$ANDROID_LOG"
   cd "$PROJECT_ROOT"
@@ -121,6 +164,15 @@ build_android() {
   if "$SCRIPT_DIR/build-team-sync.sh" android >> "$ANDROID_LOG" 2>&1; then
     echo -e "${GREEN}✅ Android build completed successfully${NC}"
     echo -e "   Log: $ANDROID_LOG"
+
+    # Automatically deploy to Google Play Internal Test Track
+    echo -e "${BLUE}🚀 Auto-deploying to Google Play Internal Test Track...${NC}"
+    if "$SCRIPT_DIR/deploy-mobile.sh" android >> "$ANDROID_LOG" 2>&1; then
+      echo -e "${GREEN}✅ Android deployment completed successfully${NC}"
+    else
+      echo -e "${YELLOW}⚠️  Android deployment failed (check log: $ANDROID_LOG)${NC}"
+    fi
+
     return 0
   else
     echo -e "${RED}❌ Android build failed${NC}"
@@ -129,7 +181,7 @@ build_android() {
   fi
 }
 
-# Function to build iOS
+# Function to build and deploy iOS
 build_ios() {
   echo -e "${BLUE}📱 Starting iOS build...${NC}" | tee "$IOS_LOG"
   cd "$PROJECT_ROOT"
@@ -137,6 +189,15 @@ build_ios() {
   if "$SCRIPT_DIR/build-team-sync.sh" ios >> "$IOS_LOG" 2>&1; then
     echo -e "${GREEN}✅ iOS build completed successfully${NC}"
     echo -e "   Log: $IOS_LOG"
+
+    # Automatically deploy to TestFlight
+    echo -e "${BLUE}🚀 Auto-deploying to TestFlight...${NC}"
+    if "$SCRIPT_DIR/deploy-mobile.sh" ios >> "$IOS_LOG" 2>&1; then
+      echo -e "${GREEN}✅ iOS deployment completed successfully${NC}"
+    else
+      echo -e "${YELLOW}⚠️  iOS deployment failed (check log: $IOS_LOG)${NC}"
+    fi
+
     return 0
   else
     echo -e "${RED}❌ iOS build failed${NC}"
@@ -195,47 +256,11 @@ echo ""
 
 # Exit with error if any build failed
 if [ $ANDROID_SUCCESS -eq 1 ] && [ $IOS_SUCCESS -eq 1 ]; then
-  echo -e "${GREEN}🎉 All builds completed successfully!${NC}"
-
-  # Ask if user wants to deploy to TestFlight and Google Play
-  echo ""
-  read -p "$(echo -e ${YELLOW}Deploy to TestFlight and Google Play Internal Test Track? [y/N]: ${NC})" -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    echo -e "${BLUE}🚀 Starting deployment...${NC}"
-    if "$SCRIPT_DIR/deploy-mobile.sh" all; then
-      echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
-    else
-      echo -e "${YELLOW}⚠️  Deployment had some issues. Check the output above.${NC}"
-    fi
-  else
-    echo -e "${BLUE}ℹ️  Skipping deployment. You can deploy later with:${NC}"
-    echo "   ./scripts/deploy-mobile.sh all"
-  fi
-
+  echo -e "${GREEN}🎉 All builds and deployments completed successfully!${NC}"
   exit 0
 elif [ $ANDROID_SUCCESS -eq 1 ] || [ $IOS_SUCCESS -eq 1 ]; then
   echo -e "${YELLOW}⚠️  Some builds completed, but some failed${NC}"
-
-  # Offer to deploy what succeeded
-  if [ $ANDROID_SUCCESS -eq 1 ]; then
-    echo ""
-    read -p "$(echo -e ${YELLOW}Deploy Android to Google Play Internal Test Track? [y/N]: ${NC})" -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      "$SCRIPT_DIR/deploy-mobile.sh" android
-    fi
-  fi
-
-  if [ $IOS_SUCCESS -eq 1 ]; then
-    echo ""
-    read -p "$(echo -e ${YELLOW}Deploy iOS to TestFlight? [y/N]: ${NC})" -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      "$SCRIPT_DIR/deploy-mobile.sh" ios
-    fi
-  fi
+  echo -e "${BLUE}ℹ️  Successfully completed platforms were automatically deployed${NC}"
   exit 1
 else
   echo -e "${RED}❌ All builds failed${NC}"

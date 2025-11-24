@@ -37,6 +37,7 @@ echo ""
 
 # List of sensitive files to exclude
 SENSITIVE_FILES=(
+  "lib/firebase_options.dart"
   "android/app/google-services.json"
   "android/app/src/clubSync/google-services.json"
   "android/app/src/teamSync/google-services.json"

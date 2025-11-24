@@ -54,6 +54,7 @@ app.*.map.json
 firebase_config.dart
 
 # Sensitive configuration files with API keys
+lib/firebase_options.dart
 android/app/google-services.json
 android/app/src/clubSync/google-services.json
 android/app/src/teamSync/google-services.json

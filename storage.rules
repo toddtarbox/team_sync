@@ -1,6 +1,7 @@
 rules_version = '2';
 
 // Firebase Storage Security Rules for TeamSync
+// Updated: 2025-11-24 - Allow player image uploads without authentication (PIN validation at DB level)
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -23,29 +24,13 @@ service firebase.storage {
     // Player profile images
     // Path: player_images/{timestamp}
     match /player_images/{imageId} {
-      // Allow authenticated users to read
-      allow read: if isAuthenticated();
-
-      // Allow authenticated users to write (upload)
-      allow write: if isAuthenticated()
-                   && isValidImage();
-
-      // Allow delete for cleanup
-      allow delete: if isAuthenticated();
+      allow read, write, delete: if true;
     }
 
     // Player action photos (for baseball cards)
     // Path: player_action_photos/{timestamp}
     match /player_action_photos/{imageId} {
-      // Allow authenticated users to read
-      allow read: if isAuthenticated();
-
-      // Allow authenticated users to write (upload)
-      allow write: if isAuthenticated()
-                   && isValidImage();
-
-      // Allow delete for cleanup
-      allow delete: if isAuthenticated();
+      allow read, write, delete: if true;
     }
 
     // Team logos/images
@@ -54,6 +39,18 @@ service firebase.storage {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && isValidImage();
       allow delete: if isAuthenticated();
+    }
+
+    // Award images (team and player awards)
+    // Path: award_images/{imageId}
+    match /award_images/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // Player award images
+    // Path: player_awards/{imageId}
+    match /player_awards/{imageId} {
+      allow read, write, delete: if true;
     }
 
     // User subscription data (per user)

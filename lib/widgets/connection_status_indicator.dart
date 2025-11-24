@@ -13,9 +13,7 @@ class ConnectionStatusIndicator extends StatefulWidget {
 }
 
 class _ConnectionStatusIndicatorState extends State<ConnectionStatusIndicator> {
-  bool _connected = true;
   int _pending = 0;
-  late final Stream<bool> _connStream;
   late final Stream<int> _pendingStream;
   StreamSubscription<bool>? _connSub;
   StreamSubscription<int>? _pendingSub;
@@ -23,13 +21,9 @@ class _ConnectionStatusIndicatorState extends State<ConnectionStatusIndicator> {
   @override
   void initState() {
     super.initState();
-    _connStream = DatabaseService.instance.connectionState;
     _pendingStream = DatabaseService.instance.pendingWrites;
 
     // Prime with default values by listening and keeping subscriptions so we can cancel later
-    _connSub = _connStream.listen((v) {
-      if (mounted) setState(() => _connected = v);
-    });
     _pendingSub = _pendingStream.listen((c) {
       if (mounted) setState(() => _pending = c);
     });
@@ -44,20 +38,11 @@ class _ConnectionStatusIndicatorState extends State<ConnectionStatusIndicator> {
 
   @override
   Widget build(BuildContext context) {
-    final color = _connected ? Colors.greenAccent : Colors.grey[400];
-    final icon = _connected ? Icons.cloud_done : Icons.cloud_off;
-    final tooltip = _connected ? 'Connected' : 'Offline';
-
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Tooltip(
-            message: tooltip,
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 6),
           if (_pending > 0) ...[
             const SizedBox(width: 6),
             Container(

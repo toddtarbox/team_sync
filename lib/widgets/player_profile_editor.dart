@@ -15,11 +15,13 @@ import 'package:url_launcher/url_launcher.dart';
 class PlayerProfileEditor extends StatefulWidget {
   final Player player;
   final VoidCallback onExitEditMode;
+  final String? pin; // PIN for web authentication
 
   const PlayerProfileEditor({
     super.key,
     required this.player,
     required this.onExitEditMode,
+    this.pin,
   });
 
   @override
@@ -28,8 +30,8 @@ class PlayerProfileEditor extends StatefulWidget {
 
 class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   final ImagePicker _picker = ImagePicker();
-  File? _profileImageFile;
-  File? _actionPhotoFile;
+  XFile? _profileImageFile;
+  XFile? _actionPhotoFile;
   String? _profileImageUrl;
   String? _actionPhotoUrl;
   bool _isUploading = false;
@@ -70,9 +72,9 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
       if (pickedFile != null) {
         setState(() {
           if (isProfileImage) {
-            _profileImageFile = File(pickedFile.path);
+            _profileImageFile = pickedFile;
           } else {
-            _actionPhotoFile = File(pickedFile.path);
+            _actionPhotoFile = pickedFile;
           }
         });
 
@@ -120,12 +122,16 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
 
         final storageRef = FirebaseStorage.instance.ref().child(path);
 
-        if (kIsWeb) {
-          final bytes = await file.readAsBytes();
-          await storageRef.putData(bytes);
-        } else {
-          await storageRef.putFile(file);
-        }
+        // Use readAsBytes for both web and mobile
+        final bytes = await file.readAsBytes();
+
+        // Add metadata to help with storage rules validation
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {'uploaded_by': 'player_profile_editor'},
+        );
+
+        await storageRef.putData(bytes, metadata);
 
         final downloadUrl = await storageRef.getDownloadURL();
 
@@ -138,7 +144,12 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
           _actionPhotoUrl = downloadUrl;
         }
 
-        await widget.player.save();
+        // Use saveWithPin on web if PIN is available, otherwise use regular save
+        if (kIsWeb && widget.pin != null) {
+          await widget.player.saveWithPin(widget.pin!);
+        } else {
+          await widget.player.save();
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +256,14 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                     // Ignore
                   }
                   widget.player.profileImage = null;
-                  await widget.player.save();
+
+                  // Use saveWithPin on web if PIN is available
+                  if (kIsWeb && widget.pin != null) {
+                    await widget.player.saveWithPin(widget.pin!);
+                  } else {
+                    await widget.player.save();
+                  }
+
                   setState(() {
                     _profileImageUrl = null;
                   });
@@ -271,7 +289,14 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                     // Ignore
                   }
                   widget.player.actionPhoto = null;
-                  await widget.player.save();
+
+                  // Use saveWithPin on web if PIN is available
+                  if (kIsWeb && widget.pin != null) {
+                    await widget.player.saveWithPin(widget.pin!);
+                  } else {
+                    await widget.player.save();
+                  }
+
                   setState(() {
                     _actionPhotoUrl = null;
                   });
@@ -297,7 +322,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   Widget _buildImageSection({
     required String title,
     required String? imageUrl,
-    required File? imageFile,
+    required XFile? imageFile,
     required VoidCallback onUpload,
     required VoidCallback onRemove,
   }) {
@@ -331,7 +356,8 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                           borderRadius: BorderRadius.circular(8),
                           child: kIsWeb
                               ? Image.network(imageFile.path, fit: BoxFit.cover)
-                              : Image.file(imageFile, fit: BoxFit.cover),
+                              : Image.file(File(imageFile.path),
+                                  fit: BoxFit.cover),
                         )
                       : imageUrl != null && imageUrl.isNotEmpty
                           ? ClipRRect(
@@ -726,7 +752,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     }
 
     String? imageUrl = award?.imageUrl;
-    File? imageFile;
+    XFile? imageFile;
 
     if (!mounted) return;
 
@@ -798,7 +824,8 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                               ? (kIsWeb
                                   ? Image.network(imageFile!.path,
                                       fit: BoxFit.cover)
-                                  : Image.file(imageFile!, fit: BoxFit.cover))
+                                  : Image.file(File(imageFile!.path),
+                                      fit: BoxFit.cover))
                               : Image.network(imageUrl!, fit: BoxFit.cover),
                         ),
                       ),
@@ -812,7 +839,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                         );
                         if (picked != null) {
                           setState(() {
-                            imageFile = File(picked.path);
+                            imageFile = picked;
                           });
                         }
                       },
@@ -849,12 +876,16 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                     final storageRef =
                         FirebaseStorage.instance.ref().child(path);
 
-                    if (kIsWeb) {
-                      final bytes = await imageFile!.readAsBytes();
-                      await storageRef.putData(bytes);
-                    } else {
-                      await storageRef.putFile(imageFile!);
-                    }
+                    // Use readAsBytes for both web and mobile (XFile supports both)
+                    final bytes = await imageFile!.readAsBytes();
+
+                    // Add metadata to help with storage rules validation
+                    final metadata = SettableMetadata(
+                      contentType: 'image/jpeg',
+                      customMetadata: {'uploaded_by': 'player_awards'},
+                    );
+
+                    await storageRef.putData(bytes, metadata);
 
                     finalImageUrl = await storageRef.getDownloadURL();
                   }
@@ -870,7 +901,13 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                     imageUrl: finalImageUrl,
                   );
 
-                  await a.save();
+                  // Use saveWithPin on web if PIN is available, otherwise use regular save
+                  if (kIsWeb && widget.pin != null) {
+                    await a.saveWithPin(widget.pin!);
+                  } else {
+                    await a.save();
+                  }
+
                   _loadAwards();
 
                   if (mounted) {
@@ -968,7 +1005,13 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
           }
         }
 
-        await award.delete();
+        // Use deleteWithPin on web if PIN is available, otherwise use regular delete
+        if (kIsWeb && widget.pin != null) {
+          await award.deleteWithPin(widget.pin!);
+        } else {
+          await award.delete();
+        }
+
         _loadAwards();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

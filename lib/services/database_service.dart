@@ -1480,6 +1480,17 @@ class DatabaseService {
     return '';
   }
 
+  /// Get the full database path for Cloud Functions
+  /// Returns path like: subscriptionIds/[uid]/databases/[dbname]
+  /// Returns empty string if not available
+  String get fullDatabasePath {
+    if (_provider is! FirebaseDBProvider) return '';
+    final subId = subscriptionId;
+    final dbPath = path;
+    if (subId.isEmpty || dbPath.isEmpty) return '';
+    return 'subscriptionIds/$subId/databases/$dbPath';
+  }
+
   Future<void> close() async => await _provider.close();
 
   Future<List<String>> getAvailableDatabases() async =>

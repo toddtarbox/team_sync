@@ -1,3 +1,5 @@
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 
@@ -9,6 +11,7 @@ class PlayerAward {
   final String title;
   final String? description;
   final String? imageUrl;
+  final String? url;
 
   PlayerAward({
     required this.id,
@@ -17,6 +20,7 @@ class PlayerAward {
     required this.title,
     this.description,
     this.imageUrl,
+    this.url,
   });
 
   factory PlayerAward.fromMap(Map<String, dynamic> map) {
@@ -27,6 +31,7 @@ class PlayerAward {
       title: map['title'],
       description: map['description'],
       imageUrl: map['imageUrl'],
+      url: map['url'],
     );
   }
 
@@ -38,6 +43,7 @@ class PlayerAward {
       'title': title,
       'description': description,
       'imageUrl': imageUrl,
+      'url': url,
     };
   }
 
@@ -72,6 +78,15 @@ class PlayerAward {
   }
 
   Future<void> save() async {
+    // On web, we CANNOT save without PIN authentication
+    if (kIsWeb) {
+      throw Exception(
+          'Cannot save PlayerAward on web without PIN authentication. '
+          'Use saveWithPin(pin) method instead. '
+          'Awards can only be managed on web through the player profile page with PIN entry, '
+          'or on mobile with proper authentication.');
+    }
+
     await DatabaseService.instance.insert(
       'PlayerAwards',
       toMap(),
@@ -79,10 +94,93 @@ class PlayerAward {
     );
   }
 
+  /// Save award using PIN authentication (web only)
+  Future<void> saveWithPin(String pin) async {
+    if (!kIsWeb) {
+      return save();
+    }
+
+    try {
+      final dbService = DatabaseService.instance;
+      final dbPath = dbService.fullDatabasePath;
+
+      if (dbPath.isEmpty) {
+        throw Exception('No database path available');
+      }
+
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'updatePlayerWithPin',
+      );
+
+      final requestData = {
+        'databasePath': dbPath,
+        'playerId': playerId,
+        'seasonId': seasonId,
+        'pin': pin,
+        'table': 'PlayerAwards',
+        'updates': {
+          'id': id,
+          'title': title,
+          'description': description,
+          'imageUrl': imageUrl,
+          'url': url,
+        },
+      };
+
+      final result = await callable.call<Map<String, dynamic>>(requestData);
+
+      if (result.data['success'] != true) {
+        throw Exception(result.data['message'] ?? 'Update failed');
+      }
+    } catch (e) {
+      throw Exception('Failed to save award: $e');
+    }
+  }
+
   Future<void> delete() async {
     await DatabaseService.instance.delete(
       'PlayerAwards',
       key: id.toString(),
     );
+  }
+
+  /// Delete award using PIN authentication (web only)
+  Future<void> deleteWithPin(String pin) async {
+    if (!kIsWeb) {
+      return delete();
+    }
+
+    try {
+      final dbService = DatabaseService.instance;
+      final dbPath = dbService.fullDatabasePath;
+
+      if (dbPath.isEmpty) {
+        throw Exception('No database path available');
+      }
+
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'updatePlayerWithPin',
+      );
+
+      final requestData = {
+        'databasePath': dbPath,
+        'playerId': playerId,
+        'seasonId': seasonId,
+        'pin': pin,
+        'table': 'PlayerAwards',
+        'operation': 'delete',
+        'updates': {
+          'id': id,
+        },
+      };
+
+      final result = await callable.call<Map<String, dynamic>>(requestData);
+
+      if (result.data['success'] != true) {
+        throw Exception(result.data['message'] ?? 'Delete failed');
+      }
+    } catch (e) {
+      throw Exception('Failed to delete award: $e');
+    }
   }
 }

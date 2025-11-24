@@ -45,8 +45,8 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
 
     // Verify PIN matches player's PIN
     if (widget.player.editPin == pin) {
-      // PIN is correct
-      Navigator.of(context).pop(true);
+      // PIN is correct - return the PIN value
+      Navigator.of(context).pop(pin);
     } else {
       // PIN is incorrect
       setState(() {

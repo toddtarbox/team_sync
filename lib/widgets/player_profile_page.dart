@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:change_case/change_case.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
@@ -42,10 +46,12 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Season? _loadedSeason;
   bool _showHighlights = true;
   bool _isEditMode = false;
+  String? _validatedPin; // Store the validated PIN for web saves
 
   @override
   void initState() {
     super.initState();
+
     // start loading season only if not provided
     if (widget.currentSeason == null) {
       _currentSeasonFuture = _loadSeasonForPlayer();
@@ -202,27 +208,72 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Future<void> _showPinDialog() async {
-    final result = await showDialog<bool>(
+    final pin = await showDialog<String>(
       context: context,
       builder: (context) => PinEntryDialog(player: widget.player),
     );
 
-    if (result == true) {
+    if (pin != null && pin.isNotEmpty) {
       setState(() {
         _isEditMode = true;
+        _validatedPin = pin; // Store the validated PIN
       });
     }
   }
 
-  void _exitEditMode() {
+  void _exitEditMode() async {
+    // Regenerate PIN silently when exiting edit mode (web only)
+    // The new PIN will only be visible to coaches on mobile
+    if (_validatedPin != null) {
+      try {
+        await Player.regeneratePin(
+          widget.player.id,
+          widget.player.seasonId,
+          _validatedPin!,
+        );
+        // PIN regenerated successfully - now reload player to get the new PIN
+        await _reloadPlayerData();
+      } catch (e) {
+        // Log error but don't block exit
+        debugPrint('Failed to regenerate PIN: $e');
+      }
+    }
+
     setState(() {
       _isEditMode = false;
+      _validatedPin = null; // Clear the PIN
       // Reload data to show any changes
       _seasonStatsFuture = _loadPlayerSeasonStats();
       _highlightsFuture = _loadPlayerHighlights();
       _independentHighlightsFuture = _loadIndependentHighlights();
       _awardsFuture = _loadAwards();
     });
+  }
+
+  /// Reload player data from database to get updated PIN
+  Future<void> _reloadPlayerData() async {
+    try {
+      final results = await DatabaseService.instance.query(
+        'Players',
+        orderByChild: 'id',
+        equalTo: widget.player.id,
+      );
+
+      if (results.isNotEmpty) {
+        // Find the player with matching seasonId
+        for (final result in results) {
+          final player = Player.fromMap(result);
+          if (player.seasonId == widget.player.seasonId) {
+            // Update the widget's player object with the new PIN
+            widget.player.editPin = player.editPin;
+            debugPrint('Player PIN reloaded: ${player.editPin}');
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error reloading player data: $e');
+    }
   }
 
   @override
@@ -316,6 +367,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                           PlayerProfileEditor(
                             player: widget.player,
                             onExitEditMode: _exitEditMode,
+                            pin: _validatedPin,
                           ),
                         ],
                       )
@@ -720,7 +772,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 padding: const EdgeInsets.all(8.0),
                 children: [
                   // Awards Section (at top)
-                  if (awards.isNotEmpty) ...[
+                  if (!kIsWeb ||
+                      (_isEditMode && _validatedPin != null) ||
+                      awards.isNotEmpty) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
@@ -742,6 +796,16 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          // Add button (mobile OR web with PIN)
+                          if (!kIsWeb ||
+                              (_isEditMode && _validatedPin != null)) ...[
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 20),
+                              onPressed: () => _showAddAwardDialog(),
+                              tooltip: 'Add Award',
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -830,6 +894,24 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             ),
           ],
         ),
+        trailing: (!kIsWeb || (_isEditMode && _validatedPin != null))
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () => _showAddAwardDialog(award: award),
+                    tooltip: AppLocalizations.of(context)!.edit,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    onPressed: () => _deleteAward(award),
+                    tooltip: AppLocalizations.of(context)!.delete,
+                  ),
+                ],
+              )
+            : null,
+        onTap: () => _showPlayerAwardDetailsDialog(award),
       ),
     );
   }
@@ -1205,5 +1287,510 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         }
       }
     }
+  }
+
+  void _showAddAwardDialog({PlayerAward? award}) async {
+    final loc = AppLocalizations.of(context)!;
+    final isEdit = award != null;
+    final titleController = TextEditingController(text: award?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: award?.description ?? '');
+    final urlController = TextEditingController(text: award?.url ?? '');
+    String? imageUrl = award?.imageUrl;
+    bool isUploadingImage = false;
+
+    // Load available seasons for this player's team
+    final seasons = await Season.fromTeamId(widget.player.teamId);
+
+    // Find the season by ID if editing
+    Season? selectedSeason;
+    if (award != null && seasons.isNotEmpty) {
+      selectedSeason = seasons.firstWhere(
+        (s) => s.id == award.seasonId,
+        orElse: () => seasons.first,
+      );
+    } else if (seasons.isNotEmpty) {
+      selectedSeason = seasons.first;
+    }
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(isEdit ? 'Edit Award' : 'Add Award'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Award Title *',
+                    hintText: 'e.g., MVP, All-Star, Top Scorer',
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Optional details',
+                  ),
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL',
+                    hintText: 'Optional link (e.g., article, photo)',
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                // Image upload section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Award Image',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (imageUrl != null && imageUrl!.isNotEmpty)
+                      Stack(
+                        children: [
+                          Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imageUrl!,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  imageUrl = null;
+                                });
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: (isUploadingImage || kIsWeb)
+                            ? null
+                            : () async {
+                                setState(() {
+                                  isUploadingImage = true;
+                                });
+                                try {
+                                  final pickedFile = await ImagePicker()
+                                      .pickImage(source: ImageSource.gallery);
+                                  if (pickedFile != null) {
+                                    // Upload to Firebase Storage
+                                    final storageRef = FirebaseStorage.instance
+                                        .ref()
+                                        .child(
+                                            'award_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                                    await storageRef
+                                        .putFile(File(pickedFile.path));
+                                    final downloadUrl =
+                                        await storageRef.getDownloadURL();
+                                    setState(() {
+                                      imageUrl = downloadUrl;
+                                      isUploadingImage = false;
+                                    });
+                                  } else {
+                                    setState(() {
+                                      isUploadingImage = false;
+                                    });
+                                  }
+                                } catch (e) {
+                                  setState(() {
+                                    isUploadingImage = false;
+                                  });
+                                  if (context.mounted) {
+                                    String errorMessage =
+                                        'Error uploading image';
+                                    if (e
+                                            .toString()
+                                            .contains('not authorized') ||
+                                        e.toString().contains('permission') ||
+                                        e.toString().contains('unauthorized')) {
+                                      errorMessage =
+                                          'Not authorized to upload images. Please sign in on mobile to add images.';
+                                    } else {
+                                      errorMessage =
+                                          'Error uploading image: ${e.toString()}';
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(errorMessage),
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isUploadingImage
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.image),
+                        label: Text(
+                          isUploadingImage
+                              ? 'Uploading...'
+                              : kIsWeb
+                                  ? 'Image upload requires mobile app'
+                                  : 'Pick Image',
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Season selector
+                DropdownButtonFormField<Season>(
+                  initialValue: selectedSeason,
+                  decoration: InputDecoration(
+                    labelText: loc.season,
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.calendar_month),
+                  ),
+                  items: seasons.map((season) {
+                    return DropdownMenuItem(
+                      value: season,
+                      child: Text(season.name),
+                    );
+                  }).toList(),
+                  onChanged: (season) {
+                    setState(() {
+                      selectedSeason = season;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancelButton),
+            ),
+            FilledButton(
+              onPressed: isUploadingImage
+                  ? null
+                  : () {
+                      final title = titleController.text.trim();
+
+                      if (title.isEmpty || selectedSeason == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Award title and season are required'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      _saveAward(
+                        id: award?.id ?? DateTime.now().millisecondsSinceEpoch,
+                        title: title,
+                        description: descriptionController.text.trim(),
+                        seasonId: selectedSeason!.id,
+                        url: urlController.text.trim(),
+                        imageUrl: imageUrl,
+                      );
+
+                      Navigator.pop(context);
+                    },
+              child: Text(isEdit ? loc.updateButton : loc.addButton),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveAward({
+    required int id,
+    required String title,
+    String? description,
+    required int seasonId,
+    String? url,
+    String? imageUrl,
+  }) async {
+    try {
+      final award = PlayerAward(
+        id: id,
+        playerId: widget.player.id,
+        seasonId: seasonId,
+        title: title,
+        description: description?.isEmpty == true ? null : description,
+        imageUrl: imageUrl?.isEmpty == true ? null : imageUrl,
+        url: url?.isEmpty == true ? null : url,
+      );
+
+      // Use saveWithPin on web if PIN is available, otherwise use regular save
+      if (kIsWeb && _validatedPin != null) {
+        await award.saveWithPin(_validatedPin!);
+      } else {
+        await award.save();
+      }
+
+      _loadAwards(); // Refresh awards list
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Award saved successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving award: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAward(PlayerAward award) async {
+    final loc = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Award'),
+        content: Text('Delete "${award.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(loc.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await award.delete();
+        _loadAwards(); // Refresh awards list
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Award deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting award: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showPlayerAwardDetailsDialog(PlayerAward award) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                award.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Award Image
+              if (award.imageUrl != null && award.imageUrl!.isNotEmpty) ...[
+                Center(
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 400,
+                      maxHeight: 400,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        award.imageUrl!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 48),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Season Name
+              FutureBuilder<String>(
+                future: award.getSeasonName(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Season',
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade700,
+                                  ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.data!,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+
+              // Description
+              if (award.description != null &&
+                  award.description!.isNotEmpty) ...[
+                Text(
+                  'Description',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  award.description!,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // URL Link
+              if (award.url != null && award.url!.isNotEmpty) ...[
+                Text(
+                  'Link',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.parse(award.url!);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not open URL: ${award.url}'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.link, color: Colors.blue.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            award.url!,
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              decoration: TextDecoration.underline,
+                              fontSize: 14,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.open_in_new,
+                            color: Colors.blue.shade700, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

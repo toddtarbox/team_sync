@@ -17,8 +17,11 @@ import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/team_award.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
@@ -580,6 +583,8 @@ class _HomePageState extends State<HomePage> {
                             season: _currentSeason,
                             teamId: _team!.id,
                           ),
+                        // Recent Awards Section
+                        if (_team != null) _buildRecentAwardsSection(),
                         Expanded(
                           child: SeasonsListView(seasons: _seasons),
                         )
@@ -1558,5 +1563,203 @@ class _HomePageState extends State<HomePage> {
                         ])
                   ])));
         });
+  }
+
+  Widget _buildRecentAwardsSection() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadRecentAwards(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final teamAwards = snapshot.data!['teamAwards'] as List<TeamAward>;
+        final playerAwardsData =
+            snapshot.data!['playerAwards'] as List<Map<String, dynamic>>;
+
+        // Combine and limit to 10 most recent
+        final allAwards = <Map<String, dynamic>>[];
+
+        for (var teamAward in teamAwards) {
+          allAwards.add({
+            'type': 'team',
+            'award': teamAward,
+            'seasonId': teamAward.seasonId,
+          });
+        }
+
+        for (var playerAwardData in playerAwardsData) {
+          allAwards.add({
+            'type': 'player',
+            'award': playerAwardData['award'],
+            'player': playerAwardData['player'],
+            'seasonId': (playerAwardData['award'] as PlayerAward).seasonId,
+          });
+        }
+
+        // Sort by seasonId (most recent first)
+        allAwards.sort(
+            (a, b) => (b['seasonId'] as int).compareTo(a['seasonId'] as int));
+
+        // Take only top 10
+        final recentAwards = allAwards.take(10).toList();
+
+        if (recentAwards.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.emoji_events,
+                        color: Colors.amber, size: 24),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Recent Awards',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: recentAwards.length,
+                  itemBuilder: (context, index) {
+                    final awardData = recentAwards[index];
+                    return _buildAwardCard(awardData);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> _loadRecentAwards() async {
+    if (_team == null) {
+      return {'teamAwards': <TeamAward>[], 'playerAwards': []};
+    }
+
+    try {
+      // Load team awards
+      final teamAwards = await TeamAward.listFromTeamId(_team!.id);
+
+      // Load player awards from all players in the team
+      final playerAwardsData = <Map<String, dynamic>>[];
+
+      // Get all players for this team
+      for (var season in _seasons) {
+        final players =
+            await Player.listFromTeamIdSeasonId(_team!.id, season.id);
+        for (var player in players) {
+          final awards = await PlayerAward.listFromPlayerId(player.id);
+          for (var award in awards) {
+            playerAwardsData.add({
+              'award': award,
+              'player': player,
+            });
+          }
+        }
+      }
+
+      return {
+        'teamAwards': teamAwards,
+        'playerAwards': playerAwardsData,
+      };
+    } catch (e) {
+      print('Error loading recent awards: $e');
+      return {'teamAwards': <TeamAward>[], 'playerAwards': []};
+    }
+  }
+
+  Widget _buildAwardCard(Map<String, dynamic> awardData) {
+    final type = awardData['type'] as String;
+    final isTeamAward = type == 'team';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      elevation: 2,
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isTeamAward ? Icons.emoji_events : Icons.person,
+                  color: Colors.amber,
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    isTeamAward
+                        ? (awardData['award'] as TeamAward).title
+                        : (awardData['award'] as PlayerAward).title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (!isTeamAward) ...[
+              Text(
+                (awardData['player'] as Player).displayName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+            ],
+            FutureBuilder<String>(
+              future: isTeamAward
+                  ? (awardData['award'] as TeamAward).getSeasonName()
+                  : (awardData['award'] as PlayerAward).getSeasonName(),
+              builder: (context, snapshot) {
+                return Text(
+                  snapshot.data ?? 'Season ${awardData['seasonId']}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
@@ -40,6 +43,21 @@ class _SeasonPageState extends State<SeasonPage> {
   Timer? _seasonLoadTimer;
   bool _seasonLoadTimedOut = false;
 
+  // New: controllers/timers for awards carousel on web
+  PageController? _teamAwardsController;
+  PageController? _playerAwardsController;
+  Timer? _awardsAutoPlayTimer;
+  bool _awardsExpanded = true; // Default to expanded
+  int _teamAwardsCount = 0;
+  int _playerAwardsCount = 0;
+  // Track current page index for indicators
+  int _teamCurrentPage = 0;
+  int _playerCurrentPage = 0;
+  // Pause autoplay when hovering over carousels (web)
+  bool _awardsHovering = false;
+  // Cache the awards future to prevent rebuilding on setState
+  final Map<int, Future<List<dynamic>>> _awardsFutureCache = {};
+
   // Helper to get path segments that works with hash-based routing used by go_router on web.
   List<String> _getPathSegments() {
     final uri = Uri.base;
@@ -48,21 +66,105 @@ class _SeasonPageState extends State<SeasonPage> {
       try {
         final fragUri = Uri.parse(uri.fragment);
         if (fragUri.pathSegments.isNotEmpty) {
-          debugPrint('Using fragment pathSegments: ${fragUri.pathSegments}');
           return fragUri.pathSegments;
         }
       } catch (e) {
         // ignore and fall back to pathSegments
-        debugPrint('Failed to parse fragment as URI: $e');
       }
     }
-    debugPrint('Using base pathSegments: ${uri.pathSegments}');
     return uri.pathSegments;
   }
 
   @override
   void initState() {
     super.initState();
+    _loadAwardsExpansionState();
+  }
+
+  Future<void> _loadAwardsExpansionState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final expanded = prefs.getBool('awards_expanded') ?? true; // Default true
+      if (mounted) {
+        setState(() {
+          _awardsExpanded = expanded;
+        });
+      }
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  Future<void> _saveAwardsExpansionState(bool expanded) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('awards_expanded', expanded);
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  void _ensureAwardControllers() {
+    _teamAwardsController ??= PageController(viewportFraction: 0.15)
+      ..addListener(() {
+        final p =
+            (_teamAwardsController!.page ?? _teamAwardsController!.initialPage)
+                .round();
+        if (p != _teamCurrentPage) {
+          setState(() => _teamCurrentPage = p);
+        }
+      });
+
+    _playerAwardsController ??= PageController(viewportFraction: 0.15)
+      ..addListener(() {
+        final p = (_playerAwardsController!.page ??
+                _playerAwardsController!.initialPage)
+            .round();
+        if (p != _playerCurrentPage) {
+          setState(() => _playerCurrentPage = p);
+        }
+      });
+  }
+
+  void _startAwardsAutoplay() {
+    _awardsAutoPlayTimer?.cancel();
+    if (!_awardsExpanded) return;
+    if (_awardsHovering) return; // don't start autoplay if user is hovering
+    // Only start if there's more than one item in either list
+    if (_teamAwardsCount <= 1 && _playerAwardsCount <= 1) return;
+
+    _awardsAutoPlayTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || !_awardsExpanded) return;
+      if (_awardsHovering) return; // skip advancing while hovering
+
+      try {
+        if (_teamAwardsController != null && _teamAwardsCount > 1) {
+          final current = (_teamAwardsController!.page ??
+                  _teamAwardsController!.initialPage)
+              .round();
+          final next = (current + 1) % _teamAwardsCount;
+          _teamAwardsController!.animateToPage(next,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut);
+        }
+      } catch (e) {
+        // ignore animation errors
+      }
+
+      try {
+        if (_playerAwardsController != null && _playerAwardsCount > 1) {
+          final current = (_playerAwardsController!.page ??
+                  _playerAwardsController!.initialPage)
+              .round();
+          final next = (current + 1) % _playerAwardsCount;
+          _playerAwardsController!.animateToPage(next,
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut);
+        }
+      } catch (e) {
+        // ignore animation errors
+      }
+    });
   }
 
   @override
@@ -109,11 +211,8 @@ class _SeasonPageState extends State<SeasonPage> {
     });
   }
 
-  String _getDatabaseId(BuildContext context, Season season) {
-    // Get databaseId from current route to preserve it in navigation
-    return GoRouterState.of(context).pathParameters['databaseId'] ??
-        DatabaseService.instance.publicShareId ??
-        season.team.id.toString();
+  String _getDatabaseId(BuildContext context) {
+    return DatabaseService.instance.publicShareId!;
   }
 
   @override
@@ -140,14 +239,14 @@ class _SeasonPageState extends State<SeasonPage> {
                   actions: [
                     IconButton(
                         onPressed: () {
-                          final databaseId = _getDatabaseId(context, season);
+                          final databaseId = _getDatabaseId(context);
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/players');
                         },
                         icon: const Icon(Icons.person_sharp)),
                     IconButton(
                         onPressed: () {
-                          final databaseId = _getDatabaseId(context, season);
+                          final databaseId = _getDatabaseId(context);
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
@@ -215,14 +314,14 @@ class _SeasonPageState extends State<SeasonPage> {
                   actions: [
                     IconButton(
                         onPressed: () {
-                          final databaseId = _getDatabaseId(context, season);
+                          final databaseId = _getDatabaseId(context);
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/players');
                         },
                         icon: const Icon(Icons.person_sharp)),
                     IconButton(
                         onPressed: () {
-                          final databaseId = _getDatabaseId(context, season);
+                          final databaseId = _getDatabaseId(context);
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
@@ -246,39 +345,46 @@ class _SeasonPageState extends State<SeasonPage> {
                           onPressed: () {
                             _showGame(season: season);
                           })),
-              body: Column(
-                children: [
-                  Breadcrumbs(
-                    items: buildTeamBreadcrumbs(
-                      databaseId: DatabaseService.instance.publicShareId ?? '',
-                      teamName: season.team.fullName,
-                      seasonName: season.name,
-                      seasonId: season.id,
+              body: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        Breadcrumbs(
+                          items: buildTeamBreadcrumbs(
+                            databaseId:
+                                DatabaseService.instance.publicShareId ?? '',
+                            teamName: season.team.fullName,
+                            seasonName: season.name,
+                            seasonId: season.id,
+                          ),
+                        ),
+                        SeasonWithLogo(season: season),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(25),
+                              bottomRight: Radius.circular(25),
+                            ),
+                          ),
+                          child: Container(
+                            color: Colors.transparent,
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Center(child: SeasonRecord([season])),
+                            ),
+                          ),
+                        ),
+                        // Awards Section
+                        _buildAwardsSection(season),
+                      ],
                     ),
                   ),
-                  SeasonWithLogo(season: season),
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(25),
-                        bottomRight: Radius.circular(25),
-                      ),
-                    ),
-                    child: Container(
-                      color: Colors.transparent,
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Center(child: SeasonRecord([season])),
-                      ),
-                    ),
-                  ),
-                  // Awards Section
-                  _buildAwardsSection(season),
-                  Expanded(
-                    child: Card(
-                      child: ListView.builder(
-                        itemCount: games.length,
-                        itemBuilder: (context, index) {
+                  SliverPadding(
+                    padding: const EdgeInsets.all(10),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
                           final game = games[index];
 
                           final linkWidget = game.gameLinks?.isNotEmpty ?? false
@@ -404,14 +510,13 @@ class _SeasonPageState extends State<SeasonPage> {
                             child: gameCard,
                           );
                         },
+                        childCount: games.length,
                       ),
                     ),
                   ),
                 ],
               ));
         } else if (snapshot.hasError) {
-          debugPrint(snapshot.error.toString());
-          debugPrintStack(stackTrace: snapshot.stackTrace);
           // Show detailed error in debug mode so it's visible when deep-linking fails.
           return Scaffold(
             appBar: AppBar(title: const Text('Error')),
@@ -464,6 +569,9 @@ class _SeasonPageState extends State<SeasonPage> {
   @override
   void dispose() {
     _seasonLoadTimer?.cancel();
+    _awardsAutoPlayTimer?.cancel();
+    _teamAwardsController?.dispose();
+    _playerAwardsController?.dispose();
     super.dispose();
   }
 
@@ -507,18 +615,14 @@ class _SeasonPageState extends State<SeasonPage> {
 
     // Try to extract seasonId from the current URL path (e.g. /team/:db/season/:seasonId)
     try {
-      debugPrint('SeasonPage: starting _loadSeason');
       // Determine path segments early for logging
       final initialSegments = _getPathSegments();
-      debugPrint('SeasonPage: pathSegments -> $initialSegments');
       // Ensure the database is opened for the shared database id in the URL
       try {
         final segmentsForDb = _getPathSegments();
-        debugPrint('SeasonPage: segmentsForDb -> $segmentsForDb');
         final teamIndex = segmentsForDb.indexOf('team');
         if (teamIndex != -1 && teamIndex + 1 < segmentsForDb.length) {
           final dbId = segmentsForDb[teamIndex + 1];
-          debugPrint('SeasonPage: found dbId in URL -> $dbId');
           if (DatabaseService.instance.publicShareId == null ||
               DatabaseService.instance.publicShareId != dbId) {
             // try opening the shared DB but don't block forever
@@ -526,26 +630,18 @@ class _SeasonPageState extends State<SeasonPage> {
               final opened = await DatabaseService.instance
                   .openFromId(dbId)
                   .timeout(const Duration(seconds: 10));
-              debugPrint('SeasonPage: openFromId($dbId) returned $opened');
               if (!opened) {
                 throw Exception('Failed to open shared database: $dbId');
               }
             } catch (te) {
-              if (te is TimeoutException) {
-                debugPrint('SeasonPage: openFromId($dbId) timed out: $te');
-              } else {
-                debugPrint('SeasonPage: openFromId($dbId) failed: $te');
-              }
               rethrow;
             }
           }
         }
       } catch (e) {
-        debugPrint('Error opening DB from URL in SeasonPage: $e');
         rethrow;
       }
       final segments = _getPathSegments();
-      debugPrint('SeasonPage: resolving season from segments -> $segments');
       final seasonIndex = segments.indexOf('season');
       if (seasonIndex == -1 || seasonIndex + 1 >= segments.length) {
         throw Exception('Season id not found in URL');
@@ -554,33 +650,23 @@ class _SeasonPageState extends State<SeasonPage> {
       final seasonIdString = segments[seasonIndex + 1];
       final seasonId = int.parse(seasonIdString);
 
-      debugPrint('SeasonPage: querying Seasons for id $seasonId');
       List<Map<String, dynamic>> results;
       try {
         results = await DatabaseService.instance
             .query('Seasons', orderByChild: 'id', equalTo: seasonId)
             .timeout(const Duration(seconds: 10));
       } catch (te) {
-        if (te is TimeoutException) {
-          debugPrint('SeasonPage: query timed out for season $seasonId: $te');
-        } else {
-          debugPrint('SeasonPage: query failed for season $seasonId: $te');
-        }
         rethrow;
       }
 
-      debugPrint('SeasonPage: query returned ${results.length} rows');
       if (results.isEmpty) {
         throw Exception('Season not found: $seasonId');
       }
 
       final season = Season.fromMap(results.first);
       await season.load();
-      debugPrint(
-          'SeasonPage: season loaded id=${season.id} name=${season.name}');
       return season;
     } catch (e) {
-      debugPrint('Error loading season in SeasonPage: $e');
       rethrow;
     }
   }
@@ -863,26 +949,41 @@ class _SeasonPageState extends State<SeasonPage> {
   Widget _buildAwardsSection(Season season) {
     final loc = AppLocalizations.of(context)!;
 
+    // Cache the future so it doesn't rebuild when setState is called
+    _awardsFutureCache[season.id] ??= Future.wait([
+      _loadPlayerAwards(season.id),
+      _loadTeamAwards(season.id),
+    ]);
+
     return FutureBuilder<List<dynamic>>(
-      future: Future.wait([
-        _loadPlayerAwards(season.id),
-        _loadTeamAwards(season.id),
-      ]),
+      future: _awardsFutureCache[season.id],
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink();
+          return const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
-          return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Error loading awards: ${snapshot.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
+          );
         }
 
         final playerAwards =
             (snapshot.data?[0] as List<Map<String, dynamic>>?) ?? [];
         final teamAwards = (snapshot.data?[1] as List<TeamAward>?) ?? [];
 
-        // Don't show section if no awards
-        if (playerAwards.isEmpty && teamAwards.isEmpty) {
+        // On mobile, always show the section (even if empty) so coaches can add awards
+        // On web, hide if empty
+        if (kIsWeb && playerAwards.isEmpty && teamAwards.isEmpty) {
           return const SizedBox.shrink();
         }
 
@@ -890,7 +991,23 @@ class _SeasonPageState extends State<SeasonPage> {
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           elevation: 4,
           child: ExpansionTile(
-            initiallyExpanded: true,
+            initiallyExpanded: _awardsExpanded,
+            // Autoplay carousels when the awards tile is expanded
+            onExpansionChanged: (expanded) {
+              _saveAwardsExpansionState(expanded); // Persist the state
+              setState(() {
+                _awardsExpanded = expanded;
+                if (expanded) {
+                  // capture counts for the timer
+                  _teamAwardsCount = teamAwards.length;
+                  _playerAwardsCount = playerAwards.length;
+                  _ensureAwardControllers();
+                  _startAwardsAutoplay();
+                } else {
+                  _awardsAutoPlayTimer?.cancel();
+                }
+              });
+            },
             leading:
                 const Icon(Icons.emoji_events, size: 28, color: Colors.amber),
             title: Text(
@@ -900,63 +1017,326 @@ class _SeasonPageState extends State<SeasonPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            subtitle: Text(
-              '${playerAwards.length + teamAwards.length} ${playerAwards.length + teamAwards.length == 1 ? 'award' : 'awards'}',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
             children: [
+              // Awards Content
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Team Awards Section
-                    if (teamAwards.isNotEmpty) ...[
+                    if (!kIsWeb || teamAwards.isNotEmpty) ...[
                       Row(
                         children: [
-                          const Icon(Icons.emoji_events,
-                              size: 20, color: Colors.amber),
+                          const Icon(Icons.emoji_events, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Team Awards',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
+                          const Spacer(),
+                          // Add button (mobile only)
+                          if (!kIsWeb) ...[
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 20),
+                              onPressed: () => _showAddTeamAwardDialog(season),
+                              tooltip: 'Add Team Award',
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ...teamAwards.map((award) => _buildTeamAwardCard(award)),
+                      if (teamAwards.isNotEmpty)
+                        if (kIsWeb)
+                          // Carousel layout for web (autoplays when expanded)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Height tuned to approximate the grid card size
+                              final height =
+                                  constraints.maxWidth > 800 ? 220.0 : 180.0;
+                              _ensureAwardControllers();
+                              return Column(
+                                children: [
+                                  MouseRegion(
+                                    onEnter: (_) {
+                                      setState(() {
+                                        _awardsHovering = true;
+                                        _awardsAutoPlayTimer?.cancel();
+                                      });
+                                    },
+                                    onExit: (_) {
+                                      setState(() {
+                                        _awardsHovering = false;
+                                        if (_awardsExpanded)
+                                          _startAwardsAutoplay();
+                                      });
+                                    },
+                                    child: SizedBox(
+                                      height: height,
+                                      child: Listener(
+                                        onPointerSignal: (event) {
+                                          // Absorb horizontal scroll to prevent browser back gesture
+                                        },
+                                        child: PageView.builder(
+                                          controller: _teamAwardsController,
+                                          itemCount: teamAwards.length,
+                                          physics: const PageScrollPhysics(),
+                                          itemBuilder: (context, index) {
+                                            final isActive =
+                                                index == _teamCurrentPage;
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8.0),
+                                              child: AnimatedScale(
+                                                scale: isActive ? 1.08 : 0.92,
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                curve: Curves.easeOutCubic,
+                                                child: Container(
+                                                  decoration: isActive
+                                                      ? BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: Colors.blue
+                                                                  .withOpacity(
+                                                                      0.3),
+                                                              blurRadius: 12,
+                                                              spreadRadius: 2,
+                                                            ),
+                                                          ],
+                                                        )
+                                                      : null,
+                                                  child:
+                                                      _buildTeamAwardGridCard(
+                                                          teamAwards[index],
+                                                          season),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Page indicators
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children:
+                                        List.generate(teamAwards.length, (i) {
+                                      final active = i == _teamCurrentPage;
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 250),
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                        width: active ? 12 : 8,
+                                        height: active ? 12 : 8,
+                                        decoration: BoxDecoration(
+                                          color: active
+                                              ? Colors.blueAccent
+                                              : Colors.grey.shade400,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                        else
+                          // List layout for mobile
+                          Column(
+                            children: teamAwards
+                                .map((award) =>
+                                    _buildTeamAwardCard(award, season))
+                                .toList(),
+                          ),
+                      if (teamAwards.isEmpty && !kIsWeb)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'No team awards yet. Tap + to add one!',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
                       if (playerAwards.isNotEmpty) const Divider(height: 24),
                     ],
 
                     // Player Awards Section
-                    if (playerAwards.isNotEmpty) ...[
+                    if (!kIsWeb || playerAwards.isNotEmpty) ...[
                       Row(
                         children: [
                           const Icon(Icons.person, size: 20),
                           const SizedBox(width: 8),
                           Text(
                             'Player Awards',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
+                          const Spacer(),
+                          if (!kIsWeb) ...[
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 20),
+                              onPressed: () =>
+                                  _showAddPlayerAwardDialog(season),
+                              tooltip: 'Add Player Award',
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),
-                      ...playerAwards.map((awardData) => _buildPlayerAwardCard(
-                            awardData['award'] as PlayerAward,
-                            awardData['player'] as Player,
-                            season,
-                          )),
+                      if (playerAwards.isNotEmpty)
+                        if (kIsWeb)
+                          // Carousel layout for web (autoplays when expanded)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final height =
+                                  constraints.maxWidth > 800 ? 220.0 : 180.0;
+                              _ensureAwardControllers();
+                              return Column(
+                                children: [
+                                  MouseRegion(
+                                    onEnter: (_) {
+                                      setState(() {
+                                        _awardsHovering = true;
+                                        _awardsAutoPlayTimer?.cancel();
+                                      });
+                                    },
+                                    onExit: (_) {
+                                      setState(() {
+                                        _awardsHovering = false;
+                                        if (_awardsExpanded)
+                                          _startAwardsAutoplay();
+                                      });
+                                    },
+                                    child: SizedBox(
+                                      height: height,
+                                      child: Listener(
+                                        onPointerSignal: (event) {
+                                          // Absorb horizontal scroll to prevent browser back gesture
+                                        },
+                                        child: PageView.builder(
+                                          controller: _playerAwardsController,
+                                          itemCount: playerAwards.length,
+                                          physics: const PageScrollPhysics(),
+                                          itemBuilder: (context, index) {
+                                            final awardData =
+                                                playerAwards[index];
+                                            final isActive =
+                                                index == _playerCurrentPage;
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8.0),
+                                              child: AnimatedScale(
+                                                scale: isActive ? 1.08 : 0.92,
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                curve: Curves.easeOutCubic,
+                                                child: Container(
+                                                  decoration: isActive
+                                                      ? BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                          boxShadow: [
+                                                            BoxShadow(
+                                                              color: Colors.blue
+                                                                  .withOpacity(
+                                                                      0.3),
+                                                              blurRadius: 12,
+                                                              spreadRadius: 2,
+                                                            ),
+                                                          ],
+                                                        )
+                                                      : null,
+                                                  child:
+                                                      _buildPlayerAwardGridCard(
+                                                    awardData['award']
+                                                        as PlayerAward,
+                                                    awardData['player']
+                                                        as Player,
+                                                    season,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Page indicators
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children:
+                                        List.generate(playerAwards.length, (i) {
+                                      final active = i == _playerCurrentPage;
+                                      return AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 250),
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                        width: active ? 12 : 8,
+                                        height: active ? 12 : 8,
+                                        decoration: BoxDecoration(
+                                          color: active
+                                              ? Colors.blueAccent
+                                              : Colors.grey.shade400,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                        else
+                          // List layout for mobile
+                          Column(
+                            children: playerAwards
+                                .map((awardData) => _buildPlayerAwardCard(
+                                      awardData['award'] as PlayerAward,
+                                      awardData['player'] as Player,
+                                      season,
+                                    ))
+                                .toList(),
+                          ),
+                      if (playerAwards.isEmpty && !kIsWeb)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'No player awards yet. Tap + to add one!',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
                     ],
                   ],
                 ),
@@ -979,7 +1359,8 @@ class _SeasonPageState extends State<SeasonPage> {
       for (var result in results) {
         final award = PlayerAward.fromMap(result);
         // Load the player for this award
-        final player = await Player.fromId(award.playerId);
+        final player =
+            await Player.singleFromIdSeasonId(award.playerId, seasonId);
         if (player != null) {
           awardWithPlayers.add({
             'award': award,
@@ -1009,7 +1390,7 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
-  Widget _buildTeamAwardCard(TeamAward award) {
+  Widget _buildTeamAwardCard(TeamAward award, Season season) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -1025,27 +1406,133 @@ class _SeasonPageState extends State<SeasonPage> {
               ),
         title: Text(
           award.title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
         ),
         subtitle: award.description != null && award.description!.isNotEmpty
             ? Text(award.description!)
             : null,
+        trailing: !kIsWeb
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () =>
+                        _showAddTeamAwardDialog(season, award: award),
+                    tooltip: 'Edit',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20),
+                    onPressed: () => _deleteTeamAward(award),
+                    tooltip: 'Delete',
+                  ),
+                ],
+              )
+            : null,
+        onTap: () => _showTeamAwardDetailsDialog(award),
+      ),
+    );
+  }
+
+  Widget _buildTeamAwardGridCard(TeamAward award, Season season) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Image section - tappable to show popup
+          Expanded(
+            flex: 5,
+            child: InkWell(
+              onTap: () => _showTeamAwardDetailsDialog(award),
+              child: award.imageUrl != null && award.imageUrl!.isNotEmpty
+                  ? Image.network(
+                      award.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.amber.shade100,
+                          child: const Center(
+                            child: Icon(
+                              Icons.emoji_events,
+                              size: 64,
+                              color: Colors.amber,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.amber.shade100,
+                      child: const Center(
+                        child: Icon(
+                          Icons.emoji_events,
+                          size: 64,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          // Text section - tappable to show popup (no navigation for team awards)
+          Expanded(
+            flex: 2,
+            child: InkWell(
+              onTap: () => _showTeamAwardDetailsDialog(award),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      award.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (award.description != null &&
+                        award.description!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: Text(
+                          award.description!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPlayerAwardCard(
       PlayerAward award, Player player, Season season) {
+    final awardImageUrl = (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+        ? award.imageUrl
+        : (player.profileImage != null && player.profileImage!.isNotEmpty)
+            ? player.profileImage
+            : player.actionPhoto;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: player.profileImage != null
+        leading: awardImageUrl != null
             ? CircleAvatar(
                 radius: 24,
-                backgroundImage: NetworkImage(player.profileImage!),
+                backgroundImage: NetworkImage(awardImageUrl!),
               )
             : CircleAvatar(
                 radius: 24,
@@ -1060,10 +1547,10 @@ class _SeasonPageState extends State<SeasonPage> {
             Expanded(
               child: Text(
                 award.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
             ),
             const Icon(Icons.arrow_forward_ios, size: 16),
@@ -1071,12 +1558,976 @@ class _SeasonPageState extends State<SeasonPage> {
         ),
         subtitle: Text(player.displayName),
         onTap: () {
-          final databaseId = _getDatabaseId(context, season);
+          final databaseId = _getDatabaseId(context);
           NavigationHelper.navigateTo(
             context,
-            '/team/$databaseId/season/${season.id}/player/${player.id}',
+            '/team/$databaseId/season/${season.id}/players/${player.id}',
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildPlayerAwardGridCard(
+      PlayerAward award, Player player, Season season) {
+    final awardImageUrl = (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+        ? award.imageUrl
+        : (player.profileImage != null && player.profileImage!.isNotEmpty)
+            ? player.profileImage
+            : player.actionPhoto;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Image/Avatar section - tappable to show popup
+          Expanded(
+            flex: 5,
+            child: InkWell(
+              onTap: () => _showPlayerAwardDetailsDialog(award, player),
+              child: awardImageUrl != null && awardImageUrl.isNotEmpty
+                  ? Image.network(
+                      awardImageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey.shade200,
+                          child: Center(
+                            child: Text(
+                              player.displayName.substring(0, 1).toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.grey.shade200,
+                      child: Center(
+                        child: Text(
+                          player.displayName.substring(0, 1).toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          // Text section - tappable to navigate to player profile
+          Expanded(
+            flex: 2,
+            child: InkWell(
+              onTap: () {
+                final databaseId = _getDatabaseId(context);
+                NavigationHelper.navigateTo(
+                  context,
+                  '/team/$databaseId/season/${season.id}/players/${player.id}',
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      award.title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            player.displayName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Colors.blue.shade700,
+                                  decoration: TextDecoration.underline,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios, size: 14),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddTeamAwardDialog(Season season, {TeamAward? award}) {
+    final loc = AppLocalizations.of(context)!;
+    final isEdit = award != null;
+    final titleController = TextEditingController(text: award?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: award?.description ?? '');
+    final urlController = TextEditingController(text: award?.url ?? '');
+    String? imageUrl = award?.imageUrl;
+    bool isUploadingImage = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(isEdit ? 'Edit Team Award' : 'Add Team Award'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Award Title *',
+                    hintText: 'e.g., Tournament Champions, League Winners',
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  autofocus: true,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Optional details',
+                  ),
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: urlController,
+                  decoration: const InputDecoration(
+                    labelText: 'URL',
+                    hintText: 'Optional link (e.g., article, photo)',
+                    prefixIcon: Icon(Icons.link),
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                // Image upload section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Award Image',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    if (imageUrl != null && imageUrl!.isNotEmpty)
+                      Stack(
+                        children: [
+                          Container(
+                            width: 200,
+                            height: 200,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                imageUrl!,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  imageUrl = null;
+                                });
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        onPressed: isUploadingImage || kIsWeb
+                            ? null
+                            : () async {
+                                setState(() {
+                                  isUploadingImage = true;
+                                });
+                                try {
+                                  final pickedFile = await ImagePicker()
+                                      .pickImage(source: ImageSource.gallery);
+                                  if (pickedFile != null) {
+                                    // Upload to Firebase Storage
+                                    final storageRef = FirebaseStorage.instance
+                                        .ref()
+                                        .child(
+                                            'award_images/${DateTime.now().millisecondsSinceEpoch}.jpg');
+                                    await storageRef
+                                        .putFile(File(pickedFile.path));
+                                    final downloadUrl =
+                                        await storageRef.getDownloadURL();
+                                    setState(() {
+                                      imageUrl = downloadUrl;
+                                      isUploadingImage = false;
+                                    });
+                                  } else {
+                                    setState(() {
+                                      isUploadingImage = false;
+                                    });
+                                  }
+                                } catch (e) {
+                                  setState(() {
+                                    isUploadingImage = false;
+                                  });
+                                  if (context.mounted) {
+                                    String errorMessage =
+                                        'Error uploading image';
+                                    if (e
+                                            .toString()
+                                            .contains('not authorized') ||
+                                        e.toString().contains('permission') ||
+                                        e.toString().contains('unauthorized')) {
+                                      errorMessage =
+                                          'Not authorized to upload images. Please sign in on mobile to add images.';
+                                    } else {
+                                      errorMessage =
+                                          'Error uploading image: ${e.toString()}';
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(errorMessage),
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isUploadingImage
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.image),
+                        label: Text(
+                          isUploadingImage
+                              ? 'Uploading...'
+                              : kIsWeb
+                                  ? 'Image upload requires mobile app'
+                                  : 'Pick Image',
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancelButton),
+            ),
+            FilledButton(
+              onPressed: isUploadingImage
+                  ? null
+                  : () {
+                      final title = titleController.text.trim();
+
+                      if (title.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Award title is required'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      _saveTeamAward(
+                        season: season,
+                        id: award?.id ?? DateTime.now().millisecondsSinceEpoch,
+                        title: title,
+                        description: descriptionController.text.trim(),
+                        url: urlController.text.trim(),
+                        imageUrl: imageUrl,
+                      );
+
+                      Navigator.pop(context);
+                    },
+              child: Text(isEdit ? loc.updateButton : loc.addButton),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveTeamAward({
+    required Season season,
+    required int id,
+    required String title,
+    String? description,
+    String? url,
+    String? imageUrl,
+  }) async {
+    try {
+      final award = TeamAward(
+        id: id,
+        teamId: season.teamId,
+        seasonId: season.id,
+        title: title,
+        description: description?.isEmpty == true ? null : description,
+        imageUrl: imageUrl?.isEmpty == true ? null : imageUrl,
+        url: url?.isEmpty == true ? null : url,
+      );
+
+      await award.save();
+
+      if (mounted) {
+        setState(() {
+          // Refresh the page to show updated awards
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Team award saved successfully')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving team award: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteTeamAward(TeamAward award) async {
+    final loc = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Team Award'),
+        content: Text('Delete "${award.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(loc.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await award.delete();
+
+        if (mounted) {
+          setState(() {
+            // Refresh the page to show updated awards
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Team award deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error deleting team award: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  void _showTeamAwardDetailsDialog(TeamAward award) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                award.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Award Image
+              if (award.imageUrl != null && award.imageUrl!.isNotEmpty) ...[
+                Center(
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 400,
+                      maxHeight: 400,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        award.imageUrl!,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: const Center(
+                              child: Icon(Icons.broken_image, size: 48),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Description
+              if (award.description != null &&
+                  award.description!.isNotEmpty) ...[
+                Text(
+                  'Description',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  award.description!,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // URL Link
+              if (award.url != null && award.url!.isNotEmpty) ...[
+                Text(
+                  'Link',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.parse(award.url!);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not open URL: ${award.url}'),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.link, color: Colors.blue.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            award.url!,
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              decoration: TextDecoration.underline,
+                              fontSize: 14,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.open_in_new,
+                            color: Colors.blue.shade700, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPlayerAwardDetailsDialog(PlayerAward award, Player player) {
+    // Use profileImage if available, otherwise fall back to actionPhoto
+    final awardImageUrl = (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+        ? award.imageUrl
+        : (player.profileImage != null && player.profileImage!.isNotEmpty)
+            ? player.profileImage
+            : player.actionPhoto;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                award.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Award/Player Image
+              Center(
+                child: Container(
+                  constraints: const BoxConstraints(
+                    maxWidth: 400,
+                    maxHeight: 400,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300, width: 2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: awardImageUrl != null && awardImageUrl.isNotEmpty
+                        ? Image.network(
+                            awardImageUrl,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 200,
+                                color: Colors.grey.shade200,
+                                child: Center(
+                                  child: Text(
+                                    player.displayName
+                                        .substring(0, 1)
+                                        .toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 72,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            height: 200,
+                            color: Colors.grey.shade200,
+                            child: Center(
+                              child: Text(
+                                player.displayName
+                                    .substring(0, 1)
+                                    .toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 72,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Player name - clickable to go to profile
+              InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  final databaseId = _getDatabaseId(context);
+                  NavigationHelper.navigateTo(
+                    context,
+                    '/team/$databaseId/season/${award.seasonId}/players/${player.id}',
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          player.displayName,
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'View Profile',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward,
+                          color: Colors.blue.shade700, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Description
+              if (award.description != null &&
+                  award.description!.isNotEmpty) ...[
+                Text(
+                  'Description',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  award.description!,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // URL Link
+              if (award.url != null && award.url!.isNotEmpty) ...[
+                Text(
+                  'Link',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final uri = Uri.parse(award.url!);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Could not open URL: ${award.url}')),
+                        );
+                      }
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.link, color: Colors.blue.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            award.url!,
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              decoration: TextDecoration.underline,
+                              fontSize: 14,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.open_in_new,
+                            color: Colors.blue.shade700, size: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPlayerAwardDialog(Season season) {
+    // Only supported on mobile
+    if (kIsWeb) return;
+
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    Player? selectedPlayer =
+        season.players.isNotEmpty ? season.players.first : null;
+    String? imageUrl;
+    File? imageFile;
+    bool isUploadingImage = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Player Award'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (season.players.isEmpty) ...[
+                  const Text(
+                      'No players found for this season. Add players first.'),
+                ] else ...[
+                  DropdownButtonFormField<Player>(
+                    value: selectedPlayer,
+                    decoration: const InputDecoration(
+                      labelText: 'Player',
+                    ),
+                    items: season.players.map((p) {
+                      return DropdownMenuItem(
+                          value: p, child: Text(p.displayName));
+                    }).toList(),
+                    onChanged: (p) => setState(() => selectedPlayer = p),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleController,
+                    decoration:
+                        const InputDecoration(labelText: 'Award Title *'),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 12),
+                  // Image picker button
+                  if (imageUrl != null)
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            imageUrl!,
+                            height: 150,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                imageUrl = null;
+                                imageFile = null;
+                              });
+                            },
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: isUploadingImage
+                          ? null
+                          : () async {
+                              setState(() {
+                                isUploadingImage = true;
+                              });
+                              try {
+                                final pickedFile = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (pickedFile != null) {
+                                  setState(() {
+                                    imageFile = File(pickedFile.path);
+                                    isUploadingImage = false;
+                                  });
+                                } else {
+                                  setState(() {
+                                    isUploadingImage = false;
+                                  });
+                                }
+                              } catch (e) {
+                                setState(() {
+                                  isUploadingImage = false;
+                                });
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error picking image: ${e.toString()}'),
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: isUploadingImage
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.image),
+                      label:
+                          Text(isUploadingImage ? 'Loading...' : 'Pick Image'),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: season.players.isEmpty || selectedPlayer == null
+                  ? null
+                  : () async {
+                      final title = titleController.text.trim();
+                      if (title.isEmpty || selectedPlayer == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Title and player are required')));
+                        return;
+                      }
+
+                      try {
+                        String? finalImageUrl = imageUrl;
+                        if (imageFile != null) {
+                          final path =
+                              'player_awards/${selectedPlayer!.id}_${DateTime.now().millisecondsSinceEpoch}';
+                          final storageRef =
+                              FirebaseStorage.instance.ref().child(path);
+                          await storageRef.putFile(imageFile!);
+                          finalImageUrl = await storageRef.getDownloadURL();
+                        }
+
+                        final a = PlayerAward(
+                          id: DateTime.now().millisecondsSinceEpoch,
+                          playerId: selectedPlayer!.id,
+                          seasonId: season.id,
+                          title: title,
+                          description: descriptionController.text.trim().isEmpty
+                              ? null
+                              : descriptionController.text.trim(),
+                          imageUrl: finalImageUrl,
+                        );
+
+                        await a.save();
+
+                        if (mounted) {
+                          Navigator.pop(context);
+                          setState(() {});
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Player award saved')));
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content:
+                                  Text('Error saving award: ${e.toString()}')));
+                        }
+                      }
+                    },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }

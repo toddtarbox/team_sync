@@ -1,3 +1,5 @@
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:team_sync/services/database_service.dart';
 
 class Player {
@@ -155,6 +157,86 @@ class Player {
           return;
         }
       }
+    }
+  }
+
+  /// Save player profile using PIN authentication (web only)
+  /// This uses a Cloud Function to bypass authentication requirements
+  Future<void> saveWithPin(String pin) async {
+    if (!kIsWeb) {
+      // On mobile, use regular save
+      return save();
+    }
+
+    try {
+      // Get the full database path from DatabaseService
+      final dbPath = DatabaseService.instance.fullDatabasePath;
+      if (dbPath.isEmpty) {
+        throw Exception('No database path available');
+      }
+
+      // Call Cloud Function
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'updatePlayerWithPin',
+      );
+
+      final result = await callable.call<Map<String, dynamic>>({
+        'databasePath': dbPath,
+        'playerId': id,
+        'seasonId': seasonId,
+        'pin': pin,
+        'updates': {
+          'profileImage': profileImage,
+          'actionPhoto': actionPhoto,
+          'firstName': firstName,
+          'lastName': lastName,
+          'number': number,
+          if (editPin != null) 'editPin': editPin,
+        },
+      });
+
+      if (result.data['success'] != true) {
+        throw Exception(result.data['message'] ?? 'Update failed');
+      }
+    } catch (e) {
+      throw Exception('Failed to update player profile: $e');
+    }
+  }
+
+  /// Regenerate PIN when exiting edit mode (web only)
+  /// Returns the new PIN to display to the user
+  static Future<String?> regeneratePin(
+      int playerId, int seasonId, String currentPin) async {
+    if (!kIsWeb) {
+      return null; // No PIN regeneration on mobile
+    }
+
+    try {
+      // Get the full database path from DatabaseService
+      final dbPath = DatabaseService.instance.fullDatabasePath;
+      if (dbPath.isEmpty) {
+        throw Exception('No database path available');
+      }
+
+      // Call Cloud Function
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'regeneratePlayerPin',
+      );
+
+      final result = await callable.call<Map<String, dynamic>>({
+        'databasePath': dbPath,
+        'playerId': playerId,
+        'seasonId': seasonId,
+        'currentPin': currentPin,
+      });
+
+      if (result.data['success'] != true) {
+        throw Exception('Failed to regenerate PIN');
+      }
+
+      return result.data['newPin'] as String?;
+    } catch (e) {
+      throw Exception('Failed to regenerate PIN: $e');
     }
   }
 }
