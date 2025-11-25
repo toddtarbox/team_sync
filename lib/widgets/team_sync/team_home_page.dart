@@ -323,7 +323,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   List<Widget> _buildAppBarActions() {
-    if (FirebaseAuth.instance.currentUser == null) {
+    if (!kIsWeb && FirebaseAuth.instance.currentUser == null) {
       return [];
     }
 

@@ -1083,9 +1083,26 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   Widget build(BuildContext context) {
     final config = _getStyleConfig(widget.style);
 
+    // Calculate dynamic height based on content
+    // Base height: 250 (header + player info + footer + padding)
+    // Stats: ~40px each
+    // Awards: ~70px each (when rendered as list)
+    final statsCount =
+        (_goals > 0 ? 1 : 0) + (_assists > 0 ? 1 : 0) + (_saves > 0 ? 1 : 0);
+    final hasStats = statsCount > 0;
+    final baseHeight = 250.0;
+    final statsHeight = statsCount * 45.0;
+    final awardsHeight = _awards.isNotEmpty
+        ? (hasStats ? 40.0 : 20.0) + (_awards.length * 70.0)
+        : 0.0;
+    final emptyStateHeight = (!hasStats && _awards.isEmpty) ? 60.0 : 0.0;
+    final dynamicHeight =
+        baseHeight + statsHeight + awardsHeight + emptyStateHeight;
+    final cardHeight = dynamicHeight.clamp(450.0, 1200.0); // Min 450, max 1200
+
     return Container(
       width: 300,
-      height: 450,
+      height: cardHeight,
       decoration: BoxDecoration(
         color: config.backgroundColor,
         borderRadius: BorderRadius.circular(16),
@@ -1100,6 +1117,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header
           Container(
@@ -1180,122 +1198,78 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
 
           const Divider(height: 1),
 
-          // Stats section
-          Expanded(
-            child: _isLoading
-                ? Center(
+          // Stats section - no longer Expanded, sized to content
+          _isLoading
+              ? Container(
+                  height: 100,
+                  child: Center(
                     child: CircularProgressIndicator(
                       color: config.accentColor,
                     ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        // Stats section
-                        if (_goals > 0 || _assists > 0 || _saves > 0) ...[
-                          if (_goals > 0)
-                            _StatRow(
-                              label: 'GOALS',
-                              value: _goals.toString(),
-                              icon: Icons.sports_soccer,
-                              config: config,
-                            ),
-                          if (_assists > 0)
-                            _StatRow(
-                              label: 'ASSISTS',
-                              value: _assists.toString(),
-                              icon: Icons.people,
-                              config: config,
-                            ),
-                          if (_saves > 0)
-                            _StatRow(
-                              label: 'SAVES',
-                              value: _saves.toString(),
-                              icon: Icons.back_hand,
-                              config: config,
-                            ),
-                        ],
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Stats section
+                      if (hasStats) ...[
+                        if (_goals > 0)
+                          _StatRow(
+                            label: 'GOALS',
+                            value: _goals.toString(),
+                            icon: Icons.sports_soccer,
+                            config: config,
+                          ),
+                        if (_assists > 0)
+                          _StatRow(
+                            label: 'ASSISTS',
+                            value: _assists.toString(),
+                            icon: Icons.people,
+                            config: config,
+                          ),
+                        if (_saves > 0)
+                          _StatRow(
+                            label: 'SAVES',
+                            value: _saves.toString(),
+                            icon: Icons.back_hand,
+                            config: config,
+                          ),
+                      ],
 
-                        // Awards section
-                        if (_awards.isNotEmpty) ...[
-                          if (_goals > 0 || _assists > 0 || _saves > 0)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Divider(
-                                color: config.textColor.withValues(alpha: 0.3),
-                                thickness: 1,
-                              ),
-                            ),
-                          Text(
-                            'AWARDS',
-                            style: TextStyle(
-                              color: config.accentColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
+                      // Awards section - render as list for image capture
+                      if (_awards.isNotEmpty) ...[
+                        if (hasStats)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Divider(
+                              color: config.textColor.withValues(alpha: 0.3),
+                              thickness: 1,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          ..._awards.map((award) => Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 4),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.emoji_events,
-                                      size: 16,
-                                      color: config.accentColor,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            award.title.toUpperCase(),
-                                            style: TextStyle(
-                                              color: config.textColor,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          FutureBuilder<String>(
-                                            future: award.getSeasonName(),
-                                            builder: (context, snapshot) {
-                                              if (!snapshot.hasData) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              return Text(
-                                                snapshot.data!,
-                                                style: TextStyle(
-                                                  color: config.textColor
-                                                      .withValues(alpha: 0.7),
-                                                  fontSize: 10,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              );
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )),
-                        ],
+                        Text(
+                          'AWARDS',
+                          style: TextStyle(
+                            color: config.accentColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
 
-                        // Show message if no stats and no awards
-                        if (_goals == 0 &&
-                            _assists == 0 &&
-                            _saves == 0 &&
-                            _awards.isEmpty)
-                          Center(
+                        // Render awards as list (not carousel) for proper image capture
+                        ..._awards
+                            .map((award) => _buildAwardCard(award, config)),
+                      ],
+
+                      // Show message if no stats and no awards
+                      if (!hasStats && _awards.isEmpty)
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
                             child: Text(
                               'No stats or awards yet',
                               style: TextStyle(
@@ -1305,10 +1279,13 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                               ),
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
-          ),
+                ),
+
+          // Spacer to push footer to bottom
+          const Spacer(),
 
           // Footer
           Container(
@@ -1332,6 +1309,72 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build individual award card for list rendering
+  Widget _buildAwardCard(PlayerAward award, _StyleConfig config) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: config.accentColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: config.accentColor.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              Icon(
+                Icons.emoji_events,
+                size: 22,
+                color: config.accentColor,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      award.title.toUpperCase(),
+                      style: TextStyle(
+                        color: config.textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    FutureBuilder<String>(
+                      future: award.getSeasonName(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const SizedBox.shrink();
+                        }
+                        return Text(
+                          snapshot.data!,
+                          style: TextStyle(
+                            color: config.textColor.withValues(alpha: 0.7),
+                            fontSize: 9,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

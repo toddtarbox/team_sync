@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:auto_size_text/auto_size_text.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -43,18 +45,14 @@ class _SeasonPageState extends State<SeasonPage> {
   Timer? _seasonLoadTimer;
   bool _seasonLoadTimedOut = false;
 
-  // New: controllers/timers for awards carousel on web
-  PageController? _teamAwardsController;
-  PageController? _playerAwardsController;
-  Timer? _awardsAutoPlayTimer;
+  // New: controllers for awards carousel on web
+  final CarouselSliderController _teamAwardsController =
+      CarouselSliderController();
+  final CarouselSliderController _playerAwardsController =
+      CarouselSliderController();
   bool _awardsExpanded = true; // Default to expanded
-  int _teamAwardsCount = 0;
-  int _playerAwardsCount = 0;
-  // Track current page index for indicators
   int _teamCurrentPage = 0;
   int _playerCurrentPage = 0;
-  // Pause autoplay when hovering over carousels (web)
-  bool _awardsHovering = false;
   // Cache the awards future to prevent rebuilding on setState
   final Map<int, Future<List<dynamic>>> _awardsFutureCache = {};
 
@@ -102,69 +100,6 @@ class _SeasonPageState extends State<SeasonPage> {
     } catch (e) {
       // Silently fail
     }
-  }
-
-  void _ensureAwardControllers() {
-    _teamAwardsController ??= PageController(viewportFraction: 0.15)
-      ..addListener(() {
-        final p =
-            (_teamAwardsController!.page ?? _teamAwardsController!.initialPage)
-                .round();
-        if (p != _teamCurrentPage) {
-          setState(() => _teamCurrentPage = p);
-        }
-      });
-
-    _playerAwardsController ??= PageController(viewportFraction: 0.15)
-      ..addListener(() {
-        final p = (_playerAwardsController!.page ??
-                _playerAwardsController!.initialPage)
-            .round();
-        if (p != _playerCurrentPage) {
-          setState(() => _playerCurrentPage = p);
-        }
-      });
-  }
-
-  void _startAwardsAutoplay() {
-    _awardsAutoPlayTimer?.cancel();
-    if (!_awardsExpanded) return;
-    if (_awardsHovering) return; // don't start autoplay if user is hovering
-    // Only start if there's more than one item in either list
-    if (_teamAwardsCount <= 1 && _playerAwardsCount <= 1) return;
-
-    _awardsAutoPlayTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_awardsExpanded) return;
-      if (_awardsHovering) return; // skip advancing while hovering
-
-      try {
-        if (_teamAwardsController != null && _teamAwardsCount > 1) {
-          final current = (_teamAwardsController!.page ??
-                  _teamAwardsController!.initialPage)
-              .round();
-          final next = (current + 1) % _teamAwardsCount;
-          _teamAwardsController!.animateToPage(next,
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut);
-        }
-      } catch (e) {
-        // ignore animation errors
-      }
-
-      try {
-        if (_playerAwardsController != null && _playerAwardsCount > 1) {
-          final current = (_playerAwardsController!.page ??
-                  _playerAwardsController!.initialPage)
-              .round();
-          final next = (current + 1) % _playerAwardsCount;
-          _playerAwardsController!.animateToPage(next,
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut);
-        }
-      } catch (e) {
-        // ignore animation errors
-      }
-    });
   }
 
   @override
@@ -569,9 +504,7 @@ class _SeasonPageState extends State<SeasonPage> {
   @override
   void dispose() {
     _seasonLoadTimer?.cancel();
-    _awardsAutoPlayTimer?.cancel();
-    _teamAwardsController?.dispose();
-    _playerAwardsController?.dispose();
+    // CarouselSlider controllers don't need disposal
     super.dispose();
   }
 
@@ -992,20 +925,11 @@ class _SeasonPageState extends State<SeasonPage> {
           elevation: 4,
           child: ExpansionTile(
             initiallyExpanded: _awardsExpanded,
-            // Autoplay carousels when the awards tile is expanded
+            // Auto-play is handled by CarouselSlider based on _awardsExpanded state
             onExpansionChanged: (expanded) {
               _saveAwardsExpansionState(expanded); // Persist the state
               setState(() {
                 _awardsExpanded = expanded;
-                if (expanded) {
-                  // capture counts for the timer
-                  _teamAwardsCount = teamAwards.length;
-                  _playerAwardsCount = playerAwards.length;
-                  _ensureAwardControllers();
-                  _startAwardsAutoplay();
-                } else {
-                  _awardsAutoPlayTimer?.cancel();
-                }
               });
             },
             leading:
@@ -1059,97 +983,60 @@ class _SeasonPageState extends State<SeasonPage> {
                             builder: (context, constraints) {
                               // Height tuned to approximate the grid card size
                               final height =
-                                  constraints.maxWidth > 800 ? 220.0 : 180.0;
-                              _ensureAwardControllers();
+                                  constraints.maxWidth > 800 ? 360.0 : 180.0;
                               return Column(
                                 children: [
-                                  MouseRegion(
-                                    onEnter: (_) {
-                                      setState(() {
-                                        _awardsHovering = true;
-                                        _awardsAutoPlayTimer?.cancel();
-                                      });
-                                    },
-                                    onExit: (_) {
-                                      setState(() {
-                                        _awardsHovering = false;
-                                        if (_awardsExpanded)
-                                          _startAwardsAutoplay();
-                                      });
-                                    },
-                                    child: SizedBox(
+                                  CarouselSlider.builder(
+                                    carouselController: _teamAwardsController,
+                                    itemCount: teamAwards.length,
+                                    options: CarouselOptions(
                                       height: height,
-                                      child: Listener(
-                                        onPointerSignal: (event) {
-                                          // Absorb horizontal scroll to prevent browser back gesture
-                                        },
-                                        child: PageView.builder(
-                                          controller: _teamAwardsController,
-                                          itemCount: teamAwards.length,
-                                          physics: const PageScrollPhysics(),
-                                          itemBuilder: (context, index) {
-                                            final isActive =
-                                                index == _teamCurrentPage;
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8.0),
-                                              child: AnimatedScale(
-                                                scale: isActive ? 1.08 : 0.92,
-                                                duration: const Duration(
-                                                    milliseconds: 300),
-                                                curve: Curves.easeOutCubic,
-                                                child: Container(
-                                                  decoration: isActive
-                                                      ? BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(12),
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              color: Colors.blue
-                                                                  .withOpacity(
-                                                                      0.3),
-                                                              blurRadius: 12,
-                                                              spreadRadius: 2,
-                                                            ),
-                                                          ],
-                                                        )
-                                                      : null,
-                                                  child:
-                                                      _buildTeamAwardGridCard(
-                                                          teamAwards[index],
-                                                          season),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
+                                      viewportFraction: 0.35,
+                                      enlargeCenterPage: true,
+                                      enlargeFactor: 0.2,
+                                      autoPlay: _awardsExpanded,
+                                      autoPlayInterval:
+                                          const Duration(seconds: 4),
+                                      autoPlayAnimationDuration:
+                                          const Duration(milliseconds: 800),
+                                      autoPlayCurve: Curves.fastOutSlowIn,
+                                      pauseAutoPlayOnTouch: true,
+                                      onPageChanged: (index, reason) {
+                                        setState(() {
+                                          _teamCurrentPage = index;
+                                        });
+                                      },
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Page indicators
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children:
-                                        List.generate(teamAwards.length, (i) {
-                                      final active = i == _teamCurrentPage;
-                                      return AnimatedContainer(
+                                    itemBuilder: (context, index, realIndex) {
+                                      final isActive =
+                                          index == _teamCurrentPage;
+                                      return AnimatedScale(
+                                        scale: isActive ? 1.0 : 0.95,
                                         duration:
-                                            const Duration(milliseconds: 250),
-                                        margin: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        width: active ? 12 : 8,
-                                        height: active ? 12 : 8,
-                                        decoration: BoxDecoration(
-                                          color: active
-                                              ? Colors.blueAccent
-                                              : Colors.grey.shade400,
-                                          shape: BoxShape.circle,
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeOutCubic,
+                                        child: Container(
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 8.0),
+                                          decoration: isActive
+                                              ? BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.blue
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 2,
+                                                    ),
+                                                  ],
+                                                )
+                                              : null,
+                                          child: _buildTeamAwardGridCard(
+                                              teamAwards[index], season),
                                         ),
                                       );
-                                    }),
+                                    },
                                   ),
                                 ],
                               );
@@ -1212,103 +1099,64 @@ class _SeasonPageState extends State<SeasonPage> {
                           LayoutBuilder(
                             builder: (context, constraints) {
                               final height =
-                                  constraints.maxWidth > 800 ? 220.0 : 180.0;
-                              _ensureAwardControllers();
+                                  constraints.maxWidth > 800 ? 360.0 : 180.0;
                               return Column(
                                 children: [
-                                  MouseRegion(
-                                    onEnter: (_) {
-                                      setState(() {
-                                        _awardsHovering = true;
-                                        _awardsAutoPlayTimer?.cancel();
-                                      });
-                                    },
-                                    onExit: (_) {
-                                      setState(() {
-                                        _awardsHovering = false;
-                                        if (_awardsExpanded)
-                                          _startAwardsAutoplay();
-                                      });
-                                    },
-                                    child: SizedBox(
+                                  CarouselSlider.builder(
+                                    carouselController: _playerAwardsController,
+                                    itemCount: playerAwards.length,
+                                    options: CarouselOptions(
                                       height: height,
-                                      child: Listener(
-                                        onPointerSignal: (event) {
-                                          // Absorb horizontal scroll to prevent browser back gesture
-                                        },
-                                        child: PageView.builder(
-                                          controller: _playerAwardsController,
-                                          itemCount: playerAwards.length,
-                                          physics: const PageScrollPhysics(),
-                                          itemBuilder: (context, index) {
-                                            final awardData =
-                                                playerAwards[index];
-                                            final isActive =
-                                                index == _playerCurrentPage;
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8.0),
-                                              child: AnimatedScale(
-                                                scale: isActive ? 1.08 : 0.92,
-                                                duration: const Duration(
-                                                    milliseconds: 300),
-                                                curve: Curves.easeOutCubic,
-                                                child: Container(
-                                                  decoration: isActive
-                                                      ? BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(12),
-                                                          boxShadow: [
-                                                            BoxShadow(
-                                                              color: Colors.blue
-                                                                  .withOpacity(
-                                                                      0.3),
-                                                              blurRadius: 12,
-                                                              spreadRadius: 2,
-                                                            ),
-                                                          ],
-                                                        )
-                                                      : null,
-                                                  child:
-                                                      _buildPlayerAwardGridCard(
-                                                    awardData['award']
-                                                        as PlayerAward,
-                                                    awardData['player']
-                                                        as Player,
-                                                    season,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
+                                      viewportFraction: 0.35,
+                                      enlargeCenterPage: true,
+                                      enlargeFactor: 0.2,
+                                      autoPlay: _awardsExpanded,
+                                      autoPlayInterval:
+                                          const Duration(seconds: 4),
+                                      autoPlayAnimationDuration:
+                                          const Duration(milliseconds: 800),
+                                      autoPlayCurve: Curves.fastOutSlowIn,
+                                      pauseAutoPlayOnTouch: true,
+                                      onPageChanged: (index, reason) {
+                                        setState(() {
+                                          _playerCurrentPage = index;
+                                        });
+                                      },
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Page indicators
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children:
-                                        List.generate(playerAwards.length, (i) {
-                                      final active = i == _playerCurrentPage;
-                                      return AnimatedContainer(
+                                    itemBuilder: (context, index, realIndex) {
+                                      final awardData = playerAwards[index];
+                                      final isActive =
+                                          index == _playerCurrentPage;
+                                      return AnimatedScale(
+                                        scale: isActive ? 1.0 : 0.95,
                                         duration:
-                                            const Duration(milliseconds: 250),
-                                        margin: const EdgeInsets.symmetric(
-                                            horizontal: 4),
-                                        width: active ? 12 : 8,
-                                        height: active ? 12 : 8,
-                                        decoration: BoxDecoration(
-                                          color: active
-                                              ? Colors.blueAccent
-                                              : Colors.grey.shade400,
-                                          shape: BoxShape.circle,
+                                            const Duration(milliseconds: 300),
+                                        curve: Curves.easeOutCubic,
+                                        child: Container(
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 8.0),
+                                          decoration: isActive
+                                              ? BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.blue
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 12,
+                                                      spreadRadius: 2,
+                                                    ),
+                                                  ],
+                                                )
+                                              : null,
+                                          child: _buildPlayerAwardGridCard(
+                                            awardData['award'] as PlayerAward,
+                                            awardData['player'] as Player,
+                                            season,
+                                          ),
                                         ),
                                       );
-                                    }),
+                                    },
                                   ),
                                 ],
                               );
@@ -1488,7 +1336,7 @@ class _SeasonPageState extends State<SeasonPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AutoSizeText(
                       award.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -1638,7 +1486,7 @@ class _SeasonPageState extends State<SeasonPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    AutoSizeText(
                       award.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
@@ -1909,7 +1757,8 @@ class _SeasonPageState extends State<SeasonPage> {
 
       if (mounted) {
         setState(() {
-          // Refresh the page to show updated awards
+          // Clear cache to force reload of awards
+          _awardsFutureCache.remove(season.id);
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Team award saved successfully')),
@@ -1953,7 +1802,8 @@ class _SeasonPageState extends State<SeasonPage> {
 
         if (mounted) {
           setState(() {
-            // Refresh the page to show updated awards
+            // Clear cache to force reload of awards
+            _awardsFutureCache.remove(award.seasonId);
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Team award deleted')),
@@ -2511,7 +2361,10 @@ class _SeasonPageState extends State<SeasonPage> {
 
                         if (mounted) {
                           Navigator.pop(context);
-                          setState(() {});
+                          setState(() {
+                            // Clear cache to force reload of awards
+                            _awardsFutureCache.remove(season.id);
+                          });
                           ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                   content: Text('Player award saved')));

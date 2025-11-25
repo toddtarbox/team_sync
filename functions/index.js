@@ -245,6 +245,73 @@ function generateNewPin() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+// HTTP callable function to validate player PIN
+// This allows web users to authenticate without exposing the PIN to the client
+exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
+  const { databasePath, playerId, seasonId, pin } = data;
+
+  // Validate required fields
+  if (!databasePath || !playerId || !seasonId || !pin) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'Missing required fields: databasePath, playerId, seasonId, pin'
+    );
+  }
+
+  const db = admin.database();
+
+  try {
+    // Find the player record to validate PIN
+    const playersRef = db.ref(`${databasePath}/Players`);
+    const snapshot = await playersRef.orderByChild('id').equalTo(playerId).once('value');
+
+    if (!snapshot.exists()) {
+      throw new functions.https.HttpsError('not-found', 'Player not found');
+    }
+
+    // Find the specific player for this season
+    let playerData = null;
+
+    snapshot.forEach((child) => {
+      const data = child.val();
+      if (data.seasonId === seasonId) {
+        playerData = data;
+        return true; // stop iteration
+      }
+    });
+
+    if (!playerData) {
+      throw new functions.https.HttpsError('not-found', 'Player not found for this season');
+    }
+
+    // Validate PIN (compare as strings to handle type mismatches)
+    const storedPin = String(playerData.editPin || '');
+    const providedPin = String(pin || '');
+
+    if (storedPin !== providedPin) {
+      throw new functions.https.HttpsError('permission-denied', 'Invalid PIN');
+    }
+
+    // PIN is valid
+    return { success: true, valid: true };
+
+  } catch (error) {
+    console.error('Error validating PIN:', error);
+
+    // Re-throw HttpsError
+    if (error instanceof functions.https.HttpsError) {
+      throw error;
+    }
+
+    // Wrap other errors
+    throw new functions.https.HttpsError(
+      'internal',
+      'Failed to validate PIN',
+      error.message
+    );
+  }
+});
+
 // HTTP callable function to regenerate PIN when user exits edit mode
 // This ensures PIN is single-session only
 exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {

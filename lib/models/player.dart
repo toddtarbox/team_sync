@@ -48,7 +48,8 @@ class Player {
         number: map['number'],
         profileImage: map['profileImage'],
         actionPhoto: map['actionPhoto'],
-        editPin: map['editPin']);
+        editPin:
+            null); // Never load PIN from database - validation is server-side only
   }
 
   static Future<Player?> fromId(int id) async {

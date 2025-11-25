@@ -1,7 +1,9 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/services/database_service.dart';
 
 /// Dialog for entering a 4-digit PIN to unlock player profile editing
 class PinEntryDialog extends StatefulWidget {
@@ -27,7 +29,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
     super.dispose();
   }
 
-  void _verifyPin() {
+  void _verifyPin() async {
     final pin = _pinController.text.trim();
 
     // Validate PIN format
@@ -43,17 +45,53 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       _errorMessage = null;
     });
 
-    // Verify PIN matches player's PIN
-    if (widget.player.editPin == pin) {
-      // PIN is correct - return the PIN value
-      Navigator.of(context).pop(pin);
-    } else {
-      // PIN is incorrect
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Incorrect PIN. Please try again.';
-        _pinController.clear();
+    try {
+      // Validate PIN via Cloud Function (server-side validation)
+      final dbPath = DatabaseService.instance.fullDatabasePath;
+      if (dbPath.isEmpty) {
+        throw Exception('No database path available');
+      }
+
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('validatePlayerPin');
+      final result = await callable.call<Map<String, dynamic>>({
+        'databasePath': dbPath,
+        'playerId': widget.player.id,
+        'seasonId': widget.player.seasonId,
+        'pin': pin,
       });
+
+      if (result.data['valid'] == true) {
+        // PIN is correct - return the PIN value
+        if (mounted) {
+          Navigator.of(context).pop(pin);
+        }
+      } else {
+        // PIN is incorrect
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Incorrect PIN. Please try again.';
+            _pinController.clear();
+          });
+        }
+      }
+    } catch (e) {
+      // Handle errors (invalid PIN, network issues, etc.)
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (e.toString().contains('permission-denied') ||
+              e.toString().contains('Invalid PIN')) {
+            _errorMessage = 'Incorrect PIN. Please try again.';
+          } else if (e.toString().contains('not-found')) {
+            _errorMessage = 'No PIN has been set for this player.';
+          } else {
+            _errorMessage = 'Error validating PIN. Please try again.';
+          }
+          _pinController.clear();
+        });
+      }
     }
   }
 
@@ -98,44 +136,15 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
             ),
             onSubmitted: (_) => _verifyPin(),
           ),
-          if (widget.player.editPin == null) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'No PIN has been set for this player. Please contact your coach to set up a PIN.',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
       actions: [
         TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(null),
           child: Text(loc.cancelButton),
         ),
         FilledButton(
-          onPressed:
-              _isLoading || widget.player.editPin == null ? null : _verifyPin,
+          onPressed: _isLoading ? null : _verifyPin,
           child: _isLoading
               ? const SizedBox(
                   width: 20,

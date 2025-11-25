@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:change_case/change_case.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -332,16 +333,32 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 ),
               // Toggle highlights button
               if (!_isEditMode)
-                IconButton(
-                  icon: Icon(_showHighlights
-                      ? Icons.video_library
-                      : Icons.video_library_outlined),
-                  tooltip:
-                      _showHighlights ? loc.hideHighlights : loc.showHighlights,
-                  onPressed: () {
-                    setState(() {
-                      _showHighlights = !_showHighlights;
-                    });
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // On small screens, open modal dialog
+                    // On large screens, toggle inline panel
+                    return IconButton(
+                      icon: Icon(_showHighlights
+                          ? Icons.video_library
+                          : Icons.video_library_outlined),
+                      tooltip: _showHighlights
+                          ? loc.hideHighlights
+                          : loc.showHighlights,
+                      onPressed: () {
+                        // Get screen width from MediaQuery
+                        final screenWidth = MediaQuery.of(context).size.width;
+
+                        if (kIsWeb && screenWidth < 900) {
+                          // Small screen - show modal dialog
+                          _showHighlightsModal();
+                        } else {
+                          // Large screen - toggle inline panel
+                          setState(() {
+                            _showHighlights = !_showHighlights;
+                          });
+                        }
+                      },
+                    );
                   },
                 ),
             ],
@@ -457,19 +474,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                       ],
                                     );
                                   } else {
-                                    // Single column layout for narrow screens or when highlights hidden
-                                    return Column(
-                                      children: [
-                                        Expanded(child: mainContent),
-                                        if (_showHighlights) ...[
-                                          const Divider(thickness: 2),
-                                          SizedBox(
-                                            height: 300,
-                                            child: _buildHighlightsPanel(),
-                                          ),
-                                        ],
-                                      ],
-                                    );
+                                    // Single column layout for smaller screens
+                                    // Highlights shown in modal dialog (opened via button)
+                                    return mainContent;
                                   }
                                 },
                               );
@@ -480,6 +487,209 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           ),
         );
       },
+    );
+  }
+
+  /// Show highlights and awards in a modal dialog with carousels (for small screens)
+  void _showHighlightsModal() async {
+    final loc = AppLocalizations.of(context)!;
+
+    // Load the data
+    final results = await Future.wait([
+      _highlightsFuture ?? Future.value(<GameEvent>[]),
+      _independentHighlightsFuture ?? Future.value(<PlayerHighlight>[]),
+      _awardsFuture ?? Future.value(<PlayerAward>[]),
+    ]);
+
+    final gameEventHighlights = results[0] as List<GameEvent>;
+    final independentHighlights = results[1] as List<PlayerHighlight>;
+    final awards = results[2] as List<PlayerAward>;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.video_library, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${loc.highlights} & ${loc.awards}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content with two carousel sections
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(16.0),
+                  children: [
+                    // Awards Section with Carousel
+                    if (awards.isNotEmpty) ...[
+                      _buildCarouselSection(
+                        title: loc.awards,
+                        icon: Icons.emoji_events,
+                        count: awards.length,
+                        items: awards
+                            .map((award) => _buildAwardCarouselCard(award))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Highlights Section with Carousel
+                    if (gameEventHighlights.isNotEmpty ||
+                        independentHighlights.isNotEmpty) ...[
+                      _buildCarouselSection(
+                        title: loc.highlights,
+                        icon: Icons.video_library,
+                        count: gameEventHighlights.length +
+                            independentHighlights.length,
+                        items: [
+                          ...independentHighlights.map(
+                              (h) => _buildIndependentHighlightCarouselCard(h)),
+                          ...gameEventHighlights
+                              .map((e) => _buildGameEventCarouselCard(e)),
+                        ],
+                      ),
+                    ],
+
+                    // Empty state
+                    if (awards.isEmpty &&
+                        gameEventHighlights.isEmpty &&
+                        independentHighlights.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            loc.noHighlightsAvailable,
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build a carousel section with title and items
+  Widget _buildCarouselSection({
+    required String title,
+    required IconData icon,
+    required int count,
+    required List<Widget> items,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Row(
+          children: [
+            Icon(icon, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Carousel
+        SizedBox(
+          height: 300,
+          child: items.length == 1
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: items.first,
+                )
+              : CarouselSlider(
+                  options: CarouselOptions(
+                    height: 300,
+                    viewportFraction: 0.85,
+                    enlargeCenterPage: true,
+                    enableInfiniteScroll: items.length > 1,
+                    autoPlay: false,
+                  ),
+                  items: items,
+                ),
+        ),
+
+        // Swipe hint for multiple items
+        if (items.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.swipe, size: 14, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Swipe to browse ($count items)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -719,10 +929,11 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         final totalHighlights =
             gameEventHighlights.length + independentHighlights.length;
 
+        // For right panel (large screens), use two carousel sections
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Highlights Header
+            // Main Header
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -739,100 +950,62 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   const Icon(Icons.video_library, size: 24),
                   const SizedBox(width: 8),
                   Text(
-                    loc.highlights,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '$totalHighlights',
+                    '${loc.highlights} & ${loc.awards}',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  // Add button (mobile only)
-                  if (!kIsWeb) ...[
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () => _showAddHighlightDialog(),
-                      tooltip: loc.addHighlight,
-                    ),
-                  ],
                 ],
               ),
             ),
 
-            // Content (Highlights and Awards)
+            // Scrollable content with two carousel sections
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
                 children: [
-                  // Awards Section (at top)
-                  if (!kIsWeb ||
-                      (_isEditMode && _validatedPin != null) ||
-                      awards.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.emoji_events, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            loc.awards,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${awards.length}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          // Add button (mobile OR web with PIN)
-                          if (!kIsWeb ||
-                              (_isEditMode && _validatedPin != null)) ...[
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 20),
-                              onPressed: () => _showAddAwardDialog(),
-                              tooltip: 'Add Award',
-                            ),
-                          ],
-                        ],
-                      ),
+                  // Awards Section with Carousel
+                  if (awards.isNotEmpty) ...[
+                    _buildPanelCarouselSection(
+                      title: loc.awards,
+                      icon: Icons.emoji_events,
+                      count: awards.length,
+                      items: awards
+                          .map((award) => _buildAwardCarouselCard(award))
+                          .toList(),
                     ),
-                    ...awards.map((award) => _buildAwardCard(award)),
-                    const Divider(height: 32, thickness: 2),
+                    const SizedBox(height: 24),
                   ],
 
-                  // Highlights Section
-                  if (totalHighlights == 0 && awards.isEmpty)
+                  // Highlights Section with Carousel
+                  if (totalHighlights > 0) ...[
+                    _buildPanelCarouselSection(
+                      title: loc.highlights,
+                      icon: Icons.video_library,
+                      count: totalHighlights,
+                      items: [
+                        ...independentHighlights.map(
+                            (h) => _buildIndependentHighlightCarouselCard(h)),
+                        ...gameEventHighlights
+                            .map((e) => _buildGameEventCarouselCard(e)),
+                      ],
+                    ),
+                  ],
+
+                  // Empty state
+                  if (awards.isEmpty && totalHighlights == 0)
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.all(32.0),
                         child: Text(
                           loc.noHighlightsAvailable,
                           style:
-                              const TextStyle(fontSize: 16, color: Colors.grey),
+                              const TextStyle(fontSize: 15, color: Colors.grey),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                    )
-                  else ...[
-                    // Independent highlights first
-                    ...independentHighlights.map((highlight) =>
-                        _buildIndependentHighlightItem(highlight)),
-                    // Then game event highlights
-                    ...gameEventHighlights
-                        .map((event) => _buildHighlightItem(event)),
-                  ],
+                    ),
                 ],
               ),
             ),
@@ -842,9 +1015,638 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     );
   }
 
-  Widget _buildAwardCard(PlayerAward award) {
+  /// Build a carousel section for the right panel
+  Widget _buildPanelCarouselSection({
+    required String title,
+    required IconData icon,
+    required int count,
+    required List<Widget> items,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Row(
+            children: [
+              Icon(icon, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Carousel
+        SizedBox(
+          height: 280,
+          child: items.length == 1
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: items.first,
+                )
+              : CarouselSlider(
+                  options: CarouselOptions(
+                    height: 280,
+                    viewportFraction: 0.90,
+                    enlargeCenterPage: true,
+                    enableInfiniteScroll: items.length > 1,
+                    autoPlay: false,
+                  ),
+                  items: items,
+                ),
+        ),
+
+        // Swipe hint for multiple items
+        if (items.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Center(
+              child: Text(
+                'Swipe · $count items',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAwardsCarouselPage(List<PlayerAward> awards) {
+    final loc = AppLocalizations.of(context)!;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+      elevation: 4,
+      child: Column(
+        children: [
+          // Awards header
+          Container(
+            padding: const EdgeInsets.all(16.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.emoji_events, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  loc.awards,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${awards.length}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Awards list
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12.0),
+              itemCount: awards.length,
+              itemBuilder: (context, index) {
+                return _buildAwardCard(awards[index], compact: true);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHighlightCarouselItem(GameEvent event) {
+    final loc = AppLocalizations.of(context)!;
+    final urls = event.eventUrls
+            ?.split(',')
+            .map((u) => u.trim())
+            .where((u) => u.isNotEmpty)
+            .toList() ??
+        [];
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Event icon and info
+            Row(
+              children: [
+                event.image,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.display,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        event.game.displayName(event.team.id),
+                        style: const TextStyle(fontSize: 14),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Video thumbnail - larger for carousel
+            if (urls.isNotEmpty) ...[
+              Expanded(
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxWidth = constraints.maxWidth;
+                      final thumbWidth =
+                          maxWidth > 500 ? 400.0 : maxWidth * 0.9;
+                      final thumbHeight = thumbWidth * 9 / 16;
+                      return VideoThumbnail(
+                        urls.first,
+                        width: thumbWidth,
+                        height: thumbHeight,
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Video buttons
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: urls.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final url = entry.value;
+                  return ElevatedButton.icon(
+                    onPressed: () => _launchUrl(url),
+                    icon: const Icon(Icons.play_circle_outline, size: 20),
+                    label: Text(
+                      urls.length > 1
+                          ? '${loc.videoLabel} ${index + 1}'
+                          : loc.watchLabel,
+                      style: const TextStyle(fontSize: 15),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIndependentHighlightCarouselItem(PlayerHighlight highlight) {
+    final loc = AppLocalizations.of(context)!;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Title and info
+            Row(
+              children: [
+                const Icon(Icons.video_library, size: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        highlight.title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (highlight.description != null &&
+                          highlight.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          highlight.description!,
+                          style: const TextStyle(fontSize: 14),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                        '${highlight.date.month}/${highlight.date.day}/${highlight.date.year}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Video thumbnail - larger for carousel
+            Expanded(
+              child: Center(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxWidth = constraints.maxWidth;
+                    final thumbWidth = maxWidth > 500 ? 400.0 : maxWidth * 0.9;
+                    final thumbHeight = thumbWidth * 9 / 16;
+                    return VideoThumbnail(
+                      highlight.videoUrl,
+                      width: thumbWidth,
+                      height: thumbHeight,
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Watch button
+            Center(
+              child: SizedBox(
+                width: 200,
+                child: ElevatedButton.icon(
+                  onPressed: () => _launchUrl(highlight.videoUrl),
+                  icon: const Icon(Icons.play_circle_outline, size: 20),
+                  label: Text(
+                    loc.watchLabel,
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build award card for carousel (compact, focused view)
+  Widget _buildAwardCarouselCard(PlayerAward award) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      elevation: 3,
+      child: InkWell(
+        onTap: () => _showPlayerAwardDetailsDialog(award),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Award image/icon
+              if (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    award.imageUrl!,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.emoji_events,
+                        size: 80,
+                        color: Colors.amber),
+                  ),
+                )
+              else
+                const Icon(Icons.emoji_events, size: 80, color: Colors.amber),
+
+              const SizedBox(height: 16),
+
+              // Award title
+              Text(
+                award.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+
+              const SizedBox(height: 8),
+
+              // Description
+              if (award.description != null && award.description!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    award.description!,
+                    style: const TextStyle(fontSize: 14),
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+
+              const Spacer(),
+
+              // Season info
+              FutureBuilder<String>(
+                future: award.getSeasonName(),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data ?? 'Season ${award.seasonId}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  );
+                },
+              ),
+
+              // URL button if available
+              if (award.url != null && award.url!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () => _launchUrl(award.url!),
+                  icon: const Icon(Icons.link, size: 16),
+                  label: const Text('Learn More'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build game event highlight card for carousel
+  Widget _buildGameEventCarouselCard(GameEvent event) {
+    final loc = AppLocalizations.of(context)!;
+    final urls = event.eventUrls
+            ?.split(',')
+            .map((u) => u.trim())
+            .where((u) => u.isNotEmpty)
+            .toList() ??
+        [];
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Event info
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                event.image,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.display,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        event.game.displayName(event.team.id),
+                        style: const TextStyle(fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        '${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Video thumbnail
+            if (urls.isNotEmpty) ...[
+              Expanded(
+                child: Center(
+                  child: VideoThumbnail(
+                    urls.first,
+                    width: 250,
+                    height: 140,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Video buttons
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: urls.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final url = entry.value;
+                  return ElevatedButton.icon(
+                    onPressed: () => _launchUrl(url),
+                    icon: const Icon(Icons.play_circle_outline, size: 18),
+                    label: Text(
+                      urls.length > 1
+                          ? '${loc.videoLabel} ${index + 1}'
+                          : loc.watchLabel,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build independent highlight card for carousel
+  Widget _buildIndependentHighlightCarouselCard(PlayerHighlight highlight) {
+    final loc = AppLocalizations.of(context)!;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Title and info
+            Row(
+              children: [
+                const Icon(Icons.video_library, size: 32),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        highlight.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (highlight.description != null &&
+                          highlight.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          highlight.description!,
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                        '${highlight.date.month}/${highlight.date.day}/${highlight.date.year}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Video thumbnail
+            Expanded(
+              child: Center(
+                child: VideoThumbnail(
+                  highlight.videoUrl,
+                  width: 250,
+                  height: 140,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // Watch button
+            SizedBox(
+              width: 180,
+              child: ElevatedButton.icon(
+                onPressed: () => _launchUrl(highlight.videoUrl),
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: Text(
+                  loc.watchLabel,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAwardCard(PlayerAward award, {bool compact = false}) {
+    return Card(
+      margin: EdgeInsets.only(bottom: compact ? 4 : 8),
       elevation: 2,
       child: ListTile(
         leading: award.imageUrl != null
@@ -926,7 +1728,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         [];
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -945,14 +1747,16 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                       Text(
                         event.display,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         event.game.displayName(event.team.id),
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 13),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         '${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
@@ -967,36 +1771,85 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               ],
             ),
 
-            // Video links
+            // Video links - use responsive layout
             if (urls.isNotEmpty) ...[
               const SizedBox(height: 12),
-              // Row with thumbnail and buttons
-              Row(
-                children: [
-                  VideoThumbnail(urls.first, width: 160, height: 90),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: urls.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final url = entry.value;
-                        return ElevatedButton.icon(
-                          onPressed: () => _launchUrl(url),
-                          icon: const Icon(Icons.play_circle_outline, size: 18),
-                          label: Text(urls.length > 1
-                              ? '${loc.videoLabel} ${index + 1}'
-                              : loc.watchLabel),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final useColumnLayout = constraints.maxWidth < 350;
+
+                  if (useColumnLayout) {
+                    // Stack vertically for narrow screens
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        VideoThumbnail(
+                          urls.first,
+                          width: constraints.maxWidth - 24,
+                          height: (constraints.maxWidth - 24) * 9 / 16,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: urls.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final url = entry.value;
+                            return ElevatedButton.icon(
+                              onPressed: () => _launchUrl(url),
+                              icon: const Icon(Icons.play_circle_outline,
+                                  size: 18),
+                              label: Text(
+                                urls.length > 1
+                                    ? '${loc.videoLabel} ${index + 1}'
+                                    : loc.watchLabel,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    );
+                  } else {
+                    // Row layout for wider screens
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        VideoThumbnail(urls.first, width: 140, height: 79),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: urls.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final url = entry.value;
+                              return ElevatedButton.icon(
+                                onPressed: () => _launchUrl(url),
+                                icon: const Icon(Icons.play_circle_outline,
+                                    size: 18),
+                                label: Text(
+                                  urls.length > 1
+                                      ? '${loc.videoLabel} ${index + 1}'
+                                      : loc.watchLabel,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                ),
+                              );
+                            }).toList(),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  )
-                ],
+                        )
+                      ],
+                    );
+                  }
+                },
               ),
             ],
           ],
@@ -1008,7 +1861,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Widget _buildIndependentHighlightItem(PlayerHighlight highlight) {
     final loc = AppLocalizations.of(context)!;
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -1026,7 +1879,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                       Text(
                         highlight.title,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1035,7 +1888,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                         const SizedBox(height: 4),
                         Text(
                           highlight.description!,
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(fontSize: 13),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                       const SizedBox(height: 4),
@@ -1066,22 +1921,60 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                VideoThumbnail(highlight.videoUrl, width: 160, height: 90),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _launchUrl(highlight.videoUrl),
-                    icon: const Icon(Icons.play_circle_outline, size: 18),
-                    label: Text(loc.watchLabel),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                  ),
-                )
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final useColumnLayout = constraints.maxWidth < 350;
+
+                if (useColumnLayout) {
+                  // Stack vertically for narrow screens
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      VideoThumbnail(
+                        highlight.videoUrl,
+                        width: constraints.maxWidth - 24,
+                        height: (constraints.maxWidth - 24) * 9 / 16,
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _launchUrl(highlight.videoUrl),
+                          icon: const Icon(Icons.play_circle_outline, size: 18),
+                          label: Text(loc.watchLabel,
+                              style: const TextStyle(fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                } else {
+                  // Row layout for wider screens
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      VideoThumbnail(highlight.videoUrl,
+                          width: 140, height: 79),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _launchUrl(highlight.videoUrl),
+                          icon: const Icon(Icons.play_circle_outline, size: 18),
+                          label: Text(loc.watchLabel,
+                              style: const TextStyle(fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                          ),
+                        ),
+                      )
+                    ],
+                  );
+                }
+              },
             ),
           ],
         ),

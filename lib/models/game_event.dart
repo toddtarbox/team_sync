@@ -512,7 +512,16 @@ class GameEvent {
       return null;
     }
 
-    final team = await Team.fromId(map['teamId']);
+    var teamId = map['teamId'];
+    if (teamId == -1) {
+      if (map['playerId'] != -1) {
+        teamId = 1;
+      } else {
+        return null;
+      }
+    }
+
+    final team = await Team.fromId(teamId);
     final player =
         await Player.singleFromIdSeasonId(map['playerId'], game.seasonId);
 
