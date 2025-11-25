@@ -353,6 +353,7 @@ class _PlayersPageState extends State<PlayersPage> {
     late int playerNumber = player.number;
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
+    bool isSaving = false; // Local saving state for this dialog
 
     showModalBottomSheet(
         context: context,
@@ -662,103 +663,154 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: Text(
-                                        AppLocalizations.of(context)!.save,
-                                        style: const TextStyle(fontSize: 20)),
-                                    onTap: () async {
-                                      if (playerName.isNotEmpty) {
-                                        String? imageUrl = player.profileImage;
-                                        String? actionPhotoUrl =
-                                            player.actionPhoto;
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20)),
+                                    onTap: isSaving
+                                        ? null
+                                        : () async {
+                                            if (playerName.isNotEmpty &&
+                                                !isSaving) {
+                                              setModalState(() {
+                                                isSaving = true;
+                                              });
 
-                                        // Handle profile image upload
-                                        if (_imageFile != null) {
-                                          if (player.profileImage != null &&
-                                              player.profileImage!.isNotEmpty) {
-                                            try {
-                                              await FirebaseStorage.instance
-                                                  .refFromURL(
-                                                      player.profileImage!)
-                                                  .delete();
-                                            } catch (e) {
-                                              // Image may not exist, so we can ignore.
+                                              try {
+                                                String? imageUrl =
+                                                    player.profileImage;
+                                                String? actionPhotoUrl =
+                                                    player.actionPhoto;
+
+                                                // Handle profile image upload
+                                                if (_imageFile != null) {
+                                                  if (player.profileImage !=
+                                                          null &&
+                                                      player.profileImage!
+                                                          .isNotEmpty) {
+                                                    try {
+                                                      await FirebaseStorage
+                                                          .instance
+                                                          .refFromURL(player
+                                                              .profileImage!)
+                                                          .delete();
+                                                    } catch (e) {
+                                                      // Image may not exist, so we can ignore.
+                                                    }
+                                                  }
+                                                  final storageRef = FirebaseStorage
+                                                      .instance
+                                                      .ref()
+                                                      .child(
+                                                          'player_images/${DateTime.now().toIso8601String()}');
+                                                  await storageRef
+                                                      .putFile(_imageFile!);
+                                                  imageUrl = await storageRef
+                                                      .getDownloadURL();
+                                                }
+
+                                                // Handle action photo upload
+                                                if (_actionPhotoFile != null) {
+                                                  if (player.actionPhoto !=
+                                                          null &&
+                                                      player.actionPhoto!
+                                                          .isNotEmpty) {
+                                                    try {
+                                                      await FirebaseStorage
+                                                          .instance
+                                                          .refFromURL(player
+                                                              .actionPhoto!)
+                                                          .delete();
+                                                    } catch (e) {
+                                                      // Image may not exist, so we can ignore.
+                                                    }
+                                                  }
+                                                  final actionStorageRef =
+                                                      FirebaseStorage.instance
+                                                          .ref()
+                                                          .child(
+                                                              'player_action_photos/${DateTime.now().toIso8601String()}');
+                                                  await actionStorageRef
+                                                      .putFile(
+                                                          _actionPhotoFile!);
+                                                  actionPhotoUrl =
+                                                      await actionStorageRef
+                                                          .getDownloadURL();
+                                                }
+
+                                                final nameParts =
+                                                    playerName.split(' ');
+                                                final firstName =
+                                                    nameParts.first;
+                                                final lastName =
+                                                    nameParts.length > 1
+                                                        ? nameParts.last
+                                                        : '';
+
+                                                // Safe RTDB update: locate child key(s) for this player id + seasonId
+                                                final candidates =
+                                                    await DatabaseService
+                                                        .instance
+                                                        .query('Players',
+                                                            orderByChild: 'id',
+                                                            equalTo: player.id);
+                                                for (final c in candidates) {
+                                                  if (c['seasonId'] ==
+                                                      widget.season.id) {
+                                                    final k =
+                                                        c['_key']?.toString();
+                                                    if (k != null) {
+                                                      await DatabaseService
+                                                          .instance
+                                                          .update(
+                                                              'Players',
+                                                              {
+                                                                'firstName':
+                                                                    firstName,
+                                                                'lastName':
+                                                                    lastName,
+                                                                'number':
+                                                                    playerNumber,
+                                                                'profileImage':
+                                                                    imageUrl,
+                                                                'actionPhoto':
+                                                                    actionPhotoUrl,
+                                                                'editPin': player
+                                                                    .editPin,
+                                                              },
+                                                              key: k);
+                                                    }
+                                                  }
+                                                }
+
+                                                setState(() {});
+                                                Navigator.pop(context);
+                                              } catch (e) {
+                                                setModalState(() {
+                                                  isSaving = false;
+                                                });
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                          'Error saving player: $e'),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
                                             }
-                                          }
-                                          final storageRef = FirebaseStorage
-                                              .instance
-                                              .ref()
-                                              .child(
-                                                  'player_images/${DateTime.now().toIso8601String()}');
-                                          await storageRef.putFile(_imageFile!);
-                                          imageUrl =
-                                              await storageRef.getDownloadURL();
-                                        }
-
-                                        // Handle action photo upload
-                                        if (_actionPhotoFile != null) {
-                                          if (player.actionPhoto != null &&
-                                              player.actionPhoto!.isNotEmpty) {
-                                            try {
-                                              await FirebaseStorage.instance
-                                                  .refFromURL(
-                                                      player.actionPhoto!)
-                                                  .delete();
-                                            } catch (e) {
-                                              // Image may not exist, so we can ignore.
-                                            }
-                                          }
-                                          final actionStorageRef = FirebaseStorage
-                                              .instance
-                                              .ref()
-                                              .child(
-                                                  'player_action_photos/${DateTime.now().toIso8601String()}');
-                                          await actionStorageRef
-                                              .putFile(_actionPhotoFile!);
-                                          actionPhotoUrl =
-                                              await actionStorageRef
-                                                  .getDownloadURL();
-                                        }
-
-                                        final nameParts = playerName.split(' ');
-                                        final firstName = nameParts.first;
-                                        final lastName = nameParts.length > 1
-                                            ? nameParts.last
-                                            : '';
-
-                                        // Safe RTDB update: locate child key(s) for this player id + seasonId
-                                        final candidates = await DatabaseService
-                                            .instance
-                                            .query('Players',
-                                                orderByChild: 'id',
-                                                equalTo: player.id);
-                                        for (final c in candidates) {
-                                          if (c['seasonId'] ==
-                                              widget.season.id) {
-                                            final k = c['_key']?.toString();
-                                            if (k != null) {
-                                              await DatabaseService.instance
-                                                  .update(
-                                                      'Players',
-                                                      {
-                                                        'firstName': firstName,
-                                                        'lastName': lastName,
-                                                        'number': playerNumber,
-                                                        'profileImage':
-                                                            imageUrl,
-                                                        'actionPhoto':
-                                                            actionPhotoUrl,
-                                                        'editPin':
-                                                            player.editPin,
-                                                      },
-                                                      key: k);
-                                            }
-                                          }
-                                        }
-
-                                        setState(() {});
-                                        Navigator.pop(context);
-                                      }
-                                    }),
+                                          }),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!
@@ -780,6 +832,7 @@ class _PlayersPageState extends State<PlayersPage> {
     final pinController = TextEditingController();
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
+    bool isSaving = false; // Local saving state for this dialog
 
     showModalBottomSheet(
         context: context,
@@ -868,114 +921,162 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: Text(
-                                        AppLocalizations.of(context)!.save,
-                                        style: const TextStyle(fontSize: 20)),
-                                    onTap: () async {
-                                      if (playerName.isNotEmpty) {
-                                        // Check for existing players with the same name
-                                        final nameParts = playerName.split(' ');
-                                        final firstName = nameParts.first;
-                                        final lastName = nameParts.length > 1
-                                            ? nameParts.last
-                                            : '';
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20)),
+                                    onTap: isSaving
+                                        ? null
+                                        : () async {
+                                            if (playerName.isNotEmpty &&
+                                                !isSaving) {
+                                              setModalState(() {
+                                                isSaving = true;
+                                              });
 
-                                        // Query all players in this team
-                                        final allPlayers = await DatabaseService
-                                            .instance
-                                            .query('Players',
-                                                orderByChild: 'teamId',
-                                                equalTo: widget.season.teamId);
+                                              try {
+                                                // Check for existing players with the same name
+                                                final nameParts =
+                                                    playerName.split(' ');
+                                                final firstName =
+                                                    nameParts.first;
+                                                final lastName =
+                                                    nameParts.length > 1
+                                                        ? nameParts.last
+                                                        : '';
 
-                                        // Check if any existing player has the same name
-                                        final duplicates =
-                                            allPlayers.where((p) {
-                                          final existingFirst =
-                                              (p['firstName'] ?? '')
-                                                  .toString()
-                                                  .toLowerCase();
-                                          final existingLast =
-                                              (p['lastName'] ?? '')
-                                                  .toString()
-                                                  .toLowerCase();
-                                          return existingFirst ==
-                                                  firstName.toLowerCase() &&
-                                              existingLast ==
-                                                  lastName.toLowerCase();
-                                        }).toList();
+                                                // Query all players in this team
+                                                final allPlayers =
+                                                    await DatabaseService
+                                                        .instance
+                                                        .query('Players',
+                                                            orderByChild:
+                                                                'teamId',
+                                                            equalTo: widget
+                                                                .season.teamId);
 
-                                        if (duplicates.isNotEmpty) {
-                                          // Show confirmation dialog
-                                          final shouldContinue =
-                                              await showDialog<bool>(
-                                            context: context,
-                                            builder:
-                                                (BuildContext dialogContext) {
-                                              return AlertDialog(
-                                                title: const Text(
-                                                    'Duplicate Player Name'),
-                                                content: Text(
-                                                  'A player named "$playerName" already exists. Are you sure you want to create another player with the same name?',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    child: Text(
-                                                        AppLocalizations.of(
-                                                                context)!
-                                                            .cancelButton),
-                                                    onPressed: () {
-                                                      Navigator.pop(
-                                                          dialogContext, false);
+                                                // Check if any existing player has the same name
+                                                final duplicates =
+                                                    allPlayers.where((p) {
+                                                  final existingFirst =
+                                                      (p['firstName'] ?? '')
+                                                          .toString()
+                                                          .toLowerCase();
+                                                  final existingLast =
+                                                      (p['lastName'] ?? '')
+                                                          .toString()
+                                                          .toLowerCase();
+                                                  return existingFirst ==
+                                                          firstName
+                                                              .toLowerCase() &&
+                                                      existingLast ==
+                                                          lastName
+                                                              .toLowerCase();
+                                                }).toList();
+
+                                                if (duplicates.isNotEmpty) {
+                                                  // Show confirmation dialog
+                                                  final shouldContinue =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (BuildContext
+                                                        dialogContext) {
+                                                      return AlertDialog(
+                                                        title: const Text(
+                                                            'Duplicate Player Name'),
+                                                        content: Text(
+                                                          'A player named "$playerName" already exists. Are you sure you want to create another player with the same name?',
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            child: Text(
+                                                                AppLocalizations.of(
+                                                                        context)!
+                                                                    .cancelButton),
+                                                            onPressed: () {
+                                                              Navigator.pop(
+                                                                  dialogContext,
+                                                                  false);
+                                                            },
+                                                          ),
+                                                          TextButton(
+                                                            child: const Text(
+                                                                'Create Anyway'),
+                                                            onPressed: () {
+                                                              Navigator.pop(
+                                                                  dialogContext,
+                                                                  true);
+                                                            },
+                                                          ),
+                                                        ],
+                                                      );
                                                     },
-                                                  ),
-                                                  TextButton(
-                                                    child: const Text(
-                                                        'Create Anyway'),
-                                                    onPressed: () {
-                                                      Navigator.pop(
-                                                          dialogContext, true);
-                                                    },
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
+                                                  );
 
-                                          if (shouldContinue != true) {
-                                            return; // User cancelled
-                                          }
-                                        }
+                                                  if (shouldContinue != true) {
+                                                    setModalState(() {
+                                                      isSaving = false;
+                                                    });
+                                                    return; // User cancelled
+                                                  }
+                                                }
 
-                                        // Proceed with creating the player
-                                        String? imageUrl;
-                                        if (_imageFile != null) {
-                                          final storageRef = FirebaseStorage
-                                              .instance
-                                              .ref()
-                                              .child(
-                                                  'player_images/${DateTime.now().toIso8601String()}');
-                                          await storageRef.putFile(_imageFile!);
-                                          imageUrl =
-                                              await storageRef.getDownloadURL();
-                                        }
+                                                // Proceed with creating the player
+                                                String? imageUrl;
+                                                if (_imageFile != null) {
+                                                  final storageRef = FirebaseStorage
+                                                      .instance
+                                                      .ref()
+                                                      .child(
+                                                          'player_images/${DateTime.now().toIso8601String()}');
+                                                  await storageRef
+                                                      .putFile(_imageFile!);
+                                                  imageUrl = await storageRef
+                                                      .getDownloadURL();
+                                                }
 
-                                        await DatabaseService.instance
-                                            .insert('Players', {
-                                          'id': DateTime.now()
-                                              .millisecondsSinceEpoch,
-                                          'firstName': firstName,
-                                          'lastName': lastName,
-                                          'number': playerNumber,
-                                          'seasonId': widget.season.id,
-                                          'teamId': widget.season.teamId,
-                                          'profileImage': imageUrl,
-                                          'editPin': playerPin,
-                                        });
+                                                await DatabaseService.instance
+                                                    .insert('Players', {
+                                                  'id': DateTime.now()
+                                                      .millisecondsSinceEpoch,
+                                                  'firstName': firstName,
+                                                  'lastName': lastName,
+                                                  'number': playerNumber,
+                                                  'seasonId': widget.season.id,
+                                                  'teamId':
+                                                      widget.season.teamId,
+                                                  'profileImage': imageUrl,
+                                                  'editPin': playerPin,
+                                                });
 
-                                        setState(() {});
-                                        Navigator.pop(context);
-                                      }
-                                    }),
+                                                setState(() {});
+                                                Navigator.pop(context);
+                                              } catch (e) {
+                                                setModalState(() {
+                                                  isSaving = false;
+                                                });
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                          'Error creating player: $e'),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          }),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!

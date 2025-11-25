@@ -348,7 +348,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                         // Get screen width from MediaQuery
                         final screenWidth = MediaQuery.of(context).size.width;
 
-                        if (kIsWeb && screenWidth < 900) {
+                        if (screenWidth < 900) {
                           // Small screen - show modal dialog
                           _showHighlightsModal();
                         } else {

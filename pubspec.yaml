@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.7.12+93
+version: 1.7.12+94
 
 environment:
   sdk: ^3.5.2
@@ -88,6 +88,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  firebase_core_platform_interface: ^6.0.2
+  firebase_auth_platform_interface: ^8.1.4
+  plugin_platform_interface: ^2.1.8
 
 flutter_launcher_icons:
   android: true # To keep your Android icon

@@ -45,7 +45,9 @@ import 'package:url_launcher/url_launcher.dart';
 /// Data is stored in subscriptionIds/{uid}/databases/{db}/ structure.
 class TeamHomePage extends StatefulWidget {
   final String? databaseId;
-  const TeamHomePage({super.key, this.databaseId});
+  final Team? initialTeam; // For testing only!!!
+
+  const TeamHomePage({super.key, this.databaseId, this.initialTeam});
 
   @override
   State<TeamHomePage> createState() => _TeamHomePageState();
@@ -60,7 +62,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   int _currentCarouselPage = 0; // Track current page in carousel
   Season? _currentSeason;
   late bool _isSubscribed;
-  bool _isImporting = false;
   bool _isSharing = false;
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
@@ -79,6 +80,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
   @override
   void initState() {
     super.initState();
+
+    // Use injected team if provided (for testing)
+    if (widget.initialTeam != null) {
+      _team = widget.initialTeam;
+    }
+
     _subscriptionListener =
         SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
       if (mounted) {
@@ -592,7 +599,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             }
 
             // Show additional loading states
-            if (_isImporting || _isSharing) {
+            if (_isSharing) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -623,7 +630,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             return _buildMainContent();
           },
         ),
-        if (_isImporting || _isSharing) _buildLoadingOverlay(),
+        if (_isSharing) _buildLoadingOverlay(),
       ],
     );
   }
@@ -1145,24 +1152,28 @@ class _TeamHomePageState extends State<TeamHomePage> {
       return false;
     }
 
-    final teamResult = await DatabaseService.instance
-        .query('Teams', orderBy: 'id', equalTo: 1);
-    if (teamResult.isNotEmpty) {
-      // First try team with id=1
-      var teamMap = teamResult.firstWhere(
-        (t) => t['id'] == 1,
-        orElse: () => teamResult.first,
-      );
+    _team = widget.initialTeam; // For testing only!!!
 
-      final team = Team.fromMap(teamMap);
-      if (_team == null) {
-        setState(() {
+    if (_team == null) {
+      final teamResult = await DatabaseService.instance
+          .query('Teams', orderBy: 'id', equalTo: 1);
+      if (teamResult.isNotEmpty) {
+        // First try team with id=1
+        var teamMap = teamResult.firstWhere(
+          (t) => t['id'] == 1,
+          orElse: () => teamResult.first,
+        );
+
+        final team = Team.fromMap(teamMap);
+        if (_team == null) {
+          setState(() {
+            _team = team;
+          });
+        } else {
           _team = team;
-        });
-      } else {
-        _team = team;
+        }
+        await _loadSeasons();
       }
-      await _loadSeasons();
     }
     return true;
   }
