@@ -43,6 +43,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   Future<dynamic>? _seasonStatsFuture;
   Future<dynamic>? _gameStatsFuture;
 
+  // Current future being displayed
+  Future<dynamic>? _currentFuture;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -51,6 +54,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     super.initState();
     // Initialize the first future
     _careerStatsFuture = _loadAndCalculateStats();
+    _currentFuture = _careerStatsFuture;
     EventService().eventEmitter.on('eventCreated', context,
         (event, eventContext) {
       _clearCache();
@@ -70,7 +74,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         _seasonStatsFuture = null;
         _gameStatsFuture = null;
         // Re-run the calculation for the currently selected tab
-        _getOrStartCalculationFuture();
+        _currentFuture = _getOrStartCalculationFuture();
       });
     }
   }
@@ -117,13 +121,15 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             onSelectionChanged: (Set<StatType> newSelection) {
               setState(() {
                 _selectedStatType = newSelection.first;
+                // Update current future to trigger loading state in FutureBuilder
+                _currentFuture = _getOrStartCalculationFuture();
               });
             },
           ),
         ),
         Expanded(
           child: FutureBuilder(
-            future: _getOrStartCalculationFuture(),
+            future: _currentFuture,
             builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return _buildLoadingList();
@@ -371,9 +377,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   void _showSeasonStatsModal(BuildContext context, LeaderCategory category,
       List<SeasonStat> categoryStats) {
-    // Sort by stat value in descending order
+    // Sort by stat value in descending order and limit to top 25
     final sortedStats = List<SeasonStat>.from(categoryStats)
       ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
 
     showModalBottomSheet(
       context: context,
@@ -418,9 +425,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     child: ListView.builder(
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: sortedStats.length,
+                      itemCount: top25Stats.length,
                       itemBuilder: (context, index) {
-                        final entry = sortedStats[index];
+                        final entry = top25Stats[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1,
@@ -685,9 +692,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   void _showGameStatsModal(BuildContext context, LeaderCategory category,
       List<BestGameStat> categoryStats) {
-    // Sort by stat value in descending order
+    // Sort by stat value in descending order and limit to top 25
     final sortedStats = List<BestGameStat>.from(categoryStats)
       ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
 
     showModalBottomSheet(
       context: context,
@@ -732,9 +740,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     child: ListView.builder(
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: sortedStats.length,
+                      itemCount: top25Stats.length,
                       itemBuilder: (context, index) {
-                        final entry = sortedStats[index];
+                        final entry = top25Stats[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1,
@@ -1010,9 +1018,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   void _showCareerStatsModal(BuildContext context, LeaderCategory category,
       List<MapEntry<Player, int>> categoryStats) {
-    // Sort by stat value in descending order (ensure it's sorted)
+    // Sort by stat value in descending order and limit to top 25
     final sortedStats = List<MapEntry<Player, int>>.from(categoryStats)
       ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
 
     showModalBottomSheet(
       context: context,
@@ -1057,9 +1066,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     child: ListView.builder(
                       controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: sortedStats.length,
+                      itemCount: top25Stats.length,
                       itemBuilder: (context, index) {
-                        final entry = sortedStats[index];
+                        final entry = top25Stats[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: 1,
@@ -1169,7 +1178,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       case StatType.season:
         return await widget.team.fetchAllDataForSeason();
       case StatType.game:
-        return await widget.team.fetchAllDataForGame();
+        // For game stats, we don't need to fetch all data upfront
+        // The getBestGameStats method will handle loading from cache or calculating
+        return null;
     }
   }
 
@@ -1182,8 +1193,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         return await widget.team.calculateBestSeasonStats(data,
             progressController: _progressController);
       case StatType.game:
-        return await widget.team.calculateBestGameStats(data,
-            progressController: _progressController);
+        // Use the new cached method that loads from database or calculates if needed
+        return await widget.team
+            .getBestGameStats(progressController: _progressController);
     }
   }
 }

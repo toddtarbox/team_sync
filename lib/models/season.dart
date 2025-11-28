@@ -9,6 +9,7 @@ class Season {
   final String name;
   final int teamId;
   String? logoUrl;
+  bool? isFromImport;
 
   late Team team;
   List<Game> games = [];
@@ -19,14 +20,16 @@ class Season {
       {required this.id,
       required this.name,
       required this.teamId,
-      this.logoUrl});
+      this.logoUrl,
+      this.isFromImport});
 
   factory Season.fromMap(Map<dynamic, dynamic> map) {
     return Season(
         id: map['id'],
         name: map['name'],
         teamId: map['teamId'],
-        logoUrl: map['logoUrl']);
+        logoUrl: map['logoUrl'],
+        isFromImport: map['isFromImport']);
   }
 
   static Future<List<Season>> fromTeamId(int teamId) async {

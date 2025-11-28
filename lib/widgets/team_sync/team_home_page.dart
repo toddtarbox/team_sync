@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -29,6 +30,7 @@ import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
+import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
@@ -57,6 +59,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
   Team? _team;
   Game? _nextUpcomingGame;
   List<Season> _seasons = [];
+  List<Season> _importedSeasons = [];
   Game? _currentOrLastGame;
   List<Game> _lastFiveGames = []; // For carousel when no live game
   int _currentCarouselPage = 0; // Track current page in carousel
@@ -973,7 +976,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          SeasonRecord(_seasons,
+                          SeasonRecord([..._seasons, ..._importedSeasons],
                               singleSeason: false, isOverall: true),
                         ],
                       ),
@@ -1101,6 +1104,158 @@ class _TeamHomePageState extends State<TeamHomePage> {
             ),
           ),
         ),
+        // Imported Seasons Section
+        if (_importedSeasons.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(
+                  left: 20, right: 20, top: 32, bottom: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_download,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Imported Seasons',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Divider(
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final season = _importedSeasons[index];
+                  final databaseId = DatabaseService.instance.publicShareId;
+
+                  return GestureDetector(
+                    onTap: () {
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/season/${season.id}',
+                            extra: season);
+                      }
+                    },
+                    child: Card(
+                      elevation: 3,
+                      clipBehavior: Clip.antiAlias,
+                      color: Theme.of(context).colorScheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Header section with gradient background
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withValues(alpha: 0.08),
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .secondary
+                                      .withValues(alpha: 0.05),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.cloud_download,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                if (season.team.logoUrl != null &&
+                                    season.team.logoUrl!.isNotEmpty) ...[
+                                  ResponsiveAvatar(
+                                    size: 24,
+                                    imageUrl: season.team.logoUrl,
+                                    initials: season.team.fullName[0],
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Flexible(
+                                  child: Text(
+                                    season.name,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (season.logoUrl != null &&
+                                    season.logoUrl!.isNotEmpty) ...[
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () {
+                                      _showSeasonPhoto(context, season.logoUrl);
+                                    },
+                                    child: ResponsiveAvatar(
+                                      size: 24,
+                                      imageUrl: season.logoUrl,
+                                      initials: season.name[0],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          // Stats section
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: SeasonRecord([season]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                childCount: _importedSeasons.length,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1210,11 +1365,15 @@ class _TeamHomePageState extends State<TeamHomePage> {
     }
 
     final teamId = _team!.id;
-    _seasons = await Season.fromTeamId(teamId);
+    final allSeasons = await Season.fromTeamId(teamId);
 
-    if (_seasons.isNotEmpty) {
-      await Future.wait(_seasons.map((s) async => await s.load()));
+    if (allSeasons.isNotEmpty) {
+      await Future.wait(allSeasons.map((s) async => await s.load()));
     }
+
+    // Separate seasons into regular and imported
+    _seasons = allSeasons.where((s) => s.isFromImport != true).toList();
+    _importedSeasons = allSeasons.where((s) => s.isFromImport == true).toList();
 
     // Seasons are already sorted by Season.fromTeamId (most recent first)
 
@@ -1229,12 +1388,15 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   /// Get Team Performance title with "since YYYY" from oldest season
   String _getTeamPerformanceTitle() {
-    if (_seasons.isEmpty) {
+    // Combine both regular and imported seasons to find the truly oldest
+    final allSeasons = [..._seasons, ..._importedSeasons];
+
+    if (allSeasons.isEmpty) {
       return 'Team Performance';
     }
 
     // Seasons are sorted most recent first, so the last one is the oldest
-    final oldestSeason = _seasons.last;
+    final oldestSeason = allSeasons.last;
 
     // Try to extract a 4-digit year from the season name
     final yearMatch = RegExp(r'\b(19|20)\d{2}\b').firstMatch(oldestSeason.name);
@@ -1513,6 +1675,25 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 onTap: () {
                   Navigator.of(builderContext).pop();
                   _handleSelection(context, 'generateLineup');
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.cloud_upload,
+                    color: Theme.of(context).colorScheme.secondary),
+                title: const Text('Import Season'),
+                subtitle: const Text('Import teams, players, games & stats'),
+                onTap: () {
+                  Navigator.of(builderContext).pop();
+                  if (_team != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DataImportPage(team: _team),
+                      ),
+                    );
+                  } else {
+                    context.go('/import');
+                  }
                 },
               ),
             ],

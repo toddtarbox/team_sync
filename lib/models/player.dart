@@ -240,4 +240,61 @@ class Player {
       throw Exception('Failed to regenerate PIN: $e');
     }
   }
+
+  /// Find the latest available profile or action photo for this player across all seasons
+  /// Returns a map with 'profileImage' and 'actionPhoto' keys
+  /// Uses images from most recent season where they exist
+  Future<Map<String, String?>> findLatestAvailableImages() async {
+    // If current player has images, return them
+    if ((profileImage != null && profileImage!.isNotEmpty) ||
+        (actionPhoto != null && actionPhoto!.isNotEmpty)) {
+      return {
+        'profileImage': profileImage,
+        'actionPhoto': actionPhoto,
+      };
+    }
+
+    // Query all instances of this player across all seasons for this team
+    final results = await DatabaseService.instance
+        .query('Players', orderByChild: 'id', equalTo: id);
+
+    // Filter to same team and convert to Player objects
+    final allPlayerInstances = results
+        .where((r) => r['teamId'] == teamId)
+        .map((r) => Player.fromMap(r))
+        .toList();
+
+    // Sort by seasonId descending (most recent first)
+    allPlayerInstances.sort((a, b) => b.seasonId.compareTo(a.seasonId));
+
+    // Find the most recent images
+    String? latestProfileImage;
+    String? latestActionPhoto;
+
+    for (final playerInstance in allPlayerInstances) {
+      // Get profile image from most recent season that has it
+      if (latestProfileImage == null &&
+          playerInstance.profileImage != null &&
+          playerInstance.profileImage!.isNotEmpty) {
+        latestProfileImage = playerInstance.profileImage;
+      }
+
+      // Get action photo from most recent season that has it
+      if (latestActionPhoto == null &&
+          playerInstance.actionPhoto != null &&
+          playerInstance.actionPhoto!.isNotEmpty) {
+        latestActionPhoto = playerInstance.actionPhoto;
+      }
+
+      // If we found both, we can stop
+      if (latestProfileImage != null && latestActionPhoto != null) {
+        break;
+      }
+    }
+
+    return {
+      'profileImage': latestProfileImage,
+      'actionPhoto': latestActionPhoto,
+    };
+  }
 }

@@ -86,6 +86,7 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             (m['eventData'] == ShotResult.goal.index ||
                 m['eventData'] == ShotResult.onTargetSave.index))
         .length;
@@ -93,18 +94,21 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.offTargetPost.index)
         .length;
     stats._opponentGoals = map
         .where((m) =>
             m['teamId'] != teamId &&
             (m['eventType'] == 'Shot' || m['eventType'] == 'PenaltyKick') &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
         .length;
     stats._opponentPenaltyKickGoals = map
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'PenaltyKick' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
         .length;
     stats._opponentPenaltyKickTaken = map
@@ -114,6 +118,7 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.onTargetSave.index)
         .length;
     stats._opponentAssists = map
@@ -132,18 +137,21 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 0)
         .length;
     stats._opponentSecondYellowReds = map
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 2)
         .length;
     stats._opponentReds = map
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 1)
         .length;
 
@@ -154,6 +162,7 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             (m['eventData'] == ShotResult.goal.index ||
                 m['eventData'] == ShotResult.onTargetSave.index))
         .length;
@@ -161,26 +170,32 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.offTargetPost.index)
         .length;
     stats._teamGoals = map
         .where((m) =>
             m['teamId'] == teamId &&
+            m['playerId'] != null &&
             m['playerId'] != -1 &&
             (m['eventType'] == 'Shot' || m['eventType'] == 'PenaltyKick') &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
         .length;
     stats._teamOwnGoalsEarned = map
         .where((m) =>
             m['teamId'] == teamId &&
+            m['playerId'] != null &&
             m['playerId'] == -2 &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
         .length;
     stats._teamPenaltyKickGoals = map
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'PenaltyKick' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
         .length;
     stats._teamPenaltyKickTaken = map
@@ -190,6 +205,7 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] != teamId &&
             m['eventType'] == 'Shot' &&
+            m['eventData'] != null &&
             m['eventData'] == ShotResult.onTargetSave.index)
         .length;
     stats._teamAssists = map
@@ -208,100 +224,102 @@ class SeasonStats implements StatLeaders {
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 0)
         .length;
     stats._teamSecondYellowReds = map
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 2)
         .length;
     stats._teamReds = map
         .where((m) =>
             m['teamId'] == teamId &&
             m['eventType'] == 'Card' &&
+            m['eventData'] != null &&
             m['eventData'] == 1)
         .length;
 
     for (final event in map) {
+      final playerId = event['playerId'] as int?;
+      if (playerId == null) continue;
+
       switch (event['eventType']) {
         case 'Shot':
-          if (event['eventData'] == ShotResult.goal.index) {
-            stats._playerGoals.update(event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
-            stats._playerShotsOnGoal.update(
-                event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
+          final eventData = event['eventData'] as int?;
+          if (eventData == ShotResult.goal.index) {
+            stats._playerGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerShotsOnGoal
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
 
-          if (event['eventData'] == ShotResult.onTargetSave.index) {
-            stats._playerShotsOnGoal.update(
-                event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
+          if (eventData == ShotResult.onTargetSave.index) {
+            stats._playerShotsOnGoal
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
 
-          if (event['eventData'] == ShotResult.offTargetPost.index) {
-            stats._playerShotsOffPost.update(
-                event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
+          if (eventData == ShotResult.offTargetPost.index) {
+            stats._playerShotsOffPost
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
 
-          stats._playerShots.update(event['playerId'], (value) => value + 1,
-              ifAbsent: () => 1);
+          stats._playerShots
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
 
         case 'PenaltyKick':
-          if (event['eventData'] == ShotResult.goal.index) {
-            stats._playerGoals.update(event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
-            stats._playerPenaltyKickGoals.update(
-                event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
-            stats._playerPenaltyKicksTaken.update(
-                event['playerId'], (value) => value + 1,
-                ifAbsent: () => 1);
+          final eventData = event['eventData'] as int?;
+          if (eventData == ShotResult.goal.index) {
+            stats._playerGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerPenaltyKickGoals
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerPenaltyKicksTaken
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
           break;
 
         case 'Assist':
-          stats._playerAssists.update(event['playerId'], (value) => value + 1,
-              ifAbsent: () => 1);
+          stats._playerAssists
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
 
         case 'Offsides':
-          stats._playerOffsides.update(event['playerId'], (value) => value + 1,
-              ifAbsent: () => 1);
+          stats._playerOffsides
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
 
         case 'Card':
-          switch (event['eventData']) {
+          final eventData = event['eventData'] as int?;
+          switch (eventData) {
             case 0:
-              stats._playerYellows.update(
-                  event['playerId'], (value) => value + 1,
-                  ifAbsent: () => 1);
+              stats._playerYellows
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
               break;
 
             case 1:
-              stats._playerReds.update(event['playerId'], (value) => value + 1,
-                  ifAbsent: () => 1);
+              stats._playerReds
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
               break;
 
             case 2:
-              stats._playerSecondYellowReds.update(
-                  event['playerId'], (value) => value + 1,
-                  ifAbsent: () => 1);
+              stats._playerSecondYellowReds
+                  .update(playerId, (value) => value + 1, ifAbsent: () => 1);
               break;
           }
           break;
 
         case 'Foul':
-          stats._playerFouls.update(event['playerId'], (value) => value + 1,
-              ifAbsent: () => 1);
+          stats._playerFouls
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
 
         case 'Save':
-          stats._playerSaves.update(event['playerId'], (value) => value + 1,
-              ifAbsent: () => 1);
+          stats._playerSaves
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
       }
     }
@@ -450,7 +468,8 @@ class SeasonStats implements StatLeaders {
 
     for (int playerId in sourceTable.keys) {
       if (playerId != -1) {
-        Player? player = await Player.fromId(playerId);
+        // Use singleFromIdSeasonId to get the player for this specific season
+        Player? player = await Player.singleFromIdSeasonId(playerId, seasonId);
         if (player != null) {
           players[player] = sourceTable[playerId] ?? 0;
         }

@@ -6,6 +6,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
@@ -455,6 +456,12 @@ final router = GoRouter(
       path: '/settings',
       name: 'settings',
       builder: (context, state) => SettingsPage(team: null, club: null),
+    ),
+
+    GoRoute(
+      path: '/import',
+      name: 'import',
+      builder: (context, state) => const DataImportPage(),
     ),
 
     GoRoute(

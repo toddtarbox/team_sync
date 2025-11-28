@@ -251,6 +251,7 @@ class Team extends Equatable {
     final events = data['events'] as List<GameEvent>;
     final bestGameStats = BestGameStats();
 
+    // Build event lookup map
     final eventsByGame = <int, List<GameEvent>>{};
     for (final event in events) {
       final gameId = event.game.id;
@@ -259,6 +260,10 @@ class Team extends Equatable {
       }
       eventsByGame[gameId]!.add(event);
     }
+
+    // Process games in batches to avoid memory issues
+    const batchSize = 50;
+    final totalGames = games.length;
 
     int i = 0;
     for (final category in LeaderCategory.values) {
@@ -279,22 +284,37 @@ class Team extends Equatable {
       Game? bestGame;
       Season? bestSeason;
 
-      for (final game in games) {
-        final gameEvents = eventsByGame[game.id] ?? [];
-        final gameStats = GameStats.fromEvents(id, gameEvents);
-        final statPlayers = await gameStats.getStatPlayers(category);
+      // Process games in batches
+      for (int batchStart = 0;
+          batchStart < totalGames;
+          batchStart += batchSize) {
+        final batchEnd = (batchStart + batchSize < totalGames)
+            ? batchStart + batchSize
+            : totalGames;
+        final gameBatch = games.sublist(batchStart, batchEnd);
 
-        for (final entry in statPlayers.entries) {
-          if (entry.value > bestValue) {
-            final player = players[entry.key.id];
-            if (player != null) {
-              bestValue = entry.value;
-              bestPlayer = player;
-              bestGame = game;
-              bestSeason = seasons.firstWhere((s) => s.id == game.seasonId);
+        for (final game in gameBatch) {
+          final gameEvents = eventsByGame[game.id] ?? [];
+          if (gameEvents.isEmpty) continue;
+
+          final gameStats = GameStats.fromEvents(id, gameEvents);
+          final statPlayers = await gameStats.getStatPlayers(category);
+
+          for (final entry in statPlayers.entries) {
+            if (entry.value > bestValue) {
+              final player = players[entry.key.id];
+              if (player != null) {
+                bestValue = entry.value;
+                bestPlayer = player;
+                bestGame = game;
+                bestSeason = seasons.firstWhere((s) => s.id == game.seasonId);
+              }
             }
           }
         }
+
+        // Allow garbage collection between batches
+        await Future.delayed(const Duration(milliseconds: 10));
       }
 
       if (bestPlayer != null && bestGame != null && bestSeason != null) {
@@ -304,6 +324,117 @@ class Team extends Equatable {
       i++;
     }
     return bestGameStats;
+  }
+
+  /// Update best game stats for a specific completed game
+  /// This is called after a game is finalized to incrementally update cached stats
+  Future<void> updateBestGameStatsForGame(Game game) async {
+    try {
+      // Load current cached best game stats
+      final currentBestStats = await BestGameStats.loadFromDatabase(id);
+
+      // Load game events and calculate stats for this game
+      final gameEvents = await GameEvent.listFromGameId(game.id);
+      if (gameEvents.isEmpty) return;
+
+      final gameStats = GameStats.fromEvents(id, gameEvents);
+
+      // Load seasons for this team and find the one matching this game
+      final seasons = await Season.fromTeamId(id);
+      final season = seasons.where((s) => s.id == game.seasonId).firstOrNull;
+      if (season == null) return;
+
+      // Check each category to see if this game has a new best
+      bool hasUpdates = false;
+      for (final category in LeaderCategory.values) {
+        if (category == LeaderCategory.ownGoalsEarned ||
+            category == LeaderCategory.corners) {
+          continue;
+        }
+
+        final statPlayers = await gameStats.getStatPlayers(category);
+        if (statPlayers.isEmpty) continue;
+
+        // Find the best player in this game for this category
+        int bestGameValue = 0;
+        Player? bestGamePlayer;
+        for (final entry in statPlayers.entries) {
+          if (entry.value > bestGameValue) {
+            bestGameValue = entry.value;
+            bestGamePlayer = entry.key;
+          }
+        }
+
+        if (bestGamePlayer == null || bestGameValue == 0) continue;
+
+        // Check if this beats the current best
+        final currentBest = currentBestStats.getBestStat(category);
+        if (currentBest == null || bestGameValue > currentBest.value) {
+          currentBestStats.setBestStat(
+            category,
+            bestGamePlayer,
+            game,
+            season,
+            bestGameValue,
+          );
+          hasUpdates = true;
+        }
+      }
+
+      // Save updates to database if there were any changes
+      if (hasUpdates) {
+        await currentBestStats.saveToDatabase(id);
+      }
+    } catch (e) {
+      debugPrint('Error updating best game stats: $e');
+    }
+  }
+
+  /// Get best game stats, using cached values from database if available
+  /// Falls back to full recalculation if cache is empty
+  Future<BestGameStats> getBestGameStats({
+    StreamController<CalculationProgress>? progressController,
+  }) async {
+    // Try to load from cache first
+    final cachedStats = await BestGameStats.loadFromDatabase(id);
+
+    if (cachedStats.hasCachedStats) {
+      // Return cached stats immediately
+      progressController?.add(CalculationProgress(
+          total: 1, current: 1, message: 'Loaded from cache'));
+      return cachedStats;
+    }
+
+    // No cache exists, calculate from scratch
+    progressController?.add(CalculationProgress(
+        total: 1, current: 0, message: 'Building cache...'));
+
+    final data = await fetchAllDataForGame();
+    final calculatedStats = await calculateBestGameStats(data,
+        progressController: progressController);
+
+    // Save to database for future use
+    await calculatedStats.saveToDatabase(id);
+
+    return calculatedStats;
+  }
+
+  /// Rebuild entire best game stats cache from scratch
+  /// Use this when data integrity issues are suspected or after bulk imports
+  Future<void> rebuildBestGameStatsCache({
+    StreamController<CalculationProgress>? progressController,
+  }) async {
+    progressController?.add(CalculationProgress(
+        total: 1, current: 0, message: 'Rebuilding cache...'));
+
+    final data = await fetchAllDataForGame();
+    final calculatedStats = await calculateBestGameStats(data,
+        progressController: progressController);
+
+    await calculatedStats.saveToDatabase(id);
+
+    progressController?.add(
+        CalculationProgress(total: 1, current: 1, message: 'Cache rebuilt'));
   }
 
   Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(

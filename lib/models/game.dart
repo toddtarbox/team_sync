@@ -281,6 +281,14 @@ class Game {
   }
 
   String getScore(int teamId, {int? minute}) {
+    // If no scoring events exist and no minute filter is applied,
+    // use the stored scores (for imported games without event data)
+    if (scoringEvents.isEmpty && minute == null) {
+      final teamScore = isHomeTeam(teamId) ? homeTeamScore : awayTeamScore;
+      final opponentScore = isHomeTeam(teamId) ? awayTeamScore : homeTeamScore;
+      return '$teamScore - $opponentScore';
+    }
+
     int teamScore = 0;
     int opponentScore = 0;
 
@@ -392,11 +400,26 @@ class Game {
     final results = await DatabaseService.instance
         .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
 
-    final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(g))
-        .toList(growable: false));
-    games.sort((a, b) => a.date.compareTo(b.date));
+    // Process games in batches to avoid OOM from too many concurrent operations
+    const batchSize = 50;
+    final games = <Game>[];
 
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchGames = await Future.wait(batch
+          .map((g) async => await Game.fromMap(g))
+          .toList(growable: false));
+
+      games.addAll(batchGames);
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    games.sort((a, b) => a.date.compareTo(b.date));
     return games;
   }
 
@@ -407,9 +430,25 @@ class Game {
         .query('Games', orderByChild: 'awayTeamId', equalTo: teamId);
     final results = homeResults + awayResults;
 
-    final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(g))
-        .toList(growable: false));
+    // Process games in batches to avoid OOM from too many concurrent operations
+    const batchSize = 50;
+    final games = <Game>[];
+
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchGames = await Future.wait(batch
+          .map((g) async => await Game.fromMap(g))
+          .toList(growable: false));
+
+      games.addAll(batchGames);
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
     games.sort((a, b) => a.date.compareTo(b.date));
 
     return games;
@@ -453,8 +492,16 @@ class Game {
   }
 
   Future<void> endGame(int status) async {
+    final previousStatus = gameStatus;
     gameStatus = GameStatus.fromString(status.toString());
-    saveGame();
+    await saveGame();
+
+    // If game is being finalized (status >= 9), update best game stats
+    if (gameStatus.index >= 9 && previousStatus.index < 9) {
+      // Update stats for both teams asynchronously
+      homeTeam.updateBestGameStatsForGame(this);
+      awayTeam.updateBestGameStatsForGame(this);
+    }
   }
 
   Future<bool> saveGame() async {
