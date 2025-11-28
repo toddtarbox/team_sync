@@ -62,3 +62,5 @@ ios/Runner/GoogleService-Info.plist
 ios/Runner/Info.plist
 
 android/play-service-account.json
+/import_examples/
+/docs/archive/
