@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
@@ -12,11 +13,12 @@ class RecordHoldersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: buildStandardAppBar(
         context: context,
         team: team,
-        title: const Text('Record Holders'),
+        title: Text(loc.recordHolders),
       ),
       body: Column(
         children: [

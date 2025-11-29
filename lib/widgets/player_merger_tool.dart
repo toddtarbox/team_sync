@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
@@ -104,28 +105,31 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Clean Up Orphaned Events'),
-          content: Text(
-            'Found $totalOrphaned orphaned events from ${orphanedEvents.length} deleted players.\n\n'
-            'These events reference players that no longer exist in the database.\n\n'
-            'Do you want to delete these orphaned events?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+        builder: (context) {
+          final loc = AppLocalizations.of(context)!;
+          return AlertDialog(
+            title: const Text('Clean Up Orphaned Events'),
+            content: Text(
+              'Found $totalOrphaned orphaned events from ${orphanedEvents.length} deleted players.\n\n'
+              'These events reference players that no longer exist in the database.\n\n'
+              'Do you want to delete these orphaned events?',
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(loc.cancel),
               ),
-              child: const Text('Delete Orphaned Events'),
-            ),
-          ],
-        ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Delete Orphaned Events'),
+              ),
+            ],
+          );
+        },
       );
 
       if (confirmed != true) {
@@ -153,6 +157,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Dialog(
       child: Container(
         width: MediaQuery.of(context).size.width * 0.9,
@@ -282,7 +287,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: _loadDuplicates,
-                            child: const Text('Retry'),
+                            child: Text(loc.retry),
                           ),
                         ],
                       ),
@@ -330,6 +335,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
   }
 
   Widget _buildDuplicateGroupCard(DuplicatePlayerGroup group) {
+    final loc = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: ExpansionTile(
@@ -369,7 +375,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
                       onPressed: () {
                         _showMergeConfirmation(group);
                       },
-                      child: const Text('Merge All into First'),
+                      child: Text(loc.mergeAllIntoFirst),
                     ),
                   ],
                 ),
@@ -416,66 +422,70 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
         group.players.where((p) => p.id != primaryPlayer.id).toList();
 
     if (duplicates.isEmpty) {
+      final loc = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No duplicates to merge')),
+        SnackBar(content: Text(loc.noDuplicatesToMerge)),
       );
       return;
     }
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Merge Players'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('This will merge the following players:'),
-            const SizedBox(height: 12),
-            const Text(
-              'PRIMARY (Keep):',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('Merge Players'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(loc.thisWillMergeFollowingPlayers),
+              const SizedBox(height: 12),
+              const Text(
+                'PRIMARY (Keep):',
+                style:
+                    TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              Text('• ${primaryPlayer.displayName} - '
+                  '${_seasons[primaryPlayer.seasonId]?.name ?? "Season ${primaryPlayer.seasonId}"} '
+                  '#${primaryPlayer.number}'),
+              const SizedBox(height: 12),
+              const Text(
+                'DUPLICATES (Merge):',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.orange),
+              ),
+              ...duplicates.map((p) => Text(
+                    '• ${p.displayName} - '
+                    '${_seasons[p.seasonId]?.name ?? "Season ${p.seasonId}"} '
+                    '#${p.number}',
+                  )),
+              const SizedBox(height: 16),
+              const Text(
+                'All game events, awards, and highlights will be transferred to the primary player. '
+                'Duplicate player records will be deleted.',
+                style: TextStyle(fontSize: 12, color: Colors.red),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancel),
             ),
-            Text('• ${primaryPlayer.displayName} - '
-                '${_seasons[primaryPlayer.seasonId]?.name ?? "Season ${primaryPlayer.seasonId}"} '
-                '#${primaryPlayer.number}'),
-            const SizedBox(height: 12),
-            const Text(
-              'DUPLICATES (Merge):',
-              style:
-                  TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
-            ),
-            ...duplicates.map((p) => Text(
-                  '• ${p.displayName} - '
-                  '${_seasons[p.seasonId]?.name ?? "Season ${p.seasonId}"} '
-                  '#${p.number}',
-                )),
-            const SizedBox(height: 16),
-            const Text(
-              'All game events, awards, and highlights will be transferred to the primary player. '
-              'Duplicate player records will be deleted.',
-              style: TextStyle(fontSize: 12, color: Colors.red),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _performMerge(primaryPlayer, duplicates);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+              ),
+              child: const Text('Merge Players'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performMerge(primaryPlayer, duplicates);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-            ),
-            child: const Text('Merge Players'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -510,14 +520,15 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
       if (result.success) {
         // Show detailed results
         if (mounted) {
+          final loc = AppLocalizations.of(context)!;
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green),
-                  SizedBox(width: 8),
-                  Text('Merge Complete'),
+                  const Icon(Icons.check_circle, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(loc.mergeComplete),
                 ],
               ),
               content: Column(
@@ -585,102 +596,105 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Merge All Duplicates'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This will merge all ${groups.length} duplicate groups:',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('Merge All Duplicates'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will merge all ${groups.length} duplicate groups:',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              ...groups.take(5).map((group) {
+                final primary = group.players.first;
+                final dupes = group.players.length - 1;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• ${group.displayName}: $dupes duplicate${dupes > 1 ? "s" : ""} → '
+                    '${_seasons[primary.seasonId]?.name ?? "Season ${primary.seasonId}"}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                );
+              }),
+              if (groups.length > 5)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '... and ${groups.length - 5} more groups',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 16, color: Colors.orange.shade700),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'What will happen:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '• $totalDuplicates duplicate player${totalDuplicates > 1 ? "s" : ""} will be merged',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const Text(
+                      '• Each group merges into the first player',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const Text(
+                      '• All events, awards & highlights transferred',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    const Text(
+                      '• Duplicate records will be deleted',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.cancel),
             ),
-            const SizedBox(height: 12),
-            ...groups.take(5).map((group) {
-              final primary = group.players.first;
-              final dupes = group.players.length - 1;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  '• ${group.displayName}: $dupes duplicate${dupes > 1 ? "s" : ""} → '
-                  '${_seasons[primary.seasonId]?.name ?? "Season ${primary.seasonId}"}',
-                  style: const TextStyle(fontSize: 13),
-                ),
-              );
-            }),
-            if (groups.length > 5)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '... and ${groups.length - 5} more groups',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _performMergeAll(groups);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
               ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline,
-                          size: 16, color: Colors.orange.shade700),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'What will happen:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '• $totalDuplicates duplicate player${totalDuplicates > 1 ? "s" : ""} will be merged',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  const Text(
-                    '• Each group merges into the first player',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  const Text(
-                    '• All events, awards & highlights transferred',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  const Text(
-                    '• Duplicate records will be deleted',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
+              child: const Text('Merge All'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _performMergeAll(groups);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-            ),
-            child: const Text('Merge All'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

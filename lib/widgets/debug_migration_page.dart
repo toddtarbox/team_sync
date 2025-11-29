@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/services/database_service.dart';
 
 class DebugMigrationPage extends StatefulWidget {
@@ -96,9 +97,9 @@ class _DebugMigrationPageState extends State<DebugMigrationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar:
-          AppBar(title: const Text('Debug: Firestore → Realtime Migration')),
+      appBar: AppBar(title: Text(loc.debugFirestoreRealtimeMigration)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -110,9 +111,9 @@ class _DebugMigrationPageState extends State<DebugMigrationPage> {
             const SizedBox(height: 8),
             TextField(
               controller: _pathController,
-              decoration: const InputDecoration(
-                labelText: 'Firestore document path',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: loc.firestoreDocumentPath,
+                border: const OutlineInputBorder(),
                 hintText:
                     "e.g. 'databases/myDb' or 'users/<uid>/databases/myDb'",
               ),
@@ -141,20 +142,20 @@ class _DebugMigrationPageState extends State<DebugMigrationPage> {
                             _tableProgress.clear();
                           });
                         },
-                  child: const Text('Clear Logs'),
+                  child: Text(loc.clearLogs),
                 ),
                 const SizedBox(width: 8),
                 if (_running)
                   TextButton(
                     onPressed: _cancelMigration,
-                    child: const Text('Cancel'),
+                    child: Text(loc.cancel),
                   ),
               ],
             ),
             const SizedBox(height: 16),
             _buildProgressList(),
             const SizedBox(height: 16),
-            const Text('Logs', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(loc.logs, style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Expanded(
               child: Container(
@@ -164,9 +165,9 @@ class _DebugMigrationPageState extends State<DebugMigrationPage> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: _logs.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(12.0),
-                        child: Text('No logs yet.'),
+                    ? Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Text(loc.noLogsYet),
                       )
                     : ListView.builder(
                         reverse: true,

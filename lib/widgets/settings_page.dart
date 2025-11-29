@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/main.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/locale_notifier.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -48,27 +50,46 @@ class _SettingsPageState extends State<SettingsPage> {
     return 'Unknown';
   }
 
+  /// Get the display name for a locale code
+  String _getLocaleName(String languageCode) {
+    switch (languageCode) {
+      case 'en':
+        return 'English';
+      case 'es':
+        return 'Español';
+      case 'fr':
+        return 'Français';
+      case 'de':
+        return 'Deutsch';
+      case 'it':
+        return 'Italiano';
+      case 'pt':
+        return 'Português';
+      default:
+        return languageCode.toUpperCase();
+    }
+  }
+
   /// Handle user logout
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Log Out'),
-          content: const Text(
-            'Are you sure you want to log out? You will need to sign in again to access cloud databases.',
-          ),
+          title: Text(loc.logOut),
+          content: Text(loc.logOutConfirmation),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
               ),
-              child: const Text('Log Out'),
+              child: Text(loc.logOut),
             ),
           ],
         );
@@ -89,9 +110,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
         if (mounted) {
           // Show confirmation
+          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Logged out successfully'),
+            SnackBar(
+              content: Text(loc.loggedOutSuccessfully),
               backgroundColor: Colors.green,
             ),
           );
@@ -116,6 +138,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final user = FirebaseAuth.instance.currentUser;
     final authProvider = _getAuthProviderName();
 
@@ -123,10 +146,10 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: buildStandardAppBar(
         context: context,
         team: widget.team,
-        title: const Text('Settings'),
+        title: Text(loc.settings),
       ),
-      body: Consumer<ThemeNotifier>(
-        builder: (context, themeNotifier, child) {
+      body: Consumer2<ThemeNotifier, LocaleNotifier>(
+        builder: (context, themeNotifier, localeNotifier, child) {
           return ListView(
             children: [
               if (widget.team != null) ...[
@@ -151,11 +174,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
                       child: Text(
-                        'Account',
-                        style: TextStyle(
+                        loc.account,
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey,
@@ -165,7 +188,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (user != null) ...[
                       ListTile(
                         leading: const Icon(Icons.account_circle),
-                        title: Text(user.email ?? 'No email'),
+                        title: Text(user.email ?? loc.noEmail),
                         subtitle: Row(
                           children: [
                             Icon(
@@ -175,23 +198,23 @@ class _SettingsPageState extends State<SettingsPage> {
                               size: 16,
                             ),
                             const SizedBox(width: 4),
-                            Text('Signed in with $authProvider'),
+                            Text(loc.signedInWith(authProvider)),
                           ],
                         ),
                       ),
                       ListTile(
                         leading: const Icon(Icons.logout, color: Colors.red),
-                        title: const Text(
-                          'Log Out',
-                          style: TextStyle(color: Colors.red),
+                        title: Text(
+                          loc.logOut,
+                          style: const TextStyle(color: Colors.red),
                         ),
                         onTap: _handleLogout,
                       ),
                     ] else ...[
-                      const ListTile(
-                        leading: Icon(Icons.account_circle),
-                        title: Text('Not signed in'),
-                        subtitle: Text('Sign in to access cloud databases'),
+                      ListTile(
+                        leading: const Icon(Icons.account_circle),
+                        title: Text(loc.notSignedIn),
+                        subtitle: Text(loc.signInToAccessCloudDatabases),
                       ),
                     ],
                     const Divider(),
@@ -199,11 +222,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               // Appearance Section
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
                 child: Text(
-                  'Appearance',
-                  style: TextStyle(
+                  loc.appearance,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
@@ -211,9 +234,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
               SwitchListTile(
-                title: const Text('Automatic Theme'),
-                subtitle: const Text(
-                    'Automatically switch theme based on the time of day'),
+                title: Text(loc.automaticTheme),
+                subtitle: Text(loc.automaticThemeSwitchDescription),
                 value: themeNotifier.isAutoMode,
                 onChanged: (bool value) {
                   themeNotifier.setAutoMode(value);
@@ -221,7 +243,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const Divider(),
               RadioListTile<ThemeMode>(
-                title: const Text('Light Mode'),
+                title: Text(loc.lightMode),
                 value: ThemeMode.light,
                 groupValue: themeNotifier.themeMode,
                 onChanged: themeNotifier.isAutoMode
@@ -233,7 +255,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       },
               ),
               RadioListTile<ThemeMode>(
-                title: const Text('Dark Mode'),
+                title: Text(loc.themeDarkMode),
                 value: ThemeMode.dark,
                 groupValue: themeNotifier.themeMode,
                 onChanged: themeNotifier.isAutoMode
@@ -245,7 +267,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       },
               ),
               RadioListTile<ThemeMode>(
-                title: const Text('System Default'),
+                title: Text(loc.systemDefaultTheme),
                 value: ThemeMode.system,
                 groupValue: themeNotifier.themeMode,
                 onChanged: themeNotifier.isAutoMode
@@ -257,12 +279,99 @@ class _SettingsPageState extends State<SettingsPage> {
                       },
               ),
               const Divider(),
-              // Other Settings Section
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+              // Language Section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
                 child: Text(
-                  'Other',
-                  style: TextStyle(
+                  loc.language,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+              RadioListTile<String?>(
+                title: Text(loc.systemDefaultLanguage),
+                subtitle: Text(
+                  localeNotifier.locale == null
+                      ? '${loc.currently}: ${_getLocaleName(Localizations.localeOf(context).languageCode)}'
+                      : loc.useDeviceLanguage,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: null,
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  localeNotifier.resetToSystemDefault();
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇺🇸 English'),
+                value: 'en',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇪🇸 Español'),
+                value: 'es',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇫🇷 Français'),
+                value: 'fr',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇩🇪 Deutsch'),
+                value: 'de',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇮🇹 Italiano'),
+                value: 'it',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('🇧🇷 Português'),
+                value: 'pt',
+                groupValue: localeNotifier.locale?.languageCode,
+                onChanged: (String? value) {
+                  if (value != null) {
+                    localeNotifier.setLocale(Locale(value));
+                  }
+                },
+              ),
+              const Divider(),
+              // Other Settings Section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                child: Text(
+                  loc.other,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
@@ -273,7 +382,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 visible: !kIsWeb,
                 child: ListTile(
                   leading: const Icon(Icons.share),
-                  title: const Text('Twitter Settings'),
+                  title: Text(loc.twitterSettings),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
                     Navigator.of(context).push(
@@ -287,7 +396,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.privacy_tip),
-                title: const Text('Privacy Policy'),
+                title: Text(loc.privacyPolicy),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.of(context).push(
@@ -301,7 +410,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.description),
-                title: const Text('Terms of Use'),
+                title: Text(loc.termsOfUse),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.of(context).push(

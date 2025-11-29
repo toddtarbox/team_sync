@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/admin_management_service.dart';
@@ -81,8 +82,9 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
         _emailController.clear();
         await _loadAdmins();
         if (mounted) {
+          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Admin added successfully')),
+            SnackBar(content: Text(loc.adminAddedSuccessfully)),
           );
         }
       } else {
@@ -114,8 +116,9 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
       if (success) {
         await _loadAdmins();
         if (mounted) {
+          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Admin removed successfully')),
+            SnackBar(content: Text(loc.adminRemovedSuccessfully)),
           );
         }
       }
@@ -129,6 +132,7 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final title =
         _isClubManagement ? 'Manage Club Admins' : 'Manage Team Admins';
 
@@ -146,10 +150,10 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
                 Expanded(
                   child: TextField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'User Email',
-                      hintText: 'Enter email to add as admin',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: loc.userEmail,
+                      hintText: loc.enterEmailToAddAdmin,
+                      border: const OutlineInputBorder(),
                     ),
                     onSubmitted: (_) => _addAdmin(),
                   ),
@@ -158,7 +162,7 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
                 ElevatedButton.icon(
                   onPressed: _loading ? null : _addAdmin,
                   icon: const Icon(Icons.add),
-                  label: const Text('Add'),
+                  label: Text(loc.add),
                 ),
               ],
             ),
@@ -197,10 +201,10 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
                 ),
               )
             else if (_admins.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text('No admins yet'),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(loc.noAdminsYet),
                 ),
               )
             else
@@ -221,10 +225,10 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
                       title: Text(admin['email']!),
                       subtitle: Text(admin['role']!),
                       trailing: isCreator
-                          ? const Chip(
-                              label: Text('Creator'),
+                          ? Chip(
+                              label: Text(loc.creator),
                               backgroundColor: Colors.blue,
-                              labelStyle: TextStyle(color: Colors.white),
+                              labelStyle: const TextStyle(color: Colors.white),
                             )
                           : IconButton(
                               icon: const Icon(Icons.remove_circle),
@@ -243,7 +247,7 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: Text(loc.close),
         ),
       ],
     );
@@ -252,30 +256,33 @@ class _AdminManagementDialogState extends State<AdminManagementDialog> {
   void _confirmRemoveAdmin(String adminId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Admin'),
-        content: Text(
-          'Are you sure you want to remove this admin? '
-          'They will lose access to manage this ${_isClubManagement ? 'club' : 'team'}.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('Remove Admin'),
+          content: Text(
+            'Are you sure you want to remove this admin? '
+            'They will lose access to manage this ${_isClubManagement ? 'club' : 'team'}.',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _removeAdmin(adminId);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(loc.cancel),
             ),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _removeAdmin(adminId);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(loc.remove),
+            ),
+          ],
+        );
+      },
     );
   }
 }

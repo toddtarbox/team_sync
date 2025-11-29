@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/club_stats.dart';
 import 'package:team_sync/models/player.dart';
@@ -49,16 +50,17 @@ class _ClubStatsPageState extends State<ClubStatsPage>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: buildStandardAppBar(
         context: context,
         title: Text('${widget.club.name} Statistics'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Leaders', icon: Icon(Icons.star)),
-            Tab(text: 'Team Standings', icon: Icon(Icons.leaderboard)),
-            Tab(text: 'Overview', icon: Icon(Icons.bar_chart)),
+          tabs: [
+            Tab(text: loc.leaders, icon: const Icon(Icons.star)),
+            Tab(text: loc.teamStandings, icon: const Icon(Icons.leaderboard)),
+            Tab(text: loc.overview, icon: const Icon(Icons.bar_chart)),
           ],
         ),
       ),
@@ -76,8 +78,9 @@ class _ClubStatsPageState extends State<ClubStatsPage>
   }
 
   Widget _buildLeadersTab() {
+    final loc = AppLocalizations.of(context)!;
     if (_stats == null) {
-      return const Center(child: Text('No data available'));
+      return Center(child: Text(loc.noDataAvailable));
     }
 
     return RefreshIndicator(
@@ -121,10 +124,11 @@ class _ClubStatsPageState extends State<ClubStatsPage>
 
   Widget _buildLeadersList(
       List<MapEntry<Player, int>> leaders, String statLabel) {
+    final loc = AppLocalizations.of(context)!;
     if (leaders.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(20.0),
-        child: Text('No data available', style: TextStyle(fontSize: 16)),
+      return Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Text(loc.noDataAvailable, style: const TextStyle(fontSize: 16)),
       );
     }
 
@@ -163,13 +167,14 @@ class _ClubStatsPageState extends State<ClubStatsPage>
   }
 
   Widget _buildStandingsTab() {
+    final loc = AppLocalizations.of(context)!;
     if (_stats == null) {
-      return const Center(child: Text('No data available'));
+      return Center(child: Text(loc.noDataAvailable));
     }
 
     final standings = _stats!.getTeamStandings();
     if (standings.isEmpty) {
-      return const Center(child: Text('No team data available'));
+      return Center(child: Text(loc.noTeamDataAvailable));
     }
 
     // Sort teams by points (wins * 3 + draws)
@@ -188,14 +193,14 @@ class _ClubStatsPageState extends State<ClubStatsPage>
           const SizedBox(height: 10),
           Card(
             child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Team')),
-                DataColumn(label: Text('W')),
-                DataColumn(label: Text('D')),
-                DataColumn(label: Text('L')),
-                DataColumn(label: Text('GF')),
-                DataColumn(label: Text('GA')),
-                DataColumn(label: Text('Pts')),
+              columns: [
+                DataColumn(label: Text(loc.team)),
+                const DataColumn(label: Text('W')),
+                const DataColumn(label: Text('D')),
+                const DataColumn(label: Text('L')),
+                const DataColumn(label: Text('GF')),
+                const DataColumn(label: Text('GA')),
+                const DataColumn(label: Text('Pts')),
               ],
               rows: sortedTeams.map((entry) {
                 final teamId = entry.key;
@@ -234,8 +239,9 @@ class _ClubStatsPageState extends State<ClubStatsPage>
   }
 
   Widget _buildOverviewTab() {
+    final loc = AppLocalizations.of(context)!;
     if (_stats == null) {
-      return const Center(child: Text('No data available'));
+      return Center(child: Text(loc.noDataAvailable));
     }
 
     return RefreshIndicator(

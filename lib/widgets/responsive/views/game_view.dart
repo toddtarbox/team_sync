@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
@@ -68,6 +69,8 @@ class _GameViewState extends State<GameView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     if (_autoCreateSave != null) {
       if (_autoCreateSave!.team.id == widget.season.teamId) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -85,8 +88,9 @@ class _GameViewState extends State<GameView> {
         final shouldCreateAssist = await showDialog<bool>(
           context: context,
           builder: (BuildContext context) {
+            final loc = AppLocalizations.of(context)!;
             return AlertDialog(
-              title: const Text("Add Assist?"),
+              title: Text(loc.addAssistQuestion),
               content: const Text(
                   "Was this goal assisted? Select 'Yes' to assign an assist or 'No' for unassisted goal."),
               actions: [
@@ -152,7 +156,7 @@ class _GameViewState extends State<GameView> {
                     visible: showScoringEvents,
                     child: Column(
                       children: [
-                        _getEventTile(event),
+                        _getEventTile(event, loc),
                         const Divider(height: 1),
                       ],
                     ));
@@ -175,7 +179,7 @@ class _GameViewState extends State<GameView> {
                     key: ValueKey('event-${event.id}'),
                     child: Column(
                       children: [
-                        _getEventTile(event),
+                        _getEventTile(event, loc),
                         const Divider(height: 1),
                       ],
                     ));
@@ -183,9 +187,9 @@ class _GameViewState extends State<GameView> {
 
               if (_game.shootoutEvents.isNotEmpty) {
                 if (index == _game.gameEvents.length + 2) {
-                  return const ListTile(
-                      key: ValueKey('regulation-end'),
-                      title: Center(child: Text('End of Regulation')));
+                  return ListTile(
+                      key: const ValueKey('regulation-end'),
+                      title: Center(child: Text(loc.endOfRegulation)));
                 }
 
                 if (index >=
@@ -204,16 +208,16 @@ class _GameViewState extends State<GameView> {
                       key: ValueKey('shootout-${event.id}'),
                       child: Column(
                         children: [
-                          _getEventTile(event),
+                          _getEventTile(event, loc),
                           const Divider(height: 1),
                         ],
                       ));
                 }
               }
 
-              return const ListTile(
-                  key: ValueKey('game-end'),
-                  title: Center(child: Text('End of Game')));
+              return ListTile(
+                  key: const ValueKey('game-end'),
+                  title: Center(child: Text(loc.endOfGame)));
             }
 
             if (enableReorder) {
@@ -278,7 +282,7 @@ class _GameViewState extends State<GameView> {
           } else if (snapshot.hasError) {
             debugPrint(snapshot.error.toString());
             debugPrintStack(stackTrace: snapshot.stackTrace);
-            return const Center(child: Text('Error loading events'));
+            return Center(child: Text(loc.errorLoadingEvents));
           } else {
             return const Center(child: CircularProgressIndicator());
           }
@@ -289,7 +293,7 @@ class _GameViewState extends State<GameView> {
     await launchUrl(Uri.parse(url));
   }
 
-  Widget _getEventTile(GameEvent event) {
+  Widget _getEventTile(GameEvent event, AppLocalizations loc) {
     final eventMinuteWidget = SizedBox(
         width: 48,
         child: Center(
@@ -381,7 +385,7 @@ class _GameViewState extends State<GameView> {
                           children: [
                             if (assistEvent.player != null &&
                                 assistEvent.player!.id != -2) ...[
-                              AutoSizeText('Assisted by', minFontSize: 14),
+                              AutoSizeText(loc.assistedBy, minFontSize: 14),
                               const SizedBox(width: 8),
                               ResponsivePlayerAvatar(
                                   player: assistEvent.player!, avatarSize: 18),
@@ -422,19 +426,20 @@ class _GameViewState extends State<GameView> {
           return showDialog(
             context: context,
             builder: (BuildContext context) {
+              final loc = AppLocalizations.of(context)!;
               return AlertDialog(
-                title: const Text("Confirm Delete"),
+                title: Text(loc.confirmDelete),
                 content: const Text(
                     "Are you sure you want to delete this Event? All data associated with this Event will be deleted. This cannot be undone."),
                 actions: [
                   TextButton(
-                    child: const Text("Continue"),
+                    child: Text(loc.continueText),
                     onPressed: () {
                       Navigator.pop(context, true);
                     },
                   ),
                   TextButton(
-                    child: const Text("Cancel"),
+                    child: Text(loc.cancel),
                     onPressed: () {
                       Navigator.pop(context, false);
                     },
@@ -600,6 +605,7 @@ class _GameViewState extends State<GameView> {
         showDragHandle: true,
         scrollControlDisabledMaxHeightRatio: .75,
         builder: (context) {
+          final loc = AppLocalizations.of(context)!;
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
@@ -654,7 +660,7 @@ class _GameViewState extends State<GameView> {
                           },
                           width: double.infinity,
                           textStyle: const TextStyle(fontSize: 18),
-                          label: const Text('Select Period',
+                          label: Text(loc.selectPeriod,
                               style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
@@ -681,7 +687,7 @@ class _GameViewState extends State<GameView> {
                           },
                           width: double.infinity,
                           textStyle: const TextStyle(fontSize: 18),
-                          label: const Text('Select Event Type',
+                          label: Text(loc.selectEventType,
                               style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventEntries),
                       Visibility(
@@ -796,13 +802,13 @@ class _GameViewState extends State<GameView> {
                                     await _saveEvent(event);
                                   }
                                 },
-                                child: const Text('Save',
+                                child: Text(loc.save,
                                     style: TextStyle(fontSize: 20))),
                             TextButton(
                                 onPressed: () async {
                                   Navigator.pop(context);
                                 },
-                                child: const Text('Cancel',
+                                child: Text(loc.cancel,
                                     style: TextStyle(fontSize: 20)))
                           ])
                     ])));

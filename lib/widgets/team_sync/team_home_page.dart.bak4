@@ -702,7 +702,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Widget _buildSeasonsView() {
-    final loc = AppLocalizations.of(context)!;
     if (kIsWeb && _isDrawerOpen) {
       final screenWidth = MediaQuery.of(context).size.width;
       final useOverlay = screenWidth < 900; // Use overlay on smaller screens
@@ -830,7 +829,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Widget _buildGamesCarousel() {
-    final loc = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -845,7 +843,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
               ),
               const SizedBox(width: 8),
               Text(
-                loc.recentGames,
+                'Recent Games',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -906,7 +904,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Widget _buildSeasonsList() {
-    final loc = AppLocalizations.of(context)!;
     return CustomScrollView(
       slivers: [
         SliverPadding(
@@ -1071,7 +1068,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                loc.loadingAllSeasons,
+                                'Loading all seasons...',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Theme.of(context)
@@ -1248,7 +1245,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        loc.seasons,
+                        'Seasons',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -2000,7 +1997,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Future<void> _showCreateOptions(BuildContext context) async {
-    final loc = AppLocalizations.of(context)!;
     await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -2554,7 +2550,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
     } catch (e) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(loc.errorDuringShare),
             backgroundColor: Theme.of(context).colorScheme.error));
@@ -2574,11 +2569,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     if (targetGame == null) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.noGameAvailableToSetLiveLink),
-            duration: const Duration(seconds: 3),
+          const SnackBar(
+            content: Text('No game available to set live link'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -2592,7 +2586,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
         context: context,
         isScrollControlled: true,
         builder: (context) {
-          final loc = AppLocalizations.of(context)!;
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Padding(
@@ -2723,11 +2716,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     if (gameForTweet == null) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.noGameAvailableToTweetAbout),
-            duration: const Duration(seconds: 3),
+          const SnackBar(
+            content: Text('No game available to tweet about'),
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -2740,32 +2732,29 @@ class _TeamHomePageState extends State<TeamHomePage> {
       // Prompt to set live link first
       final shouldSetLink = await showDialog<bool>(
         context: context,
-        builder: (context) {
-          final loc = AppLocalizations.of(context)!;
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.link, color: Colors.blue),
-                const SizedBox(width: 12),
-                Expanded(child: Text(loc.setLiveStreamLink)),
-              ],
-            ),
-            content: Text(
-              'Would you like to add a live stream link for ${gameForTweet.displayName(_team!.id)}?\n\n'
-              'This helps fans find where to watch the game.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(loc.skip),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.addLink),
-              ),
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.link, color: Colors.blue),
+              SizedBox(width: 12),
+              Expanded(child: Text('Set Live Stream Link')),
             ],
-          );
-        },
+          ),
+          content: Text(
+            'Would you like to add a live stream link for ${gameForTweet.displayName(_team!.id)}?\n\n'
+            'This helps fans find where to watch the game.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(loc.skip),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(loc.addLink),
+            ),
+          ],
+        ),
       );
 
       if (shouldSetLink == true && mounted) {
@@ -2808,31 +2797,28 @@ class _TeamHomePageState extends State<TeamHomePage> {
       // Prompt user to set game time first
       final shouldSetTime = await showDialog<bool>(
         context: context,
-        builder: (context) {
-          final loc = AppLocalizations.of(context)!;
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.access_time, color: Colors.orange),
-                const SizedBox(width: 12),
-                Expanded(child: Text(loc.setGameTime)),
-              ],
-            ),
-            content: const Text(
-              'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(loc.skip),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.setTime),
-              ),
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.access_time, color: Colors.orange),
+              SizedBox(width: 12),
+              Expanded(child: Text('Set Game Time')),
             ],
-          );
-        },
+          ),
+          content: const Text(
+            'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(loc.skip),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(loc.setTime),
+            ),
+          ],
+        ),
       );
 
       if (shouldSetTime == true && mounted) {
@@ -2884,10 +2870,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
             }
           } catch (e) {
             if (mounted) {
-              final loc = AppLocalizations.of(context)!;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(loc.errorUpdatingGameTime(e.toString())),
+                  content: Text('Error updating game time: $e'),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -2936,14 +2921,13 @@ class _TeamHomePageState extends State<TeamHomePage> {
         final success = await TwitterService.instance.sendTweet(finalTweetText);
 
         if (success && mounted) {
-          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(
                 children: [
                   const Icon(Icons.check_circle, color: Colors.white, size: 20),
                   const SizedBox(width: 12),
-                  Text(loc.gameDayTweetSentSuccessfully),
+                  const Text('Game day tweet sent successfully! 🎉'),
                 ],
               ),
               backgroundColor: const Color(0xFF1DA1F2),
@@ -2955,10 +2939,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
         }
       } catch (e) {
         if (mounted) {
-          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(loc.errorSendingTweet(e.toString())),
+              content: Text('Error sending tweet: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -3053,10 +3036,9 @@ $liveLink
 
     if (selectedSeason == null) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.pleaseCreateSeasonFirst),
+          const SnackBar(
+            content: Text('Please create a season first to generate a lineup'),
           ),
         );
       }
@@ -3071,10 +3053,9 @@ $liveLink
 
     if (players.isEmpty) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.pleaseAddPlayersFirst),
+          const SnackBar(
+            content: Text('Please add players to the season first'),
           ),
         );
       }
@@ -3592,10 +3573,9 @@ $liveLink
       }
     } catch (e) {
       if (mounted) {
-        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(loc.errorReordering(e.toString())),
+            content: Text('Error reordering: ${e.toString()}'),
           ),
         );
       }
@@ -3603,23 +3583,23 @@ $liveLink
   }
 
   Future<void> _deleteAccomplishment(TeamAccomplishment accomplishment) async {
-    final loc = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(loc.deleteAccomplishment),
-        content: Text(loc.deleteAccomplishmentConfirmation),
+        title: const Text('Delete Accomplishment'),
+        content:
+            const Text('Are you sure you want to delete this accomplishment?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.cancel),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: Text(loc.delete),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -3642,10 +3622,9 @@ $liveLink
         }
       } catch (e) {
         if (mounted) {
-          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(loc.errorDeletingAccomplishment(e.toString())),
+              content: Text('Error deleting accomplishment: ${e.toString()}'),
               duration: Duration(seconds: 3),
             ),
           );
@@ -4065,14 +4044,14 @@ $liveLink
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text(loc.deleteAccomplishment),
+                                title: const Text('Delete Accomplishment'),
                                 content: const Text(
                                     'Are you sure you want to delete this accomplishment?'),
                                 actions: [
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: Text(loc.cancel),
+                                    child: const Text('Cancel'),
                                   ),
                                   TextButton(
                                     onPressed: () =>
@@ -4081,7 +4060,7 @@ $liveLink
                                       foregroundColor:
                                           Theme.of(context).colorScheme.error,
                                     ),
-                                    child: Text(loc.delete),
+                                    child: const Text('Delete'),
                                   ),
                                 ],
                               ),
@@ -4101,13 +4080,13 @@ $liveLink
                     style: TextButton.styleFrom(
                       foregroundColor: Theme.of(context).colorScheme.error,
                     ),
-                    child: Text(loc.delete),
+                    child: const Text('Delete'),
                   ),
                 TextButton(
                   onPressed: isSaving || isUploadingImage
                       ? null
                       : () => Navigator.pop(context),
-                  child: Text(loc.cancel),
+                  child: const Text('Cancel'),
                 ),
                 TextButton(
                   onPressed: isSaving || isUploadingImage

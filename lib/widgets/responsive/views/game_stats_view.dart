@@ -1,6 +1,7 @@
 import 'package:change_case/change_case.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
@@ -47,6 +48,7 @@ class _GameStatsViewState extends State<GameStatsView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder(
         future: _loadStats(),
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
@@ -55,20 +57,20 @@ class _GameStatsViewState extends State<GameStatsView> {
                 itemCount: 3 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    return const ListTile(
+                    return ListTile(
                         title: Center(
-                            child: Text('Scoring Summary',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.bold))));
+                            child: Text(loc.scoringSummary,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold))));
                   } else if (index == 1) {
                     return ScoringSummary(
                         widget.season, widget.season.team, _game);
                   } else if (index == 2) {
-                    return const ListTile(
+                    return ListTile(
                         title: Center(
-                            child: Text('Game Stats',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.bold))));
+                            child: Text(loc.gameStats,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold))));
                   } else {
                     return _statCategoryTiles[index - 3];
                   }
@@ -77,7 +79,7 @@ class _GameStatsViewState extends State<GameStatsView> {
                   return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading stats'));
+            return Center(child: Text(loc.errorLoadingStats));
           } else {
             return const Center(child: CircularProgressIndicator());
           }

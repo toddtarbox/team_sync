@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
@@ -36,10 +37,11 @@ class LineupGenerator {
   }) async {
     // Block web users - this is a mobile-only feature
     if (kIsWeb) {
+      final loc = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lineup generator is only available on mobile devices'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(loc.lineupGeneratorMobileOnly),
+          duration: const Duration(seconds: 3),
         ),
       );
       return;
@@ -578,13 +580,14 @@ class _LineupDialogState extends State<LineupDialog> {
         if (hasChanges && mounted) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
+              final loc = AppLocalizations.of(context)!;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Row(
+                  content: Row(
                     children: [
-                      Icon(Icons.restore, color: Colors.white, size: 20),
-                      SizedBox(width: 12),
-                      Text('Previous lineup restored'),
+                      const Icon(Icons.restore, color: Colors.white, size: 20),
+                      const SizedBox(width: 12),
+                      Text(loc.previousLineupRestored),
                     ],
                   ),
                   duration: const Duration(seconds: 2),
@@ -649,6 +652,7 @@ class _LineupDialogState extends State<LineupDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 650, maxHeight: 850),
@@ -938,7 +942,7 @@ class _LineupDialogState extends State<LineupDialog> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(loc.cancel),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
@@ -953,7 +957,7 @@ class _LineupDialogState extends State<LineupDialog> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.image),
-                  label: const Text('Generate Image'),
+                  label: Text(loc.generateImage),
                 ),
               ],
             ),
@@ -964,6 +968,7 @@ class _LineupDialogState extends State<LineupDialog> {
   }
 
   Widget _buildPlayerSelection() {
+    final loc = AppLocalizations.of(context)!;
     final positions = _getPositions();
 
     return Column(
@@ -994,15 +999,15 @@ class _LineupDialogState extends State<LineupDialog> {
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
-                      hintText: 'Select player',
+                      hintText: loc.selectPlayer,
                       filled: true,
                       fillColor:
                           Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                     items: [
-                      const DropdownMenuItem<Player?>(
+                      DropdownMenuItem<Player?>(
                         value: null,
-                        child: Text('Select player'),
+                        child: Text(loc.selectPlayer),
                       ),
                       ...widget.players.map((player) {
                         final isAlreadySelected =
@@ -1140,9 +1145,10 @@ class _LineupDialogState extends State<LineupDialog> {
 
       if (nonNullPlayers.length < 11) {
         if (mounted) {
+          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please select all 11 players'),
+            SnackBar(
+              content: Text(loc.pleaseSelectAll11Players),
               backgroundColor: Colors.orange,
             ),
           );
@@ -1279,6 +1285,7 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final screenSize = MediaQuery.of(context).size;
 
     return Dialog(
@@ -1462,8 +1469,8 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
                           onPressed: _isSharing
                               ? null
                               : () => Navigator.of(context).pop(),
-                          child: const Text('Close',
-                              style: TextStyle(fontSize: 14)),
+                          child:
+                              Text(loc.close, style: TextStyle(fontSize: 14)),
                         ),
                       ),
                     ],
@@ -1536,13 +1543,14 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
 
       // Close dialog and show success
       if (mounted) {
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Row(
+            content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.white, size: 20),
-                SizedBox(width: 12),
-                Text('Lineup shared successfully!'),
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Text(loc.lineupSharedSuccessfully),
               ],
             ),
             backgroundColor: widget.team.color1,
@@ -1634,6 +1642,7 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
           Navigator.of(context).pop();
 
           if (success) {
+            final loc = AppLocalizations.of(context)!;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
@@ -1641,7 +1650,7 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
                     const Icon(Icons.check_circle,
                         color: Colors.white, size: 20),
                     const SizedBox(width: 12),
-                    const Text('Lineup tweeted successfully! 🎉'),
+                    Text(loc.lineupTweetedSuccessfully),
                   ],
                 ),
                 backgroundColor: const Color(0xFF1DA1F2),

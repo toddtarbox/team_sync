@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/services/admin_service.dart';
 import 'package:team_sync/services/auth_service.dart';
 
@@ -98,50 +99,54 @@ class _SignInPageState extends State<SignInPage> {
   void _showNonAdminDialog(String? email) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Not an Administrator'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'You are signed in, but only administrators can create clubs in ClubSync.',
-            ),
-            const SizedBox(height: 16),
-            if (email != null)
-              Text(
-                'Signed in as: $email',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: Text(loc.notAnAdministrator),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'You are signed in, but only administrators can create clubs in ClubSync.',
               ),
-            const SizedBox(height: 16),
-            const Text(
-              'You can still view existing clubs and statistics.',
+              const SizedBox(height: 16),
+              if (email != null)
+                Text(
+                  'Signed in as: $email',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              const SizedBox(height: 16),
+              const Text(
+                'You can still view existing clubs and statistics.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await AuthService.instance.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text(loc.signOut),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(loc.continueText),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await AuthService.instance.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pop();
-              }
-            },
-            child: const Text('Sign Out'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -231,7 +236,7 @@ class _SignInPageState extends State<SignInPage> {
                           errorBuilder: (context, error, stackTrace) =>
                               const Icon(Icons.login),
                         ),
-                        label: const Text('Sign in with Google'),
+                        label: Text(loc.signInWithGoogle),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -269,10 +274,10 @@ class _SignInPageState extends State<SignInPage> {
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(Icons.email),
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                labelText: loc.email,
+                                prefixIcon: const Icon(Icons.email),
+                                border: const OutlineInputBorder(),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -291,7 +296,7 @@ class _SignInPageState extends State<SignInPage> {
                               controller: _passwordController,
                               obscureText: _obscurePassword,
                               decoration: InputDecoration(
-                                labelText: 'Password',
+                                labelText: loc.password,
                                 prefixIcon: const Icon(Icons.lock),
                                 suffixIcon: IconButton(
                                   icon: Icon(
@@ -339,7 +344,7 @@ class _SignInPageState extends State<SignInPage> {
                                         ),
                                       ),
                                     )
-                                  : const Text('Sign In'),
+                                  : Text(loc.signIn),
                             ),
                           ],
                         ),
@@ -391,7 +396,7 @@ class _SignInPageState extends State<SignInPage> {
                         onPressed: () {
                           Navigator.of(context).pop();
                         },
-                        child: const Text('Continue without signing in'),
+                        child: Text(loc.continueWithoutSigningIn),
                       ),
                     ],
                   ),

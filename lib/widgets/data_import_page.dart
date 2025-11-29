@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/import_models.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/comprehensive_season_parser.dart';
@@ -99,9 +100,10 @@ class _DataImportPageState extends State<DataImportPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Data Import'),
+        title: Text(loc.dataImport),
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
@@ -147,6 +149,7 @@ class _DataImportPageState extends State<DataImportPage> {
   }
 
   Widget _buildEntityTypeSelector() {
+    final loc = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -160,8 +163,8 @@ class _DataImportPageState extends State<DataImportPage> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _selectedEntityType,
-              decoration: const InputDecoration(
-                labelText: 'Entity Type',
+              decoration: InputDecoration(
+                labelText: loc.entityType,
                 border: OutlineInputBorder(),
               ),
               items: _entityTypes.map((type) {
@@ -185,6 +188,7 @@ class _DataImportPageState extends State<DataImportPage> {
   }
 
   Widget _buildTemplateSection() {
+    final loc = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -204,7 +208,7 @@ class _DataImportPageState extends State<DataImportPage> {
             ElevatedButton.icon(
               onPressed: _downloadTemplate,
               icon: const Icon(Icons.download),
-              label: const Text('Download Template'),
+              label: Text(loc.downloadTemplate),
             ),
           ],
         ),
@@ -247,6 +251,7 @@ class _DataImportPageState extends State<DataImportPage> {
   }
 
   Widget _buildFileUploadSection() {
+    final loc = AppLocalizations.of(context)!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -262,8 +267,7 @@ class _DataImportPageState extends State<DataImportPage> {
                 ),
                 Row(
                   children: [
-                    const Text('Multiple files:',
-                        style: TextStyle(fontSize: 12)),
+                    Text(loc.multipleFiles, style: TextStyle(fontSize: 12)),
                     const SizedBox(width: 8),
                     Switch(
                       value: _allowMultipleFiles,
@@ -376,12 +380,13 @@ class _DataImportPageState extends State<DataImportPage> {
   }
 
   Widget _buildImportButton() {
+    final loc = AppLocalizations.of(context)!;
     return Row(
       children: [
         ElevatedButton.icon(
           onPressed: _isImporting ? null : _startImport,
           icon: const Icon(Icons.cloud_upload),
-          label: const Text('Start Import'),
+          label: Text(loc.startImport),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
@@ -390,14 +395,14 @@ class _DataImportPageState extends State<DataImportPage> {
         OutlinedButton.icon(
           onPressed: _isImporting ? null : _validateOnly,
           icon: const Icon(Icons.check_circle_outline),
-          label: const Text('Validate Only'),
+          label: Text(loc.validateOnly),
         ),
         if (_isImporting) ...[
           const SizedBox(width: 12),
           OutlinedButton.icon(
             onPressed: _cancelImport,
             icon: const Icon(Icons.cancel),
-            label: const Text('Cancel'),
+            label: Text(loc.cancel),
             style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
           ),
         ],
@@ -437,6 +442,7 @@ class _DataImportPageState extends State<DataImportPage> {
   }
 
   Widget _buildResultsSummary() {
+    final loc = AppLocalizations.of(context)!;
     if (_importResult == null) return const SizedBox.shrink();
 
     return Card(
@@ -494,7 +500,7 @@ class _DataImportPageState extends State<DataImportPage> {
               ElevatedButton.icon(
                 onPressed: _downloadErrorCsv,
                 icon: const Icon(Icons.download),
-                label: const Text('Download Error Report'),
+                label: Text(loc.downloadErrorReport),
               ),
             ],
           ],
@@ -1154,46 +1160,49 @@ class _DataImportPageState extends State<DataImportPage> {
   void _showHelp() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Data Import Help'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'How to Import Data',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('1. Select the entity type you want to import'),
-              Text('2. Download the CSV template for that entity type'),
-              Text('3. Fill in your data following the template format'),
-              Text('4. Upload your completed CSV file'),
-              Text('5. Review the data preview'),
-              Text(
-                  '6. Click "Validate Only" to check for errors, or "Start Import" to import'),
-              SizedBox(height: 12),
-              Text(
-                'Tips',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text('• All imported records will have isFromImport = true'),
-              Text('• The system will match existing entities by name'),
-              Text(
-                  '• Errors will be skipped and can be exported for correction'),
-              Text('• You can re-import corrected error files'),
-            ],
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('Data Import Help'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'How to Import Data',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('1. Select the entity type you want to import'),
+                Text('2. Download the CSV template for that entity type'),
+                Text('3. Fill in your data following the template format'),
+                Text('4. Upload your completed CSV file'),
+                Text('5. Review the data preview'),
+                Text(
+                    '6. Click "Validate Only" to check for errors, or "Start Import" to import'),
+                SizedBox(height: 12),
+                Text(
+                  'Tips',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Text('• All imported records will have isFromImport = true'),
+                Text('• The system will match existing entities by name'),
+                Text(
+                    '• Errors will be skipped and can be exported for correction'),
+                Text('• You can re-import corrected error files'),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(loc.close),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1302,77 +1311,81 @@ class _DataImportPageState extends State<DataImportPage> {
       if (mounted) {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Games With No Events (${gamesWithNoEvents.length})'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: gamesWithNoEvents.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text(
-                        '✓ All games have events!',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: gamesWithNoEvents.length,
-                      itemBuilder: (context, index) {
-                        final game = gamesWithNoEvents[index];
-                        final date = DateParser.parse(game['date'].toString());
-                        final dateStr = date != null
-                            ? '${date.month}/${date.day}/${date.year}'
-                            : game['date'].toString();
-
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            dense: true,
-                            title: Text(
-                              '${game['homeTeam']} vs ${game['awayTeam']}',
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Game ID: ${game['gameId']}'),
-                                Text('Season: ${game['season']}'),
-                                Text('Date: $dateStr'),
-                                Text(
-                                    'Score: ${game['homeScore']} - ${game['awayScore']}'),
-                                if (game['description'] != null &&
-                                    game['description'].toString().isNotEmpty)
-                                  Text('Description: ${game['description']}'),
-                              ],
-                            ),
-                            isThreeLine: true,
+          builder: (context) {
+            final loc = AppLocalizations.of(context)!;
+            return AlertDialog(
+              title: Text('Games With No Events (${gamesWithNoEvents.length})'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: gamesWithNoEvents.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: Text(
+                          '✓ All games have events!',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
                           ),
-                        );
-                      },
-                    ),
-            ),
-            actions: [
-              if (gamesWithNoEvents.isNotEmpty)
-                TextButton.icon(
-                  onPressed: () {
-                    // Export to CSV
-                    _exportGamesWithNoEvents(gamesWithNoEvents);
-                  },
-                  icon: const Icon(Icons.download),
-                  label: const Text('Export to CSV'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: gamesWithNoEvents.length,
+                        itemBuilder: (context, index) {
+                          final game = gamesWithNoEvents[index];
+                          final date =
+                              DateParser.parse(game['date'].toString());
+                          final dateStr = date != null
+                              ? '${date.month}/${date.day}/${date.year}'
+                              : game['date'].toString();
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            child: ListTile(
+                              dense: true,
+                              title: Text(
+                                '${game['homeTeam']} vs ${game['awayTeam']}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Game ID: ${game['gameId']}'),
+                                  Text('Season: ${game['season']}'),
+                                  Text('Date: $dateStr'),
+                                  Text(
+                                      'Score: ${game['homeScore']} - ${game['awayScore']}'),
+                                  if (game['description'] != null &&
+                                      game['description'].toString().isNotEmpty)
+                                    Text('Description: ${game['description']}'),
+                                ],
+                              ),
+                              isThreeLine: true,
+                            ),
+                          );
+                        },
+                      ),
               ),
-            ],
-          ),
+              actions: [
+                if (gamesWithNoEvents.isNotEmpty)
+                  TextButton.icon(
+                    onPressed: () {
+                      // Export to CSV
+                      _exportGamesWithNoEvents(gamesWithNoEvents);
+                    },
+                    icon: const Icon(Icons.download),
+                    label: const Text('Export to CSV'),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(loc.close),
+                ),
+              ],
+            );
+          },
         );
       }
     } catch (e) {

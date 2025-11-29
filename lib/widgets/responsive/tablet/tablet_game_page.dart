@@ -1,6 +1,7 @@
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -70,6 +71,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final width = MediaQuery.of(context).size.width;
 
     // Resolve season via FutureBuilder so the page can be opened directly via deep link
@@ -103,7 +105,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold)),
             ),
-            body: Center(child: Text('Season not found')),
+            body: Center(child: Text(loc.seasonNotFound)),
           );
         }
 
@@ -135,13 +137,14 @@ class _TabletGamePageState extends State<TabletGamePage> {
                             await showDialog(
                                 context: context,
                                 builder: (context) {
+                                  final loc = AppLocalizations.of(context)!;
                                   return AlertDialog(
-                                    title: const Text("Advance Game"),
+                                    title: Text(loc.advanceGame),
                                     content: const Text(
                                         "Are you sure you want to advance to the next period?"),
                                     actions: [
                                       TextButton(
-                                        child: const Text("Continue"),
+                                        child: Text(loc.continueText),
                                         onPressed: () async {
                                           Navigator.pop(context, true);
                                           _eventEmitter.emit('advanceGame');
@@ -149,7 +152,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                                         },
                                       ),
                                       TextButton(
-                                        child: const Text("Cancel"),
+                                        child: Text(loc.cancel),
                                         onPressed: () {
                                           Navigator.pop(context, false);
                                         },
@@ -166,18 +169,19 @@ class _TabletGamePageState extends State<TabletGamePage> {
                             final selectedStatus = await showDialog<int>(
                                 context: context,
                                 builder: (context) {
+                                  final loc = AppLocalizations.of(context)!;
                                   int? status = 9;
 
                                   return StatefulBuilder(builder:
                                       (BuildContext context,
                                           StateSetter setModalState) {
                                     return AlertDialog(
-                                      title: const Text('End Game'),
+                                      title: Text(loc.endGame),
                                       content: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             RadioListTile(
-                                              title: const Text('Final'),
+                                              title: Text(loc.finalText),
                                               value: 9,
                                               groupValue: status,
                                               onChanged: (i) {
@@ -187,7 +191,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                                               },
                                             ),
                                             RadioListTile(
-                                              title: const Text('Final OT'),
+                                              title: Text(loc.finalOT),
                                               value: 10,
                                               groupValue: status,
                                               onChanged: (i) {
@@ -197,7 +201,7 @@ class _TabletGamePageState extends State<TabletGamePage> {
                                               },
                                             ),
                                             RadioListTile(
-                                              title: const Text('Final PKs'),
+                                              title: Text(loc.finalPKs),
                                               value: 11,
                                               groupValue: status,
                                               onChanged: (i) {
@@ -209,13 +213,13 @@ class _TabletGamePageState extends State<TabletGamePage> {
                                           ]),
                                       actions: [
                                         TextButton(
-                                          child: const Text("Continue"),
+                                          child: Text(loc.continueText),
                                           onPressed: () {
                                             Navigator.pop(context, status);
                                           },
                                         ),
                                         TextButton(
-                                          child: const Text("Cancel"),
+                                          child: Text(loc.cancel),
                                           onPressed: () {
                                             Navigator.pop(context, null);
                                           },
@@ -268,19 +272,20 @@ class _TabletGamePageState extends State<TabletGamePage> {
                             final shouldAdvance = await showDialog<bool>(
                                 context: context,
                                 builder: (BuildContext context) {
+                                  final loc = AppLocalizations.of(context)!;
                                   return AlertDialog(
-                                      title: const Text("Advance Game"),
+                                      title: Text(loc.advanceGame),
                                       content: const Text(
                                           "Do you want to advance to the next period?"),
                                       actions: [
                                         TextButton(
-                                          child: const Text("Advance"),
+                                          child: Text(loc.advanceGame),
                                           onPressed: () async {
                                             Navigator.pop(context, true);
                                           },
                                         ),
                                         TextButton(
-                                          child: const Text("Cancel"),
+                                          child: Text(loc.cancel),
                                           onPressed: () {
                                             Navigator.pop(context, false);
                                           },

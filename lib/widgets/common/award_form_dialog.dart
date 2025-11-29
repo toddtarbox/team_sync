@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 
 /// Data class to hold form results
@@ -245,9 +246,10 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
       }
     } catch (e) {
       if (mounted) {
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error uploading images: $e'),
+            content: Text(loc.errorUploadingImages(e.toString())),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -304,9 +306,10 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
         setState(() {
           _isSaving = false;
         });
+        final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving: $e'),
+            content: Text(loc.errorSaving(e.toString())),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -316,6 +319,7 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return PopScope(
       canPop: !_isSaving && !_isUploadingImage,
       child: AlertDialog(
@@ -341,9 +345,9 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
                 // Description field
                 TextField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    hintText: 'Optional details',
+                  decoration: InputDecoration(
+                    labelText: loc.description,
+                    hintText: loc.optionalDetails,
                   ),
                   maxLines: 2,
                   textCapitalization: TextCapitalization.sentences,
@@ -354,8 +358,8 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
                 if (widget.showYearField) ...[
                   TextField(
                     controller: _yearController,
-                    decoration: const InputDecoration(
-                      labelText: 'Year',
+                    decoration: InputDecoration(
+                      labelText: loc.year,
                       hintText: 'e.g., 2024',
                     ),
                     keyboardType: TextInputType.number,
@@ -470,9 +474,9 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
                 // URL field
                 TextField(
                   controller: _urlController,
-                  decoration: const InputDecoration(
-                    labelText: 'Link URL',
-                    hintText: 'Optional external link',
+                  decoration: InputDecoration(
+                    labelText: loc.linkURL,
+                    hintText: loc.optionalExternalLink,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -481,8 +485,8 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
                 if (widget.showDisplayOrderField) ...[
                   TextField(
                     controller: _displayOrderController,
-                    decoration: const InputDecoration(
-                      labelText: 'Display Order',
+                    decoration: InputDecoration(
+                      labelText: loc.displayOrder,
                       hintText: '0 = first, higher = later',
                     ),
                     keyboardType: TextInputType.number,
@@ -501,7 +505,7 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
               style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error,
               ),
-              child: const Text('Delete'),
+              child: Text(loc.delete),
             ),
 
           // Cancel button
@@ -509,7 +513,7 @@ class _AwardFormDialogState extends State<AwardFormDialog> {
             onPressed: _isSaving || _isUploadingImage
                 ? null
                 : () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(loc.cancel),
           ),
 
           // Submit button

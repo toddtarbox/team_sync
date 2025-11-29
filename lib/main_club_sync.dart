@@ -10,6 +10,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/app_config.dart';
 import 'package:team_sync/firebase_options_club.dart'; // ClubSync Firebase
 import 'package:team_sync/router_club.dart';
+import 'package:team_sync/services/locale_notifier.dart';
 import 'package:team_sync/services/subscription_service.dart';
 
 import 'l10n/app_localizations.dart';
@@ -47,8 +48,11 @@ Future<void> _initializeApp() async {
   );
   await SubscriptionService.instance.initialize();
 
-  runApp(ChangeNotifierProvider(
-    create: (_) => ThemeNotifier(),
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+      ChangeNotifierProvider(create: (_) => LocaleNotifier()),
+    ],
     child: const MyApp(),
   ));
 }
@@ -58,9 +62,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeNotifier>(
-      builder: (context, themeNotifier, child) {
+    return Consumer2<ThemeNotifier, LocaleNotifier>(
+      builder: (context, themeNotifier, localeNotifier, child) {
         return MaterialApp.router(
+          key: ValueKey(localeNotifier.locale?.languageCode ?? 'system'),
           title: AppConfig.current.appName,
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
@@ -75,6 +80,7 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: themeNotifier.themeMode,
+          locale: localeNotifier.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: routerClub,

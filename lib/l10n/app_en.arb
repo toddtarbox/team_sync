@@ -1,224 +1,585 @@
 {
-  "appTitle": "TeamSync",
-  "soccerAnalytics": "Soccer Analytics",
-  "goPro": "Go Pro",
-  "pro": "Pro",
-  "pleaseCreateOrOpenADatabase": "Please create or open a database",
-  "noTeamFound": "No Team Found",
-  "createNewTeamToStart": "Create a new Team to start",
-  "noSeasonsFound": "No Seasons Found",
-  "createNewSeasonToStart": "Create a new Season to start",
-  "confirmDelete": "Confirm Delete",
-  "areYouSureYouWantToDeleteThisSeason": "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone.",
-  "continueButton": "Continue",
-  "cancelButton": "Cancel",
-  "openExistingCloudDatabase": "Open Existing Cloud Database",
-  "openDatabase": "Open Database",
-  "createNewCloudDatabase": "Create New Cloud Database",
-  "convertToCloud": "Convert to a Cloud Database",
-  "createNewDatabase": "Create New Database",
-  "openFromBackup": "Open From Backup",
-  "backupDatabase": "Backup Current Database to Device",
-  "createTeam": "Create Team",
-  "createNewSeason": "Create New Season",
-  "newDatabase": "New Database",
-  "databaseName": "Database Name",
-  "save": "Save",
-  "selectACloudDatabase": "Select a Cloud Database",
-  "noCloudDatabasesFound": "No cloud databases found",
-  "selectADatabase": "Select a Database",
-  "newTeam": "New Team",
-  "teamName": "Team Name",
-  "teamShortName": "Team Short Name",
-  "newSeason": "New Season",
-  "seasonName": "Season Name",
-  "careerLeaders": "Career Leaders",
-  "winAbbreviation": "W",
-  "lossAbbreviation": "L",
-  "tieAbbreviation": "T",
-  "historyVersus": "History Versus",
-  "players": "Players",
-  "newPlayer": "New Player",
-  "editPlayer": "Edit Player",
-  "playerName": "Player Name",
-  "playerNumber": "Player Number",
-  "finalText": "Final",
-  "finalOTText": "Final OT",
-  "finalPKsText": "Final PKs",
-  "areYouSureYouWantToDeleteThisEvent": "Are you sure you want to delete this event? This cannot be undone.",
-  "newEvent": "New Event",
-  "errorLoadingStats": "Error loading stats",
-  "loading": "Loading...",
-  "errorLoadingHistory": "Error loading history",
-  "noGamesFound": "No Games Found",
-  "createNewGameToStart": "Create a new Game to start",
-  "areYouSureYouWantToDeleteThisGame": "Are you sure you want to delete this Game? All data associated with this Game will be deleted. This cannot be undone.",
-  "areYouSureYouWantToDeleteThisPlayer": "Are you sure you want to delete this Player? All data associated with this Player will be deleted. This cannot be undone.",
-  "editGame": "Edit Game",
-  "home": "Home",
-  "away": "Away",
-  "createNewOpponent": "Create New Opponent",
-  "selectOpponent": "Select Opponent",
-  "goToGame": "Go to game",
-  "overall": "Overall",
-  "seasonStats": "Season Stats",
-  "leaders": "Leaders",
-  "twitterSettings": "Twitter Settings",
-  "connectToTwitter": "Connect to Twitter",
-  "postGameResults": "Post Game Results",
-  "postGameStats": "Post Game Stats",
-  "postSeasonStats": "Post Season Stats",
-  "noPlayersFound": "No players found",
-  "shots": "Shots",
-  "shotsOnGoal": "Shots on Goal",
-  "goals": "Goals",
-  "assists": "Assists",
-  "offside": "Offside",
-  "fouls": "Fouls",
-  "corners": "Corners",
-  "yellowCards": "Yellow Cards",
-  "redCards": "Red Cards",
-  "saves": "Saves",
-  "season": "Season",
-  "importingDatabase": "Importing database...",
-  "databaseAlreadyExists": "A cloud database with this name already exists.",
-  "databaseImported": "Database imported successfully!",
-  "databaseImportInProgress": "Database import still in progress...",
-  "proSubscriptionFeatures": "PRO SUBSCRIPTION FEATURES",
-  "setTeamColors": "Set team colors",
-  "pickTeamColors": "Pick team colors",
-  "primaryColor": "Primary color",
-  "secondaryColor": "Secondary color",
-  "pickAColor": "Pick a color",
-  "gotIt": "Got it",
-  "shareDatabase": "Share Database",
-  "career": "Career",
-  "game": "Game",
-  "calculating": "Calculating...",
-  "bestSeason": "Best Season",
-  "bestGame": "Best Game",
-  "welcomeToTeamSync": "Welcome to TeamSync!",
-  "noDatabaseFoundMessage": "To get started, you'll need to create a new database or open an existing one. Would you like to set up your database now?",
-  "remindMeLater": "Remind Me Later",
-  "getStarted": "Get Started",
-  "proFeature": "Pro Feature",
-  "playerProfilesProFeature": "Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.",
-  "liveBannerTapToWatch": "LIVE — Tap to watch the stream",
-  "unableToOpenLiveLink": "Unable to open live link",
-  "nextGamePrefix": "Next game:",
-  "nextGameStayTuned": "Stay tuned for the live link once it starts",
-  "setLiveLink": "Set Live Link",
-  "liveUrlLabel": "Live URL",
-  "removeButton": "Remove",
-
-  "videoLabel": "Video",
+  "@accessGrantedTo": {
+    "placeholders": {
+      "email": {}
+    }
+  },
+  "@addHighlight": {
+    "description": "Tooltip/title for adding a highlight"
+  },
+  "@couldNotOpenUrl": {
+    "description": "Snackbar text when a URL can't be opened",
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "@deleteHighlightConfirm": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "@durationSeconds": {
+    "placeholders": {
+      "seconds": {}
+    }
+  },
+  "@errorDeletingAccomplishment": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorDeletingAward": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorDeletingHighlight": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorGeneratingLineup": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingAccessList": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingAwards": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingCredentials": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingDuplicates": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingHighlights": {
+    "description": "Error when highlights fail to load",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoadingPlayerStats": {
+    "description": "Error message when player stats load fails",
+    "placeholders": {
+      "error": {},
+      "stack": {}
+    }
+  },
+  "@errorLoadingSharedDatabases": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorLoggingOut": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorOpeningLink": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorReordering": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSaving": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSavingAward": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSavingHighlight": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSavingSettings": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSendingTweet": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSharingImage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorSharingToTwitter": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorUpdatingGameTime": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorUpdatingProfile": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@errorUploadingImages": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@hideHighlights": {
+    "description": "Tooltip text to hide highlights panel"
+  },
+  "@highlights": {
+    "description": "Header for the highlights section"
+  },
+  "@openedDatabase": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@recentHighlights": {
+    "description": "Header for recent highlights on the team home page"
+  },
+  "@rowNumber": {
+    "placeholders": {
+      "number": {}
+    }
+  },
+  "@showHighlights": {
+    "description": "Tooltip text to show highlights panel"
+  },
+  "@signInFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@signedInWith": {
+    "placeholders": {
+      "provider": {}
+    }
+  },
   "@videoLabel": {
     "description": "Label prefix for numbered video buttons, e.g. \"Video 1\""
   },
-
-  "watchLabel": "Watch",
   "@watchLabel": {
     "description": "Label for a single watch/play button"
   },
-
-  "hideHighlights": "Hide Highlights",
-  "@hideHighlights": { "description": "Tooltip text to hide highlights panel" },
-  "showHighlights": "Show Highlights",
-  "@showHighlights": { "description": "Tooltip text to show highlights panel" },
-
-  "errorLoadingPlayerStats": "Error loading player stats: {error}\n\nStack trace: {stack}",
-  "@errorLoadingPlayerStats": {
-    "description": "Error message when player stats load fails",
-    "placeholders": { "error": {}, "stack": {} }
-  },
-
-  "noStatsAvailable": "No stats available",
-
-  "careerStatsTitle": "Career Stats",
-
-  "highlights": "Highlights",
-  "@highlights": { "description": "Header for the highlights section" },
-
-  "addHighlight": "Add Highlight",
-  "@addHighlight": { "description": "Tooltip/title for adding a highlight" },
-
-  "noHighlightsAvailable": "No highlights available",
-
-  "edit": "Edit",
-  "delete": "Delete",
-
-  "editHighlight": "Edit Highlight",
-  "addHighlightDialogTitle": "Add Highlight",
-
-  "labelTitleRequired": "Title *",
-  "hintTitleExample": "e.g., Game-Winning Goal",
-  "labelDescription": "Description",
-  "hintDescriptionOptional": "Optional description",
-  "labelVideoUrlRequired": "Video URL *",
-  "hintVideoUrl": "https://...",
-  "labelDate": "Date",
-
-  "updateButton": "Update",
-  "addButton": "Add",
-
-  "titleUrlRequired": "Title and URL are required",
-
-  "couldNotOpenUrl": "Could not open URL: {url}",
-  "@couldNotOpenUrl": { "description": "Snackbar text when a URL can't be opened", "placeholders": { "url": {} } },
-
-  "highlightSaved": "Highlight saved successfully",
-
-  "errorSavingHighlight": "Error saving highlight: {error}",
-  "@errorSavingHighlight": { "placeholders": { "error": {} } },
-
-  "deleteHighlightTitle": "Delete Highlight",
-  "deleteHighlightConfirm": "Are you sure you want to delete \"{title}\"?",
-  "@deleteHighlightConfirm": { "placeholders": { "title": {} } },
-
-  "highlightDeleted": "Highlight deleted",
-  "errorDeletingHighlight": "Error deleting highlight: {error}",
-  "@errorDeletingHighlight": { "placeholders": { "error": {} } },
-
-  "errorLoadingHighlights": "Error loading highlights: {error}",
-  "@errorLoadingHighlights": { "description": "Error when highlights fail to load", "placeholders": { "error": {} } },
-
-  "recentHighlights": "Recent highlights",
-  "@recentHighlights": { "description": "Header for recent highlights on the team home page" },
-
-  "editProfile": "Edit Profile",
-  "enterPinToEdit": "Enter PIN to Edit Profile",
-  "enterFourDigitPin": "Enter 4-digit PIN",
-  "pinLabel": "PIN",
-  "unlockButton": "Unlock",
-  "invalidPin": "PIN must be 4 digits",
-  "exitEditMode": "Exit Edit Mode",
-  "profilePicture": "Profile Picture",
+  "accessGrantedTo": "Access granted to {email}",
+  "accomplishmentDeleted": "Accomplishment deleted",
+  "accomplishmentsReordered": "Accomplishments reordered",
+  "account": "Account",
   "actionPhoto": "Action Photo",
-  "awards": "Awards",
+  "actionPhotoCards": "Action photo cards",
+  "add": "Add",
+  "addAssistQuestion": "Add Assist?",
   "addAward": "Add Award",
-  "noAwardsAvailable": "No awards available",
-  "editAward": "Edit Award",
   "addAwardDialogTitle": "Add Award",
-  "deleteAwardTitle": "Delete Award",
-  "deleteAwardConfirm": "Are you sure you want to delete \"{title}\"?",
-  "awardSaved": "Award saved successfully",
-  "errorSavingAward": "Error saving award: {error}",
-  "@errorSavingAward": { "placeholders": { "error": {} } },
+  "addButton": "Add",
+  "addHighlight": "Add Highlight",
+  "addHighlightDialogTitle": "Add Highlight",
+  "addLink": "Add Link",
+  "adminAddedSuccessfully": "Admin added successfully",
+  "adminRemovedSuccessfully": "Admin removed successfully",
+  "advanceGame": "Advance Game",
+  "allowPlayerEditProfile": "Allow player to edit their profile on web",
+  "appTitle": "TeamSync",
+  "appearance": "Appearance",
+  "areYouSureYouWantToDeleteThisEvent": "Are you sure you want to delete this event? This cannot be undone.",
+  "areYouSureYouWantToDeleteThisGame": "Are you sure you want to delete this Game? All data associated with this Game will be deleted. This cannot be undone.",
+  "areYouSureYouWantToDeleteThisPlayer": "Are you sure you want to delete this Player? All data associated with this Player will be deleted. This cannot be undone.",
+  "areYouSureYouWantToDeleteThisSeason": "Are you sure you want to delete this Season? All data associated with this Season will be deleted. This cannot be undone.",
+  "assistedBy": "Assisted by",
+  "assists": "Assists",
+  "automaticTheme": "Automatic Theme",
+  "automaticThemeSwitchDescription": "Automatically switch theme based on the time of day",
   "awardDeleted": "Award deleted",
-  "errorDeletingAward": "Error deleting award: {error}",
-  "@errorDeletingAward": { "placeholders": { "error": {} } },
-  "errorLoadingAwards": "Error loading awards: {error}",
-  "@errorLoadingAwards": { "placeholders": { "error": {} } },
-  "uploadImage": "Upload Image",
-  "changeImage": "Change Image",
-  "removeImage": "Remove Image",
-  "selectImageSource": "Select Image Source",
+  "awardSaved": "Award saved successfully",
+  "awards": "Awards",
+  "away": "Away",
+  "backupDatabase": "Backup Current Database to Device",
+  "bestGame": "Best Game",
+  "bestSeason": "Best Season",
+  "calculating": "Calculating...",
   "camera": "Camera",
-  "gallery": "Gallery",
-  "profileUpdated": "Profile updated successfully",
+  "cancel": "Cancel",
+  "cancelButton": "Cancel",
+  "career": "Career",
+  "careerLeaders": "Career Leaders",
+  "careerStatsTitle": "Career Stats",
+  "changeImage": "Change Image",
+  "changeTeamColors": "Change Team Colors",
+  "clearLogs": "Clear Logs",
+  "close": "Close",
+  "closeSidebar": "Close sidebar",
+  "clubDescription": "Description (Optional)",
+  "clubDescriptionHint": "Brief description of your club",
+  "clubName": "Club Name",
+  "clubSyncAvailable": "ClubSync Available",
+  "composeTweet": "Compose Tweet",
+  "confirmDelete": "Confirm Delete",
+  "connectToTwitter": "Connect to Twitter",
+  "continueButton": "Continue",
+  "continueText": "Continue",
+  "continueWithoutSigningIn": "Continue without signing in",
+  "convertToCloud": "Convert to a Cloud Database",
+  "corners": "Corners",
+  "couldNotOpenUrl": "Could not open URL: {url}",
+  "create": "Create",
+  "createAnyway": "Create Anyway",
+  "createClub": "Create Club",
+  "createNewCloudDatabase": "Create New Cloud Database",
+  "createNewClub": "Create New Club",
+  "createNewDatabase": "Create New Database",
+  "createNewGameToStart": "Create a new Game to start",
+  "createNewOpponent": "Create New Opponent",
+  "createNewSeason": "Create New Season",
+  "createNewSeasonToStart": "Create a new Season to start",
+  "createNewTeam": "Create New Team",
+  "createNewTeamToStart": "Create a new Team to start",
+  "createTeam": "Create Team",
+  "creator": "Creator",
+  "currently": "Currently",
+  "dataImport": "Data Import",
+  "databaseAlreadyExists": "A cloud database with this name already exists.",
+  "databaseImportInProgress": "Database import still in progress...",
+  "databaseImported": "Database imported successfully!",
+  "databaseName": "Database Name",
+  "databaseNotFound": "Database not found",
+  "debugFirestoreRealtimeMigration": "Debug: Firestore → Realtime Migration",
+  "delete": "Delete",
+  "deleteAccomplishment": "Delete Accomplishment",
+  "deleteAccomplishmentConfirmation": "Are you sure you want to delete this accomplishment?",
+  "deleteAwardConfirm": "Are you sure you want to delete \"{title}\"?",
+  "deleteAwardTitle": "Delete Award",
+  "deleteHighlightConfirm": "Are you sure you want to delete \"{title}\"?",
+  "deleteHighlightTitle": "Delete Highlight",
+  "description": "Description",
+  "displayOrder": "Display Order",
+  "downloadErrorReport": "Download Error Report",
+  "downloadTemplate": "Download Template",
+  "duplicatePlayerName": "Duplicate Player Name",
+  "durationSeconds": "Duration: {seconds} seconds",
+  "edit": "Edit",
+  "editAward": "Edit Award",
+  "editGame": "Edit Game",
+  "editHighlight": "Edit Highlight",
+  "editPlayer": "Edit Player",
+  "editProfile": "Edit Profile",
+  "email": "Email",
+  "endGame": "End Game",
+  "endOfGame": "End of Game",
+  "endOfRegulation": "End of Regulation",
+  "enterEmailToAddAdmin": "Enter email to add as admin",
+  "enterFourDigitPin": "Enter 4-digit PIN",
+  "enterPinToEdit": "Enter PIN to Edit Profile",
+  "enterTeamIdPrompt": "Enter a 6-digit Team ID to view stats:",
+  "entityType": "Entity Type",
+  "errorDeletingAccomplishment": "Error deleting accomplishment: {error}",
+  "errorDeletingAward": "Error deleting award: {error}",
+  "errorDeletingHighlight": "Error deleting highlight: {error}",
+  "errorDuringShare": "Error during share, please try again",
+  "errorGeneratingLineup": "Error generating lineup: {error}",
+  "errorLoadingAccessList": "Error loading access list: {error}",
+  "errorLoadingAwards": "Error loading awards: {error}",
+  "errorLoadingCredentials": "Error loading credentials: {error}",
+  "errorLoadingDatabase": "Error loading database.",
+  "errorLoadingDuplicates": "Error loading duplicates: {error}",
+  "errorLoadingEvents": "Error loading events",
+  "errorLoadingHighlights": "Error loading highlights: {error}",
+  "errorLoadingHistory": "Error loading history",
+  "errorLoadingPlayerStats": "Error loading player stats: {error}\n\nStack trace: {stack}",
+  "errorLoadingSharedDatabases": "Error loading shared databases: {error}",
+  "errorLoadingStats": "Error loading stats",
+  "errorLoggingOut": "Error logging out: {error}",
+  "errorMessage": "Error: {error}",
+  "errorOpeningLink": "Error opening link: {error}",
+  "errorReordering": "Error reordering: {error}",
+  "errorSaving": "Error saving: {error}",
+  "errorSavingAward": "Error saving award: {error}",
+  "errorSavingHighlight": "Error saving highlight: {error}",
+  "errorSavingSettings": "Error saving settings: {error}",
+  "errorSendingTweet": "Error sending tweet: {error}",
+  "errorSharingImage": "Error sharing image: {error}",
+  "errorSharingToTwitter": "Error sharing to Twitter: {error}",
+  "errorUpdatingGameTime": "Error updating game time: {error}",
   "errorUpdatingProfile": "Error updating profile: {error}",
-  "@errorUpdatingProfile": { "placeholders": { "error": {} } },
-  "labelAwardTitle": "Award Title *",
+  "errorUploadingImages": "Error uploading images: {error}",
+  "exitEditMode": "Exit Edit Mode",
+  "failedToGrantAccess": "Failed to grant access. User may not exist.",
+  "failedToOpenDatabase": "Failed to open database",
+  "failedToSendTweet": "Failed to send tweet. Please try again.",
+  "finalOT": "Final OT",
+  "finalOTText": "Final OT",
+  "finalPKs": "Final PKs",
+  "finalPKsText": "Final PKs",
+  "finalText": "Final",
+  "firestoreDocumentPath": "Firestore document path",
+  "formation": "Formation",
+  "fouls": "Fouls",
+  "gallery": "Gallery",
+  "game": "Game",
+  "gameDayTweetSentSuccessfully": "Game day tweet sent successfully! 🎉",
+  "gameStats": "Game Stats",
+  "generate": "Generate",
+  "generateImage": "Generate Image",
+  "generateLineup": "Generate Lineup",
+  "generateLineupImage": "Generate Lineup Image",
+  "generateNewMessage": "Generate new message",
+  "getStarted": "Get Started",
+  "goBack": "Go Back",
+  "goPro": "Go Pro",
+  "goToGame": "Go to game",
+  "goalCelebrationPosts": "Goal celebration posts",
+  "goals": "Goals",
+  "gotIt": "Got it",
+  "hideHighlights": "Hide Highlights",
+  "highlightDeleted": "Highlight deleted",
+  "highlightSaved": "Highlight saved successfully",
+  "highlights": "Highlights",
   "hintAwardTitle": "e.g., MVP, All-Star, Top Scorer",
-  "labelAwardImage": "Award Image (optional)"
+  "hintDescriptionOptional": "Optional description",
+  "hintTitleExample": "e.g., Game-Winning Goal",
+  "hintVideoUrl": "https://...",
+  "history": "History",
+  "historyVersus": "History Versus",
+  "home": "Home",
+  "importSeason": "Import Season",
+  "importTeamsPlayersGamesStats": "Import teams, players, games & stats",
+  "importingDatabase": "Importing database...",
+  "invalidPin": "PIN must be 4 digits",
+  "labelAwardImage": "Award Image (optional)",
+  "labelAwardTitle": "Award Title *",
+  "labelDate": "Date",
+  "labelDescription": "Description",
+  "labelTitleRequired": "Title *",
+  "labelVideoUrlRequired": "Video URL *",
+  "language": "Language",
+  "leaders": "Leaders",
+  "lightMode": "Light Mode",
+  "lineupGeneratorMobileOnly": "Lineup generator is only available on mobile devices",
+  "lineupSharedSuccessfully": "Lineup shared successfully!",
+  "lineupTweetedSuccessfully": "Lineup tweeted successfully! 🎉",
+  "linkURL": "Link URL",
+  "liveBannerTapToWatch": "LIVE — Tap to watch the stream",
+  "liveUrlLabel": "Live URL",
+  "loadTeam": "Load Team",
+  "loading": "Loading...",
+  "loadingAllSeasons": "Loading all seasons...",
+  "logOut": "Log Out",
+  "logOutConfirmation": "Are you sure you want to log out? You will need to sign in again to access cloud databases.",
+  "loggedOutSuccessfully": "Logged out successfully",
+  "logs": "Logs",
+  "lossAbbreviation": "L",
+  "matchDate": "Match Date",
+  "maybeLater": "Maybe Later",
+  "mergeAllIntoFirst": "Merge All into First",
+  "mergeComplete": "Merge Complete",
+  "monthApr": "Apr",
+  "monthAug": "Aug",
+  "monthDec": "Dec",
+  "monthFeb": "Feb",
+  "monthJan": "Jan",
+  "monthJul": "Jul",
+  "monthJun": "Jun",
+  "monthMar": "Mar",
+  "monthMay": "May",
+  "monthNov": "Nov",
+  "monthOct": "Oct",
+  "monthSep": "Sep",
+  "multipleCardStyles": "Multiple card styles",
+  "multipleFiles": "Multiple files:",
+  "newDatabase": "New Database",
+  "newEvent": "New Event",
+  "newPlayer": "New Player",
+  "newSeason": "New Season",
+  "newTeam": "New Team",
+  "nextGamePrefix": "Next game:",
+  "nextGameStayTuned": "Stay tuned for the live link once it starts",
+  "noAdminsYet": "No admins yet",
+  "noAwardsAvailable": "No awards available",
+  "noCloudDatabasesFound": "No cloud databases found",
+  "noClubDatabasesFound": "No cloud databases found",
+  "noData": "No data",
+  "noDataAvailable": "No data available",
+  "noDatabaseFoundMessage": "To get started, you'll need to create a new database or open an existing one. Would you like to set up your database now?",
+  "noDuplicatesToMerge": "No duplicates to merge",
+  "noEmail": "No email",
+  "noGameAvailableToSetLiveLink": "No game available to set live link",
+  "noGameAvailableToTweetAbout": "No game available to tweet about",
+  "noGamesFound": "No Games Found",
+  "noHighlightsAvailable": "No highlights available",
+  "noLogsYet": "No logs yet.",
+  "noPlayersFound": "No players found",
+  "noSeasonsFound": "No Seasons Found",
+  "noStatsAvailable": "No stats available",
+  "noTeamDataAvailable": "No team data available",
+  "noTeamFound": "No Team Found",
+  "noTeamSelected": "No team selected",
+  "notAnAdministrator": "Not an Administrator",
+  "notSignedIn": "Not signed in",
+  "offside": "Offside",
+  "openDatabase": "Open Database",
+  "openExistingCloudDatabase": "Open Existing Cloud Database",
+  "openFromBackup": "Open From Backup",
+  "openedDatabase": "Opened database: {name}",
+  "optionalDetails": "Optional details",
+  "optionalExternalLink": "Optional external link",
+  "other": "Other",
+  "overall": "Overall",
+  "overview": "Overview",
+  "password": "Password",
+  "pickAColor": "Pick a color",
+  "pickTeamColors": "Pick team colors",
+  "pinLabel": "PIN",
+  "playerName": "Player Name",
+  "playerNotFound": "Player not found",
+  "playerNumber": "Player Number",
+  "playerProfilesProFeature": "Player Profiles are part of the Pro version. Upgrade to access detailed player statistics and career history.",
+  "players": "Players",
+  "pleaseAddPlayersFirst": "Please add players to the season first",
+  "pleaseCorrectFormErrors": "Please correct the errors in the form.",
+  "pleaseCreateOrOpenADatabase": "Please create or open a database",
+  "pleaseCreateSeasonFirst": "Please create a season first to generate a lineup",
+  "pleaseEnterEmailAddress": "Please enter an email address",
+  "pleaseSelectAll11Players": "Please select all 11 players",
+  "postGameResults": "Post Game Results",
+  "postGameStats": "Post Game Stats",
+  "postSeasonStats": "Post Season Stats",
+  "preparingShare": "Preparing...",
+  "preview": "Preview",
+  "previousLineupRestored": "Previous lineup restored",
+  "primaryColor": "Primary color",
+  "privacyPolicy": "Privacy Policy",
+  "pro": "Pro",
+  "proFeature": "Pro Feature",
+  "proSubscriptionFeatures": "PRO SUBSCRIPTION FEATURES",
+  "profilePhoto": "Profile Photo",
+  "profilePicture": "Profile Picture",
+  "profileUpdated": "Profile updated successfully",
+  "recentGames": "Recent Games",
+  "recentHighlights": "Recent highlights",
+  "recordHolders": "Record Holders",
+  "records": "Records",
+  "redCards": "Red Cards",
+  "remindMeLater": "Remind Me Later",
+  "remove": "Remove",
+  "removeButton": "Remove",
+  "removeFromClub": "Remove from Club",
+  "removeImage": "Remove Image",
+  "retry": "Retry",
+  "revokeAccess": "Revoke access",
+  "rowNumber": "Row {number}",
+  "save": "Save",
+  "saves": "Saves",
+  "scoringSummary": "Scoring Summary",
+  "season": "Season",
+  "seasonName": "Season Name",
+  "seasonNotFound": "Season not found",
+  "seasonStats": "Season Stats",
+  "seasons": "Seasons",
+  "secondaryColor": "Secondary color",
+  "selectACloudDatabase": "Select a Cloud Database",
+  "selectAClub": "Select a Club",
+  "selectADatabase": "Select a Database",
+  "selectEventType": "Select Event Type",
+  "selectImageSource": "Select Image Source",
+  "selectOpponent": "Select Opponent",
+  "selectPeriod": "Select Period",
+  "selectPlayer": "Select player",
+  "sendTweet": "Send Tweet",
+  "setGameTime": "Set Game Time",
+  "setLiveLink": "Set Live Link",
+  "setLiveStreamLink": "Set Live Stream Link",
+  "setTeamColors": "Set team colors",
+  "setTime": "Set Time",
+  "settings": "Settings",
+  "shareDatabase": "Share Database",
+  "shareImage": "Share Image",
+  "shareToSocialMedia": "Share to social media",
+  "sharedSuccessfully": "Shared successfully!",
+  "shots": "Shots",
+  "shotsOnGoal": "Shots on Goal",
+  "showHighlights": "Show Highlights",
+  "signIn": "Sign In",
+  "signInFailed": "Sign-in failed: {error}",
+  "signInRequired": "Sign In Required",
+  "signInToAccessCloudDatabases": "Sign in to access cloud databases",
+  "signInWithApple": "Sign in with Apple",
+  "signInWithGoogle": "Sign in with Google",
+  "signOut": "Sign Out",
+  "signedInWith": "Signed in with {provider}",
+  "skip": "Skip",
+  "soccerAnalytics": "Soccer Analytics",
+  "startImport": "Start Import",
+  "systemDefaultLanguage": "System Default",
+  "systemDefaultTheme": "System Default",
+  "team": "Team",
+  "teamAccomplishments": "Team Accomplishments",
+  "teamId": "Team ID",
+  "teamName": "Team Name",
+  "teamShortName": "Team Short Name",
+  "teamStandings": "Team Standings",
+  "teamSync": "TeamSync",
+  "teamSyncDatabaseViewer": "TeamSync Database Viewer",
+  "teamSyncViewer": "TeamSync Viewer",
+  "termsOfUse": "Terms of Use",
+  "themeClassic": "Classic",
+  "themeDarkMode": "Dark Mode",
+  "themeElegant": "Elegant",
+  "themeMinimal": "Minimal",
+  "themeNeon": "Neon",
+  "themeRetro": "Retro",
+  "thisWillMergeFollowingPlayers": "This will merge the following players:",
+  "tieAbbreviation": "T",
+  "time": "Time",
+  "titleUrlRequired": "Title and URL are required",
+  "tweetGameDay": "Tweet Game Day",
+  "tweetSentSuccessfully": "Tweet sent successfully!",
+  "tweetedSuccessfully": "Tweeted successfully!",
+  "twitter": "Twitter",
+  "twitterSettings": "Twitter Settings",
+  "twitterSettingsSavedSuccessfully": "Twitter settings saved successfully!",
+  "unableToOpenLink": "Unable to open link",
+  "unableToOpenLiveLink": "Unable to open live link",
+  "unexpectedDatabaseFormat": "Unexpected database format",
+  "unlockButton": "Unlock",
+  "update": "Update",
+  "updateButton": "Update",
+  "upgradeToPro": "Upgrade to Pro",
+  "uploadImage": "Upload Image",
+  "useDeviceLanguage": "Use device language",
+  "userEmail": "User Email",
+  "validateOnly": "Validate Only",
+  "videoLabel": "Video",
+  "viewMore": "View More",
+  "watchLabel": "Watch",
+  "welcomeToTeamSync": "Welcome to TeamSync!",
+  "winAbbreviation": "W",
+  "year": "Year",
+  "yellowCards": "Yellow Cards"
 }

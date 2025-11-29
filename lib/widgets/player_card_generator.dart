@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/team.dart';
@@ -79,6 +80,7 @@ class _PlayerCardProTeaserDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return AlertDialog(
       title: Row(
         children: [
@@ -124,7 +126,7 @@ class _PlayerCardProTeaserDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Maybe Later'),
+          child: Text(loc.maybeLater),
         ),
         ElevatedButton(
           onPressed: () async {
@@ -135,7 +137,7 @@ class _PlayerCardProTeaserDialog extends StatelessWidget {
             backgroundColor: team.color1,
             foregroundColor: Colors.white,
           ),
-          child: const Text('Upgrade to Pro'),
+          child: Text(loc.upgradeToPro),
         ),
       ],
     );
@@ -220,6 +222,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Dialog(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
@@ -528,6 +531,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
           setState(() => _isGenerating = false);
 
           if (mounted) {
+            final loc = AppLocalizations.of(context)!;
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -536,7 +540,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                     const Icon(Icons.check_circle,
                         color: Colors.white, size: 20),
                     const SizedBox(width: 12),
-                    const Text('Tweeted successfully!'),
+                    Text(loc.tweetedSuccessfully),
                   ],
                 ),
                 backgroundColor: Colors.green,
@@ -555,6 +559,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
           downloadFile(pngBytes, filename);
 
           if (mounted) {
+            final loc = AppLocalizations.of(context)!;
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -586,6 +591,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
           );
 
           if (mounted) {
+            final loc = AppLocalizations.of(context)!;
             Navigator.of(context).pop();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -594,7 +600,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                     const Icon(Icons.check_circle,
                         color: Colors.white, size: 20),
                     const SizedBox(width: 12),
-                    const Text('Shared successfully!'),
+                    Text(loc.sharedSuccessfully),
                   ],
                 ),
                 backgroundColor: Colors.green,

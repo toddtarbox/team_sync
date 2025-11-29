@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/config/database_collections.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/club_stats.dart';
 import 'package:team_sync/models/team.dart';
@@ -64,6 +65,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       key: ValueKey(_club?.id), // Force rebuild when club changes
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -126,13 +128,13 @@ class _ClubHomePageState extends State<ClubHomePage> {
                       ),
                     ),
                     const PopupMenuDivider(),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'signout',
                       child: Row(
                         children: [
-                          Icon(Icons.logout),
-                          SizedBox(width: 8),
-                          Text('Sign Out'),
+                          const Icon(Icons.logout),
+                          const SizedBox(width: 8),
+                          Text(loc.signOut),
                         ],
                       ),
                     ),
@@ -151,7 +153,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                     }
                   },
                   icon: const Icon(Icons.login),
-                  label: const Text('Sign In'),
+                  label: Text(loc.signIn),
                 );
               }
             },
@@ -225,7 +227,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                       if (AdminService.instance.isAdmin)
                         ElevatedButton(
                           onPressed: () => _createClub(),
-                          child: const Text('Create New Club'),
+                          child: Text(loc.createNewClub),
                         )
                       else
                         Column(
@@ -263,7 +265,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                                   }
                                 },
                                 icon: const Icon(Icons.login),
-                                label: const Text('Sign In'),
+                                label: Text(loc.signIn),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 32,
@@ -520,12 +522,15 @@ class _ClubHomePageState extends State<ClubHomePage> {
                       _removeTeamFromClub(team);
                     }
                   },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'remove',
-                      child: Text('Remove from Club'),
-                    ),
-                  ],
+                  itemBuilder: (context) {
+                    final loc = AppLocalizations.of(context)!;
+                    return [
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: Text(loc.removeFromClub),
+                      ),
+                    ];
+                  },
                 ),
               ),
             ],
@@ -536,6 +541,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
   }
 
   Widget _buildClubSelectionView() {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -543,7 +549,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
             expandedHeight: 200,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Select a Club'),
+              title: Text(loc.selectAClub),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -567,7 +573,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                       child: ElevatedButton.icon(
                         onPressed: () => _createClub(),
                         icon: const Icon(Icons.add),
-                        label: const Text('Create New Club'),
+                        label: Text(loc.createNewClub),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.all(20),
                           backgroundColor: Colors.green,
@@ -738,20 +744,20 @@ class _ClubHomePageState extends State<ClubHomePage> {
     await showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Create New Club'),
+          title: Text(loc.createNewClub),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 autofocus: true,
-                decoration: const InputDecoration(labelText: 'Club Name'),
+                decoration: InputDecoration(labelText: loc.clubName),
                 onChanged: (value) => clubName = value,
               ),
               const SizedBox(height: 10),
               TextField(
-                decoration:
-                    const InputDecoration(labelText: 'Description (Optional)'),
+                decoration: InputDecoration(labelText: loc.clubDescription),
                 onChanged: (value) => clubDescription = value,
               ),
             ],
@@ -759,7 +765,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -793,7 +799,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                   await _loadTeams();
                 }
               },
-              child: const Text('Create'),
+              child: Text(loc.create),
             ),
           ],
         );
@@ -829,6 +835,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
     await showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -839,14 +846,13 @@ class _ClubHomePageState extends State<ClubHomePage> {
                   children: [
                     TextField(
                       controller: TextEditingController(text: clubName),
-                      decoration: const InputDecoration(labelText: 'Club Name'),
+                      decoration: InputDecoration(labelText: loc.clubName),
                       onChanged: (value) => clubName = value,
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: TextEditingController(text: clubDescription),
-                      decoration:
-                          const InputDecoration(labelText: 'Description'),
+                      decoration: InputDecoration(labelText: loc.description),
                       onChanged: (value) => clubDescription = value,
                     ),
                     const SizedBox(height: 20),
@@ -883,7 +889,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(loc.cancel),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -905,7 +911,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
 
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Save'),
+                  child: Text(loc.save),
                 ),
               ],
             );
@@ -998,6 +1004,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
     await showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
           title: const Text('Create New Team'),
           content: Column(
@@ -1018,7 +1025,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -1043,7 +1050,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('Create'),
+              child: Text(loc.create),
             ),
           ],
         );
@@ -1057,6 +1064,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
     await showDialog(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
           title: const Text('Assign Existing Team'),
           content: SizedBox(
@@ -1086,7 +1094,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
           ],
         );
@@ -1098,6 +1106,7 @@ class _ClubHomePageState extends State<ClubHomePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
+        final loc = AppLocalizations.of(context)!;
         return AlertDialog(
           title: const Text('Remove Team'),
           content: Text(
@@ -1105,12 +1114,12 @@ class _ClubHomePageState extends State<ClubHomePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(loc.cancel),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Remove'),
+              child: Text(loc.remove),
             ),
           ],
         );

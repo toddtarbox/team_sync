@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/admin_service.dart';
@@ -107,40 +108,43 @@ class ClubMigrationService {
     await showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('ClubSync Available'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You have ${unassignedTeams.length} team(s) that can be organized into clubs.',
-              style: const TextStyle(fontSize: 16),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: Text(loc.clubSyncAvailable),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You have ${unassignedTeams.length} team(s) that can be organized into clubs.',
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Would you like to:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text('• Create a new club for your teams'),
+              const Text('• Keep using individual team management'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(loc.maybeLater),
             ),
-            const SizedBox(height: 10),
-            const Text(
-              'Would you like to:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _showCreateClubDialog(context, unassignedTeams);
+              },
+              child: Text(loc.createClub),
             ),
-            const SizedBox(height: 10),
-            const Text('• Create a new club for your teams'),
-            const Text('• Keep using individual team management'),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Maybe Later'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await _showCreateClubDialog(context, unassignedTeams);
-            },
-            child: const Text('Create Club'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -152,91 +156,94 @@ class ClubMigrationService {
 
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Create Club'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Club Name',
-                    hintText: 'e.g., Springfield Soccer Club',
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: Text(loc.createClub),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: loc.clubName,
+                      hintText: 'e.g., Springfield Soccer Club',
+                    ),
+                    onChanged: (value) => clubName = value,
                   ),
-                  onChanged: (value) => clubName = value,
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Description (Optional)',
-                    hintText: 'Brief description of your club',
+                  const SizedBox(height: 10),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: loc.clubDescription,
+                      hintText: loc.clubDescriptionHint,
+                    ),
+                    onChanged: (value) => clubDescription = value,
+                    maxLines: 2,
                   ),
-                  onChanged: (value) => clubDescription = value,
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Select teams to include:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                ...unassignedTeams.map((team) => CheckboxListTile(
-                      title: Text(team.fullName),
-                      value: selectedTeams.contains(team),
-                      onChanged: (checked) {
-                        setState(() {
-                          if (checked == true) {
-                            selectedTeams.add(team);
-                          } else {
-                            selectedTeams.remove(team);
-                          }
-                        });
-                      },
-                    )),
-              ],
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Select teams to include:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  ...unassignedTeams.map((team) => CheckboxListTile(
+                        title: Text(team.fullName),
+                        value: selectedTeams.contains(team),
+                        onChanged: (checked) {
+                          setState(() {
+                            if (checked == true) {
+                              selectedTeams.add(team);
+                            } else {
+                              selectedTeams.remove(team);
+                            }
+                          });
+                        },
+                      )),
+                ],
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: clubName.isEmpty || selectedTeams.isEmpty
-                  ? null
-                  : () async {
-                      final clubId = DateTime.now().millisecondsSinceEpoch;
-                      final club = Club(
-                        id: clubId,
-                        name: clubName,
-                        description:
-                            clubDescription.isEmpty ? null : clubDescription,
-                        createdAt: DateTime.now(),
-                      );
-
-                      await DatabaseService.instance
-                          .insert('Clubs', club.toMap());
-                      await assignTeamsToClub(selectedTeams, clubId);
-
-                      if (context.mounted) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                'Club "${clubName}" created with ${selectedTeams.length} team(s)'),
-                            backgroundColor: Colors.green,
-                          ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(loc.cancel),
+              ),
+              ElevatedButton(
+                onPressed: clubName.isEmpty || selectedTeams.isEmpty
+                    ? null
+                    : () async {
+                        final clubId = DateTime.now().millisecondsSinceEpoch;
+                        final club = Club(
+                          id: clubId,
+                          name: clubName,
+                          description:
+                              clubDescription.isEmpty ? null : clubDescription,
+                          createdAt: DateTime.now(),
                         );
-                      }
-                    },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
-      ),
+
+                        await DatabaseService.instance
+                            .insert('Clubs', club.toMap());
+                        await assignTeamsToClub(selectedTeams, clubId);
+
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Club "${clubName}" created with ${selectedTeams.length} team(s)'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
+                child: Text(loc.create),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

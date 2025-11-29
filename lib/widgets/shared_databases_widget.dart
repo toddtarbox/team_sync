@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/services/database_service.dart';
 
 /// Widget to display and open databases shared by other users.
@@ -59,8 +60,9 @@ class _SharedDatabasesWidgetState extends State<SharedDatabasesWidget> {
         }
       } else {
         if (mounted) {
+          final loc = AppLocalizations.of(context)!;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to open database')),
+            SnackBar(content: Text(loc.failedToOpenDatabase)),
           );
         }
       }

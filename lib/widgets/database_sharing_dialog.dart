@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 
@@ -47,10 +48,11 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
   }
 
   Future<void> _shareWithUser() async {
+    final loc = AppLocalizations.of(context)!;
     final email = _emailController.text.trim();
     if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter an email address')),
+        SnackBar(content: Text(loc.pleaseEnterEmailAddress)),
       );
       return;
     }
@@ -74,8 +76,7 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Failed to grant access. User may not exist.')),
+            SnackBar(content: Text(loc.failedToGrantAccess)),
           );
         }
       }
@@ -93,20 +94,23 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
   Future<void> _revokeAccess(String email) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Revoke Access'),
-        content: Text('Remove access for $email?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Revoke'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('Revoke Access'),
+          content: Text('Remove access for $email?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(loc.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Revoke'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirm != true) return;
@@ -144,6 +148,7 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final isProUser = SubscriptionService.instance.isSubscribed;
 
     if (!isProUser) {
@@ -155,14 +160,14 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(loc.close),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               await SubscriptionService.instance.purchaseSubscription();
             },
-            child: const Text('Upgrade to Pro'),
+            child: Text(loc.upgradeToPro),
           ),
         ],
       );
@@ -183,10 +188,10 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'User Email',
+              decoration: InputDecoration(
+                labelText: loc.userEmail,
                 hintText: 'user@example.com',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
               ),
               keyboardType: TextInputType.emailAddress,
               enabled: !_isLoading,
@@ -290,7 +295,7 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(loc.close),
         ),
       ],
     );

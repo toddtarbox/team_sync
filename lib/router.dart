@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
@@ -266,10 +267,11 @@ final router = GoRouter(
                         }
 
                         // Should not reach here, but handle gracefully
+                        final loc = AppLocalizations.of(context)!;
                         return Scaffold(
                           appBar: AppBar(title: const Text('Error')),
-                          body: const Center(
-                            child: Text('Player not found'),
+                          body: Center(
+                            child: Text(loc.playerNotFound),
                           ),
                         );
                       },

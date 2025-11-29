@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/twitter_credentials_service.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -117,11 +118,12 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
 
   /// Validates and saves the form data.
   Future<void> _saveSettings() async {
+    final loc = AppLocalizations.of(context)!;
     // Validate returns true if the form is valid, or false otherwise.
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please correct the errors in the form.'),
+        SnackBar(
+          content: Text(loc.pleaseCorrectFormErrors),
           backgroundColor: Colors.red,
         ),
       );
@@ -130,8 +132,8 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
 
     if (widget.team == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No team selected'),
+        SnackBar(
+          content: Text(loc.noTeamSelected),
           backgroundColor: Colors.red,
         ),
       );
@@ -154,8 +156,8 @@ class _TwitterSettingsPageState extends State<TwitterSettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Twitter settings saved successfully!'),
+          SnackBar(
+            content: Text(loc.twitterSettingsSavedSuccessfully),
             backgroundColor: Colors.green,
           ),
         );

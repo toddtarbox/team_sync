@@ -1,5 +1,6 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -135,6 +136,7 @@ class AwardDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return AlertDialog(
       title: customHeader ?? _buildDefaultHeader(context),
       content: SizedBox(
@@ -172,7 +174,7 @@ class AwardDetailDialog extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _launchUrl(context, url!),
                     icon: const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('View More'),
+                    label: Text(loc.viewMore),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -193,13 +195,13 @@ class AwardDetailDialog extends StatelessWidget {
               onEdit!();
             },
             icon: const Icon(Icons.edit, size: 18),
-            label: const Text('Edit'),
+            label: Text(loc.edit),
           ),
 
         // Close button
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          child: Text(loc.close),
         ),
       ],
     );
@@ -339,6 +341,7 @@ class AwardDetailDialog extends StatelessWidget {
 
   /// Launch external URL
   Future<void> _launchUrl(BuildContext context, String url) async {
+    final loc = AppLocalizations.of(context)!;
     try {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
@@ -346,14 +349,14 @@ class AwardDetailDialog extends StatelessWidget {
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Unable to open link')),
+            SnackBar(content: Text(loc.unableToOpenLink)),
           );
         }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening link: $e')),
+          SnackBar(content: Text(loc.errorOpeningLink(e.toString()))),
         );
       }
     }

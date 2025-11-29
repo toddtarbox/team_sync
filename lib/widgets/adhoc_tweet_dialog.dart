@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 
@@ -40,7 +41,7 @@ class AdhocTweetDialog extends StatefulWidget {
       if (!isConfigured) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                   'Twitter is not configured. Please configure Twitter in Settings.'),
               duration: Duration(seconds: 3),
@@ -52,7 +53,7 @@ class AdhocTweetDialog extends StatefulWidget {
         // Credentials exist but initialization failed
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
                   'Failed to initialize Twitter. Please check your credentials.'),
               duration: Duration(seconds: 3),
@@ -87,18 +88,19 @@ class AdhocTweetDialog extends StatefulWidget {
         final success = await twitterService.sendTweet(finalTweetText);
 
         if (context.mounted) {
+          final loc = AppLocalizations.of(context)!;
           if (success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Tweet sent successfully!'),
-                duration: Duration(seconds: 2),
+                content: Text(loc.tweetSentSuccessfully),
+                duration: const Duration(seconds: 2),
               ),
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Failed to send tweet. Please try again.'),
-                duration: Duration(seconds: 3),
+                content: Text(loc.failedToSendTweet),
+                duration: const Duration(seconds: 3),
                 backgroundColor: Colors.red,
               ),
             );
@@ -128,8 +130,9 @@ class _AdhocTweetDialogState extends State<AdhocTweetDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('Compose Tweet'),
+      title: Text(loc.composeTweet),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -163,7 +166,7 @@ class _AdhocTweetDialogState extends State<AdhocTweetDialog> {
           onPressed: () {
             Navigator.pop(context, null);
           },
-          child: const Text('Cancel'),
+          child: Text(loc.cancel),
         ),
         TextButton(
           onPressed: _tweetText.isEmpty || _tweetText.length > 280
@@ -171,7 +174,7 @@ class _AdhocTweetDialogState extends State<AdhocTweetDialog> {
               : () {
                   Navigator.pop(context, _tweetText);
                 },
-          child: const Text('Preview'),
+          child: Text(loc.preview),
         ),
       ],
     );

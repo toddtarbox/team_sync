@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 
 /// Shows the contents of a Realtime Database document/tree at [databasePath].
 /// Example path: 'subscriptionIds/<uid>/databases/<dbName>'
@@ -10,9 +11,10 @@ class WebViewerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TeamSync Database Viewer'),
+        title: Text(loc.teamSyncDatabaseViewer),
       ),
       body: FutureBuilder<DatabaseEvent>(
         future: FirebaseDatabase.instance.ref(databasePath).once(),
@@ -21,7 +23,7 @@ class WebViewerPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('Error loading database.'));
+            return Center(child: Text(loc.errorLoadingDatabase));
           }
           final event = snapshot.data;
           if (event == null || event.snapshot.value == null) {
@@ -71,7 +73,7 @@ class WebViewerPage extends StatelessWidget {
                 return ExpansionTile(
                   title: Text(tableName,
                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                  children: const [ListTile(title: Text('No data'))],
+                  children: [ListTile(title: Text(loc.noData))],
                 );
               }
 

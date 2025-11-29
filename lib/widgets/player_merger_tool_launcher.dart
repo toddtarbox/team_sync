@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/player_merger_tool.dart';
@@ -75,6 +76,7 @@ class _PlayerMergerToolLauncherState extends State<PlayerMergerToolLauncher> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -109,7 +111,7 @@ class _PlayerMergerToolLauncherState extends State<PlayerMergerToolLauncher> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Go Back'),
+                child: Text(loc.goBack),
               ),
             ],
           ),

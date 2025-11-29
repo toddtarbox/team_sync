@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/twitter_service.dart';
 
@@ -106,6 +107,7 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final characterCount = _textController.text.length;
     final isOverLimit = characterCount > 280;
 
@@ -393,7 +395,7 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(null),
-                      child: const Text('Cancel'),
+                      child: Text(loc.cancel),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -404,7 +406,7 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
                           : () =>
                               Navigator.of(context).pop(_textController.text),
                       icon: const Icon(Icons.send, size: 18),
-                      label: const Text('Send Tweet'),
+                      label: Text(loc.sendTweet),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1DA1F2),
                         foregroundColor: Colors.white,
