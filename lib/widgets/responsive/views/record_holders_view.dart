@@ -79,6 +79,68 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     }
   }
 
+  void _invalidateBestGameCache() async {
+    if (mounted) {
+      // Clear the database cache first
+      await BestGameStats.clearCache(widget.team.id);
+
+      setState(() {
+        _gameStatsFuture = null;
+        // If currently viewing best game stats, refresh immediately
+        if (_selectedStatType == StatType.game) {
+          _currentFuture = _getOrStartCalculationFuture();
+        }
+      });
+
+      // Show confirmation message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Best game cache invalidated'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Invalidate Best Game Cache'),
+                subtitle: const Text('Clear cached best game statistics'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _invalidateBestGameCache();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.clear_all),
+                title: const Text('Clear All Caches'),
+                subtitle: const Text('Clear all cached statistics'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _clearCache();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All caches cleared'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<dynamic> _loadAndCalculateStats() async {
     final data = await _loadData();
     return await _calculateStats(data);
@@ -101,50 +163,68 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: SegmentedButton<StatType>(
-            segments: <ButtonSegment<StatType>>[
-              ButtonSegment<StatType>(
-                  value: StatType.career,
-                  label: Text(AppLocalizations.of(context)!.careerLeaders)),
-              ButtonSegment<StatType>(
-                  value: StatType.season,
-                  label: Text(AppLocalizations.of(context)!.bestSeason)),
-              ButtonSegment<StatType>(
-                  value: StatType.game,
-                  label: Text(AppLocalizations.of(context)!.bestGame)),
-            ],
-            selected: <StatType>{_selectedStatType},
-            onSelectionChanged: (Set<StatType> newSelection) {
-              setState(() {
-                _selectedStatType = newSelection.first;
-                // Update current future to trigger loading state in FutureBuilder
-                _currentFuture = _getOrStartCalculationFuture();
-              });
-            },
-          ),
+        Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: SegmentedButton<StatType>(
+                segments: <ButtonSegment<StatType>>[
+                  ButtonSegment<StatType>(
+                      value: StatType.career,
+                      label: Text(AppLocalizations.of(context)!.careerLeaders)),
+                  ButtonSegment<StatType>(
+                      value: StatType.season,
+                      label: Text(AppLocalizations.of(context)!.bestSeason)),
+                  ButtonSegment<StatType>(
+                      value: StatType.game,
+                      label: Text(AppLocalizations.of(context)!.bestGame)),
+                ],
+                selected: <StatType>{_selectedStatType},
+                onSelectionChanged: (Set<StatType> newSelection) {
+                  setState(() {
+                    _selectedStatType = newSelection.first;
+                    // Update current future to trigger loading state in FutureBuilder
+                    _currentFuture = _getOrStartCalculationFuture();
+                  });
+                },
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder(
+                future: _currentFuture,
+                builder:
+                    (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingList();
+                  } else if (snapshot.hasError) {
+                    debugPrint(snapshot.error.toString());
+                    debugPrintStack(stackTrace: snapshot.stackTrace);
+                    return Center(
+                        child: Text(
+                            AppLocalizations.of(context)!.errorLoadingStats));
+                  } else {
+                    return _buildLeaderList(snapshot.data);
+                  }
+                },
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: FutureBuilder(
-            future: _currentFuture,
-            builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return _buildLoadingList();
-              } else if (snapshot.hasError) {
-                debugPrint(snapshot.error.toString());
-                debugPrintStack(stackTrace: snapshot.stackTrace);
-                return Center(
-                    child:
-                        Text(AppLocalizations.of(context)!.errorLoadingStats));
-              } else {
-                return _buildLeaderList(snapshot.data);
-              }
-            },
+        // Action menu button (mobile only)
+        if (!kIsWeb)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _showActionMenu(context);
+              },
+              child: const Icon(Icons.more_vert),
+            ),
           ),
-        ),
       ],
     );
   }

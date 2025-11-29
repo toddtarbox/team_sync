@@ -131,4 +131,21 @@ class BestGameStats {
 
   /// Check if we have cached stats
   bool get hasCachedStats => _bestStats.isNotEmpty;
+
+  /// Clear cached best game stats from the database for a team
+  static Future<void> clearCache(int teamId) async {
+    try {
+      final results = await DatabaseService.instance
+          .query('BestGameStats', orderByChild: 'teamId', equalTo: teamId);
+
+      for (final map in results) {
+        final id = map['id'] as String?;
+        if (id != null) {
+          await DatabaseService.instance.delete('BestGameStats', key: id);
+        }
+      }
+    } catch (e) {
+      // If table doesn't exist or there's an error, that's fine
+    }
+  }
 }

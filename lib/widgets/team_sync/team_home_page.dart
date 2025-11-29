@@ -3638,10 +3638,7 @@ $liveLink
       heroTagPrefix: 'accomplishment_image',
       onEdit: !kIsWeb &&
               _team?.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid) == true
-          ? () {
-              Navigator.pop(context);
-              _showEditAccomplishmentDialog(accomplishment);
-            }
+          ? () => _showEditAccomplishmentDialog(accomplishment)
           : null,
     );
   }

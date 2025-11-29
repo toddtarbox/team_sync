@@ -57,6 +57,9 @@ class AwardDetailDialog extends StatelessWidget {
   final List<Widget>? additionalContent;
 
   /// Callback for edit action
+  ///
+  /// IMPORTANT: This callback is called AFTER the dialog is automatically closed.
+  /// Do NOT call Navigator.pop in your onEdit handler - the dialog handles this.
   final VoidCallback? onEdit;
 
   /// Icon to display in header
