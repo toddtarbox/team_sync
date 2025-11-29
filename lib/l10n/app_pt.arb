@@ -30,7 +30,7 @@
   "awardDeleted": "Prêmio excluído",
   "awardSaved": "Prêmio salvo com sucesso",
   "awards": "Prêmios",
-  "away": "Fora",
+  "away": "FORA",
   "backupDatabase": "Backup do banco de dados atual no dispositivo",
   "bestGame": "Melhor jogo",
   "bestSeason": "Melhor temporada",
@@ -177,7 +177,7 @@
   "hintVideoUrl": "https://...",
   "history": "Histórico",
   "historyVersus": "Histórico contra",
-  "home": "Casa",
+  "home": "CASA",
   "importSeason": "Importar temporada",
   "importTeamsPlayersGamesStats": "Importar equipes, jogadores, jogos e estatísticas",
   "importingDatabase": "Importando banco de dados...",
@@ -391,5 +391,49 @@
   "welcomeToTeamSync": "Bem-vindo ao TeamSync!",
   "winAbbreviation": "V",
   "year": "Ano",
-  "yellowCards": "Cartões amarelos"
+  "yellowCards": "Cartões amarelos",
+  "noGamesYet": "Ainda não há jogos",
+  "live": "AO VIVO",
+  "win": "VITÓRIA",
+  "loss": "DERROTA",
+  "tie": "EMPATE",
+  "teamPerformance": "Desempenho da equipe",
+  "teamPerformanceSince": "Desempenho da equipe (Desde {year})",
+  "@teamPerformanceSince": {
+    "placeholders": {
+      "year": {}
+    }
+  },
+  "since": "Desde",
+  "addAccomplishment": "Adicionar realização",
+  "editAccomplishment": "Editar realização",
+  "titleRequired": "Título *",
+  "titleIsRequired": "O título é obrigatório",
+  "exampleStateChampions": "ex. Campeões estaduais",
+  "exampleYear": "ex. 2023",
+  "saving": "Salvando...",
+  "images": "Imagens",
+  "tapImageToPrimary": "Toque em uma imagem para torná-la principal",
+  "selectMultipleImages": "Você pode selecionar várias imagens de uma vez",
+  "primary": "Principal",
+  "notAuthorizedUploadImages": "Não autorizado a carregar imagens. Faça login no celular para adicionar imagens.",
+  "games": "Jogos",
+  "gameTimeSet": "Horário do jogo definido para {time}",
+  "@gameTimeSet": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "noTimeSetPrompt": "Este jogo não tem horário definido (atualmente 00:00). Gostaria de definir o horário antes de tweetar?",
+  "sortByTeamName": "Nome da equipe",
+  "sortByMostGames": "Mais jogos",
+  "sortByMostWins": "Mais vitórias",
+  "sortByWinPercentage": "% Vitória",
+  "sortByRecent": "Recente",
+  "noMatchupHistoryYet": "Ainda não há histórico de confrontos",
+  "gamesSingular": "jogo",
+  "gamesPlural": "jogos",
+  "gamesPlayed": "{count} {count, plural, =1{jogo} other{jogos}} jogados",
+  "versus": "vs.",
+  "unknown": "Desconhecido"
 }

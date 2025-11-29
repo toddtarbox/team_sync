@@ -86,17 +86,18 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
   }
 
   String _getSortLabel(SortOption option) {
+    final loc = AppLocalizations.of(context)!;
     switch (option) {
       case SortOption.teamName:
-        return 'Team Name';
+        return loc.sortByTeamName;
       case SortOption.mostGames:
-        return 'Most Games';
+        return loc.sortByMostGames;
       case SortOption.mostWins:
-        return 'Most Wins';
+        return loc.sortByMostWins;
       case SortOption.winPercentage:
-        return 'Win %';
+        return loc.sortByWinPercentage;
       case SortOption.recentFirst:
-        return 'Recent';
+        return loc.sortByRecent;
     }
   }
 
@@ -113,6 +114,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
             );
 
             if (sortedEntries.isEmpty) {
+              final loc = AppLocalizations.of(context)!;
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -127,7 +129,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No matchup history yet',
+                      loc.noMatchupHistoryYet,
                       style: TextStyle(
                         fontSize: 18,
                         color: Theme.of(context)
@@ -200,6 +202,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                       final entry = sortedEntries[index];
                       final team = entry.key;
                       final games = entry.value;
+                      final loc = AppLocalizations.of(context)!;
 
                       int wins =
                           games.where((g) => g.isWin(widget.team.id)).length;
@@ -294,7 +297,9 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '$totalGames ${totalGames == 1 ? 'game' : 'games'} played',
+                                            totalGames == 1
+                                                ? '1 ${loc.gamesSingular}'
+                                                : '$totalGames ${loc.gamesPlural}',
                                             style: TextStyle(
                                               fontSize: 13,
                                               color: Theme.of(context)
@@ -337,7 +342,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                     // Wins
                                     _buildRecordStat(
                                       context,
-                                      'W',
+                                      loc.winAbbreviation,
                                       wins,
                                       Colors.green,
                                       winPercentage,
@@ -346,7 +351,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                     // Losses
                                     _buildRecordStat(
                                       context,
-                                      'L',
+                                      loc.lossAbbreviation,
                                       losses,
                                       Colors.red,
                                       totalGames > 0
@@ -357,7 +362,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                     // Ties
                                     _buildRecordStat(
                                       context,
-                                      'T',
+                                      loc.tieAbbreviation,
                                       ties,
                                       Colors.grey,
                                       totalGames > 0
@@ -564,14 +569,14 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'vs. ${team?.fullName ?? 'Unknown'}',
+                              '${AppLocalizations.of(context)!.versus} ${team?.fullName ?? AppLocalizations.of(context)!.unknown}',
                               style: const TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              '${games.length} ${games.length == 1 ? 'game' : 'games'}',
+                              '${games.length} ${games.length == 1 ? AppLocalizations.of(context)!.gamesSingular : AppLocalizations.of(context)!.gamesPlural}',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(context)
@@ -610,12 +615,14 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                               : isTie
                                   ? Colors.grey
                                   : Colors.blue; // Upcoming/in-progress games
+
+                      final loc = AppLocalizations.of(context)!;
                       final resultText = isWin
-                          ? 'W'
+                          ? loc.winAbbreviation
                           : isLoss
-                              ? 'L'
+                              ? loc.lossAbbreviation
                               : isTie
-                                  ? 'T'
+                                  ? loc.tieAbbreviation
                                   : '-'; // Upcoming/in-progress games
 
                       return Card(

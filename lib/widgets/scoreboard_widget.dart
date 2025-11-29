@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -94,6 +95,8 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Determine sizing based on available space and compact mode
@@ -130,7 +133,7 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                   ),
                   SizedBox(height: verticalSpacing),
                   Text(
-                    'No games yet',
+                    loc.noGamesYet,
                     style: TextStyle(
                       fontSize: teamNameFontSize,
                       color: Theme.of(context)
@@ -262,7 +265,7 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                                   ),
                                   SizedBox(width: isCompact ? 4 : 6),
                                   Text(
-                                    'LIVE',
+                                    loc.live,
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -328,7 +331,7 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                               children: [
                                 if (!isCompact)
                                   Text(
-                                    'HOME',
+                                    loc.home,
                                     style: TextStyle(
                                       fontSize: headerFontSize * 0.7,
                                       color: Colors.amber.withOpacity(0.8),
@@ -536,10 +539,10 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                                     ),
                                     child: Text(
                                       isWin
-                                          ? 'WIN'
+                                          ? loc.win
                                           : isLoss
-                                              ? 'LOSS'
-                                              : 'TIE',
+                                              ? loc.loss
+                                              : loc.tie,
                                       style: TextStyle(
                                         fontSize: isCompact ? 10 : 12,
                                         fontWeight: FontWeight.bold,
@@ -575,7 +578,7 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                               children: [
                                 if (!isCompact)
                                   Text(
-                                    'AWAY',
+                                    loc.away,
                                     style: TextStyle(
                                       fontSize: headerFontSize * 0.7,
                                       color: Colors.amber.withOpacity(0.8),

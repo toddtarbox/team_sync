@@ -295,7 +295,7 @@ abstract class AppLocalizations {
   /// No description provided for @away.
   ///
   /// In en, this message translates to:
-  /// **'Away'**
+  /// **'AWAY'**
   String get away;
 
   /// No description provided for @backupDatabase.
@@ -1177,7 +1177,7 @@ abstract class AppLocalizations {
   /// No description provided for @home.
   ///
   /// In en, this message translates to:
-  /// **'Home'**
+  /// **'HOME'**
   String get home;
 
   /// No description provided for @importSeason.
@@ -2463,6 +2463,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yellow Cards'**
   String get yellowCards;
+
+  /// No description provided for @noGamesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No games yet'**
+  String get noGamesYet;
+
+  /// No description provided for @live.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get live;
+
+  /// No description provided for @win.
+  ///
+  /// In en, this message translates to:
+  /// **'WIN'**
+  String get win;
+
+  /// No description provided for @loss.
+  ///
+  /// In en, this message translates to:
+  /// **'LOSS'**
+  String get loss;
+
+  /// No description provided for @tie.
+  ///
+  /// In en, this message translates to:
+  /// **'TIE'**
+  String get tie;
+
+  /// No description provided for @teamPerformance.
+  ///
+  /// In en, this message translates to:
+  /// **'Team Performance'**
+  String get teamPerformance;
+
+  /// No description provided for @teamPerformanceSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Team Performance (Since {year})'**
+  String teamPerformanceSince(Object year);
+
+  /// No description provided for @addAccomplishment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Accomplishment'**
+  String get addAccomplishment;
+
+  /// No description provided for @editAccomplishment.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Accomplishment'**
+  String get editAccomplishment;
+
+  /// No description provided for @titleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title *'**
+  String get titleRequired;
+
+  /// No description provided for @titleIsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title is required'**
+  String get titleIsRequired;
+
+  /// No description provided for @exampleStateChampions.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., State Champions'**
+  String get exampleStateChampions;
+
+  /// No description provided for @exampleYear.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g., 2023'**
+  String get exampleYear;
+
+  /// No description provided for @saving.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving...'**
+  String get saving;
+
+  /// No description provided for @since.
+  ///
+  /// In en, this message translates to:
+  /// **'Since'**
+  String get since;
+
+  /// No description provided for @images.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get images;
+
+  /// No description provided for @tapImageToPrimary.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an image to make it primary'**
+  String get tapImageToPrimary;
+
+  /// No description provided for @selectMultipleImages.
+  ///
+  /// In en, this message translates to:
+  /// **'You can select multiple images at once'**
+  String get selectMultipleImages;
+
+  /// No description provided for @primary.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary'**
+  String get primary;
+
+  /// No description provided for @notAuthorizedUploadImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Not authorized to upload images. Please sign in on mobile to add images.'**
+  String get notAuthorizedUploadImages;
+
+  /// No description provided for @games.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get games;
+
+  /// No description provided for @gameTimeSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Game time set to {time}'**
+  String gameTimeSet(Object time);
+
+  /// No description provided for @noTimeSetPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?'**
+  String get noTimeSetPrompt;
+
+  /// No description provided for @sortByTeamName.
+  ///
+  /// In en, this message translates to:
+  /// **'Team Name'**
+  String get sortByTeamName;
+
+  /// No description provided for @sortByMostGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Games'**
+  String get sortByMostGames;
+
+  /// No description provided for @sortByMostWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Wins'**
+  String get sortByMostWins;
+
+  /// No description provided for @sortByWinPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Win %'**
+  String get sortByWinPercentage;
+
+  /// No description provided for @sortByRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get sortByRecent;
+
+  /// No description provided for @noMatchupHistoryYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No matchup history yet'**
+  String get noMatchupHistoryYet;
+
+  /// No description provided for @gamesSingular.
+  ///
+  /// In en, this message translates to:
+  /// **'game'**
+  String get gamesSingular;
+
+  /// No description provided for @gamesPlural.
+  ///
+  /// In en, this message translates to:
+  /// **'games'**
+  String get gamesPlural;
+
+  /// No description provided for @gamesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {count, plural, =1{game} other{games}} played'**
+  String gamesPlayed(int count);
+
+  /// No description provided for @versus.
+  ///
+  /// In en, this message translates to:
+  /// **'vs.'**
+  String get versus;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
 }
 
 class _AppLocalizationsDelegate

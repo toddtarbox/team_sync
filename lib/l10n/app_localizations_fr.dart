@@ -110,7 +110,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get awards => 'Récompenses';
 
   @override
-  String get away => 'Extérieur';
+  String get away => 'EXTÉRIEUR';
 
   @override
   String get backupDatabase =>
@@ -624,7 +624,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get historyVersus => 'Historique contre';
 
   @override
-  String get home => 'Domicile';
+  String get home => 'DOMICILE';
 
   @override
   String get importSeason => 'Importer la saison';
@@ -1294,4 +1294,123 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get yellowCards => 'Cartons jaunes';
+
+  @override
+  String get noGamesYet => 'Pas encore de matchs';
+
+  @override
+  String get live => 'EN DIRECT';
+
+  @override
+  String get win => 'VICTOIRE';
+
+  @override
+  String get loss => 'DÉFAITE';
+
+  @override
+  String get tie => 'NUL';
+
+  @override
+  String get teamPerformance => 'Performance de l\'équipe';
+
+  @override
+  String teamPerformanceSince(Object year) {
+    return 'Performance de l\'équipe (Depuis $year)';
+  }
+
+  @override
+  String get addAccomplishment => 'Ajouter une réalisation';
+
+  @override
+  String get editAccomplishment => 'Modifier la réalisation';
+
+  @override
+  String get titleRequired => 'Titre *';
+
+  @override
+  String get titleIsRequired => 'Le titre est obligatoire';
+
+  @override
+  String get exampleStateChampions => 'par ex., Champions d\'État';
+
+  @override
+  String get exampleYear => 'par ex., 2023';
+
+  @override
+  String get saving => 'Enregistrement...';
+
+  @override
+  String get since => 'Depuis';
+
+  @override
+  String get images => 'Images';
+
+  @override
+  String get tapImageToPrimary =>
+      'Appuyez sur une image pour la définir comme principale';
+
+  @override
+  String get selectMultipleImages =>
+      'Vous pouvez sélectionner plusieurs images à la fois';
+
+  @override
+  String get primary => 'Principale';
+
+  @override
+  String get notAuthorizedUploadImages =>
+      'Non autorisé à télécharger des images. Connectez-vous sur mobile pour ajouter des images.';
+
+  @override
+  String get games => 'Matchs';
+
+  @override
+  String gameTimeSet(Object time) {
+    return 'Heure du match définie à $time';
+  }
+
+  @override
+  String get noTimeSetPrompt =>
+      'Ce match n\'a pas d\'heure définie (actuellement 00:00). Voulez-vous définir l\'heure avant de tweeter?';
+
+  @override
+  String get sortByTeamName => 'Nom de l\'équipe';
+
+  @override
+  String get sortByMostGames => 'Plus de matchs';
+
+  @override
+  String get sortByMostWins => 'Plus de victoires';
+
+  @override
+  String get sortByWinPercentage => '% Victoire';
+
+  @override
+  String get sortByRecent => 'Récent';
+
+  @override
+  String get noMatchupHistoryYet =>
+      'Pas encore d\'historique des confrontations';
+
+  @override
+  String get gamesSingular => 'match';
+
+  @override
+  String get gamesPlural => 'matchs';
+
+  @override
+  String gamesPlayed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'matchs',
+      one: 'match',
+    );
+    return '$count $_temp0 joués';
+  }
+
+  @override
+  String get versus => 'vs.';
+
+  @override
+  String get unknown => 'Inconnu';
 }

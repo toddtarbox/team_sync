@@ -702,7 +702,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
   }
 
   Widget _buildSeasonsView() {
-    final loc = AppLocalizations.of(context)!;
     if (kIsWeb && _isDrawerOpen) {
       final screenWidth = MediaQuery.of(context).size.width;
       final useOverlay = screenWidth < 900; // Use overlay on smaller screens
@@ -1047,7 +1046,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Team Performance',
+                                loc.teamPerformance,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -1141,7 +1140,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                             IconButton(
                               icon: const Icon(Icons.add, size: 20),
                               onPressed: () => _showAddAccomplishmentDialog(),
-                              tooltip: 'Add Accomplishment',
+                              tooltip: loc.addAccomplishment,
                               constraints: const BoxConstraints(),
                               padding: EdgeInsets.zero,
                             ),
@@ -1774,11 +1773,13 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   /// Get Team Performance title with "since YYYY" from oldest season
   String _getTeamPerformanceTitle() {
+    final loc = AppLocalizations.of(context)!;
+
     // Combine both regular and imported seasons to find the truly oldest
     final allSeasons = [..._seasons, ..._importedSeasons];
 
     if (allSeasons.isEmpty) {
-      return 'Team Performance';
+      return loc.teamPerformance;
     }
 
     // Seasons are sorted most recent first, so the last one is the oldest
@@ -1789,10 +1790,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     if (yearMatch != null) {
       final year = yearMatch.group(0);
-      return 'Team Performance (Since $year)';
+      return loc.teamPerformanceSince(year!);
     }
 
-    return 'Team Performance';
+    return loc.teamPerformance;
   }
 
   Future<void> _loadCurrentOrLastGame() async {
@@ -2818,8 +2819,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 Expanded(child: Text(loc.setGameTime)),
               ],
             ),
-            content: const Text(
-              'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?',
+            content: Text(
+              loc.noTimeSetPrompt,
             ),
             actions: [
               TextButton(
@@ -2865,6 +2866,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             game.date = updatedGameDate;
 
             if (mounted) {
+              final loc = AppLocalizations.of(context)!;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Row(
@@ -2873,7 +2875,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                           color: Colors.white, size: 20),
                       const SizedBox(width: 12),
                       Text(
-                        'Game time set to ${selectedTime.format(context)}',
+                        loc.gameTimeSet(selectedTime.format(context)),
                       ),
                     ],
                   ),
@@ -3708,7 +3710,7 @@ $liveLink
             canPop: !isSaving && !isUploadingImage,
             child: AlertDialog(
               title: Text(
-                  isEditing ? 'Edit Accomplishment' : 'Add Accomplishment'),
+                  isEditing ? loc.editAccomplishment : loc.addAccomplishment),
               content: SizedBox(
                 width: MediaQuery.of(context).size.width * 0.9,
                 child: SingleChildScrollView(
@@ -3717,9 +3719,9 @@ $liveLink
                     children: [
                       TextField(
                         controller: titleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Title *',
-                          hintText: 'e.g., State Champions',
+                        decoration: InputDecoration(
+                          labelText: loc.titleRequired,
+                          hintText: loc.exampleStateChampions,
                         ),
                         autofocus: true,
                         textCapitalization: TextCapitalization.words,
@@ -3737,9 +3739,9 @@ $liveLink
                       const SizedBox(height: 12),
                       TextField(
                         controller: yearController,
-                        decoration: const InputDecoration(
-                          labelText: 'Year',
-                          hintText: 'e.g., 2023',
+                        decoration: InputDecoration(
+                          labelText: loc.year,
+                          hintText: loc.exampleYear,
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -3752,7 +3754,7 @@ $liveLink
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Images',
+                                loc.images,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                               if (imageUrls.isNotEmpty)
@@ -3766,7 +3768,7 @@ $liveLink
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                'Tap an image to make it primary',
+                                loc.tapImageToPrimary,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -3781,7 +3783,7 @@ $liveLink
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                'You can select multiple images at once',
+                                loc.selectMultipleImages,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -3897,7 +3899,7 @@ $liveLink
                                                       BorderRadius.circular(4),
                                                 ),
                                                 child: Text(
-                                                  'Primary',
+                                                  loc.primary,
                                                   style: TextStyle(
                                                     color: Theme.of(context)
                                                         .colorScheme
@@ -3987,8 +3989,10 @@ $liveLink
                                           isUploadingImage = false;
                                         });
                                         if (context.mounted) {
+                                          final loc =
+                                              AppLocalizations.of(context)!;
                                           String errorMessage =
-                                              'Error uploading images';
+                                              loc.errorUploadingImages(e);
                                           if (e
                                                   .toString()
                                                   .contains('not authorized') ||
@@ -3999,10 +4003,7 @@ $liveLink
                                                   .toString()
                                                   .contains('unauthorized')) {
                                             errorMessage =
-                                                'Not authorized to upload images. Please sign in on mobile to add images.';
-                                          } else {
-                                            errorMessage =
-                                                'Error uploading images: ${e.toString()}';
+                                                loc.notAuthorizedUploadImages;
                                           }
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
@@ -4116,8 +4117,7 @@ $liveLink
                           final title = titleController.text.trim();
                           if (title.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Title is required')),
+                              SnackBar(content: Text(loc.titleIsRequired)),
                             );
                             return;
                           }
@@ -4218,8 +4218,8 @@ $liveLink
                         const SizedBox(width: 8),
                       ],
                       Text(isSaving
-                          ? 'Saving...'
-                          : (isEditing ? 'Save' : 'Add')),
+                          ? loc.saving
+                          : (isEditing ? loc.save : loc.add)),
                     ],
                   ),
                 ),

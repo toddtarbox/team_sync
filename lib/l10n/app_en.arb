@@ -220,7 +220,7 @@
   "awardDeleted": "Award deleted",
   "awardSaved": "Award saved successfully",
   "awards": "Awards",
-  "away": "Away",
+  "away": "AWAY",
   "backupDatabase": "Backup Current Database to Device",
   "bestGame": "Best Game",
   "bestSeason": "Best Season",
@@ -367,7 +367,7 @@
   "hintVideoUrl": "https://...",
   "history": "History",
   "historyVersus": "History Versus",
-  "home": "Home",
+  "home": "HOME",
   "importSeason": "Import Season",
   "importTeamsPlayersGamesStats": "Import teams, players, games & stats",
   "importingDatabase": "Importing database...",
@@ -581,5 +581,56 @@
   "welcomeToTeamSync": "Welcome to TeamSync!",
   "winAbbreviation": "W",
   "year": "Year",
-  "yellowCards": "Yellow Cards"
+  "yellowCards": "Yellow Cards",
+  "noGamesYet": "No games yet",
+  "live": "LIVE",
+  "win": "WIN",
+  "loss": "LOSS",
+  "tie": "TIE",
+  "teamPerformance": "Team Performance",
+  "teamPerformanceSince": "Team Performance (Since {year})",
+  "@teamPerformanceSince": {
+    "placeholders": {
+      "year": {}
+    }
+  },
+  "addAccomplishment": "Add Accomplishment",
+  "editAccomplishment": "Edit Accomplishment",
+  "titleRequired": "Title *",
+  "titleIsRequired": "Title is required",
+  "exampleStateChampions": "e.g., State Champions",
+  "exampleYear": "e.g., 2023",
+  "saving": "Saving...",
+  "since": "Since",
+  "images": "Images",
+  "tapImageToPrimary": "Tap an image to make it primary",
+  "selectMultipleImages": "You can select multiple images at once",
+  "primary": "Primary",
+  "notAuthorizedUploadImages": "Not authorized to upload images. Please sign in on mobile to add images.",
+  "games": "Games",
+  "gameTimeSet": "Game time set to {time}",
+  "@gameTimeSet": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "noTimeSetPrompt": "This game doesn't have a time set (currently 00:00). Would you like to set the game time before tweeting?",
+  "sortByTeamName": "Team Name",
+  "sortByMostGames": "Most Games",
+  "sortByMostWins": "Most Wins",
+  "sortByWinPercentage": "Win %",
+  "sortByRecent": "Recent",
+  "noMatchupHistoryYet": "No matchup history yet",
+  "gamesSingular": "game",
+  "gamesPlural": "games",
+  "gamesPlayed": "{count} {count, plural, =1{game} other{games}} played",
+  "@gamesPlayed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "versus": "vs.",
+  "unknown": "Unknown"
 }

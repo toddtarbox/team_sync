@@ -110,7 +110,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get awards => 'Awards';
 
   @override
-  String get away => 'Away';
+  String get away => 'AWAY';
 
   @override
   String get backupDatabase => 'Backup Current Database to Device';
@@ -614,7 +614,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get historyVersus => 'History Versus';
 
   @override
-  String get home => 'Home';
+  String get home => 'HOME';
 
   @override
   String get importSeason => 'Import Season';
@@ -1276,4 +1276,120 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get yellowCards => 'Yellow Cards';
+
+  @override
+  String get noGamesYet => 'No games yet';
+
+  @override
+  String get live => 'LIVE';
+
+  @override
+  String get win => 'WIN';
+
+  @override
+  String get loss => 'LOSS';
+
+  @override
+  String get tie => 'TIE';
+
+  @override
+  String get teamPerformance => 'Team Performance';
+
+  @override
+  String teamPerformanceSince(Object year) {
+    return 'Team Performance (Since $year)';
+  }
+
+  @override
+  String get addAccomplishment => 'Add Accomplishment';
+
+  @override
+  String get editAccomplishment => 'Edit Accomplishment';
+
+  @override
+  String get titleRequired => 'Title *';
+
+  @override
+  String get titleIsRequired => 'Title is required';
+
+  @override
+  String get exampleStateChampions => 'e.g., State Champions';
+
+  @override
+  String get exampleYear => 'e.g., 2023';
+
+  @override
+  String get saving => 'Saving...';
+
+  @override
+  String get since => 'Since';
+
+  @override
+  String get images => 'Images';
+
+  @override
+  String get tapImageToPrimary => 'Tap an image to make it primary';
+
+  @override
+  String get selectMultipleImages => 'You can select multiple images at once';
+
+  @override
+  String get primary => 'Primary';
+
+  @override
+  String get notAuthorizedUploadImages =>
+      'Not authorized to upload images. Please sign in on mobile to add images.';
+
+  @override
+  String get games => 'Games';
+
+  @override
+  String gameTimeSet(Object time) {
+    return 'Game time set to $time';
+  }
+
+  @override
+  String get noTimeSetPrompt =>
+      'This game doesn\'t have a time set (currently 00:00). Would you like to set the game time before tweeting?';
+
+  @override
+  String get sortByTeamName => 'Team Name';
+
+  @override
+  String get sortByMostGames => 'Most Games';
+
+  @override
+  String get sortByMostWins => 'Most Wins';
+
+  @override
+  String get sortByWinPercentage => 'Win %';
+
+  @override
+  String get sortByRecent => 'Recent';
+
+  @override
+  String get noMatchupHistoryYet => 'No matchup history yet';
+
+  @override
+  String get gamesSingular => 'game';
+
+  @override
+  String get gamesPlural => 'games';
+
+  @override
+  String gamesPlayed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'games',
+      one: 'game',
+    );
+    return '$count $_temp0 played';
+  }
+
+  @override
+  String get versus => 'vs.';
+
+  @override
+  String get unknown => 'Unknown';
 }

@@ -30,7 +30,7 @@
   "awardDeleted": "Auszeichnung gelöscht",
   "awardSaved": "Auszeichnung erfolgreich gespeichert",
   "awards": "Auszeichnungen",
-  "away": "Auswärts",
+  "away": "AUSWÄRTS",
   "backupDatabase": "Aktuelle Datenbank auf Gerät sichern",
   "bestGame": "Bestes Spiel",
   "bestSeason": "Beste Saison",
@@ -177,7 +177,7 @@
   "hintVideoUrl": "https://...",
   "history": "Verlauf",
   "historyVersus": "Verlauf gegen",
-  "home": "Heim",
+  "home": "HEIM",
   "importSeason": "Saison importieren",
   "importTeamsPlayersGamesStats": "Teams, Spieler, Spiele und Statistiken importieren",
   "importingDatabase": "Datenbank wird importiert...",
@@ -391,5 +391,49 @@
   "welcomeToTeamSync": "Willkommen bei TeamSync!",
   "winAbbreviation": "S",
   "year": "Jahr",
-  "yellowCards": "Gelbe Karten"
+  "yellowCards": "Gelbe Karten",
+  "noGamesYet": "Noch keine Spiele",
+  "live": "LIVE",
+  "win": "SIEG",
+  "loss": "NIEDERLAGE",
+  "tie": "UNENTSCHIEDEN",
+  "teamPerformance": "Team-Leistung",
+  "teamPerformanceSince": "Team-Leistung (Seit {year})",
+  "@teamPerformanceSince": {
+    "placeholders": {
+      "year": {}
+    }
+  },
+  "since": "Seit",
+  "addAccomplishment": "Erfolg hinzufügen",
+  "editAccomplishment": "Erfolg bearbeiten",
+  "titleRequired": "Titel *",
+  "titleIsRequired": "Titel ist erforderlich",
+  "exampleStateChampions": "z.B. Staatsmeister",
+  "exampleYear": "z.B. 2023",
+  "saving": "Wird gespeichert...",
+  "images": "Bilder",
+  "tapImageToPrimary": "Tippen Sie auf ein Bild, um es als Hauptbild festzulegen",
+  "selectMultipleImages": "Sie können mehrere Bilder gleichzeitig auswählen",
+  "primary": "Haupt",
+  "notAuthorizedUploadImages": "Nicht berechtigt, Bilder hochzuladen. Melden Sie sich auf dem Handy an, um Bilder hinzuzufügen.",
+  "games": "Spiele",
+  "gameTimeSet": "Spielzeit auf {time} festgelegt",
+  "@gameTimeSet": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "noTimeSetPrompt": "Dieses Spiel hat keine Uhrzeit festgelegt (aktuell 00:00). Möchten Sie die Spielzeit vor dem Tweeten festlegen?",
+  "sortByTeamName": "Teamname",
+  "sortByMostGames": "Meiste Spiele",
+  "sortByMostWins": "Meiste Siege",
+  "sortByWinPercentage": "% Sieg",
+  "sortByRecent": "Aktuell",
+  "noMatchupHistoryYet": "Noch kein Vergleichsverlauf",
+  "gamesSingular": "Spiel",
+  "gamesPlural": "Spiele",
+  "gamesPlayed": "{count} {count, plural, =1{Spiel} other{Spiele}} gespielt",
+  "versus": "vs.",
+  "unknown": "Unbekannt"
 }

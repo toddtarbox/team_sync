@@ -14,6 +14,8 @@ class SeasonRecord extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     final games =
         seasons.map((s) => s.games).toList(growable: false).expand((i) => i);
     final team = seasons.first.team;
@@ -150,7 +152,7 @@ class SeasonRecord extends StatelessWidget {
                     _buildStatBadge(
                       context,
                       wins.toString(),
-                      'W',
+                      loc.winAbbreviation,
                       Theme.of(context).colorScheme.primary,
                       isLarge: singleSeason,
                       isOverall: isOverall,
@@ -163,7 +165,7 @@ class SeasonRecord extends StatelessWidget {
                     _buildStatBadge(
                       context,
                       losses.toString(),
-                      'L',
+                      loc.lossAbbreviation,
                       Theme.of(context).colorScheme.error,
                       isLarge: singleSeason,
                       isOverall: isOverall,
@@ -176,7 +178,7 @@ class SeasonRecord extends StatelessWidget {
                     _buildStatBadge(
                       context,
                       ties.toString(),
-                      'T',
+                      loc.tieAbbreviation,
                       Theme.of(context).colorScheme.tertiary,
                       isLarge: singleSeason,
                       isOverall: isOverall,
