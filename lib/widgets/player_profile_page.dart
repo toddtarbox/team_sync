@@ -15,6 +15,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/pin_entry_dialog.dart';
 import 'package:team_sync/widgets/player_card_generator.dart';
 import 'package:team_sync/widgets/player_profile_editor.dart';
@@ -1375,18 +1376,15 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
             children: [
               // Award image/icon
               if (award.imageUrl != null && award.imageUrl!.isNotEmpty)
-                ClipRRect(
+                TappableImage.network(
+                  imageUrl: award.imageUrl!,
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    award.imageUrl!,
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.emoji_events,
-                        size: 80,
-                        color: Colors.amber),
-                  ),
+                  heroTag: 'player_award_${widget.player.id}_${award.id}',
+                  errorWidget: const Icon(Icons.emoji_events,
+                      size: 80, color: Colors.amber),
                 )
               else
                 const Icon(Icons.emoji_events, size: 80, color: Colors.amber),

@@ -32,25 +32,43 @@ AppBar buildStandardAppBar({
     }
   }
 
+  // Determine the leading widget
+  Widget? leadingWidget;
+  bool implicitLeading = false;
+
+  if (!automaticallyImplyLeading) {
+    // Custom icon without auto back button
+    leadingWidget = InkWell(
+      onTap: () {
+        goToWebSite();
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Image.asset('assets/images/pngs/icon_no_background.png',
+            width: 16, height: 16),
+      ),
+    );
+  } else if (showBackButton) {
+    // Let AppBar handle the back button
+    leadingWidget = null;
+    implicitLeading = true;
+  } else {
+    // Custom icon when no back button is needed
+    leadingWidget = InkWell(
+      onTap: () {
+        goToWebSite();
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Image.asset('assets/images/pngs/icon_no_background.png',
+            width: 16, height: 16),
+      ),
+    );
+  }
+
   return AppBar(
-    leading: !automaticallyImplyLeading
-        ? InkWell(
-            onTap: () {
-              goToWebSite();
-            },
-            child: Image.asset('assets/images/pngs/icon_no_background.png',
-                width: 16, height: 16),
-          )
-        : (showBackButton
-            ? null // Let AppBar handle the back button
-            : InkWell(
-                onTap: () {
-                  goToWebSite();
-                },
-                child: Image.asset('assets/images/pngs/icon_no_background.png',
-                    width: 16, height: 16),
-              )),
-    automaticallyImplyLeading: showBackButton,
+    leading: leadingWidget,
+    automaticallyImplyLeading: implicitLeading,
     title: !showBackButton
         ? InkWell(
             onTap: () {
@@ -59,7 +77,7 @@ AppBar buildStandardAppBar({
             child: title,
           )
         : title,
-    actions: combinedActions,
+    actions: combinedActions.isNotEmpty ? combinedActions : null,
     bottom: bottom,
     // Set icon and title colors to white when using gradient, otherwise use theme defaults
     iconTheme: team != null ? const IconThemeData(color: Colors.white) : null,

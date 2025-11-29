@@ -1,4 +1,5 @@
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/models/team_accomplishment.dart';
 import 'package:team_sync/services/database_service.dart';
 
 /// Award or recognition for a team (e.g., Tournament Winner, Championship)
@@ -99,5 +100,37 @@ class TeamAward {
       'TeamAwards',
       key: id.toString(),
     );
+  }
+
+  /// Promote this season award to a team-wide accomplishment
+  /// Returns the created TeamAccomplishment
+  Future<TeamAccomplishment> promoteToAccomplishment(
+      {int? displayOrder}) async {
+    // Get season info to extract the year
+    final seasonName = await getSeasonName();
+    int? year;
+
+    // Try to extract year from season name (e.g., "2023 Season" -> 2023)
+    final yearMatch = RegExp(r'(\d{4})').firstMatch(seasonName);
+    if (yearMatch != null) {
+      year = int.tryParse(yearMatch.group(1)!);
+    }
+
+    // Create accomplishment with a new ID to avoid conflicts
+    final accomplishment = TeamAccomplishment(
+      id: DateTime.now().millisecondsSinceEpoch,
+      teamId: teamId,
+      title: title,
+      description: description != null && description!.isNotEmpty
+          ? '$description (${seasonName})'
+          : seasonName,
+      imageUrl: imageUrl,
+      url: url,
+      year: year,
+      displayOrder: displayOrder ?? 0,
+    );
+
+    await accomplishment.save();
+    return accomplishment;
   }
 }

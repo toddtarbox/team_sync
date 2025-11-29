@@ -12,6 +12,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -517,56 +518,33 @@ class _PlayersPageState extends State<PlayersPage> {
                                         )
                                       : player.actionPhoto != null &&
                                               player.actionPhoto!.isNotEmpty
-                                          ? ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              child: player.actionPhoto!
-                                                      .startsWith('http')
-                                                  ? Image.network(
-                                                      player.actionPhoto!,
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (context,
-                                                          error, stackTrace) {
-                                                        return const Icon(
-                                                          Icons.photo_camera,
-                                                          size: 28,
-                                                          color: Colors.grey,
-                                                        );
-                                                      },
-                                                      loadingBuilder: (context,
-                                                          child,
-                                                          loadingProgress) {
-                                                        if (loadingProgress ==
-                                                            null) return child;
-                                                        return Center(
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            value: loadingProgress
-                                                                        .expectedTotalBytes !=
-                                                                    null
-                                                                ? loadingProgress
-                                                                        .cumulativeBytesLoaded /
-                                                                    loadingProgress
-                                                                        .expectedTotalBytes!
-                                                                : null,
-                                                          ),
-                                                        );
-                                                      },
-                                                    )
-                                                  : Image.file(
-                                                      File(player.actionPhoto!),
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (context,
-                                                          error, stackTrace) {
-                                                        return const Icon(
-                                                          Icons.photo_camera,
-                                                          size: 28,
-                                                          color: Colors.grey,
-                                                        );
-                                                      },
-                                                    ),
-                                            )
+                                          ? player.actionPhoto!
+                                                  .startsWith('http')
+                                              ? TappableImage.network(
+                                                  imageUrl: player.actionPhoto!,
+                                                  fit: BoxFit.cover,
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  heroTag:
+                                                      'player_action_${player.id}',
+                                                  errorWidget: const Icon(
+                                                    Icons.photo_camera,
+                                                    size: 28,
+                                                    color: Colors.grey,
+                                                  ),
+                                                )
+                                              : Image.file(
+                                                  File(player.actionPhoto!),
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return const Icon(
+                                                      Icons.photo_camera,
+                                                      size: 28,
+                                                      color: Colors.grey,
+                                                    );
+                                                  },
+                                                )
                                           : const Icon(
                                               Icons.photo_camera,
                                               size: 28,

@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,17 +12,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/team_accomplishment.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/database_sharing_service.dart';
@@ -29,6 +29,8 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
+import 'package:team_sync/widgets/common/award_card.dart';
+import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
@@ -60,6 +62,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
   Game? _nextUpcomingGame;
   List<Season> _seasons = [];
   List<Season> _importedSeasons = [];
+  List<TeamAccomplishment> _accomplishments = [];
   Game? _currentOrLastGame;
   List<Game> _lastFiveGames = []; // For carousel when no live game
   int _currentCarouselPage = 0; // Track current page in carousel
@@ -68,7 +71,13 @@ class _TeamHomePageState extends State<TeamHomePage> {
   bool _isSharing = false;
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
+  bool _accomplishmentsExpanded = true; // Track accomplishments section state
+  bool _isLoadingImportedSeasons =
+      false; // Track if imported seasons are loading
+  bool _allSeasonsLoaded =
+      false; // Track if all seasons (regular + imported) are fully loaded
   final _teamIdController = TextEditingController();
+  final PageController _accomplishmentsPageController = PageController();
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
@@ -263,6 +272,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
   void dispose() {
     _subscriptionListener?.cancel();
     _liveGameUpdateTimer?.cancel();
+    _accomplishmentsPageController.dispose();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
     }
@@ -910,19 +920,86 @@ class _TeamHomePageState extends State<TeamHomePage> {
               ],
               if (_seasons.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                // Enhanced Overall Record Card
-                InkWell(
-                  onTap: () {
-                    final databaseId = DatabaseService.instance.publicShareId;
-                    if (databaseId != null) {
-                      NavigationHelper.navigateTo(
-                        context,
-                        '/team/$databaseId/history',
-                      );
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Card(
+                // Enhanced Overall Record Card - Only show when all seasons are loaded
+                if (_allSeasonsLoaded)
+                  InkWell(
+                    onTap: () {
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                          context,
+                          '/team/$databaseId/history',
+                        );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Card(
+                      elevation: 4,
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primaryContainer
+                                  .withValues(alpha: 0.3),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHigh,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.emoji_events,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _getTeamPerformanceTitle(),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SeasonRecord([..._seasons, ..._importedSeasons],
+                                singleSeason: false, isOverall: true),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                // Show loading placeholder when seasons are still loading
+                if (!_allSeasonsLoaded)
+                  Card(
                     elevation: 4,
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(
@@ -961,42 +1038,217 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                 size: 24,
                               ),
                               const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  _getTeamPerformanceTitle(),
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                  textAlign: TextAlign.center,
+                              Text(
+                                'Team Performance',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Loading all seasons...',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  fontStyle: FontStyle.italic,
                                 ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          SeasonRecord([..._seasons, ..._importedSeasons],
-                              singleSeason: false, isOverall: true),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+              // Team Accomplishments Section (Collapsible)
+              // Show if there are accomplishments OR if user is admin (to allow adding first one)
+              if (_accomplishments.isNotEmpty ||
+                  (!kIsWeb &&
+                      _team?.isTeamAdmin(
+                              FirebaseAuth.instance.currentUser?.uid) ==
+                          true)) ...[
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _accomplishmentsExpanded = !_accomplishmentsExpanded;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _accomplishmentsExpanded
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_right,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Team Accomplishments',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (!kIsWeb &&
+                              _team?.isTeamAdmin(
+                                      FirebaseAuth.instance.currentUser?.uid) ==
+                                  true)
+                            IconButton(
+                              icon: const Icon(Icons.add, size: 20),
+                              onPressed: () => _showAddAccomplishmentDialog(),
+                              tooltip: 'Add Accomplishment',
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
                         ],
                       ),
                     ),
                   ),
                 ),
+                // Show content when expanded
+                if (_accomplishmentsExpanded) ...[
+                  // Show empty state if no accomplishments
+                  if (_accomplishments.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
+                        elevation: 1,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                            width: 1,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.emoji_events_outlined,
+                                size: 48,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant
+                                    .withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No team accomplishments yet',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap + to add championships, milestones, and awards',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant
+                                      .withValues(alpha: 0.7),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Show accomplishments - carousel on web, list on mobile
+                  if (_accomplishments.isNotEmpty)
+                    if (kIsWeb)
+                      // Web: Carousel view
+                      _buildAccomplishmentsCarousel()
+                    else if (_team?.isTeamAdmin(
+                                FirebaseAuth.instance.currentUser?.uid) ==
+                            true &&
+                        _accomplishments.length > 1)
+                      // Mobile admin: Reorderable list
+                      ReorderableListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        onReorder: _onReorderAccomplishments,
+                        children: _accomplishments
+                            .map((accomplishment) => Padding(
+                                  key: ValueKey(accomplishment.id),
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child:
+                                      _buildAccomplishmentCard(accomplishment),
+                                ))
+                            .toList(),
+                      )
+                    else
+                      // Mobile non-admin or single item: Regular list
+                      ..._accomplishments
+                          .map((accomplishment) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildAccomplishmentCard(accomplishment),
+                              ))
+                          .toList(),
+                ],
               ],
               const SizedBox(height: 24),
               // Section header for individual seasons
               if (_seasons.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: Text(
-                    'Seasons',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.5,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Seasons',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ]),
@@ -1105,7 +1357,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
           ),
         ),
         // Imported Seasons Section
-        if (_importedSeasons.isNotEmpty) ...[
+        if (_importedSeasons.isNotEmpty || _isLoadingImportedSeasons) ...[
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(
@@ -1128,6 +1380,22 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (_isLoadingImportedSeasons) ...[
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Loading...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.primary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                   Expanded(
                     child: Divider(
                       color: Theme.of(context).colorScheme.outlineVariant,
@@ -1367,22 +1635,132 @@ class _TeamHomePageState extends State<TeamHomePage> {
     final teamId = _team!.id;
     final allSeasons = await Season.fromTeamId(teamId);
 
-    if (allSeasons.isNotEmpty) {
-      await Future.wait(allSeasons.map((s) async => await s.load()));
+    // Separate seasons into regular and imported FIRST (before loading data)
+    final regularSeasons =
+        allSeasons.where((s) => s.isFromImport != true).toList();
+    final importedSeasons =
+        allSeasons.where((s) => s.isFromImport == true).toList();
+
+    // Find current season (most recent regular season)
+    _currentSeason = regularSeasons.isNotEmpty ? regularSeasons.first : null;
+
+    // Load ONLY the current season first (highest priority - blocks initial render)
+    if (_currentSeason != null) {
+      await _currentSeason!.load();
+
+      // Update state immediately with just current season so UI can render NOW
+      if (mounted) {
+        setState(() {
+          _seasons = [_currentSeason!]; // Start with just current season
+          _importedSeasons = [];
+          _allSeasonsLoaded = false; // Not all seasons loaded yet
+        });
+      }
+
+      // Load current/last game asynchronously (don't block)
+      _loadCurrentOrLastGame().then((_) {
+        _startLiveGameUpdateTimer();
+      });
+    } else {
+      // No seasons at all - update state to show empty
+      if (mounted) {
+        setState(() {
+          _seasons = [];
+          _importedSeasons = [];
+          _allSeasonsLoaded = true; // No seasons to load
+        });
+      }
     }
 
-    // Separate seasons into regular and imported
-    _seasons = allSeasons.where((s) => s.isFromImport != true).toList();
-    _importedSeasons = allSeasons.where((s) => s.isFromImport == true).toList();
+    // Load remaining regular seasons in background (progressive)
+    if (regularSeasons.length > 1) {
+      _loadRemainingRegularSeasonsAsync(
+          regularSeasons.sublist(1), importedSeasons.isNotEmpty);
+    } else if (importedSeasons.isEmpty) {
+      // Only current season and no imports - mark as fully loaded
+      if (mounted) {
+        setState(() {
+          _allSeasonsLoaded = true;
+        });
+      }
+    }
 
-    // Seasons are already sorted by Season.fromTeamId (most recent first)
+    // Load team accomplishments asynchronously (don't block)
+    _loadAccomplishments(teamId);
 
-    // Find current season and load current/last game
-    _currentSeason = _seasons.isNotEmpty ? _seasons.first : null;
+    // Load imported seasons in the background (don't block)
+    if (importedSeasons.isNotEmpty) {
+      _loadImportedSeasonsAsync(importedSeasons);
+    }
+  }
 
-    if (_currentSeason != null) {
-      await _loadCurrentOrLastGame();
-      _startLiveGameUpdateTimer();
+  /// Load remaining regular seasons asynchronously in the background
+  Future<void> _loadRemainingRegularSeasonsAsync(
+      List<Season> remainingSeasons, bool hasImportedSeasons) async {
+    try {
+      // Load each season individually and update UI progressively
+      for (final season in remainingSeasons) {
+        await season.load();
+        if (mounted) {
+          setState(() {
+            _seasons.add(season);
+          });
+        }
+      }
+
+      // If no imported seasons, mark as fully loaded after regular seasons complete
+      if (!hasImportedSeasons && mounted) {
+        setState(() {
+          _allSeasonsLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('[TeamHomePage] Error loading remaining seasons: $e');
+    }
+  }
+
+  /// Load imported seasons asynchronously in the background
+  Future<void> _loadImportedSeasonsAsync(List<Season> importedSeasons) async {
+    if (mounted) {
+      setState(() {
+        _isLoadingImportedSeasons = true;
+      });
+    }
+
+    try {
+      // Load each imported season individually and update UI progressively
+      for (final season in importedSeasons) {
+        await season.load();
+        if (mounted) {
+          setState(() {
+            _importedSeasons.add(season);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('[TeamHomePage] Error loading imported seasons: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingImportedSeasons = false;
+          _allSeasonsLoaded =
+              true; // All seasons (regular + imported) are now loaded
+        });
+      }
+    }
+  }
+
+  /// Load team accomplishments asynchronously
+  Future<void> _loadAccomplishments(int teamId) async {
+    try {
+      final accomplishments = await TeamAccomplishment.listFromTeamId(teamId);
+      if (mounted) {
+        setState(() {
+          _accomplishments = accomplishments;
+        });
+      }
+    } catch (e) {
+      debugPrint('[TeamHomePage] Error loading accomplishments: $e');
     }
   }
 
@@ -1715,7 +2093,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   Future<void> _handleSelection(BuildContext context, String option) async {
     // Capture the ScaffoldMessenger before the async gap
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     switch (option) {
       case 'existingCloudDatabase':
@@ -1798,30 +2175,30 @@ class _TeamHomePageState extends State<TeamHomePage> {
         });
   }
 
-  Future<void> _openBackupDatabase(String path) async {
-    await DatabaseService.instance.close();
-    if (!DatabaseService.instance.isLocalDatabase) {
-      DatabaseService.instance.setProvider(LocalDatabaseProvider());
-    }
+  // Future<void> _openBackupDatabase(String path) async {
+  //   await DatabaseService.instance.close();
+  //   if (!DatabaseService.instance.isLocalDatabase) {
+  //     DatabaseService.instance.setProvider(LocalDatabaseProvider());
+  //   }
 
-    final backupFile = File(path);
-    final importedFile = await backupFile
-        .copy('${await getDatabasesPath()}/${backupFile.path.split('/').last}');
+  //   final backupFile = File(path);
+  //   final importedFile = await backupFile
+  //       .copy('${await getDatabasesPath()}/${backupFile.path.split('/').last}');
 
-    await DatabaseService.instance.open(importedFile.path);
+  //   await DatabaseService.instance.open(importedFile.path);
 
-    final teamResult = await DatabaseService.instance
-        .query('Teams', orderBy: 'id', equalTo: 1);
-    if (teamResult.isNotEmpty) {
-      _team = Team.fromMap(teamResult.first);
-      await _loadSeasons();
-    } else {
-      _team = null;
-    }
+  //   final teamResult = await DatabaseService.instance
+  //       .query('Teams', orderBy: 'id', equalTo: 1);
+  //   if (teamResult.isNotEmpty) {
+  //     _team = Team.fromMap(teamResult.first);
+  //     await _loadSeasons();
+  //   } else {
+  //     _team = null;
+  //   }
 
-    setState(() {});
-    return;
-  }
+  //   setState(() {});
+  //   return;
+  // }
 
   Future<void> _openCloudDatabase(String databaseName) async {
     try {
@@ -1909,35 +2286,35 @@ class _TeamHomePageState extends State<TeamHomePage> {
         });
   }
 
-  Future<String?> _pickFile() async {
-    // 1. Request storage permission
-    var status = Platform.isIOS
-        ? await Permission.storage.request()
-        : await Permission.manageExternalStorage.request();
-    if (!status.isGranted) {
-      await openAppSettings();
+  // Future<String?> _pickFile() async {
+  //   // 1. Request storage permission
+  //   var status = Platform.isIOS
+  //       ? await Permission.storage.request()
+  //       : await Permission.manageExternalStorage.request();
+  //   if (!status.isGranted) {
+  //     await openAppSettings();
 
-      status = Platform.isIOS
-          ? await Permission.storage.request()
-          : await Permission.manageExternalStorage.request();
-      if (!status.isGranted) {
-        return null;
-      }
-    }
+  //     status = Platform.isIOS
+  //         ? await Permission.storage.request()
+  //         : await Permission.manageExternalStorage.request();
+  //     if (!status.isGranted) {
+  //       return null;
+  //     }
+  //   }
 
-    try {
-      // 2. Pick a file
-      FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
-      if (pickResult == null) {
-        return null;
-      }
+  //   try {
+  //     // 2. Pick a file
+  //     FilePickerResult? pickResult = await FilePicker.platform.pickFiles();
+  //     if (pickResult == null) {
+  //       return null;
+  //     }
 
-      return pickResult.files.single.path!;
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-    return null;
-  }
+  //     return pickResult.files.single.path!;
+  //   } catch (e) {
+  //     debugPrint(e.toString());
+  //   }
+  //   return null;
+  // }
 
   Future<void> _createTeam() async {
     late String teamName;
@@ -3057,6 +3434,762 @@ $liveLink
         );
       },
     );
+  }
+
+  // Future<void> _launchUrl(String urlString) async {
+  //   try {
+  //     final url = Uri.parse(urlString);
+  //     if (await canLaunchUrl(url)) {
+  //       await launchUrl(url, mode: LaunchMode.externalApplication);
+  //     }
+  //   } catch (e) {
+  //     debugPrint('Error launching URL: $e');
+  //   }
+  // }
+
+  Widget _buildAccomplishmentsCarousel() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxWidth > 800 ? 360.0 : 180.0;
+        return CarouselSlider(
+          options: CarouselOptions(
+            height: height,
+            viewportFraction: 0.35,
+            enlargeCenterPage: true,
+            enlargeFactor: 0.2,
+            enableInfiniteScroll: _accomplishments.length > 1,
+            autoPlay: _accomplishments.length > 3,
+            autoPlayInterval: const Duration(seconds: 4),
+            autoPlayAnimationDuration: const Duration(milliseconds: 800),
+            autoPlayCurve: Curves.fastOutSlowIn,
+            pauseAutoPlayOnTouch: true,
+          ),
+          items: _accomplishments.map((accomplishment) {
+            return Builder(
+              builder: (BuildContext context) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: _buildAccomplishmentGridCard(accomplishment),
+                );
+              },
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildAccomplishmentGridCard(TeamAccomplishment accomplishment) {
+    final imageUrls = accomplishment.allImageUrls;
+
+    return AwardCard(
+      title: accomplishment.title,
+      description: accomplishment.description,
+      imageUrl: accomplishment.primaryImageUrl,
+      imageUrls: imageUrls,
+      year: accomplishment.year,
+      variant: AwardCardVariant.carousel,
+      iconColor: Colors.amber,
+      heroTag: 'accomplishment_${accomplishment.id}',
+      onTap: () => _showAccomplishmentDetailsDialog(accomplishment),
+    );
+  }
+
+  Widget _buildAccomplishmentCard(TeamAccomplishment accomplishment) {
+    // Check if drag-to-reorder is active (admin with multiple items)
+    final isDragToReorderActive = !kIsWeb &&
+        _team?.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid) == true &&
+        _accomplishments.length > 1;
+
+    final imageUrls = accomplishment.allImageUrls;
+
+    return AwardCard(
+      title: accomplishment.title,
+      description: accomplishment.description,
+      imageUrl: accomplishment.primaryImageUrl,
+      imageUrls: imageUrls,
+      year: accomplishment.year,
+      variant: AwardCardVariant.list,
+      iconColor: Colors.amber,
+      isWeb: kIsWeb,
+      showReorderHandle: isDragToReorderActive,
+      onTap: () => _showAccomplishmentDetailsDialog(accomplishment),
+      onEdit: !kIsWeb &&
+              _team?.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid) ==
+                  true &&
+              !isDragToReorderActive
+          ? () => _showEditAccomplishmentDialog(accomplishment)
+          : null,
+      onDelete: !kIsWeb &&
+              _team?.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid) ==
+                  true &&
+              !isDragToReorderActive
+          ? () => _deleteAccomplishment(accomplishment)
+          : null,
+    );
+  }
+
+  Future<void> _onReorderAccomplishments(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    setState(() {
+      final item = _accomplishments.removeAt(oldIndex);
+      _accomplishments.insert(newIndex, item);
+    });
+
+    // Update displayOrder for all accomplishments based on new positions
+    try {
+      for (int i = 0; i < _accomplishments.length; i++) {
+        final accomplishment = _accomplishments[i];
+        final updatedAccomplishment = TeamAccomplishment(
+          id: accomplishment.id,
+          teamId: accomplishment.teamId,
+          title: accomplishment.title,
+          description: accomplishment.description,
+          imageUrls: accomplishment.allImageUrls,
+          url: accomplishment.url,
+          year: accomplishment.year,
+          displayOrder: i, // Set displayOrder based on position
+        );
+        await updatedAccomplishment.save();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Accomplishments reordered'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reordering: ${e.toString()}'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAccomplishment(TeamAccomplishment accomplishment) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Accomplishment'),
+        content:
+            const Text('Are you sure you want to delete this accomplishment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await accomplishment.delete();
+        setState(() {
+          _accomplishments.removeWhere((a) => a.id == accomplishment.id);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Accomplishment deleted'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting accomplishment: ${e.toString()}'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showAccomplishmentDetailsDialog(TeamAccomplishment accomplishment) {
+    AwardDetailDialog.show(
+      context,
+      title: accomplishment.title,
+      description: accomplishment.description,
+      imageUrls: accomplishment.allImageUrls,
+      year: accomplishment.year,
+      url: accomplishment.url,
+      headerIcon: Icons.emoji_events,
+      headerIconColor: Theme.of(context).colorScheme.primary,
+      heroTagPrefix: 'accomplishment_image',
+      onEdit: !kIsWeb &&
+              _team?.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid) == true
+          ? () {
+              Navigator.pop(context);
+              _showEditAccomplishmentDialog(accomplishment);
+            }
+          : null,
+    );
+  }
+
+  void _showAddAccomplishmentDialog() {
+    _showAccomplishmentDialog(null);
+  }
+
+  void _showEditAccomplishmentDialog(TeamAccomplishment accomplishment) {
+    _showAccomplishmentDialog(accomplishment);
+  }
+
+  void _showAccomplishmentDialog(TeamAccomplishment? accomplishment) {
+    final isEditing = accomplishment != null;
+    final titleController =
+        TextEditingController(text: accomplishment?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: accomplishment?.description ?? '');
+    final urlController =
+        TextEditingController(text: accomplishment?.url ?? '');
+    final yearController = TextEditingController(
+      text: accomplishment?.year?.toString() ?? '',
+    );
+    final displayOrderController = TextEditingController(
+      text: accomplishment?.displayOrder.toString() ?? '0',
+    );
+    List<String> imageUrls = List.from(accomplishment?.allImageUrls ?? []);
+    bool isUploadingImage = false;
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent dismissal by tapping outside
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => PopScope(
+          canPop: !isSaving && !isUploadingImage,
+          child: AlertDialog(
+            title:
+                Text(isEditing ? 'Edit Accomplishment' : 'Add Accomplishment'),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.9,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Title *',
+                        hintText: 'e.g., State Champions',
+                      ),
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Optional details',
+                      ),
+                      maxLines: 2,
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: yearController,
+                      decoration: const InputDecoration(
+                        labelText: 'Year',
+                        hintText: 'e.g., 2023',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    // Multiple images upload section
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Images',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            if (imageUrls.isNotEmpty)
+                              Text(
+                                '${imageUrls.length} image${imageUrls.length == 1 ? '' : 's'}',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                        if (imageUrls.length > 1)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Tap an image to make it primary',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                            ),
+                          ),
+                        if (!kIsWeb)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'You can select multiple images at once',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    color:
+                                        Theme.of(context).colorScheme.secondary,
+                                  ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        // Display existing images in a wrap (with max height)
+                        if (imageUrls.isNotEmpty)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 250),
+                            child: SingleChildScrollView(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children:
+                                    imageUrls.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final url = entry.value;
+                                  return GestureDetector(
+                                    onTap: imageUrls.length > 1 && index != 0
+                                        ? () {
+                                            // Move this image to be first (primary)
+                                            setState(() {
+                                              final img =
+                                                  imageUrls.removeAt(index);
+                                              imageUrls.insert(0, img);
+                                            });
+                                          }
+                                        : null,
+                                    child: Stack(
+                                      children: [
+                                        Container(
+                                          width: 100,
+                                          height: 100,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: index == 0
+                                                  ? Theme.of(context)
+                                                      .colorScheme
+                                                      .primary
+                                                  : Colors.grey,
+                                              width: index == 0 ? 2 : 1,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Image.network(
+                                              url,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Container(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primaryContainer,
+                                                  child: Icon(
+                                                    Icons.emoji_events,
+                                                    size: 32,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .onPrimaryContainer,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.close,
+                                                size: 18),
+                                            onPressed: () {
+                                              setState(() {
+                                                imageUrls.removeAt(index);
+                                              });
+                                            },
+                                            style: IconButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.all(4),
+                                              minimumSize: const Size(24, 24),
+                                            ),
+                                          ),
+                                        ),
+                                        // Show primary badge on first image
+                                        if (index == 0)
+                                          Positioned(
+                                            bottom: 2,
+                                            left: 2,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: Text(
+                                                'Primary',
+                                                style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onPrimary,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 12),
+                        // Add image button - always visible
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: isUploadingImage || kIsWeb
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      isUploadingImage = true;
+                                    });
+                                    try {
+                                      // Pick multiple images at once
+                                      final pickedFiles =
+                                          await ImagePicker().pickMultiImage();
+
+                                      if (pickedFiles.isNotEmpty) {
+                                        // Upload all selected images
+                                        int uploadedCount = 0;
+                                        for (final pickedFile in pickedFiles) {
+                                          try {
+                                            // Upload to Firebase Storage
+                                            final storageRef = FirebaseStorage
+                                                .instance
+                                                .ref()
+                                                .child(
+                                                    'accomplishment_images/${DateTime.now().millisecondsSinceEpoch}_${uploadedCount}.jpg');
+                                            await storageRef
+                                                .putFile(File(pickedFile.path));
+                                            final downloadUrl = await storageRef
+                                                .getDownloadURL();
+                                            setState(() {
+                                              imageUrls.add(downloadUrl);
+                                            });
+                                            uploadedCount++;
+                                          } catch (uploadError) {
+                                            debugPrint(
+                                                'Error uploading image $uploadedCount: $uploadError');
+                                            // Continue with other images even if one fails
+                                          }
+                                        }
+
+                                        setState(() {
+                                          isUploadingImage = false;
+                                        });
+
+                                        if (context.mounted &&
+                                            uploadedCount > 0) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                              content: Text(uploadedCount ==
+                                                      pickedFiles.length
+                                                  ? 'Successfully uploaded $uploadedCount image${uploadedCount == 1 ? '' : 's'}'
+                                                  : 'Uploaded $uploadedCount of ${pickedFiles.length} images'),
+                                              duration:
+                                                  const Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        setState(() {
+                                          isUploadingImage = false;
+                                        });
+                                      }
+                                    } catch (e) {
+                                      setState(() {
+                                        isUploadingImage = false;
+                                      });
+                                      if (context.mounted) {
+                                        String errorMessage =
+                                            'Error uploading images';
+                                        if (e
+                                                .toString()
+                                                .contains('not authorized') ||
+                                            e
+                                                .toString()
+                                                .contains('permission') ||
+                                            e
+                                                .toString()
+                                                .contains('unauthorized')) {
+                                          errorMessage =
+                                              'Not authorized to upload images. Please sign in on mobile to add images.';
+                                        } else {
+                                          errorMessage =
+                                              'Error uploading images: ${e.toString()}';
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(errorMessage),
+                                            duration:
+                                                const Duration(seconds: 5),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            icon: isUploadingImage
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.add_photo_alternate),
+                            label: Text(
+                              isUploadingImage
+                                  ? 'Uploading...'
+                                  : kIsWeb
+                                      ? 'Image upload requires mobile app'
+                                      : 'Add Images',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: urlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Link URL',
+                        hintText: 'Optional external link',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: displayOrderController,
+                      decoration: const InputDecoration(
+                        labelText: 'Display Order',
+                        hintText: '0 = first, higher = later',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ),
+              ), // Close SingleChildScrollView
+            ), // Close SizedBox
+            actions: [
+              if (isEditing)
+                TextButton(
+                  onPressed: isSaving || isUploadingImage
+                      ? null
+                      : () async {
+                          // Delete accomplishment
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Delete Accomplishment'),
+                              content: const Text(
+                                  'Are you sure you want to delete this accomplishment?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+
+                          if (confirm == true && mounted) {
+                            await accomplishment.delete();
+                            setState(() {
+                              _accomplishments.removeWhere(
+                                  (a) => a.id == accomplishment.id);
+                            });
+                            if (mounted) {
+                              Navigator.pop(context);
+                            }
+                          }
+                        },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              TextButton(
+                onPressed: isSaving || isUploadingImage
+                    ? null
+                    : () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: isSaving || isUploadingImage
+                    ? null
+                    : () async {
+                        final title = titleController.text.trim();
+                        if (title.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Title is required')),
+                          );
+                          return;
+                        }
+
+                        // Start saving
+                        setState(() {
+                          isSaving = true;
+                        });
+
+                        try {
+                          final year = int.tryParse(yearController.text.trim());
+                          final displayOrder = int.tryParse(
+                                  displayOrderController.text.trim()) ??
+                              0;
+
+                          // Debug output
+                          debugPrint('=== Saving Accomplishment ===');
+                          debugPrint('Title: $title');
+                          debugPrint('ImageUrls: $imageUrls');
+                          debugPrint('ImageUrls count: ${imageUrls.length}');
+
+                          final newAccomplishment = TeamAccomplishment(
+                            id: accomplishment?.id ??
+                                DateTime.now().millisecondsSinceEpoch,
+                            teamId: _team!.id,
+                            title: title,
+                            description:
+                                descriptionController.text.trim().isEmpty
+                                    ? null
+                                    : descriptionController.text.trim(),
+                            imageUrls: imageUrls,
+                            url: urlController.text.trim().isEmpty
+                                ? null
+                                : urlController.text.trim(),
+                            year: year,
+                            displayOrder: displayOrder,
+                          );
+
+                          debugPrint(
+                              'Accomplishment imageUrls: ${newAccomplishment.imageUrls}');
+                          debugPrint(
+                              'Accomplishment toMap: ${newAccomplishment.toMap()}');
+
+                          await newAccomplishment.save();
+
+                          // Update parent widget state (not dialog state)
+                          if (mounted) {
+                            this.setState(() {
+                              if (isEditing) {
+                                final index = _accomplishments.indexWhere(
+                                    (a) => a.id == accomplishment.id);
+                                if (index != -1) {
+                                  _accomplishments[index] = newAccomplishment;
+                                }
+                              } else {
+                                _accomplishments.add(newAccomplishment);
+                              }
+                              // Re-sort accomplishments
+                              _accomplishments.sort((a, b) {
+                                final orderCompare =
+                                    a.displayOrder.compareTo(b.displayOrder);
+                                if (orderCompare != 0) return orderCompare;
+                                if (a.year != null && b.year != null) {
+                                  final yearCompare =
+                                      b.year!.compareTo(a.year!);
+                                  if (yearCompare != 0) return yearCompare;
+                                }
+                                return a.title.compareTo(b.title);
+                              });
+                            });
+                            Navigator.pop(context);
+                          }
+                        } catch (e) {
+                          setState(() {
+                            isSaving = false;
+                          });
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error saving: ${e.toString()}'),
+                                duration: const Duration(seconds: 5),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSaving) ...[
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(isSaving ? 'Saving...' : (isEditing ? 'Save' : 'Add')),
+                  ],
+                ),
+              ),
+            ],
+          ), // Close AlertDialog
+        ), // Close WillPopScope
+      ), // Close StatefulBuilder builder
+    ); // Close showDialog
   }
 
   Future<void> _showSeasonPhoto(BuildContext context, String? logoUrl) async {

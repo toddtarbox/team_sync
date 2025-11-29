@@ -53,6 +53,12 @@ service firebase.storage {
       allow read, write, delete: if true;
     }
 
+    // Team accomplishment images
+    // Path: accomplishment_images/{imageId}
+    match /accomplishment_images/{imageId} {
+      allow read, write, delete: if true;
+    }
+
     // User subscription data (per user)
     // Path: subscriptionIds/{uid}/databases/{dbId}/{path}
     match /subscriptionIds/{uid}/databases/{dbId}/{allPaths=**} {
