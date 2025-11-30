@@ -1291,6 +1291,23 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Season image banner (if available)
+                        if (season.logoUrl != null &&
+                            season.logoUrl!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              _showSeasonPhoto(context, season.logoUrl);
+                            },
+                            child: Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                image: DecorationImage(
+                                  image: NetworkImage(season.logoUrl!),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          ),
                         // Header section with gradient background
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -1349,20 +1366,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                       _showEditSeasonNameDialog(season),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
-                                ),
-                              ],
-                              if (season.logoUrl != null &&
-                                  season.logoUrl!.isNotEmpty) ...[
-                                const SizedBox(width: 12),
-                                GestureDetector(
-                                  onTap: () {
-                                    _showSeasonPhoto(context, season.logoUrl);
-                                  },
-                                  child: ResponsiveAvatar(
-                                    size: 24,
-                                    imageUrl: season.logoUrl,
-                                    initials: season.name[0],
-                                  ),
                                 ),
                               ],
                             ],
@@ -1464,6 +1467,23 @@ class _TeamHomePageState extends State<TeamHomePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // Season image banner (if available)
+                          if (season.logoUrl != null &&
+                              season.logoUrl!.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _showSeasonPhoto(context, season.logoUrl);
+                              },
+                              child: Container(
+                                height: 180,
+                                decoration: BoxDecoration(
+                                  image: DecorationImage(
+                                    image: NetworkImage(season.logoUrl!),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ),
                           // Header section with gradient background
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -1518,20 +1538,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (season.logoUrl != null &&
-                                    season.logoUrl!.isNotEmpty) ...[
-                                  const SizedBox(width: 12),
-                                  GestureDetector(
-                                    onTap: () {
-                                      _showSeasonPhoto(context, season.logoUrl);
-                                    },
-                                    child: ResponsiveAvatar(
-                                      size: 24,
-                                      imageUrl: season.logoUrl,
-                                      initials: season.name[0],
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
                           ),

@@ -71,52 +71,123 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
   @override
   Widget build(BuildContext context) {
     final logoUrl = widget.season.logoUrl;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        widget.season.team.logoUrl != null &&
-                widget.season.team.logoUrl!.isNotEmpty
-            ? ResponsiveAvatar(
-                size: 20,
-                imageUrl: widget.season.team.logoUrl,
-                initials: widget.season.team.fullName[0],
-              )
-            : Container(),
-        widget.season.team.logoUrl != null
-            ? const SizedBox(width: 10)
-            : Container(),
-        Text(widget.season.name,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        logoUrl != null && logoUrl.isNotEmpty
-            ? const SizedBox(width: 10)
-            : Container(),
-        logoUrl != null && logoUrl.isNotEmpty
-            ? GestureDetector(
-                onTap: () {
-                  _showSeasonPhoto(context, logoUrl);
-                },
-                onDoubleTap: () {
-                  if (!kIsWeb) {
-                    _pickSeasonPhoto();
-                  } else {
-                    _showSeasonPhoto(context, logoUrl);
-                  }
-                },
-                child: ResponsiveAvatar(
-                  imageUrl: logoUrl,
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Season image banner (if available)
+        if (logoUrl != null && logoUrl.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              _showSeasonPhoto(context, logoUrl);
+            },
+            onDoubleTap: () {
+              if (!kIsWeb) {
+                _pickSeasonPhoto();
+              }
+            },
+            child: Container(
+              height: 200,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage(logoUrl),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Gradient overlay at bottom for better text readability
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Double-tap hint for mobile (only on mobile)
+                  if (!kIsWeb)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit,
+                              size: 12,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Double-tap to change',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        // Season name header with team logo
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.season.team.logoUrl != null &&
+                  widget.season.team.logoUrl!.isNotEmpty) ...[
+                ResponsiveAvatar(
+                  size: 20,
+                  imageUrl: widget.season.team.logoUrl,
                   initials: widget.season.team.fullName[0],
-                ))
-            : kIsWeb
-                ? Container()
-                : IconButton(
-                    onPressed: () {
-                      _pickSeasonPhoto();
-                    },
-                    icon: const Icon(Icons.photo)),
-        logoUrl != null && logoUrl.isNotEmpty
-            ? const SizedBox(width: 10)
-            : Container(),
-      ]),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Text(
+                widget.season.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              // Add image button if no logo exists (mobile only)
+              if (!kIsWeb && (logoUrl == null || logoUrl.isEmpty)) ...[
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.add_photo_alternate, size: 20),
+                  onPressed: _pickSeasonPhoto,
+                  tooltip: 'Add season image',
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
