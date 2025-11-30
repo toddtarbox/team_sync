@@ -16,6 +16,7 @@ import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
+import 'package:team_sync/widgets/highlight_reel_player.dart';
 import 'package:team_sync/widgets/pin_entry_dialog.dart';
 import 'package:team_sync/widgets/player_card_generator.dart';
 import 'package:team_sync/widgets/player_profile_editor.dart';
@@ -332,6 +333,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                     );
                   },
                 ),
+              // Highlight Reel Player button
+              if (!_isEditMode)
+                IconButton(
+                  icon: const Icon(Icons.movie),
+                  tooltip: 'Play Highlight Reel',
+                  onPressed: () => _launchHighlightReel(),
+                ),
               // Toggle highlights button
               if (!_isEditMode)
                 LayoutBuilder(
@@ -488,6 +496,69 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           ),
         );
       },
+    );
+  }
+
+  /// Launch the fullscreen highlight reel player
+  void _launchHighlightReel() async {
+    // Load all awards, game event highlights, and independent highlights
+    final results = await Future.wait([
+      _awardsFuture ?? Future.value(<PlayerAward>[]),
+      _highlightsFuture ?? Future.value(<GameEvent>[]),
+      _independentHighlightsFuture ?? Future.value(<PlayerHighlight>[]),
+    ]);
+
+    final awards = results[0] as List<PlayerAward>;
+    final gameEventHighlights = results[1] as List<GameEvent>;
+    final independentHighlights = results[2] as List<PlayerHighlight>;
+
+    if (!mounted) return;
+
+    // Convert GameEvent highlights to PlayerHighlight format for the reel
+    final List<PlayerHighlight> allHighlights = [
+      ...independentHighlights,
+      ...gameEventHighlights.map((event) {
+        // Extract first video URL from the event
+        final urls = event.eventUrls
+                ?.split(',')
+                .map((u) => u.trim())
+                .where((u) => u.isNotEmpty)
+                .toList() ??
+            [];
+
+        return PlayerHighlight(
+          id: event.id,
+          playerId: widget.player.id,
+          title: event.display,
+          description:
+              '${event.game.displayName(event.team.id)} - ${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
+          videoUrl: urls.isNotEmpty ? urls.first : '',
+          date: event.game.date,
+        );
+      }).where(
+          (h) => h.videoUrl.isNotEmpty), // Only include if video URL exists
+    ];
+
+    // Check if there's any content to show
+    if (awards.isEmpty && allHighlights.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No awards or highlights available'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Navigate to fullscreen highlight reel
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => HighlightReelPlayer(
+          awards: awards,
+          highlights: allHighlights,
+          playerName: widget.player.displayName,
+        ),
+      ),
     );
   }
 

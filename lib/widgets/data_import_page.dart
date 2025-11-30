@@ -244,6 +244,26 @@ class _DataImportPageState extends State<DataImportPage> {
               icon: const Icon(Icons.merge),
               label: const Text('Merge Duplicate Players'),
             ),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: _findAndCreateMissingPlayers,
+              icon: const Icon(Icons.person_add),
+              label: const Text('Find & Create Missing Player Records'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: _fixCorruptPlayerRecords,
+              icon: const Icon(Icons.healing),
+              label: const Text('Fix Corrupt Player Records'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
@@ -2072,6 +2092,460 @@ class _DataImportPageState extends State<DataImportPage> {
           SnackBar(
             content: Text('Game event import failed: $e'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Find players who have events in imported seasons but no player record for that season
+  Future<void> _findAndCreateMissingPlayers() async {
+    try {
+      setState(() {
+        _isImporting = true;
+      });
+
+      debugPrint('=== Finding Missing Player Records ===');
+
+      // Get all events
+      final allEvents = await DatabaseService.instance.query('Events');
+      debugPrint('Total events: ${allEvents.length}');
+
+      // Get all players
+      final allPlayers = await DatabaseService.instance.query('Players');
+      debugPrint('Total player records: ${allPlayers.length}');
+
+      // Build a set of existing player records (playerId + seasonId combinations)
+      final existingPlayerSeasons = <String>{};
+      for (var player in allPlayers) {
+        final key = '${player['id']}_${player['seasonId']}';
+        existingPlayerSeasons.add(key);
+      }
+
+      // Find events with players that don't have a player record for that season
+      final missingPlayerSeasons = <String, Map<String, dynamic>>{};
+
+      for (var event in allEvents) {
+        final playerId = event['playerId'];
+        final seasonId = event['seasonId'];
+
+        if (playerId == null || playerId == -1 || playerId == -2) continue;
+        if (seasonId == null) continue;
+
+        final key = '${playerId}_$seasonId';
+
+        if (!existingPlayerSeasons.contains(key)) {
+          // Found an event for a player that doesn't have a record in this season
+          if (!missingPlayerSeasons.containsKey(key)) {
+            // Find the player's info from another season
+            final existingPlayer = allPlayers.firstWhere(
+              (p) => p['id'] == playerId,
+              orElse: () => <String, dynamic>{},
+            );
+
+            if (existingPlayer.isNotEmpty) {
+              missingPlayerSeasons[key] = {
+                'id':
+                    playerId, // Changed from 'playerId' to 'id' - this is what Player.fromMap expects
+                'seasonId': seasonId,
+                'firstName': existingPlayer['firstName'],
+                'lastName': existingPlayer['lastName'],
+                'number': existingPlayer['number'] ?? 0,
+                'teamId': existingPlayer['teamId'],
+              };
+            }
+          }
+        }
+      }
+
+      debugPrint('Found ${missingPlayerSeasons.length} missing player records');
+
+      if (missingPlayerSeasons.isEmpty) {
+        setState(() {
+          _isImporting = false;
+        });
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No Missing Players'),
+              content: const Text(
+                  'All players who have events already have player records for their seasons. '
+                  'No action needed!'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Create Missing Player Records?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Found ${missingPlayerSeasons.length} players who have events but are missing player records for certain seasons.',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text('Examples:'),
+                const SizedBox(height: 8),
+                ...missingPlayerSeasons.values.take(5).map((player) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• ${player['firstName']} ${player['lastName']} (#${player['number']}) - Season ${player['seasonId']}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                }),
+                if (missingPlayerSeasons.length > 5)
+                  Text(
+                    '... and ${missingPlayerSeasons.length - 5} more',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Do you want to create these missing player records?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Create Players'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) {
+        setState(() {
+          _isImporting = false;
+        });
+        return;
+      }
+
+      // Create the missing player records
+      int created = 0;
+      int failed = 0;
+
+      for (var playerData in missingPlayerSeasons.values) {
+        try {
+          await DatabaseService.instance.insert('Players', playerData);
+          created++;
+          debugPrint(
+              'Created player: ${playerData['firstName']} ${playerData['lastName']} for season ${playerData['seasonId']}');
+        } catch (e) {
+          failed++;
+          debugPrint('Failed to create player: $e');
+        }
+      }
+
+      setState(() {
+        _isImporting = false;
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Player Records Created'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Successfully created: $created player records'),
+                if (failed > 0)
+                  Text(
+                    'Failed: $failed player records',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Player stats should now display correctly for all imported seasons!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isImporting = false;
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to find/create missing players: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  /// Fix corrupt player records that are missing the 'id' field
+  Future<void> _fixCorruptPlayerRecords() async {
+    try {
+      setState(() {
+        _isImporting = true;
+      });
+
+      debugPrint('=== Fixing Corrupt Player Records ===');
+
+      // Get all players
+      final allPlayers = await DatabaseService.instance.query('Players');
+      debugPrint('Total player records: ${allPlayers.length}');
+
+      // Find players with missing 'id' field
+      final corruptPlayers = allPlayers.where((p) => p['id'] == null).toList();
+
+      debugPrint('Found ${corruptPlayers.length} corrupt player records');
+
+      if (corruptPlayers.isEmpty) {
+        setState(() {
+          _isImporting = false;
+        });
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No Corrupt Players'),
+              content: const Text(
+                  'All player records have valid id fields. No action needed!'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show confirmation dialog
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Fix Corrupt Player Records?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Found ${corruptPlayers.length} player records with missing id fields.',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'These records were likely created by an earlier version of the utility. '
+                  'They will be DELETED because they cannot be fixed (the original player ID is unknown).',
+                  style: TextStyle(color: Colors.red),
+                ),
+                const SizedBox(height: 16),
+                const Text('Examples:'),
+                const SizedBox(height: 8),
+                ...corruptPlayers.take(5).map((player) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• ${player['firstName'] ?? 'Unknown'} ${player['lastName'] ?? 'Unknown'} - Season ${player['seasonId'] ?? '?'}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  );
+                }),
+                if (corruptPlayers.length > 5)
+                  Text(
+                    '... and ${corruptPlayers.length - 5} more',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'After deletion, run "Find & Create Missing Player Records" again to recreate them properly.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete Corrupt Records'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) {
+        setState(() {
+          _isImporting = false;
+        });
+        return;
+      }
+
+      // Delete the corrupt player records
+      int deleted = 0;
+      int failed = 0;
+
+      // Get the Firebase database key for each corrupt player and delete it
+      final db = DatabaseService.instance;
+      final allPlayerResults = await db.query('Players');
+
+      for (var corruptPlayer in corruptPlayers) {
+        try {
+          // Find the Firebase key for this player record
+          // We need to match by the exact data since we can't use id
+          for (var result in allPlayerResults) {
+            if (result['id'] == null &&
+                result['firstName'] == corruptPlayer['firstName'] &&
+                result['lastName'] == corruptPlayer['lastName'] &&
+                result['seasonId'] == corruptPlayer['seasonId'] &&
+                result['teamId'] == corruptPlayer['teamId']) {
+              // Found the corrupt record - delete it
+              final key = result[
+                  '_key']; // Firebase push key (stored as '_key' by DatabaseService)
+              if (key != null) {
+                await db.delete('Players', key: key);
+                deleted++;
+                debugPrint(
+                    'Deleted corrupt player: ${corruptPlayer['firstName']} ${corruptPlayer['lastName']} (season ${corruptPlayer['seasonId']}, key: $key)');
+              } else {
+                debugPrint(
+                    'Warning: No _key found for corrupt player: ${corruptPlayer['firstName']} ${corruptPlayer['lastName']}');
+              }
+              break;
+            }
+          }
+        } catch (e) {
+          failed++;
+          debugPrint('Failed to delete corrupt player: $e');
+        }
+      }
+
+      setState(() {
+        _isImporting = false;
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Corrupt Records Deleted'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Successfully deleted: $deleted corrupt records'),
+                if (failed > 0)
+                  Text(
+                    'Failed: $failed records',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Next Steps:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '1. Click "Find & Create Missing Player Records" to recreate them properly',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '2. The players will be created with correct id fields this time',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isImporting = false;
+      });
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to fix corrupt players: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
       }

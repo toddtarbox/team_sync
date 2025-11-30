@@ -354,6 +354,27 @@ class Game {
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
+    // Add null safety checks for required integer fields
+    final id = map['id'];
+    final seasonId = map['seasonId'];
+    final homeTeamId = map['homeTeamId'];
+    final awayTeamId = map['awayTeamId'];
+    final homeTeamScore = map['homeTeamScore'];
+    final awayTeamScore = map['awayTeamScore'];
+
+    if (id == null) {
+      throw Exception('Game map missing required field: id');
+    }
+    if (seasonId == null) {
+      throw Exception('Game map missing required field: seasonId');
+    }
+    if (homeTeamId == null) {
+      throw Exception('Game map missing required field: homeTeamId');
+    }
+    if (awayTeamId == null) {
+      throw Exception('Game map missing required field: awayTeamId');
+    }
+
     // Try to parse date in multiple formats for backward compatibility
     DateTime date;
     try {
@@ -370,18 +391,28 @@ class Game {
       }
     }
 
-    final homeTeam = await Team.fromId(map['homeTeamId']);
-    final awayTeam = await Team.fromId(map['awayTeamId']);
+    final homeTeam = await Team.fromId(
+        homeTeamId is int ? homeTeamId : int.parse(homeTeamId.toString()));
+    final awayTeam = await Team.fromId(
+        awayTeamId is int ? awayTeamId : int.parse(awayTeamId.toString()));
 
     return Game(
-        id: map['id'],
-        seasonId: map['seasonId'],
+        id: id is int ? id : int.parse(id.toString()),
+        seasonId: seasonId is int ? seasonId : int.parse(seasonId.toString()),
         homeTeam: homeTeam,
         awayTeam: awayTeam,
-        homeTeamScore: map['homeTeamScore'],
-        awayTeamScore: map['awayTeamScore'],
+        homeTeamScore: homeTeamScore != null
+            ? (homeTeamScore is int
+                ? homeTeamScore
+                : int.parse(homeTeamScore.toString()))
+            : 0,
+        awayTeamScore: awayTeamScore != null
+            ? (awayTeamScore is int
+                ? awayTeamScore
+                : int.parse(awayTeamScore.toString()))
+            : 0,
         date: date,
-        gameStatus: GameStatus.fromString(map['gameStatus'].toString()),
+        gameStatus: GameStatus.fromString(map['gameStatus']?.toString() ?? '0'),
         description: map['description'],
         gameLinks: map['gameLinks']);
   }

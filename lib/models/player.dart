@@ -1,5 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:team_sync/services/database_service.dart';
 
 class Player {
@@ -39,13 +39,31 @@ class Player {
   }
 
   factory Player.fromMap(Map<String, dynamic> map) {
+    // Add null safety checks for required integer fields
+    final id = map['id'];
+    final teamId = map['teamId'];
+    final seasonId = map['seasonId'];
+    final number = map['number'];
+
+    if (id == null) {
+      throw Exception('Player map missing required field: id');
+    }
+    if (teamId == null) {
+      throw Exception('Player map missing required field: teamId');
+    }
+    if (seasonId == null) {
+      throw Exception('Player map missing required field: seasonId');
+    }
+
     return Player(
-        id: map['id'],
-        teamId: map['teamId'],
-        seasonId: map['seasonId'],
-        firstName: map['firstName'],
-        lastName: map['lastName'],
-        number: map['number'],
+        id: id is int ? id : int.parse(id.toString()),
+        teamId: teamId is int ? teamId : int.parse(teamId.toString()),
+        seasonId: seasonId is int ? seasonId : int.parse(seasonId.toString()),
+        firstName: map['firstName'] ?? '',
+        lastName: map['lastName'] ?? '',
+        number: number != null
+            ? (number is int ? number : int.parse(number.toString()))
+            : 0,
         profileImage: map['profileImage'],
         actionPhoto: map['actionPhoto'],
         editPin:
@@ -63,11 +81,16 @@ class Player {
           number: -1);
     }
 
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'id', equalTo: id);
-    if (results.isNotEmpty) {
-      return Player.fromMap(results.first);
-    } else {
+    try {
+      final results = await DatabaseService.instance
+          .query('Players', orderByChild: 'id', equalTo: id);
+      if (results.isNotEmpty) {
+        return Player.fromMap(results.first);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error loading player with id=$id: $e');
       return null;
     }
   }
@@ -98,22 +121,35 @@ class Player {
         .query('Players', orderByChild: 'teamId', equalTo: teamId);
     final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
 
-    final players =
-        filtered.map((p) => Player.fromMap(p)).toList(growable: false);
-    players.sort((a, b) => a.displayName.compareTo(b.displayName));
+    // Map with error handling to skip corrupt records
+    final players = <Player>[];
+    for (var playerMap in filtered) {
+      try {
+        players.add(Player.fromMap(playerMap));
+      } catch (e) {
+        debugPrint('Skipping corrupt player record in season $seasonId: $e');
+        // Continue to next player instead of crashing
+      }
+    }
 
+    players.sort((a, b) => a.displayName.compareTo(b.displayName));
     return players;
   }
 
   static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'id', equalTo: id);
-    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
-    if (filtered.isEmpty) {
+    try {
+      final results = await DatabaseService.instance
+          .query('Players', orderByChild: 'id', equalTo: id);
+      final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
+      if (filtered.isEmpty) {
+        return null;
+      }
+
+      return Player.fromMap(filtered.first);
+    } catch (e) {
+      debugPrint('Error loading player with id=$id, seasonId=$seasonId: $e');
       return null;
     }
-
-    return Player.fromMap(filtered.first);
   }
 
   @override
