@@ -334,7 +334,17 @@ class _TeamHomePageState extends State<TeamHomePage> {
       floatingActionButton: _buildFloatingActionButton(),
       body: Column(
         children: [
-          if (_team != null) CommonPageHeader(team: _team!),
+          if (_team != null)
+            CommonPageHeader(
+              team: _team!,
+              showSummary: _team!.summary != null && _team!.summary!.isNotEmpty,
+              summaryMessage: _team!.summary,
+              onSummaryChanged: () {
+                setState(() {
+                  _loadFuture = _load();
+                });
+              },
+            ),
           _buildLiveBanner(),
           // Recent highlights (web only)
           if (kIsWeb) _buildRecentHighlights(),

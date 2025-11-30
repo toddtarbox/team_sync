@@ -24,6 +24,12 @@ class Team extends Equatable {
   final String? createdBy; // User ID of team creator (team admin)
   final List<String>? adminIds; // List of team admin user IDs
   final String? liveUrl;
+  final String? summary; // Team summary/description
+  final String? organizationLogoUrl; // Organization/school logo
+  final bool?
+      isLogoSquare; // Team logo shape: true = square, false/null = circle
+  final bool?
+      isOrganizationLogoSquare; // Organization logo shape: true = square, false/null = circle
 
   const Team({
     required this.id,
@@ -36,6 +42,10 @@ class Team extends Equatable {
     this.createdBy,
     this.adminIds,
     this.liveUrl,
+    this.summary,
+    this.organizationLogoUrl,
+    this.isLogoSquare,
+    this.isOrganizationLogoSquare,
   });
 
   factory Team.fromMap(Map<String, dynamic> map) {
@@ -55,6 +65,10 @@ class Team extends Equatable {
       adminIds:
           map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
       liveUrl: map['liveUrl'],
+      summary: map['summary'],
+      organizationLogoUrl: map['organizationLogoUrl'],
+      isLogoSquare: map['isLogoSquare'],
+      isOrganizationLogoSquare: map['isOrganizationLogoSquare'],
     );
   }
 
@@ -538,6 +552,17 @@ class Team extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, color1, color2, clubId, createdBy, adminIds, liveUrl];
+  List<Object?> get props => [
+        id,
+        color1,
+        color2,
+        clubId,
+        createdBy,
+        adminIds,
+        liveUrl,
+        summary,
+        organizationLogoUrl,
+        isLogoSquare,
+        isOrganizationLogoSquare,
+      ];
 }

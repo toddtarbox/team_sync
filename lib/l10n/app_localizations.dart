@@ -2236,6 +2236,30 @@ abstract class AppLocalizations {
   /// **'Team Standings'**
   String get teamStandings;
 
+  /// No description provided for @teamSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'About the Team'**
+  String get teamSummary;
+
+  /// No description provided for @editTeamSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Team Summary'**
+  String get editTeamSummary;
+
+  /// No description provided for @teamSummaryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a brief description of your team...'**
+  String get teamSummaryHint;
+
+  /// No description provided for @teamSummarySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Team summary saved successfully'**
+  String get teamSummarySaved;
+
   /// No description provided for @teamSync.
   ///
   /// In en, this message translates to:
@@ -2403,6 +2427,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload Image'**
   String get uploadImage;
+
+  /// No description provided for @uploadingImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading image...'**
+  String get uploadingImage;
+
+  /// No description provided for @addLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Logo'**
+  String get addLogo;
+
+  /// No description provided for @changeLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Logo'**
+  String get changeLogo;
+
+  /// No description provided for @removeLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Logo'**
+  String get removeLogo;
+
+  /// No description provided for @confirmRemoveLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove this logo?'**
+  String get confirmRemoveLogo;
+
+  /// No description provided for @logoUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo updated successfully'**
+  String get logoUpdated;
+
+  /// No description provided for @logoRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo removed successfully'**
+  String get logoRemoved;
 
   /// No description provided for @useDeviceLanguage.
   ///

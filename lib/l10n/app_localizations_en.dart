@@ -1162,6 +1162,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get teamStandings => 'Team Standings';
 
   @override
+  String get teamSummary => 'About the Team';
+
+  @override
+  String get editTeamSummary => 'Edit Team Summary';
+
+  @override
+  String get teamSummaryHint => 'Enter a brief description of your team...';
+
+  @override
+  String get teamSummarySaved => 'Team summary saved successfully';
+
+  @override
   String get teamSync => 'TeamSync';
 
   @override
@@ -1246,6 +1258,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uploadImage => 'Upload Image';
+
+  @override
+  String get uploadingImage => 'Uploading image...';
+
+  @override
+  String get addLogo => 'Add Logo';
+
+  @override
+  String get changeLogo => 'Change Logo';
+
+  @override
+  String get removeLogo => 'Remove Logo';
+
+  @override
+  String get confirmRemoveLogo => 'Are you sure you want to remove this logo?';
+
+  @override
+  String get logoUpdated => 'Logo updated successfully';
+
+  @override
+  String get logoRemoved => 'Logo removed successfully';
 
   @override
   String get useDeviceLanguage => 'Use device language';

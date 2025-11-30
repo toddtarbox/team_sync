@@ -41,6 +41,15 @@ service firebase.storage {
       allow delete: if isAuthenticated();
     }
 
+    // Team logos and organization logos (new path structure)
+    // Path: teams/{teamId}/logo_{timestamp}.jpg
+    // Path: teams/{teamId}/organization_logo_{timestamp}.jpg
+    match /teams/{teamId}/{imageFile} {
+      allow read: if true; // Anyone can view team logos
+      allow write: if isAuthenticated() && isValidImage();
+      allow delete: if isAuthenticated();
+    }
+
     // Award images (team and player awards)
     // Path: award_images/{imageId}
     match /award_images/{imageId} {

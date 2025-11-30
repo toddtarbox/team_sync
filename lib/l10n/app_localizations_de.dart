@@ -1174,6 +1174,19 @@ class AppLocalizationsDe extends AppLocalizations {
   String get teamStandings => 'Teamwertung';
 
   @override
+  String get teamSummary => 'Über das Team';
+
+  @override
+  String get editTeamSummary => 'Team-Zusammenfassung bearbeiten';
+
+  @override
+  String get teamSummaryHint =>
+      'Geben Sie eine kurze Beschreibung Ihres Teams ein...';
+
+  @override
+  String get teamSummarySaved => 'Team-Zusammenfassung erfolgreich gespeichert';
+
+  @override
   String get teamSync => 'TeamSync';
 
   @override
@@ -1258,6 +1271,28 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get uploadImage => 'Bild hochladen';
+
+  @override
+  String get uploadingImage => 'Bild wird hochgeladen...';
+
+  @override
+  String get addLogo => 'Logo hinzufügen';
+
+  @override
+  String get changeLogo => 'Logo ändern';
+
+  @override
+  String get removeLogo => 'Logo entfernen';
+
+  @override
+  String get confirmRemoveLogo =>
+      'Sind Sie sicher, dass Sie dieses Logo entfernen möchten?';
+
+  @override
+  String get logoUpdated => 'Logo erfolgreich aktualisiert';
+
+  @override
+  String get logoRemoved => 'Logo erfolgreich entfernt';
 
   @override
   String get useDeviceLanguage => 'Gerätesprache verwenden';
