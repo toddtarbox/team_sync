@@ -618,10 +618,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get hintVideoUrl => 'https://...';
 
   @override
-  String get history => 'Historique';
+  String get history => 'Analytique';
 
   @override
-  String get historyVersus => 'Historique contre';
+  String get historyVersus => 'Analytique';
 
   @override
   String get home => 'DOMICILE';
@@ -1457,4 +1457,55 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get seasonNameUpdated => 'Nom de la saison mis à jour avec succès';
+
+  @override
+  String get analytics => 'Analytique';
+
+  @override
+  String get avgGoalsFor => 'Moy. Buts Pour';
+
+  @override
+  String get avgGoalsAgainst => 'Moy. Buts Contre';
+
+  @override
+  String get biggestWin => 'Plus Grande Victoire';
+
+  @override
+  String get biggestLoss => 'Plus Grande Défaite';
+
+  @override
+  String get currentStreak => 'Série Actuelle';
+
+  @override
+  String get longestWinStreak => 'Plus Longue Série de Victoires';
+
+  @override
+  String get recentForm => 'Forme Récente (5 Derniers)';
+
+  @override
+  String get cleanSheets => 'Cage Inviolée';
+
+  @override
+  String get goalDifferential => 'Différence de Buts';
+
+  @override
+  String get homeRecord => 'Bilan à Domicile';
+
+  @override
+  String get awayRecord => 'Bilan à l\'Extérieur';
+
+  @override
+  String get pointsPerGame => 'Points par Match';
+
+  @override
+  String get shootingAccuracy => 'Précision de Tir';
+
+  @override
+  String get comebackWins => 'Victoires Remontées';
+
+  @override
+  String get lateGoals => 'Buts Tardifs (80+)';
+
+  @override
+  String get cardsPerGame => 'Cartes par Match';
 }

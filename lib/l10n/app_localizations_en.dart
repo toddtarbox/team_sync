@@ -608,10 +608,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hintVideoUrl => 'https://...';
 
   @override
-  String get history => 'History';
+  String get history => 'Analytics';
 
   @override
-  String get historyVersus => 'History Versus';
+  String get historyVersus => 'Analytics';
 
   @override
   String get home => 'HOME';
@@ -1434,4 +1434,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seasonNameUpdated => 'Season name updated successfully';
+
+  @override
+  String get analytics => 'Analytics';
+
+  @override
+  String get avgGoalsFor => 'Avg Goals For';
+
+  @override
+  String get avgGoalsAgainst => 'Avg Goals Against';
+
+  @override
+  String get biggestWin => 'Biggest Win';
+
+  @override
+  String get biggestLoss => 'Biggest Loss';
+
+  @override
+  String get currentStreak => 'Current Streak';
+
+  @override
+  String get longestWinStreak => 'Longest Win Streak';
+
+  @override
+  String get recentForm => 'Recent Form (Last 5)';
+
+  @override
+  String get cleanSheets => 'Clean Sheets';
+
+  @override
+  String get goalDifferential => 'Goal Differential';
+
+  @override
+  String get homeRecord => 'Home Record';
+
+  @override
+  String get awayRecord => 'Away Record';
+
+  @override
+  String get pointsPerGame => 'Points Per Game';
+
+  @override
+  String get shootingAccuracy => 'Shooting Accuracy';
+
+  @override
+  String get comebackWins => 'Comeback Wins';
+
+  @override
+  String get lateGoals => 'Late Goals (80+)';
+
+  @override
+  String get cardsPerGame => 'Cards Per Game';
 }

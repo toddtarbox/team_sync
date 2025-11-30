@@ -41,7 +41,7 @@ class CommonPageHeader extends StatelessWidget {
     final organizationAvatar =
         team.organizationLogoUrl != null && team.organizationLogoUrl!.isNotEmpty
             ? ResponsiveAvatar(
-                backgroundColor: Colors.black,
+                backgroundColor: Colors.white,
                 imageUrl: team.organizationLogoUrl,
                 initials: team.fullName.isNotEmpty ? team.fullName[0] : '?',
                 isSquare: team.isOrganizationLogoSquare ?? false,

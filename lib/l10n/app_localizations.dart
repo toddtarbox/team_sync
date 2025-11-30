@@ -1165,13 +1165,13 @@ abstract class AppLocalizations {
   /// No description provided for @history.
   ///
   /// In en, this message translates to:
-  /// **'History'**
+  /// **'Analytics'**
   String get history;
 
   /// No description provided for @historyVersus.
   ///
   /// In en, this message translates to:
-  /// **'History Versus'**
+  /// **'Analytics'**
   String get historyVersus;
 
   /// No description provided for @home.
@@ -2751,6 +2751,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Season name updated successfully'**
   String get seasonNameUpdated;
+
+  /// No description provided for @analytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get analytics;
+
+  /// No description provided for @avgGoalsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals For'**
+  String get avgGoalsFor;
+
+  /// No description provided for @avgGoalsAgainst.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Against'**
+  String get avgGoalsAgainst;
+
+  /// No description provided for @biggestWin.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Win'**
+  String get biggestWin;
+
+  /// No description provided for @biggestLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Loss'**
+  String get biggestLoss;
+
+  /// No description provided for @currentStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Streak'**
+  String get currentStreak;
+
+  /// No description provided for @longestWinStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest Win Streak'**
+  String get longestWinStreak;
+
+  /// No description provided for @recentForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Form (Last 5)'**
+  String get recentForm;
+
+  /// No description provided for @cleanSheets.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean Sheets'**
+  String get cleanSheets;
+
+  /// No description provided for @goalDifferential.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal Differential'**
+  String get goalDifferential;
+
+  /// No description provided for @homeRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Record'**
+  String get homeRecord;
+
+  /// No description provided for @awayRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Away Record'**
+  String get awayRecord;
+
+  /// No description provided for @pointsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Points Per Game'**
+  String get pointsPerGame;
+
+  /// No description provided for @shootingAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Shooting Accuracy'**
+  String get shootingAccuracy;
+
+  /// No description provided for @comebackWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Comeback Wins'**
+  String get comebackWins;
+
+  /// No description provided for @lateGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Late Goals (80+)'**
+  String get lateGoals;
+
+  /// No description provided for @cardsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards Per Game'**
+  String get cardsPerGame;
 }
 
 class _AppLocalizationsDelegate

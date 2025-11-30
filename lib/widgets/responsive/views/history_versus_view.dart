@@ -15,15 +15,15 @@ class HistoryVersusView extends StatefulWidget {
 }
 
 enum SortOption {
+  recentFirst,
   teamName,
   mostGames,
   mostWins,
   winPercentage,
-  recentFirst,
 }
 
 class _HistoryVersusViewState extends State<HistoryVersusView> {
-  SortOption _sortOption = SortOption.teamName;
+  SortOption _sortOption = SortOption.recentFirst;
 
   @override
   void initState() {
@@ -37,6 +37,25 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     final entries = history.entries.toList();
 
     switch (sortOption) {
+      case SortOption.recentFirst:
+        entries.sort((a, b) {
+          // Only consider completed games (status >= 9)
+          final aCompletedGames = a.value.where((g) => g.gameStatus.index >= 9);
+          final bCompletedGames = b.value.where((g) => g.gameStatus.index >= 9);
+
+          final aLatest = aCompletedGames.isNotEmpty
+              ? aCompletedGames
+                  .map((g) => g.date)
+                  .reduce((a, b) => a.isAfter(b) ? a : b)
+              : DateTime(1900);
+          final bLatest = bCompletedGames.isNotEmpty
+              ? bCompletedGames
+                  .map((g) => g.date)
+                  .reduce((a, b) => a.isAfter(b) ? a : b)
+              : DateTime(1900);
+          return bLatest.compareTo(aLatest);
+        });
+        break;
       case SortOption.teamName:
         entries.sort((a, b) => a.key.fullName.compareTo(b.key.fullName));
         break;
@@ -61,25 +80,6 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
           return bPercentage.compareTo(aPercentage);
         });
         break;
-      case SortOption.recentFirst:
-        entries.sort((a, b) {
-          // Only consider completed games (status >= 9)
-          final aCompletedGames = a.value.where((g) => g.gameStatus.index >= 9);
-          final bCompletedGames = b.value.where((g) => g.gameStatus.index >= 9);
-
-          final aLatest = aCompletedGames.isNotEmpty
-              ? aCompletedGames
-                  .map((g) => g.date)
-                  .reduce((a, b) => a.isAfter(b) ? a : b)
-              : DateTime(1900);
-          final bLatest = bCompletedGames.isNotEmpty
-              ? bCompletedGames
-                  .map((g) => g.date)
-                  .reduce((a, b) => a.isAfter(b) ? a : b)
-              : DateTime(1900);
-          return bLatest.compareTo(aLatest);
-        });
-        break;
     }
 
     return entries;
@@ -88,6 +88,8 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
   String _getSortLabel(SortOption option) {
     final loc = AppLocalizations.of(context)!;
     switch (option) {
+      case SortOption.recentFirst:
+        return loc.sortByRecent;
       case SortOption.teamName:
         return loc.sortByTeamName;
       case SortOption.mostGames:
@@ -96,8 +98,6 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
         return loc.sortByMostWins;
       case SortOption.winPercentage:
         return loc.sortByWinPercentage;
-      case SortOption.recentFirst:
-        return loc.sortByRecent;
     }
   }
 
@@ -400,6 +400,276 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+                                // Analytics section
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceVariant
+                                        .withOpacity(0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline
+                                          .withOpacity(0.2),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.analytics,
+                                            size: 16,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            loc.analytics,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      // Goals and streaks
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.avgGoalsFor,
+                                              _calculateAvgGoalsFor(games)
+                                                  .toStringAsFixed(1),
+                                              Icons.sports_soccer,
+                                              Colors.green,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.avgGoalsAgainst,
+                                              _calculateAvgGoalsAgainst(games)
+                                                  .toStringAsFixed(1),
+                                              Icons.shield,
+                                              Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.biggestWin,
+                                              '+${_calculateBiggestWin(games)}',
+                                              Icons.trending_up,
+                                              Colors.green,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.biggestLoss,
+                                              '-${_calculateBiggestLoss(games)}',
+                                              Icons.trending_down,
+                                              Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.currentStreak,
+                                              _calculateCurrentStreak(games),
+                                              Icons.flash_on,
+                                              dominantColor,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.longestWinStreak,
+                                              '${_calculateLongestWinStreak(games)}W',
+                                              Icons.emoji_events,
+                                              Colors.amber,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Tier 1 Analytics Row 1
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.cleanSheets,
+                                              '${(_calculateCleanSheetPercentage(games) * 100).toStringAsFixed(0)}%',
+                                              Icons.block,
+                                              Colors.blue,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.goalDifferential,
+                                              _calculateGoalDifferential(
+                                                          games) >=
+                                                      0
+                                                  ? '+${_calculateGoalDifferential(games)}'
+                                                  : '${_calculateGoalDifferential(games)}',
+                                              Icons.compare_arrows,
+                                              _calculateGoalDifferential(
+                                                          games) >=
+                                                      0
+                                                  ? Colors.green
+                                                  : Colors.red,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Tier 1 Analytics Row 2
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.homeRecord,
+                                              _formatRecord(
+                                                  _calculateHomeRecord(games)),
+                                              Icons.home,
+                                              Colors.teal,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _buildAnalyticItem(
+                                              context,
+                                              loc.awayRecord,
+                                              _formatRecord(
+                                                  _calculateAwayRecord(games)),
+                                              Icons.flight_takeoff,
+                                              Colors.purple,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Points Per Game
+                                      _buildAnalyticItem(
+                                        context,
+                                        loc.pointsPerGame,
+                                        _calculatePointsPerGame(games)
+                                            .toStringAsFixed(2),
+                                        Icons.grade,
+                                        Colors.indigo,
+                                      ),
+                                      // Tier 2 Analytics - Only show if data exists
+                                      if (_hasTier2Analytics(games)) ...[
+                                        const SizedBox(height: 8),
+                                        // Tier 2 Analytics Row 1
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildAnalyticItem(
+                                                context,
+                                                loc.shootingAccuracy,
+                                                '${(_calculateShootingAccuracy(games) * 100).toStringAsFixed(0)}%',
+                                                Icons.gps_fixed,
+                                                Colors.deepOrange,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: _buildAnalyticItem(
+                                                context,
+                                                loc.comebackWins,
+                                                '${_calculateComebackWins(games)}',
+                                                Icons.trending_up,
+                                                Colors.lightGreen,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Tier 2 Analytics Row 2
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildAnalyticItem(
+                                                context,
+                                                loc.lateGoals,
+                                                '${_calculateLateGoals(games)}',
+                                                Icons.access_time,
+                                                Colors.deepPurple,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: _buildAnalyticItem(
+                                                context,
+                                                loc.cardsPerGame,
+                                                _calculateCardsPerGame(games)
+                                                    .toStringAsFixed(2),
+                                                Icons.style,
+                                                Colors.yellow.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      // Recent form
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            loc.recentForm,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.color
+                                                  ?.withOpacity(0.7),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          _buildFormIndicator(
+                                            context,
+                                            _getRecentForm(games),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -417,6 +687,115 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
             return const Center(child: CircularProgressIndicator());
           }
         });
+  }
+
+  Widget _buildAnalyticItem(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.color
+                        ?.withOpacity(0.7),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormIndicator(BuildContext context, String form) {
+    if (form == '-') {
+      return Text(
+        form,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Colors.grey,
+        ),
+      );
+    }
+
+    final results = form.split(' ');
+    return Wrap(
+      spacing: 4,
+      children: results.map((result) {
+        Color color;
+        if (result == 'W') {
+          color = Colors.green;
+        } else if (result == 'L') {
+          color = Colors.red;
+        } else {
+          color = Colors.grey;
+        }
+
+        return Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: color,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              result,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   Widget _buildRecordStat(
@@ -736,5 +1115,385 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     }
 
     return gameHistory;
+  }
+
+  // Calculate average goals scored by our team
+  double _calculateAvgGoalsFor(List<Game> games) {
+    if (games.isEmpty) return 0.0;
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+
+    int totalGoals = 0;
+    for (var game in completedGames) {
+      if (game.isHomeTeam(widget.team.id)) {
+        totalGoals += game.homeTeamScore;
+      } else {
+        totalGoals += game.awayTeamScore;
+      }
+    }
+    return totalGoals / completedGames.length;
+  }
+
+  // Calculate average goals conceded by our team
+  double _calculateAvgGoalsAgainst(List<Game> games) {
+    if (games.isEmpty) return 0.0;
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+
+    int totalGoals = 0;
+    for (var game in completedGames) {
+      if (game.isHomeTeam(widget.team.id)) {
+        totalGoals += game.awayTeamScore;
+      } else {
+        totalGoals += game.homeTeamScore;
+      }
+    }
+    return totalGoals / completedGames.length;
+  }
+
+  // Calculate biggest win margin
+  int _calculateBiggestWin(List<Game> games) {
+    int biggest = 0;
+    for (var game in games) {
+      if (game.gameStatus.index >= 9 && game.isWin(widget.team.id)) {
+        int margin;
+        if (game.isHomeTeam(widget.team.id)) {
+          margin = game.homeTeamScore - game.awayTeamScore;
+        } else {
+          margin = game.awayTeamScore - game.homeTeamScore;
+        }
+        if (margin > biggest) biggest = margin;
+      }
+    }
+    return biggest;
+  }
+
+  // Calculate biggest loss margin
+  int _calculateBiggestLoss(List<Game> games) {
+    int biggest = 0;
+    for (var game in games) {
+      if (game.gameStatus.index >= 9 &&
+          !game.isWin(widget.team.id) &&
+          !game.isTie) {
+        int margin;
+        if (game.isHomeTeam(widget.team.id)) {
+          margin = game.awayTeamScore - game.homeTeamScore;
+        } else {
+          margin = game.homeTeamScore - game.awayTeamScore;
+        }
+        if (margin > biggest) biggest = margin;
+      }
+    }
+    return biggest;
+  }
+
+  // Calculate current streak (W/L/T)
+  String _calculateCurrentStreak(List<Game> games) {
+    if (games.isEmpty) return '-';
+
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return '-';
+
+    // Sort by date, most recent first
+    completedGames.sort((a, b) => b.date.compareTo(a.date));
+
+    final firstGame = completedGames.first;
+    String streakType;
+    if (firstGame.isWin(widget.team.id)) {
+      streakType = 'W';
+    } else if (firstGame.isTie) {
+      streakType = 'T';
+    } else {
+      streakType = 'L';
+    }
+
+    int count = 1;
+    for (int i = 1; i < completedGames.length; i++) {
+      final game = completedGames[i];
+      bool matches = false;
+
+      if (streakType == 'W' && game.isWin(widget.team.id)) {
+        matches = true;
+      } else if (streakType == 'T' && game.isTie) {
+        matches = true;
+      } else if (streakType == 'L' &&
+          !game.isWin(widget.team.id) &&
+          !game.isTie) {
+        matches = true;
+      }
+
+      if (matches) {
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    return '$count$streakType';
+  }
+
+  // Calculate longest winning streak
+  int _calculateLongestWinStreak(List<Game> games) {
+    if (games.isEmpty) return 0;
+
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    completedGames.sort((a, b) => a.date.compareTo(b.date));
+
+    int longest = 0;
+    int current = 0;
+
+    for (var game in completedGames) {
+      if (game.isWin(widget.team.id)) {
+        current++;
+        if (current > longest) longest = current;
+      } else {
+        current = 0;
+      }
+    }
+
+    return longest;
+  }
+
+  // Get recent form (last 5 games)
+  String _getRecentForm(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return '-';
+
+    completedGames.sort((a, b) => b.date.compareTo(a.date));
+    final recentGames = completedGames.take(5).toList();
+
+    final form = recentGames.map((game) {
+      if (game.isWin(widget.team.id)) return 'W';
+      if (game.isTie) return 'T';
+      return 'L';
+    }).join(' ');
+
+    return form;
+  }
+
+  // Calculate clean sheets (games with 0 goals conceded)
+  int _calculateCleanSheets(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0;
+
+    int cleanSheets = 0;
+    for (var game in completedGames) {
+      int goalsAgainst;
+      if (game.isHomeTeam(widget.team.id)) {
+        goalsAgainst = game.awayTeamScore;
+      } else {
+        goalsAgainst = game.homeTeamScore;
+      }
+      if (goalsAgainst == 0) cleanSheets++;
+    }
+    return cleanSheets;
+  }
+
+  // Calculate clean sheet percentage
+  double _calculateCleanSheetPercentage(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+    return _calculateCleanSheets(games) / completedGames.length;
+  }
+
+  // Calculate goal differential (total goals for - goals against)
+  int _calculateGoalDifferential(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0;
+
+    int goalsFor = 0;
+    int goalsAgainst = 0;
+
+    for (var game in completedGames) {
+      if (game.isHomeTeam(widget.team.id)) {
+        goalsFor += game.homeTeamScore;
+        goalsAgainst += game.awayTeamScore;
+      } else {
+        goalsFor += game.awayTeamScore;
+        goalsAgainst += game.homeTeamScore;
+      }
+    }
+
+    return goalsFor - goalsAgainst;
+  }
+
+  // Calculate home record (W-L-T)
+  Map<String, int> _calculateHomeRecord(List<Game> games) {
+    final homeGames = games
+        .where((g) => g.gameStatus.index >= 9 && g.isHomeTeam(widget.team.id))
+        .toList();
+
+    int wins = homeGames.where((g) => g.isWin(widget.team.id)).length;
+    int ties = homeGames.where((g) => g.isTie).length;
+    int losses = homeGames.length - wins - ties;
+
+    return {
+      'wins': wins,
+      'losses': losses,
+      'ties': ties,
+      'total': homeGames.length
+    };
+  }
+
+  // Calculate away record (W-L-T)
+  Map<String, int> _calculateAwayRecord(List<Game> games) {
+    final awayGames = games
+        .where((g) => g.gameStatus.index >= 9 && !g.isHomeTeam(widget.team.id))
+        .toList();
+
+    int wins = awayGames.where((g) => g.isWin(widget.team.id)).length;
+    int ties = awayGames.where((g) => g.isTie).length;
+    int losses = awayGames.length - wins - ties;
+
+    return {
+      'wins': wins,
+      'losses': losses,
+      'ties': ties,
+      'total': awayGames.length
+    };
+  }
+
+  // Calculate points per game (3 for win, 1 for tie, 0 for loss)
+  double _calculatePointsPerGame(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+
+    int totalPoints = 0;
+    for (var game in completedGames) {
+      if (game.isWin(widget.team.id)) {
+        totalPoints += 3;
+      } else if (game.isTie) {
+        totalPoints += 1;
+      }
+    }
+
+    return totalPoints / completedGames.length;
+  }
+
+  // Format record as W-L-T
+  String _formatRecord(Map<String, int> record) {
+    if (record['total'] == 0) return '-';
+    return '${record['wins']}-${record['losses']}-${record['ties']}';
+  }
+
+  // Calculate shooting accuracy percentage (shots on goal / total shots)
+  double _calculateShootingAccuracy(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+
+    int totalShots = 0;
+    int shotsOnGoal = 0;
+
+    for (var game in completedGames) {
+      final events = game.gameEvents
+          .where((e) => e.team.id == widget.team.id && e.eventType == 'Shot')
+          .toList();
+
+      totalShots += events.length;
+
+      // Count shots on goal (saved or scored)
+      for (var event in events) {
+        // eventData: 0=goal, 1=saved, 2=post, 3=off target, 4=blocked
+        if (event.eventData == 0 || event.eventData == 1) {
+          shotsOnGoal++;
+        }
+      }
+    }
+
+    if (totalShots == 0) return 0.0;
+    return shotsOnGoal / totalShots;
+  }
+
+  // Calculate comeback wins (wins where team was losing at some point)
+  int _calculateComebackWins(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0;
+
+    int comebackWins = 0;
+
+    for (var game in completedGames) {
+      if (!game.isWin(widget.team.id)) continue;
+
+      // Check if team was ever losing during the game
+      final scoringEvents = game.scoringEvents;
+      int teamScore = 0;
+      int opponentScore = 0;
+      bool wasLosing = false;
+
+      for (var event in scoringEvents) {
+        if (event.team.id == widget.team.id) {
+          teamScore++;
+        } else {
+          opponentScore++;
+        }
+
+        if (teamScore < opponentScore) {
+          wasLosing = true;
+        }
+      }
+
+      if (wasLosing) comebackWins++;
+    }
+
+    return comebackWins;
+  }
+
+  // Calculate late goals (goals scored in 80+ minute)
+  int _calculateLateGoals(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0;
+
+    int lateGoals = 0;
+
+    for (var game in completedGames) {
+      final teamGoals = game.scoringEvents
+          .where((e) => e.team.id == widget.team.id && e.eventMinute >= 80)
+          .toList();
+      lateGoals += teamGoals.length;
+    }
+
+    return lateGoals;
+  }
+
+  // Calculate cards per game (yellows + reds)
+  double _calculateCardsPerGame(List<Game> games) {
+    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
+    if (completedGames.isEmpty) return 0.0;
+
+    int totalCards = 0;
+
+    for (var game in completedGames) {
+      final cardEvents = game.gameEvents
+          .where((e) => e.team.id == widget.team.id && e.eventType == 'Card')
+          .toList();
+      totalCards += cardEvents.length;
+    }
+
+    return totalCards / completedGames.length;
+  }
+
+  // Check if Tier 2 analytics have any meaningful data
+  bool _hasTier2Analytics(List<Game> games) {
+    // Check if there are any shots (needed for shooting accuracy)
+    bool hasShots = false;
+    for (var game in games.where((g) => g.gameStatus.index >= 9)) {
+      if (game.gameEvents
+          .any((e) => e.team.id == widget.team.id && e.eventType == 'Shot')) {
+        hasShots = true;
+        break;
+      }
+    }
+
+    // Check for comeback wins
+    final comebackWins = _calculateComebackWins(games);
+
+    // Check for late goals
+    final lateGoals = _calculateLateGoals(games);
+
+    // Check for cards
+    final cardsPerGame = _calculateCardsPerGame(games);
+
+    // Show Tier 2 if any of these have data
+    return hasShots || comebackWins > 0 || lateGoals > 0 || cardsPerGame > 0;
   }
 }

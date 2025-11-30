@@ -611,10 +611,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String get hintVideoUrl => 'https://...';
 
   @override
-  String get history => 'Cronologia';
+  String get history => 'Analitica';
 
   @override
-  String get historyVersus => 'Storico contro';
+  String get historyVersus => 'Analitica';
 
   @override
   String get home => 'CASA';
@@ -1442,4 +1442,55 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get seasonNameUpdated => 'Nome della stagione aggiornato con successo';
+
+  @override
+  String get analytics => 'Analitica';
+
+  @override
+  String get avgGoalsFor => 'Media Gol Fatti';
+
+  @override
+  String get avgGoalsAgainst => 'Media Gol Subiti';
+
+  @override
+  String get biggestWin => 'Vittoria Più Grande';
+
+  @override
+  String get biggestLoss => 'Sconfitta Più Grande';
+
+  @override
+  String get currentStreak => 'Serie Attuale';
+
+  @override
+  String get longestWinStreak => 'Serie di Vittorie Più Lunga';
+
+  @override
+  String get recentForm => 'Forma Recente (Ultime 5)';
+
+  @override
+  String get cleanSheets => 'Porta Inviolata';
+
+  @override
+  String get goalDifferential => 'Differenza Reti';
+
+  @override
+  String get homeRecord => 'Record in Casa';
+
+  @override
+  String get awayRecord => 'Record in Trasferta';
+
+  @override
+  String get pointsPerGame => 'Punti per Partita';
+
+  @override
+  String get shootingAccuracy => 'Precisione di Tiro';
+
+  @override
+  String get comebackWins => 'Vittorie in Rimonta';
+
+  @override
+  String get lateGoals => 'Gol Tardivi (80+)';
+
+  @override
+  String get cardsPerGame => 'Cartellini per Partita';
 }

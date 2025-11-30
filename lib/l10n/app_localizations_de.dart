@@ -614,10 +614,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get hintVideoUrl => 'https://...';
 
   @override
-  String get history => 'Verlauf';
+  String get history => 'Analytik';
 
   @override
-  String get historyVersus => 'Verlauf gegen';
+  String get historyVersus => 'Analytik';
 
   @override
   String get home => 'HEIM';
@@ -1450,4 +1450,55 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get seasonNameUpdated => 'Saisonname erfolgreich aktualisiert';
+
+  @override
+  String get analytics => 'Analytik';
+
+  @override
+  String get avgGoalsFor => 'Durchschn. Tore Für';
+
+  @override
+  String get avgGoalsAgainst => 'Durchschn. Tore Gegen';
+
+  @override
+  String get biggestWin => 'Größter Sieg';
+
+  @override
+  String get biggestLoss => 'Größte Niederlage';
+
+  @override
+  String get currentStreak => 'Aktuelle Serie';
+
+  @override
+  String get longestWinStreak => 'Längste Siegesserie';
+
+  @override
+  String get recentForm => 'Aktuelle Form (Letzte 5)';
+
+  @override
+  String get cleanSheets => 'Zu Null';
+
+  @override
+  String get goalDifferential => 'Tordifferenz';
+
+  @override
+  String get homeRecord => 'Heimbilanz';
+
+  @override
+  String get awayRecord => 'Auswärtsbilanz';
+
+  @override
+  String get pointsPerGame => 'Punkte pro Spiel';
+
+  @override
+  String get shootingAccuracy => 'Schussgenauigkeit';
+
+  @override
+  String get comebackWins => 'Aufholjagd-Siege';
+
+  @override
+  String get lateGoals => 'Späte Tore (80+)';
+
+  @override
+  String get cardsPerGame => 'Karten pro Spiel';
 }

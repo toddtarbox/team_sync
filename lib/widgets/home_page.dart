@@ -376,7 +376,7 @@ class _HomePageState extends State<HomePage> {
                           extra: _team);
                     }
                   },
-                  icon: const Icon(Icons.manage_history_outlined))),
+                  icon: const Icon(Icons.analytics_outlined))),
           Visibility(
               visible: !kIsWeb,
               child: Showcase(

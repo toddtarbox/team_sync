@@ -470,7 +470,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     value: 'history',
                     child: Row(
                       children: [
-                        const Icon(Icons.manage_history_outlined),
+                        const Icon(Icons.analytics_outlined),
                         const SizedBox(width: 12),
                         Text(loc.history),
                       ],
@@ -543,7 +543,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   value: 'history',
                   child: Row(
                     children: [
-                      const Icon(Icons.manage_history_outlined),
+                      const Icon(Icons.analytics_outlined),
                       const SizedBox(width: 12),
                       Text(loc.history),
                     ],
@@ -848,7 +848,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
           child: Row(
             children: [
               Icon(
-                Icons.history,
+                Icons.analytics_outlined,
                 size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
