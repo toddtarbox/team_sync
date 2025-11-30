@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:change_case/change_case.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
@@ -13,7 +15,8 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 enum StatType {
   career,
@@ -40,6 +43,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   Future<dynamic>? _seasonStatsFuture;
   Future<dynamic>? _gameStatsFuture;
 
+  // Current future being displayed
+  Future<dynamic>? _currentFuture;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -48,6 +54,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     super.initState();
     // Initialize the first future
     _careerStatsFuture = _loadAndCalculateStats();
+    _currentFuture = _careerStatsFuture;
     EventService().eventEmitter.on('eventCreated', context,
         (event, eventContext) {
       _clearCache();
@@ -67,9 +74,71 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         _seasonStatsFuture = null;
         _gameStatsFuture = null;
         // Re-run the calculation for the currently selected tab
-        _getOrStartCalculationFuture();
+        _currentFuture = _getOrStartCalculationFuture();
       });
     }
+  }
+
+  void _invalidateBestGameCache() async {
+    if (mounted) {
+      // Clear the database cache first
+      await BestGameStats.clearCache(widget.team.id);
+
+      setState(() {
+        _gameStatsFuture = null;
+        // If currently viewing best game stats, refresh immediately
+        if (_selectedStatType == StatType.game) {
+          _currentFuture = _getOrStartCalculationFuture();
+        }
+      });
+
+      // Show confirmation message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Best game cache invalidated'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _showActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Invalidate Best Game Cache'),
+                subtitle: const Text('Clear cached best game statistics'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _invalidateBestGameCache();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.clear_all),
+                title: const Text('Clear All Caches'),
+                subtitle: const Text('Clear all cached statistics'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _clearCache();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All caches cleared'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<dynamic> _loadAndCalculateStats() async {
@@ -94,48 +163,68 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
+    return Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: SegmentedButton<StatType>(
-            segments: <ButtonSegment<StatType>>[
-              ButtonSegment<StatType>(
-                  value: StatType.career,
-                  label: Text(AppLocalizations.of(context)!.careerLeaders)),
-              ButtonSegment<StatType>(
-                  value: StatType.season,
-                  label: Text(AppLocalizations.of(context)!.bestSeason)),
-              ButtonSegment<StatType>(
-                  value: StatType.game,
-                  label: Text(AppLocalizations.of(context)!.bestGame)),
-            ],
-            selected: <StatType>{_selectedStatType},
-            onSelectionChanged: (Set<StatType> newSelection) {
-              setState(() {
-                _selectedStatType = newSelection.first;
-              });
-            },
-          ),
+        Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: SegmentedButton<StatType>(
+                segments: <ButtonSegment<StatType>>[
+                  ButtonSegment<StatType>(
+                      value: StatType.career,
+                      label: Text(AppLocalizations.of(context)!.careerLeaders)),
+                  ButtonSegment<StatType>(
+                      value: StatType.season,
+                      label: Text(AppLocalizations.of(context)!.bestSeason)),
+                  ButtonSegment<StatType>(
+                      value: StatType.game,
+                      label: Text(AppLocalizations.of(context)!.bestGame)),
+                ],
+                selected: <StatType>{_selectedStatType},
+                onSelectionChanged: (Set<StatType> newSelection) {
+                  setState(() {
+                    _selectedStatType = newSelection.first;
+                    // Update current future to trigger loading state in FutureBuilder
+                    _currentFuture = _getOrStartCalculationFuture();
+                  });
+                },
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder(
+                future: _currentFuture,
+                builder:
+                    (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingList();
+                  } else if (snapshot.hasError) {
+                    debugPrint(snapshot.error.toString());
+                    debugPrintStack(stackTrace: snapshot.stackTrace);
+                    return Center(
+                        child: Text(
+                            AppLocalizations.of(context)!.errorLoadingStats));
+                  } else {
+                    return _buildLeaderList(snapshot.data);
+                  }
+                },
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: FutureBuilder(
-            future: _getOrStartCalculationFuture(),
-            builder: (BuildContext context, AsyncSnapshot<dynamic> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return _buildLoadingList();
-              } else if (snapshot.hasError) {
-                debugPrint(snapshot.error.toString());
-                debugPrintStack(stackTrace: snapshot.stackTrace);
-                return Center(
-                    child:
-                        Text(AppLocalizations.of(context)!.errorLoadingStats));
-              } else {
-                return _buildLeaderList(snapshot.data);
-              }
-            },
+        // Action menu button (mobile only)
+        if (!kIsWeb)
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _showActionMenu(context);
+              },
+              child: const Icon(Icons.more_vert),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -176,79 +265,55 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   }
 
   Widget _buildLeaderList(dynamic stats) {
-    return ListView.separated(
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: LeaderCategory.values.length,
       itemBuilder: (context, index) {
         final category = LeaderCategory.values[index];
         if (category == LeaderCategory.ownGoalsEarned ||
-            category == LeaderCategory.secondYellowReds) {
-          return Container();
+            category == LeaderCategory.secondYellowReds ||
+            category == LeaderCategory.corners) {
+          return const SizedBox.shrink();
         }
 
+        Widget tile;
         if (_selectedStatType == StatType.season) {
           final categoryStats =
               (stats as Map<LeaderCategory, SeasonStat>)[category];
           if (categoryStats == null) {
-            return Container();
+            return const SizedBox.shrink();
           }
-          return _buildSeasonStatTile(category, categoryStats);
+          tile = _buildSeasonStatTile(category, categoryStats);
         } else if (_selectedStatType == StatType.game) {
           final bestStat = (stats as BestGameStats).getBestStat(category);
           if (bestStat == null) {
-            return Container();
+            return const SizedBox.shrink();
           }
-          return _buildGameStatTile(category, bestStat);
+          tile = _buildGameStatTile(category, bestStat);
         } else {
           final categoryStats =
               (stats as Map<LeaderCategory, MapEntry<Player, int>>)[category];
           if (categoryStats == null) {
-            return Container();
+            return const SizedBox.shrink();
           }
-          return _buildStatTile(category, categoryStats);
+          tile = _buildStatTile(category, categoryStats);
         }
-      },
-      separatorBuilder: (context, index) {
-        return const Divider(height: 1);
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Card(
+            elevation: 2,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: tile,
+          ),
+        );
       },
     );
   }
 
   Widget _buildSeasonStatTile(LeaderCategory category, SeasonStat topEntry) {
-    return ListTile(
-      title: Text(category.name.toSentenceCase().toTitleCase()),
-      subtitle:
-          Text('${topEntry.player.displayName} - ${topEntry.season.name}'),
-      leading: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PlayerProfilePage(
-                player: topEntry.player,
-                currentSeason: topEntry.season,
-              ),
-            ),
-          );
-        },
-        child: CircleAvatar(
-            child: topEntry.player.profileImage != null &&
-                    topEntry.player.profileImage!.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      topEntry.player.profileImage!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Text(
-                            '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}');
-                      },
-                    ),
-                  )
-                : Text(
-                    '${topEntry.player.firstName[0]}${topEntry.player.lastName[0]}')),
-      ),
-      trailing:
-          Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
+    return InkWell(
       onTap: () async {
         showDialog(
             context: context,
@@ -259,98 +324,300 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             await widget.team.getAllSeasonStatsForCategory(category);
         if (!mounted) return;
         Navigator.pop(context);
-        showModalBottomSheet(
-          context: context,
-          builder: (context) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    category.name.toSentenceCase().toTitleCase(),
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: categoryStats.length,
-                    itemBuilder: (context, index) {
-                      final entry = categoryStats[index];
-                      return ListTile(
-                        title: Text(
-                            '${entry.player.displayName} - ${entry.season.name}'),
-                        leading: GestureDetector(
-                          onTap: () {
-                            if (!SubscriptionService.instance.isSubscribed) {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(AppLocalizations.of(context)!
-                                        .proFeature),
-                                    content: Text(AppLocalizations.of(context)!
-                                        .playerProfilesProFeature),
-                                    actions: [
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .cancelButton),
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .goPro),
-                                        onPressed: () async {
-                                          Navigator.pop(context);
-                                          await SubscriptionService.instance
-                                              .purchaseSubscription();
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                              return;
-                            }
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => PlayerProfilePage(
-                                  player: entry.player,
-                                  currentSeason: entry.season,
-                                ),
-                              ),
-                            );
-                          },
-                          child: CircleAvatar(
-                              child: entry.player.profileImage != null &&
-                                      entry.player.profileImage!.isNotEmpty
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        entry.player.profileImage!,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Text(
-                                              '${entry.player.firstName[0]}${entry.player.lastName[0]}');
-                                        },
-                                      ),
-                                    )
-                                  : Text(
-                                      '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
-                        ),
-                        trailing: Text(entry.value.toString(),
-                            style: const TextStyle(fontSize: 24)),
+        _showSeasonStatsModal(context, category, categoryStats);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () async {
+                if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text(AppLocalizations.of(context)!.proFeature),
+                        content: Text(AppLocalizations.of(context)!
+                            .playerProfilesProFeature),
+                        actions: [
+                          TextButton(
+                            child: Text(
+                                AppLocalizations.of(context)!.cancelButton),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          TextButton(
+                            child: Text(AppLocalizations.of(context)!.goPro),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await SubscriptionService.instance
+                                  .purchaseSubscription();
+                            },
+                          ),
+                        ],
                       );
                     },
+                  );
+                  return;
+                }
+
+                await topEntry.season.load();
+                final currentUri = GoRouterState.of(context).uri;
+                String? databaseId;
+                final pathSegments = currentUri.pathSegments;
+                if (pathSegments.isNotEmpty &&
+                    pathSegments[0] == 'team' &&
+                    pathSegments.length > 1) {
+                  databaseId = pathSegments[1];
+                } else {
+                  databaseId = DatabaseService.instance.publicShareId;
+                }
+
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                    context,
+                    '/team/$databaseId/season/${topEntry.season.id}/players/${topEntry.player.id}',
+                    extra: {
+                      'player': topEntry.player,
+                      'season': topEntry.season,
+                    },
+                  );
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.3),
+                    width: 2,
                   ),
                 ),
-              ],
+                child: ResponsivePlayerAvatar(
+                    player: topEntry.player, avatarSize: 48),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name.toSentenceCase().toTitleCase(),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    topEntry.player.displayName,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    topEntry.season.name,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.7),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                topEntry.value.toString(),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSeasonStatsModal(BuildContext context, LeaderCategory category,
+      List<SeasonStat> categoryStats) {
+    // Sort by stat value in descending order and limit to top 25
+    final sortedStats = List<SeasonStat>.from(categoryStats)
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      category.name.toSentenceCase().toTitleCase(),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                    ),
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: top25Stats.length,
+                      itemBuilder: (context, index) {
+                        final entry = top25Stats[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 1,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            leading: GestureDetector(
+                              onTap: () async {
+                                if (!kIsWeb &&
+                                    !SubscriptionService
+                                        .instance.isSubscribed) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .proFeature),
+                                        content: Text(
+                                            AppLocalizations.of(context)!
+                                                .playerProfilesProFeature),
+                                        actions: [
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .cancelButton),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .goPro),
+                                            onPressed: () async {
+                                              Navigator.pop(context);
+                                              await SubscriptionService.instance
+                                                  .purchaseSubscription();
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                await entry.season.load();
+                                final currentUri =
+                                    GoRouterState.of(context).uri;
+                                String? databaseId;
+                                final pathSegments = currentUri.pathSegments;
+                                if (pathSegments.isNotEmpty &&
+                                    pathSegments[0] == 'team' &&
+                                    pathSegments.length > 1) {
+                                  databaseId = pathSegments[1];
+                                } else {
+                                  databaseId =
+                                      DatabaseService.instance.publicShareId;
+                                }
+
+                                if (databaseId != null) {
+                                  NavigationHelper.navigateTo(
+                                    context,
+                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    extra: {
+                                      'player': entry.player,
+                                      'season': entry.season,
+                                    },
+                                  );
+                                }
+                              },
+                              child: ResponsivePlayerAvatar(
+                                  player: entry.player, avatarSize: 40),
+                            ),
+                            title: Text(
+                              entry.player.displayName,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(entry.season.name),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                entry.value.toString(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSecondaryContainer,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -359,41 +626,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   }
 
   Widget _buildGameStatTile(LeaderCategory category, BestGameStat bestStat) {
-    return ListTile(
-      title: Text(category.name.toSentenceCase().toTitleCase()),
-      subtitle: Text(
-          '${bestStat.player.displayName} - ${bestStat.season.name} - ${bestStat.game.displayName(bestStat.player.teamId)}'),
-      trailing:
-          Text(bestStat.value.toString(), style: const TextStyle(fontSize: 24)),
-      leading: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => PlayerProfilePage(
-                player: bestStat.player,
-                currentSeason: bestStat.season,
-              ),
-            ),
-          );
-        },
-        child: CircleAvatar(
-            child: bestStat.player.profileImage != null &&
-                    bestStat.player.profileImage!.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      bestStat.player.profileImage!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Text(
-                            '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}');
-                      },
-                    ),
-                  )
-                : Text(
-                    '${bestStat.player.firstName[0]}${bestStat.player.lastName[0]}')),
-      ),
+    return InkWell(
       onTap: () async {
         showDialog(
             context: context,
@@ -404,98 +637,303 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             await widget.team.getAllGameStatsForCategory(category);
         if (!mounted) return;
         Navigator.pop(context);
-        showModalBottomSheet(
-          context: context,
-          builder: (context) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    category.name.toSentenceCase().toTitleCase(),
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: categoryStats.length,
-                    itemBuilder: (context, index) {
-                      final entry = categoryStats[index];
-                      return ListTile(
-                        title: Text(
-                            '${entry.player.displayName} - ${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
-                        leading: GestureDetector(
-                          onTap: () {
-                            if (!SubscriptionService.instance.isSubscribed) {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(AppLocalizations.of(context)!
-                                        .proFeature),
-                                    content: Text(AppLocalizations.of(context)!
-                                        .playerProfilesProFeature),
-                                    actions: [
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .cancelButton),
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .goPro),
-                                        onPressed: () async {
-                                          Navigator.pop(context);
-                                          await SubscriptionService.instance
-                                              .purchaseSubscription();
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                              return;
-                            }
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => PlayerProfilePage(
-                                  player: entry.player,
-                                  currentSeason: entry.season,
-                                ),
-                              ),
-                            );
-                          },
-                          child: CircleAvatar(
-                              child: entry.player.profileImage != null &&
-                                      entry.player.profileImage!.isNotEmpty
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        entry.player.profileImage!,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Text(
-                                              '${entry.player.firstName[0]}${entry.player.lastName[0]}');
-                                        },
-                                      ),
-                                    )
-                                  : Text(
-                                      '${entry.player.firstName[0]}${entry.player.lastName[0]}')),
-                        ),
-                        trailing: Text(entry.value.toString(),
-                            style: const TextStyle(fontSize: 24)),
+        _showGameStatsModal(context, category, categoryStats);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () async {
+                if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text(AppLocalizations.of(context)!.proFeature),
+                        content: Text(AppLocalizations.of(context)!
+                            .playerProfilesProFeature),
+                        actions: [
+                          TextButton(
+                            child: Text(
+                                AppLocalizations.of(context)!.cancelButton),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          TextButton(
+                            child: Text(AppLocalizations.of(context)!.goPro),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await SubscriptionService.instance
+                                  .purchaseSubscription();
+                            },
+                          ),
+                        ],
                       );
                     },
+                  );
+                  return;
+                }
+
+                await bestStat.season.load();
+                final currentUri = GoRouterState.of(context).uri;
+                String? databaseId;
+                final pathSegments = currentUri.pathSegments;
+                if (pathSegments.isNotEmpty &&
+                    pathSegments[0] == 'team' &&
+                    pathSegments.length > 1) {
+                  databaseId = pathSegments[1];
+                } else {
+                  databaseId = DatabaseService.instance.publicShareId;
+                }
+
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                    context,
+                    '/team/$databaseId/season/${bestStat.season.id}/players/${bestStat.player.id}',
+                    extra: {
+                      'player': bestStat.player,
+                      'season': bestStat.season,
+                    },
+                  );
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.3),
+                    width: 2,
                   ),
                 ),
-              ],
+                child: ResponsivePlayerAvatar(
+                    player: bestStat.player, avatarSize: 48),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name.toSentenceCase().toTitleCase(),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    bestStat.player.displayName,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${bestStat.season.name} - ${bestStat.game.displayName(bestStat.player.teamId)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.color
+                              ?.withValues(alpha: 0.7),
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                bestStat.value.toString(),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGameStatsModal(BuildContext context, LeaderCategory category,
+      List<BestGameStat> categoryStats) {
+    // Sort by stat value in descending order and limit to top 25
+    final sortedStats = List<BestGameStat>.from(categoryStats)
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      category.name.toSentenceCase().toTitleCase(),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                    ),
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: top25Stats.length,
+                      itemBuilder: (context, index) {
+                        final entry = top25Stats[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 1,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            leading: GestureDetector(
+                              onTap: () async {
+                                if (!kIsWeb &&
+                                    !SubscriptionService
+                                        .instance.isSubscribed) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text(
+                                            AppLocalizations.of(context)!
+                                                .proFeature),
+                                        content: Text(
+                                            AppLocalizations.of(context)!
+                                                .playerProfilesProFeature),
+                                        actions: [
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .cancelButton),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                          TextButton(
+                                            child: Text(
+                                                AppLocalizations.of(context)!
+                                                    .goPro),
+                                            onPressed: () async {
+                                              Navigator.pop(context);
+                                              await SubscriptionService.instance
+                                                  .purchaseSubscription();
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  return;
+                                }
+
+                                await entry.season.load();
+                                final currentUri =
+                                    GoRouterState.of(context).uri;
+                                String? databaseId;
+                                final pathSegments = currentUri.pathSegments;
+                                if (pathSegments.isNotEmpty &&
+                                    pathSegments[0] == 'team' &&
+                                    pathSegments.length > 1) {
+                                  databaseId = pathSegments[1];
+                                } else {
+                                  databaseId =
+                                      DatabaseService.instance.publicShareId;
+                                }
+
+                                if (databaseId != null) {
+                                  NavigationHelper.navigateTo(
+                                    context,
+                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    extra: {
+                                      'player': entry.player,
+                                      'season': entry.season,
+                                    },
+                                  );
+                                }
+                              },
+                              child: ResponsivePlayerAvatar(
+                                  player: entry.player, avatarSize: 40),
+                            ),
+                            title: Text(
+                              entry.player.displayName,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                                '${entry.season.name} - ${entry.game.displayName(entry.player.teamId)}'),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                entry.value.toString(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSecondaryContainer,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -505,90 +943,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   Widget _buildStatTile(
       LeaderCategory category, MapEntry<Player, int> topEntry) {
-    return ListTile(
-      title: Text(category.name.toSentenceCase().toTitleCase()),
-      subtitle: Text(topEntry.key.displayName),
-      leading: GestureDetector(
-        onTap: () async {
-          if (!SubscriptionService.instance.isSubscribed) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: Text(AppLocalizations.of(context)!.proFeature),
-                  content: Text(
-                      AppLocalizations.of(context)!.playerProfilesProFeature),
-                  actions: [
-                    TextButton(
-                      child: Text(AppLocalizations.of(context)!.cancelButton),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                    TextButton(
-                      child: Text(AppLocalizations.of(context)!.goPro),
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await SubscriptionService.instance
-                            .purchaseSubscription();
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
-            return;
-          }
-
-          // Load the season for this player
-          showDialog(
-            context: context,
-            builder: (context) {
-              return const Center(child: CircularProgressIndicator());
-            },
-          );
-
-          final seasonResults = await DatabaseService.instance.query('Seasons',
-              orderByChild: 'id', equalTo: topEntry.key.seasonId);
-
-          if (!mounted) return;
-          Navigator.pop(context);
-
-          if (seasonResults.isNotEmpty) {
-            final season = Season.fromMap(seasonResults.first);
-            await season.load();
-
-            if (!mounted) return;
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => PlayerProfilePage(
-                  player: topEntry.key,
-                  currentSeason: season,
-                ),
-              ),
-            );
-          }
-        },
-        child: CircleAvatar(
-            child: topEntry.key.profileImage != null &&
-                    topEntry.key.profileImage!.isNotEmpty
-                ? ClipOval(
-                    child: Image.network(
-                      topEntry.key.profileImage!,
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Text(
-                            '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}');
-                      },
-                    ),
-                  )
-                : Text(
-                    '${topEntry.key.firstName[0]}${topEntry.key.lastName[0]}')),
-      ),
-      trailing:
-          Text(topEntry.value.toString(), style: const TextStyle(fontSize: 24)),
+    return InkWell(
       onTap: () async {
         showDialog(
             context: context,
@@ -599,87 +954,296 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             await widget.team.getCareerStatsForCategory(category);
         if (!mounted) return;
         Navigator.pop(context);
-        showModalBottomSheet(
-          context: context,
-          builder: (context) {
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    category.name.toSentenceCase().toTitleCase(),
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: categoryStats.length,
-                    itemBuilder: (context, index) {
-                      final entry = categoryStats[index];
-                      return ListTile(
-                        leading: GestureDetector(
-                          onTap: () async {
-                            // Load the season for this player
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                return const Center(
-                                    child: CircularProgressIndicator());
-                              },
-                            );
-
-                            final seasonResults = await DatabaseService.instance
-                                .query('Seasons',
-                                    orderByChild: 'id',
-                                    equalTo: entry.key.seasonId);
-
-                            if (!mounted) return;
-                            Navigator.pop(context);
-
-                            if (seasonResults.isNotEmpty) {
-                              final season =
-                                  Season.fromMap(seasonResults.first);
-                              await season.load();
-
-                              if (!mounted) return;
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => PlayerProfilePage(
-                                    player: entry.key,
-                                    currentSeason: season,
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                          child: CircleAvatar(
-                              child: entry.key.profileImage != null &&
-                                      entry.key.profileImage!.isNotEmpty
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        entry.key.profileImage!,
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                          return Text(
-                                              '${entry.key.firstName[0]}${entry.key.lastName[0]}');
-                                        },
-                                      ),
-                                    )
-                                  : Text(
-                                      '${entry.key.firstName[0]}${entry.key.lastName[0]}')),
-                        ),
-                        title: Text(entry.key.displayName),
-                        trailing: Text(entry.value.toString(),
-                            style: const TextStyle(fontSize: 24)),
+        _showCareerStatsModal(context, category, categoryStats);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () async {
+                if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Text(AppLocalizations.of(context)!.proFeature),
+                        content: Text(AppLocalizations.of(context)!
+                            .playerProfilesProFeature),
+                        actions: [
+                          TextButton(
+                            child: Text(
+                                AppLocalizations.of(context)!.cancelButton),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          TextButton(
+                            child: Text(AppLocalizations.of(context)!.goPro),
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await SubscriptionService.instance
+                                  .purchaseSubscription();
+                            },
+                          ),
+                        ],
                       );
                     },
+                  );
+                  return;
+                }
+
+                // Load the season for this player
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                );
+
+                final seasonResults = await DatabaseService.instance.query(
+                    'Seasons',
+                    orderByChild: 'id',
+                    equalTo: topEntry.key.seasonId);
+
+                if (!mounted) return;
+                Navigator.pop(context);
+
+                if (seasonResults.isNotEmpty) {
+                  final season = Season.fromMap(seasonResults.first);
+                  await season.load();
+
+                  if (!mounted) return;
+
+                  final currentUri = GoRouterState.of(context).uri;
+                  String? databaseId;
+                  final pathSegments = currentUri.pathSegments;
+                  if (pathSegments.isNotEmpty &&
+                      pathSegments[0] == 'team' &&
+                      pathSegments.length > 1) {
+                    databaseId = pathSegments[1];
+                  } else {
+                    databaseId = DatabaseService.instance.publicShareId;
+                  }
+
+                  if (databaseId != null) {
+                    NavigationHelper.navigateTo(
+                      context,
+                      '/team/$databaseId/season/${season.id}/players/${topEntry.key.id}',
+                      extra: {
+                        'player': topEntry.key,
+                        'season': season,
+                      },
+                    );
+                  }
+                }
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.3),
+                    width: 2,
                   ),
                 ),
-              ],
+                child: ResponsivePlayerAvatar(
+                    player: topEntry.key, avatarSize: 48),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name.toSentenceCase().toTitleCase(),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    topEntry.key.displayName,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                topEntry.value.toString(),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCareerStatsModal(BuildContext context, LeaderCategory category,
+      List<MapEntry<Player, int>> categoryStats) {
+    // Sort by stat value in descending order and limit to top 25
+    final sortedStats = List<MapEntry<Player, int>>.from(categoryStats)
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top25Stats = sortedStats.take(25).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).dividerColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Text(
+                      category.name.toSentenceCase().toTitleCase(),
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                    ),
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: top25Stats.length,
+                      itemBuilder: (context, index) {
+                        final entry = top25Stats[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 1,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            leading: GestureDetector(
+                              onTap: () async {
+                                // Load the season for this player
+                                showDialog(
+                                  context: context,
+                                  builder: (context) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  },
+                                );
+
+                                final seasonResults = await DatabaseService
+                                    .instance
+                                    .query('Seasons',
+                                        orderByChild: 'id',
+                                        equalTo: entry.key.seasonId);
+
+                                if (!mounted) return;
+                                Navigator.pop(context);
+
+                                if (seasonResults.isNotEmpty) {
+                                  final season =
+                                      Season.fromMap(seasonResults.first);
+                                  await season.load();
+
+                                  if (!mounted) return;
+
+                                  final currentUri =
+                                      GoRouterState.of(context).uri;
+                                  String? databaseId;
+                                  final pathSegments = currentUri.pathSegments;
+                                  if (pathSegments.isNotEmpty &&
+                                      pathSegments[0] == 'team' &&
+                                      pathSegments.length > 1) {
+                                    databaseId = pathSegments[1];
+                                  } else {
+                                    databaseId =
+                                        DatabaseService.instance.publicShareId;
+                                  }
+
+                                  if (databaseId != null) {
+                                    NavigationHelper.navigateTo(
+                                      context,
+                                      '/team/$databaseId/season/${season.id}/players/${entry.key.id}',
+                                      extra: {
+                                        'player': entry.key,
+                                        'season': season,
+                                      },
+                                    );
+                                  }
+                                }
+                              },
+                              child: ResponsivePlayerAvatar(
+                                  player: entry.key, avatarSize: 40),
+                            ),
+                            title: Text(
+                              entry.key.displayName,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                entry.value.toString(),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSecondaryContainer,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -694,7 +1258,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       case StatType.season:
         return await widget.team.fetchAllDataForSeason();
       case StatType.game:
-        return await widget.team.fetchAllDataForGame();
+        // For game stats, we don't need to fetch all data upfront
+        // The getBestGameStats method will handle loading from cache or calculating
+        return null;
     }
   }
 
@@ -707,8 +1273,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         return await widget.team.calculateBestSeasonStats(data,
             progressController: _progressController);
       case StatType.game:
-        return await widget.team.calculateBestGameStats(data,
-            progressController: _progressController);
+        // Use the new cached method that loads from database or calculates if needed
+        return await widget.team
+            .getBestGameStats(progressController: _progressController);
     }
   }
 }

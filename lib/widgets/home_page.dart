@@ -2,36 +2,46 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/team_award.dart';
+import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
-import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/record_holders_page.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/seasons_list_view.dart';
 import 'package:team_sync/widgets/settings_page.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class HomePage extends StatefulWidget {
   final String? databaseId;
-  const HomePage({super.key, this.databaseId});
+  final int? teamId;
+  final int? clubId;
+  final Club? club;
+  const HomePage(
+      {super.key, this.databaseId, this.teamId, this.club, this.clubId});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -49,21 +59,36 @@ class _HomePageState extends State<HomePage> {
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
   final _teamIdController = TextEditingController();
+  late Future<bool> _loadFuture;
+  Timer? _liveGameUpdateTimer;
+  StreamSubscription<bool>? _subscriptionListener;
 
   final _welcomeKey = GlobalKey();
   final _fabKey = GlobalKey();
   final _fabKeyOnly = GlobalKey();
+
+  /// Check if user is viewing a club team without authentication (view-only mode)
+  bool get _isViewOnlyMode {
+    return widget.clubId != null && !AuthService.instance.isSignedIn && kIsWeb;
+  }
+
   @override
   void initState() {
     super.initState();
-    SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
-      setState(() {
-        _isSubscribed = isSubscribed;
-      });
+    _subscriptionListener =
+        SubscriptionService.instance.subscriptionState.listen((isSubscribed) {
+      if (mounted) {
+        setState(() {
+          _isSubscribed = isSubscribed;
+        });
+      }
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
     DatabaseService.instance.setProvider(FirebaseDBProvider());
+
+    // Initialize the load future once
+    _loadFuture = _load();
 
     if (!kIsWeb) {
       ShowcaseView.register(
@@ -219,6 +244,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _subscriptionListener?.cancel();
+    _liveGameUpdateTimer?.cancel();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
     }
@@ -227,7 +254,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb && widget.databaseId == null) {
+    if (kIsWeb && widget.databaseId == null && widget.teamId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('TeamSync Viewer')),
         body: Center(
@@ -252,7 +279,8 @@ class _HomePageState extends State<HomePage> {
                 ElevatedButton(
                   onPressed: () {
                     if (_teamIdController.text.length == 6) {
-                      context.go('/${_teamIdController.text}');
+                      NavigationHelper.navigateTo(
+                          context, '/team/${_teamIdController.text}');
                     }
                   },
                   child: const Text('Load Team'),
@@ -264,31 +292,32 @@ class _HomePageState extends State<HomePage> {
       );
     }
     return Scaffold(
+      key: ValueKey(_team?.id), // Force rebuild when team changes
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: _team,
-        title: Text(AppLocalizations.of(context)!.soccerAnalytics,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-        bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(40),
-            child: Visibility(
-                visible:
-                    DatabaseService.instance.path.isNotEmpty || _team != null,
-                child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                              '${_team?.fullName ?? ''} (${DatabaseService.instance.path.split('/').last})',
-                              style: const TextStyle(fontSize: 24)),
-                          SizedBox(width: 10),
-                          DatabaseService.instance.isLocalDatabase
-                              ? Container()
-                              : Icon(Icons.cloud_rounded,
-                                  color: _isSubscribed ? Colors.yellow : null)
-                        ])))),
+        title: Text(
+          widget.club?.name ?? 'ClubSync',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         actions: [
+          // Show Sign In button in view-only mode
+          if (_isViewOnlyMode)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  NavigationHelper.navigateTo(context, '/signin');
+                },
+                icon: const Icon(Icons.login),
+                label: const Text('Sign In'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
           if (!kIsWeb &&
               _isSubscribed &&
               DatabaseService.instance.path.isNotEmpty &&
@@ -328,22 +357,24 @@ class _HomePageState extends State<HomePage> {
               visible: _team != null,
               child: IconButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => RecordHoldersPage(team: _team!),
-                      ),
-                    );
+                    final databaseId = DatabaseService.instance.publicShareId;
+                    if (databaseId != null && _team != null) {
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/records',
+                          extra: _team);
+                    }
                   },
                   icon: const Icon(Icons.leaderboard))),
           Visibility(
               visible: _team != null,
               child: IconButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => HistoryVersusPage(team: _team!),
-                      ),
-                    );
+                    final databaseId = DatabaseService.instance.publicShareId;
+                    if (databaseId != null && _team != null) {
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/history',
+                          extra: _team);
+                    }
                   },
                   icon: const Icon(Icons.manage_history_outlined))),
           Visibility(
@@ -355,7 +386,8 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (context) => SettingsPage(team: _team),
+                          builder: (context) =>
+                              SettingsPage(team: _team, club: widget.club),
                         ),
                       );
                     },
@@ -363,52 +395,55 @@ class _HomePageState extends State<HomePage> {
               ))
         ],
       ),
-      floatingActionButton: kIsWeb
-          ? (!_isDrawerOpen && _team != null
-              ? FloatingActionButton(
-                  onPressed: () {
-                    setState(() {
-                      _isDrawerOpen = true;
-                    });
-                  },
-                  tooltip: 'Show game details',
-                  child: const Icon(Icons.event),
-                )
-              : null)
-          : Showcase(
-              key:
-                  DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
-              description: DatabaseService.instance.path.isEmpty
-                  ? 'Tap here to create a new database'
-                  : _team == null
-                      ? 'Tap here to create a new Team'
-                      : 'Tap here to add a new Season or change your team colors',
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      _team?.color1 ?? Theme.of(context).primaryColor,
-                      _team?.color2 ?? Theme.of(context).primaryColorDark,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+      floatingActionButton: _isViewOnlyMode
+          ? null // Hide FAB in view-only mode
+          : kIsWeb
+              ? (!_isDrawerOpen && _team != null
+                  ? FloatingActionButton(
+                      onPressed: () {
+                        setState(() {
+                          _isDrawerOpen = true;
+                        });
+                      },
+                      tooltip: 'Show game details',
+                      child: const Icon(Icons.event),
+                    )
+                  : null)
+              : Showcase(
+                  key: DatabaseService.instance.path.isEmpty
+                      ? _fabKey
+                      : _fabKeyOnly,
+                  description: DatabaseService.instance.path.isEmpty
+                      ? 'Tap here to create a new database'
+                      : _team == null
+                          ? 'Tap here to create a new Team'
+                          : 'Tap here to add a new Season or change your team colors',
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _team?.color1 ?? Theme.of(context).primaryColor,
+                          _team?.color2 ?? Theme.of(context).primaryColorDark,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: FloatingActionButton(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      child: const Icon(Icons.add),
+                      onPressed: () async {
+                        await _showCreateOptions(context);
+                      },
+                    ),
                   ),
-                  shape: BoxShape.circle,
                 ),
-                child: FloatingActionButton(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  child: const Icon(Icons.add),
-                  onPressed: () async {
-                    await _showCreateOptions(context);
-                  },
-                ),
-              ),
-            ),
       body: Stack(
         children: [
           FutureBuilder(
-            future: _load(),
+            future: _loadFuture,
             builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
               if (!snapshot.hasData ||
                   _isLoading ||
@@ -478,10 +513,36 @@ class _HomePageState extends State<HomePage> {
                 }
 
                 if (_seasons.isEmpty) {
+                  // Web view with no seasons
                   return Center(
-                      child: Text(
-                          'Unable to load the specified team. Please check the ID and try again.',
-                          style: const TextStyle(fontSize: 24)));
+                      child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.inbox_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 20),
+                        Text(
+                          _isViewOnlyMode
+                              ? 'This team has no seasons yet'
+                              : 'No seasons found',
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          _isViewOnlyMode
+                              ? 'Check back later for updates'
+                              : 'Create a season to get started',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ));
                 }
 
                 return Row(
@@ -490,6 +551,7 @@ class _HomePageState extends State<HomePage> {
                     // Main content area
                     Expanded(
                       child: Column(children: [
+                        if (_team != null) CommonPageHeader(team: _team!),
                         Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -521,6 +583,8 @@ class _HomePageState extends State<HomePage> {
                             season: _currentSeason,
                             teamId: _team!.id,
                           ),
+                        // Recent Awards Section
+                        if (_team != null) _buildRecentAwardsSection(),
                         Expanded(
                           child: SeasonsListView(seasons: _seasons),
                         )
@@ -922,18 +986,138 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<bool> _load() async {
-    if (widget.databaseId != null) {
+    if (widget.teamId != null) {
+      // Loading a specific team (e.g., from club view)
+      debugPrint(
+          'Loading team with teamId: ${widget.teamId}, clubId: ${widget.clubId}');
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Get club data if we have clubId but not club object
+        Club? club = widget.club;
+        if (club == null && widget.clubId != null) {
+          debugPrint('Loading club from clubId: ${widget.clubId}');
+          club = await Club.fromId(widget.clubId!);
+          debugPrint('Club loaded: ${club?.name}');
+        }
+
+        // If we have a club, load the club team directly from Firebase
+        if (club != null) {
+          debugPrint('Loading club team from ClubTeams/${widget.teamId}');
+          // Load team data directly from ClubTeams path
+          final snapshot = await FirebaseDatabase.instance
+              .ref('ClubTeams')
+              .child(widget.teamId!.toString())
+              .get();
+
+          if (!snapshot.exists || snapshot.value == null) {
+            debugPrint('Team not found in ClubTeams');
+            setState(() {
+              _isLoading = false;
+            });
+            return false;
+          }
+
+          final teamData = Map<String, dynamic>.from(snapshot.value as Map);
+          debugPrint('Team data loaded: $teamData');
+
+          // Verify team belongs to the club
+          if (teamData['clubId'] != club.id) {
+            debugPrint(
+                'Team clubId mismatch: ${teamData['clubId']} != ${club.id}');
+            setState(() {
+              _isLoading = false;
+            });
+            return false;
+          }
+
+          // Open the club team context for database queries
+          debugPrint('Opening club team context');
+          final opened = await DatabaseService.instance
+              .openClubTeam(club.id, widget.teamId!);
+
+          if (!opened) {
+            debugPrint('Failed to open club team context');
+            setState(() {
+              _isLoading = false;
+            });
+            return false;
+          }
+
+          // Load the team
+          debugPrint('Creating Team object');
+          _team = Team.fromMap(teamData);
+          debugPrint('Loading seasons for team: ${_team!.fullName}');
+          await _loadSeasons();
+          debugPrint('Seasons loaded: ${_seasons.length}');
+          setState(() {});
+        } else {
+          // Non-club team - query from current database context
+          debugPrint('Loading non-club team');
+          final teamResult = await DatabaseService.instance
+              .query('Teams', orderByChild: 'id', equalTo: widget.teamId);
+          if (teamResult.isNotEmpty) {
+            _team = Team.fromMap(teamResult.first);
+            await _loadSeasons();
+            setState(() {});
+          } else {
+            _team = null;
+            debugPrint('Team not found in database');
+          }
+        }
+
+        setState(() {
+          _isLoading = false;
+        });
+        debugPrint('Load completed successfully');
+        return true;
+      } catch (e, stackTrace) {
+        debugPrint('Error loading team: $e');
+        debugPrint('Stack trace: $stackTrace');
+        setState(() {
+          _isLoading = false;
+        });
+        return false;
+      }
+    } else if (widget.databaseId != null) {
       final dbId = widget.databaseId!;
       final opened = await DatabaseService.instance.openFromId(dbId);
       if (!opened) {
         return false;
       }
 
-      final teamResult = await DatabaseService.instance
-          .query('Teams', orderByChild: 'id', equalTo: 1);
+      final teamResult =
+          await DatabaseService.instance.query('Teams', orderByChild: 'id');
       if (teamResult.isNotEmpty) {
-        _team = Team.fromMap(teamResult.first);
+        // First try team with id=1
+        var teamMap = teamResult.firstWhere(
+          (t) => t['id'] == 1,
+          orElse: () => teamResult.first,
+        );
+
+        _team = Team.fromMap(teamMap);
         await _loadSeasons();
+
+        // If no seasons, find which team actually has seasons
+        if (_seasons.isEmpty) {
+          final allSeasons = await DatabaseService.instance
+              .query('Seasons', orderByChild: 'teamId');
+
+          if (allSeasons.isNotEmpty) {
+            final targetTeamId = allSeasons.first['teamId'];
+
+            teamMap = teamResult.firstWhere(
+              (t) => t['id'] == targetTeamId,
+              orElse: () => teamResult.first,
+            );
+
+            _team = Team.fromMap(teamMap);
+            await _loadSeasons();
+          }
+        }
+
         setState(() {});
       } else {
         _team = null;
@@ -959,10 +1143,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadSeasons() async {
-    if (DatabaseService.instance.path.isEmpty) return;
-    final results =
-        await DatabaseService.instance.query('Seasons', orderBy: 'id DESC');
-    _seasons = results.map((m) => Season.fromMap(m)).toList();
+    if (DatabaseService.instance.path.isEmpty || _team == null) return;
+    _seasons = await Season.fromTeamId(_team!.id);
     await Future.wait(_seasons.map((s) async => await s.load()));
     await _loadCurrentOrLastGame();
   }
@@ -1036,12 +1218,49 @@ class _HomePageState extends State<HomePage> {
           }
           _currentSeason = null;
         }
+
+        // Setup auto-refresh for live games
+        _setupLiveGameAutoRefresh();
       }
     } catch (e) {
       if (kDebugMode) {
         print('Error loading current/last game: $e');
       }
       _currentOrLastGame = null;
+    }
+  }
+
+  void _setupLiveGameAutoRefresh() {
+    _liveGameUpdateTimer?.cancel();
+
+    // Check if current game is live
+    if (_currentOrLastGame != null &&
+        _currentOrLastGame!.gameStatus.index > 0 &&
+        _currentOrLastGame!.gameStatus.index < 9) {
+      // Game is live - refresh every 10 seconds
+      _liveGameUpdateTimer =
+          Timer.periodic(const Duration(seconds: 10), (timer) async {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        try {
+          // Reload the current game data
+          await _loadCurrentOrLastGame();
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error refreshing live game: $e');
+          }
+        }
+      });
+
+      if (kDebugMode) {
+        print('Auto-refresh enabled for live game');
+      }
     }
   }
 
@@ -1227,19 +1446,15 @@ class _HomePageState extends State<HomePage> {
                                 }
                               }
                             : null,
-                        child: CircleAvatar(
-                          radius: 50,
+                        child: ResponsiveAvatar(
                           backgroundImage: _imageFile != null
                               ? FileImage(_imageFile!)
                               : (_team!.logoUrl != null &&
                                       _team!.logoUrl!.isNotEmpty
                                   ? NetworkImage(_team!.logoUrl!)
                                   : null) as ImageProvider?,
-                          child: _imageFile == null &&
-                                  (_team!.logoUrl == null ||
-                                      _team!.logoUrl!.isEmpty)
-                              ? const Icon(Icons.add_a_photo)
-                              : null,
+                          initials: '',
+                          fallbackIcon: const Icon(Icons.add_a_photo),
                         ),
                       ),
                       TextField(
@@ -1348,5 +1563,203 @@ class _HomePageState extends State<HomePage> {
                         ])
                   ])));
         });
+  }
+
+  Widget _buildRecentAwardsSection() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadRecentAwards(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final teamAwards = snapshot.data!['teamAwards'] as List<TeamAward>;
+        final playerAwardsData =
+            snapshot.data!['playerAwards'] as List<Map<String, dynamic>>;
+
+        // Combine and limit to 10 most recent
+        final allAwards = <Map<String, dynamic>>[];
+
+        for (var teamAward in teamAwards) {
+          allAwards.add({
+            'type': 'team',
+            'award': teamAward,
+            'seasonId': teamAward.seasonId,
+          });
+        }
+
+        for (var playerAwardData in playerAwardsData) {
+          allAwards.add({
+            'type': 'player',
+            'award': playerAwardData['award'],
+            'player': playerAwardData['player'],
+            'seasonId': (playerAwardData['award'] as PlayerAward).seasonId,
+          });
+        }
+
+        // Sort by seasonId (most recent first)
+        allAwards.sort(
+            (a, b) => (b['seasonId'] as int).compareTo(a['seasonId'] as int));
+
+        // Take only top 10
+        final recentAwards = allAwards.take(10).toList();
+
+        if (recentAwards.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.emoji_events,
+                        color: Colors.amber, size: 24),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Recent Awards',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: recentAwards.length,
+                  itemBuilder: (context, index) {
+                    final awardData = recentAwards[index];
+                    return _buildAwardCard(awardData);
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> _loadRecentAwards() async {
+    if (_team == null) {
+      return {'teamAwards': <TeamAward>[], 'playerAwards': []};
+    }
+
+    try {
+      // Load team awards
+      final teamAwards = await TeamAward.listFromTeamId(_team!.id);
+
+      // Load player awards from all players in the team
+      final playerAwardsData = <Map<String, dynamic>>[];
+
+      // Get all players for this team
+      for (var season in _seasons) {
+        final players =
+            await Player.listFromTeamIdSeasonId(_team!.id, season.id);
+        for (var player in players) {
+          final awards = await PlayerAward.listFromPlayerId(player.id);
+          for (var award in awards) {
+            playerAwardsData.add({
+              'award': award,
+              'player': player,
+            });
+          }
+        }
+      }
+
+      return {
+        'teamAwards': teamAwards,
+        'playerAwards': playerAwardsData,
+      };
+    } catch (e) {
+      print('Error loading recent awards: $e');
+      return {'teamAwards': <TeamAward>[], 'playerAwards': []};
+    }
+  }
+
+  Widget _buildAwardCard(Map<String, dynamic> awardData) {
+    final type = awardData['type'] as String;
+    final isTeamAward = type == 'team';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      elevation: 2,
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isTeamAward ? Icons.emoji_events : Icons.person,
+                  color: Colors.amber,
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    isTeamAward
+                        ? (awardData['award'] as TeamAward).title
+                        : (awardData['award'] as PlayerAward).title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (!isTeamAward) ...[
+              Text(
+                (awardData['player'] as Player).displayName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+            ],
+            FutureBuilder<String>(
+              future: isTeamAward
+                  ? (awardData['award'] as TeamAward).getSeasonName()
+                  : (awardData['award'] as PlayerAward).getSeasonName(),
+              builder: (context, snapshot) {
+                return Text(
+                  snapshot.data ?? 'Season ${awardData['seasonId']}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[500],
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

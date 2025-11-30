@@ -507,145 +507,189 @@ class GameEvent {
   }
 
   static Future<GameEvent?> fromMap(Map<String, dynamic> map) async {
-    final team = await Team.fromId(map['teamId']);
-    final player = await Player.fromId(map['playerId']);
-    final game = await Game.fromId(map['gameId']);
+    // Validate required int fields first
+    final id = map['id'] as int?;
+    final gameId = map['gameId'] as int?;
+    final eventMinute = map['eventMinute'] as int?;
+    final eventPeriod = map['eventPeriod'] as int?;
+    final eventData = map['eventData'] as int?;
+    final eventType = map['eventType'] as String?;
+
+    if (id == null ||
+        gameId == null ||
+        eventMinute == null ||
+        eventPeriod == null ||
+        eventData == null ||
+        eventType == null) {
+      return null;
+    }
+
+    final game = await Game.fromId(gameId);
     if (game == null) {
       return null;
     }
 
-    final eventType = map['eventType'];
+    var teamId = map['teamId'] as int?;
+    if (teamId == null) {
+      return null;
+    }
+
+    if (teamId == -1) {
+      if (map['playerId'] != -1) {
+        teamId = 1;
+      } else {
+        return null;
+      }
+    }
+
+    final team = await Team.fromId(teamId);
+    if (team == null) {
+      return null;
+    }
+
+    final playerId = map['playerId'] as int?;
+    if (playerId == null) {
+      return null;
+    }
+
+    final player = await Player.singleFromIdSeasonId(playerId, game.seasonId);
+
+    // Use game.seasonId as fallback if map['seasonId'] is null
+    final seasonId = (map['seasonId'] as int?) ?? game.seasonId;
+
+    final eventUrls = map['eventUrls'] as String?;
+
     if (eventType == 'Period') {
       return Period(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Shot') {
       return Shot(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Assist') {
       return Assist(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Save') {
       return Save(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'PenaltyKick') {
       return PenaltyKick(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Corner') {
       return Corner(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Foul') {
       return Foul(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Offsides') {
       return Offsides(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     } else if (eventType == 'Card') {
       return GameCard(
-          id: map['id'],
-          index: map['index'] ?? map['id'],
+          id: id,
+          index: map['index'] ?? id,
           player: player,
           team: team,
           game: game,
-          seasonId: map['seasonId'],
-          eventType: map['eventType'],
-          eventMinute: map['eventMinute'],
-          eventPeriod: map['eventPeriod'],
-          eventUrls: map['eventUrls'],
-          eventData: map['eventData']);
+          seasonId: seasonId,
+          eventType: eventType,
+          eventMinute: eventMinute,
+          eventPeriod: eventPeriod,
+          eventUrls: eventUrls,
+          eventData: eventData);
     }
 
     return GameEvent(
-        id: map['id'],
-        index: map['index'] ?? map['id'],
+        id: id,
+        index: map['index'] ?? id,
         player: player,
         team: team,
         game: game,
-        seasonId: map['seasonId'],
-        eventType: map['eventType'],
-        eventMinute: map['eventMinute'],
-        eventPeriod: map['eventPeriod'],
-        eventUrls: map['eventUrls'],
-        eventData: map['eventData']);
+        seasonId: seasonId,
+        eventType: eventType,
+        eventMinute: eventMinute,
+        eventPeriod: eventPeriod,
+        eventUrls: eventUrls,
+        eventData: eventData);
   }
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {
@@ -658,19 +702,51 @@ class GameEvent {
       return (ai as int).compareTo(bi as int);
     });
 
-    final events = await Future.wait(results
-        .map((g) async => await GameEvent.fromMap(g))
-        .toList(growable: false));
+    // Process events in batches to avoid OOM from too many concurrent operations
+    const batchSize = 100;
+    final events = <GameEvent>[];
 
-    return events.whereType<GameEvent>().toList();
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchEvents = await Future.wait(batch
+          .map((g) async => await GameEvent.fromMap(g))
+          .toList(growable: false));
+
+      events.addAll(batchEvents.whereType<GameEvent>());
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 5));
+    }
+
+    return events;
   }
 
   static Future<List<GameEvent>> listFromTeamId(int teamId) async {
     final results = await DatabaseService.instance
         .query('Events', orderByChild: 'teamId', equalTo: teamId);
-    final events = await Future.wait(results
-        .map((g) async => await GameEvent.fromMap(g))
-        .toList(growable: false));
-    return events.whereType<GameEvent>().toList();
+
+    // Process events in batches to avoid OOM from too many concurrent operations
+    const batchSize = 100;
+    final events = <GameEvent>[];
+
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchEvents = await Future.wait(batch
+          .map((g) async => await GameEvent.fromMap(g))
+          .toList(growable: false));
+
+      events.addAll(batchEvents.whereType<GameEvent>());
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    return events;
   }
 }

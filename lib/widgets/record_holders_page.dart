@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/responsive/views/record_holders_view.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class RecordHoldersPage extends StatelessWidget {
   final Team team;
@@ -9,40 +13,26 @@ class RecordHoldersPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: team,
-        title: const Text('Record Holders'),
-        bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(0),
-            child: Container(
-                padding: EdgeInsets.all(20),
-                child:
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  team.logoUrl != null && team.logoUrl!.isNotEmpty
-                      ? CircleAvatar(
-                          child: ClipOval(
-                            child: Image.network(
-                              team.logoUrl!,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Text(team.fullName[0]);
-                              },
-                            ),
-                          ),
-                        )
-                      : Container(),
-                  team.logoUrl != null
-                      ? const SizedBox(width: 10)
-                      : Container(),
-                  Text(team.fullName,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold))
-                ]))),
+        title: Text(loc.recordHolders),
       ),
-      body: RecordHoldersView(team: team),
+      body: Column(
+        children: [
+          CommonPageHeader(team: team),
+          Breadcrumbs(
+            items: buildTeamBreadcrumbs(
+              databaseId: DatabaseService.instance.publicShareId ?? '',
+              teamName: team.fullName,
+              additionalLabel: 'Records',
+            ),
+          ),
+          Expanded(child: RecordHoldersView(team: team)),
+        ],
+      ),
     );
   }
 }

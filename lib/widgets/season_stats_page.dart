@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/responsive/views/season_stats_view.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class SeasonStatsPage extends StatelessWidget {
   final Season season;
@@ -12,7 +14,8 @@ class SeasonStatsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: buildStandardAppBar(
+        context: context,
         team: season.team,
         title: Text(season.name),
         bottom: PreferredSize(
@@ -20,7 +23,20 @@ class SeasonStatsPage extends StatelessWidget {
             child: Text(AppLocalizations.of(context)!.seasonStats,
                 style: const TextStyle(fontSize: 24))),
       ),
-      body: SeasonStatsView(season: season),
+      body: Column(
+        children: [
+          Breadcrumbs(
+            items: buildTeamBreadcrumbs(
+              databaseId: DatabaseService.instance.publicShareId ?? '',
+              teamName: season.team.fullName,
+              seasonName: season.name,
+              seasonId: season.id,
+              additionalLabel: 'Stats',
+            ),
+          ),
+          Expanded(child: SeasonStatsView(season: season)),
+        ],
+      ),
     );
   }
 }

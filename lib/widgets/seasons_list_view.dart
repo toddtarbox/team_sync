@@ -8,7 +8,8 @@ import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/season_page.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/season_record.dart';
 
 class SeasonsListView extends StatefulWidget {
@@ -31,14 +32,15 @@ class _SeasonsListViewState extends State<SeasonsListView> {
         itemBuilder: (context, index) {
           final season = widget.seasons[index];
           final logoUrl = season.logoUrl;
+          final databaseId = DatabaseService.instance.publicShareId;
 
           final seasonCard = GestureDetector(
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => SeasonPage(season: season),
-                  ),
-                );
+                if (databaseId != null) {
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/season/${season.id}',
+                      extra: season);
+                }
               },
               child: Card(
                   child: Column(children: [
@@ -61,18 +63,9 @@ class _SeasonsListViewState extends State<SeasonsListView> {
                               _showSeasonPhoto(context, logoUrl);
                             }
                           },
-                          child: CircleAvatar(
-                            child: ClipOval(
-                              child: Image.network(
-                                logoUrl,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Text(season.team.fullName[0]);
-                                },
-                              ),
-                            ),
+                          child: ResponsiveAvatar(
+                            imageUrl: logoUrl,
+                            initials: season.team.fullName[0],
                           ))
                       : kIsWeb
                           ? Container()

@@ -1,19 +1,31 @@
-# team_sync
+# TeamSync
 
-A new Flutter project.
+A comprehensive Flutter application for managing soccer teams and analyzing game statistics.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+### Core Features
+- **Team Management**: Create and manage multiple teams
+- **Season Tracking**: Organize games and players by season
+- **Live Game Scoring**: Real-time scoreboard with event tracking
+- **Player Statistics**: Comprehensive stats including goals, assists, shots, saves, and cards
+- **Career & Season Analytics**: Track player performance over time
+- **Record Holders**: View best performances and season records
 
-A few resources to get you started if this is your first Flutter project:
+### NEW: ClubSync
+- **Multi-Team Organization**: Manage multiple teams under a single club
+- **Aggregated Statistics**: View combined stats across all teams in your club
+- **Club Leaderboards**: See top performers across all teams
+- **Team Standings**: Track win/loss records and rankings
+- **Flexible Structure**: Teams can operate independently or within a club
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+[📖 Read the full ClubSync documentation](docs/CLUB_MANAGEMENT.md)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Cloud Features
+- **Firebase Integration**: Cloud sync across devices
+- **Offline Support**: Local database with automatic sync
+- **Web Viewer**: Share team stats via public URLs
+- **Cross-Platform**: iOS, Android, and Web support
 
 ## Secrets & local dev setup
 
@@ -54,7 +66,7 @@ For Flutter web development, use these dedicated scripts that automatically load
 
 ```bash
 # Run web app in development mode (opens Chrome)
-./scripts/run-web.sh
+./scripts/run-team-web.sh
 
 # Build web app for production
 ./scripts/build-web.sh

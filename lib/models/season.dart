@@ -9,6 +9,7 @@ class Season {
   final String name;
   final int teamId;
   String? logoUrl;
+  bool? isFromImport;
 
   late Team team;
   List<Game> games = [];
@@ -19,29 +20,32 @@ class Season {
       {required this.id,
       required this.name,
       required this.teamId,
-      this.logoUrl});
+      this.logoUrl,
+      this.isFromImport});
 
   factory Season.fromMap(Map<dynamic, dynamic> map) {
     return Season(
         id: map['id'],
         name: map['name'],
         teamId: map['teamId'],
-        logoUrl: map['logoUrl']);
+        logoUrl: map['logoUrl'],
+        isFromImport: map['isFromImport']);
   }
 
   static Future<List<Season>> fromTeamId(int teamId) async {
     final results = await DatabaseService.instance
         .query('Seasons', orderByChild: 'teamId', equalTo: teamId);
-    return results.map((s) => Season.fromMap(s)).toList(growable: false);
+    final seasons = results.map((s) => Season.fromMap(s)).toList();
+    // Sort by id in descending order (most recent first)
+    seasons.sort((a, b) => b.id.compareTo(a.id));
+    return seasons;
   }
 
   Future<void> load() async {
     team = await Team.fromId(teamId);
     games = await Game.listFromSeasonId(id);
     players = await Player.listFromTeamIdSeasonId(team.id, id);
-
-    final teamResults = await DatabaseService.instance.query('Teams');
-    teams = teamResults.map((g) => Team.fromMap(g)).toList(growable: false);
+    teams = await Team.listFromSeasonId(id);
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }
 

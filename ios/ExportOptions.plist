@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Export method: app-store, ad-hoc, enterprise, development -->
+	<key>method</key>
+	<string>app-store</string>
+
+	<!-- Upload symbols for crash reporting -->
+	<key>uploadSymbols</key>
+	<true/>
+
+	<!-- Upload bitcode (deprecated but can be included) -->
+	<key>uploadBitcode</key>
+	<false/>
+
+	<!-- Compile bitcode (deprecated in Xcode 14+) -->
+	<key>compileBitcode</key>
+	<false/>
+
+	<!-- Manage version and build number -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<true/>
+
+	<!-- Team ID - update this with your Apple Developer Team ID -->
+	<!-- You can find this at https://developer.apple.com/account -->
+	<!-- <key>teamID</key> -->
+	<!-- <string>YOUR_TEAM_ID_HERE</string> -->
+
+	<!-- Provisioning profile settings -->
+	<!-- Uncomment and configure if using manual signing -->
+	<!-- <key>provisioningProfiles</key> -->
+	<!-- <dict> -->
+	<!--   <key>com.tsquared.team_sync.soccer</key> -->
+	<!--   <string>TeamSync App Store Profile</string> -->
+	<!--   <key>com.tsquared.clubsync.soccer</key> -->
+	<!--   <string>ClubSync App Store Profile</string> -->
+	<!-- </dict> -->
+
+	<!-- Signing certificate (optional if using automatic signing) -->
+	<!-- <key>signingCertificate</key> -->
+	<!-- <string>Apple Distribution</string> -->
+
+	<!-- Signing style: automatic or manual -->
+	<key>signingStyle</key>
+	<string>automatic</string>
+
+	<!-- Strip Swift symbols -->
+	<key>stripSwiftSymbols</key>
+	<true/>
+
+	<!-- Thinning for App Store -->
+	<key>thinning</key>
+	<string>&lt;none&gt;</string>
+</dict>
+</plist>
+

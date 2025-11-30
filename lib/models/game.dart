@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
@@ -144,6 +145,9 @@ class GameStats implements StatLeaders {
       case LeaderCategory.offsides:
         sourceTable = _playerOffsides;
         break;
+      case LeaderCategory.corners:
+        // Corners are team stats, not player stats
+        return players;
       case LeaderCategory.fouls:
         sourceTable = _playerFouls;
         break;
@@ -277,6 +281,14 @@ class Game {
   }
 
   String getScore(int teamId, {int? minute}) {
+    // If no scoring events exist and no minute filter is applied,
+    // use the stored scores (for imported games without event data)
+    if (scoringEvents.isEmpty && minute == null) {
+      final teamScore = isHomeTeam(teamId) ? homeTeamScore : awayTeamScore;
+      final opponentScore = isHomeTeam(teamId) ? awayTeamScore : homeTeamScore;
+      return '$teamScore - $opponentScore';
+    }
+
     int teamScore = 0;
     int opponentScore = 0;
 
@@ -342,7 +354,21 @@ class Game {
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
-    final date = DateFormat('MM.dd.yyyy').parse(map['date']);
+    // Try to parse date in multiple formats for backward compatibility
+    DateTime date;
+    try {
+      // First try ISO8601 format (includes time)
+      date = DateTime.parse(map['date']);
+    } catch (e) {
+      try {
+        // Fallback to old MM.dd.yyyy format (date only)
+        date = DateFormat('MM.dd.yyyy').parse(map['date']);
+      } catch (e2) {
+        // If both fail, use current date as fallback
+        debugPrint('Error parsing date "${map['date']}": $e, $e2');
+        date = DateTime.now();
+      }
+    }
 
     final homeTeam = await Team.fromId(map['homeTeamId']);
     final awayTeam = await Team.fromId(map['awayTeamId']);
@@ -374,11 +400,26 @@ class Game {
     final results = await DatabaseService.instance
         .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
 
-    final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(g))
-        .toList(growable: false));
-    games.sort((a, b) => a.date.compareTo(b.date));
+    // Process games in batches to avoid OOM from too many concurrent operations
+    const batchSize = 50;
+    final games = <Game>[];
 
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchGames = await Future.wait(batch
+          .map((g) async => await Game.fromMap(g))
+          .toList(growable: false));
+
+      games.addAll(batchGames);
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    games.sort((a, b) => a.date.compareTo(b.date));
     return games;
   }
 
@@ -389,9 +430,25 @@ class Game {
         .query('Games', orderByChild: 'awayTeamId', equalTo: teamId);
     final results = homeResults + awayResults;
 
-    final games = await Future.wait(results
-        .map((g) async => await Game.fromMap(g))
-        .toList(growable: false));
+    // Process games in batches to avoid OOM from too many concurrent operations
+    const batchSize = 50;
+    final games = <Game>[];
+
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchGames = await Future.wait(batch
+          .map((g) async => await Game.fromMap(g))
+          .toList(growable: false));
+
+      games.addAll(batchGames);
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
     games.sort((a, b) => a.date.compareTo(b.date));
 
     return games;
@@ -435,14 +492,22 @@ class Game {
   }
 
   Future<void> endGame(int status) async {
+    final previousStatus = gameStatus;
     gameStatus = GameStatus.fromString(status.toString());
-    saveGame();
+    await saveGame();
+
+    // If game is being finalized (status >= 9), update best game stats
+    if (gameStatus.index >= 9 && previousStatus.index < 9) {
+      // Update stats for both teams asynchronously
+      homeTeam.updateBestGameStatsForGame(this);
+      awayTeam.updateBestGameStatsForGame(this);
+    }
   }
 
   Future<bool> saveGame() async {
     if (homeTeam.id > 0 && awayTeam.id > 0) {
-      final saveFormat = DateFormat('MM.dd.yyyy');
-
+      // Use ISO8601 format to preserve time information
+      // The fromMap method now handles both old (MM.dd.yyyy) and new (ISO8601) formats
       final data = {
         'id': id == -1 ? DateTime.now().millisecondsSinceEpoch : id,
         'seasonId': seasonId,
@@ -450,7 +515,7 @@ class Game {
         'awayTeamId': awayTeam.id,
         'homeTeamScore': homeTeamScore,
         'awayTeamScore': awayTeamScore,
-        'date': saveFormat.format(date),
+        'date': date.toIso8601String(),
         'gameStatus': gameStatus.index,
         'description': description,
         'gameLinks': gameLinks,

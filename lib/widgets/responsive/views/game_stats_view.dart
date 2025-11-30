@@ -1,12 +1,14 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:change_case/change_case.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/scoring_summary.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -46,82 +48,38 @@ class _GameStatsViewState extends State<GameStatsView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return FutureBuilder(
         future: _loadStats(),
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
           if (snapshot.hasData) {
-            final assistEvents = _game.allGameEvents
-                .where((e) => e.eventType == 'Assist')
-                .toList(growable: false);
-
             return ListView.separated(
-                itemCount:
-                    _game.scoringEvents.length + 2 + _statCategoryTiles.length,
+                itemCount: 3 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    return const ListTile(
-                        title: Center(
-                            child: Text('Scoring Summary',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.bold))));
-                  } else if (index <= _game.scoringEvents.length) {
-                    final event = _game.scoringEvents[index - 1];
-                    final assistEvent = assistEvents
-                        .where((e) =>
-                            (((e.id == event.id + 1) ||
-                                    e.eventMinute == event.eventMinute) &&
-                                e.eventType == 'Assist') ||
-                            e.eventData == event.id)
-                        .firstOrNull;
-
-                    final opponent =
-                        !widget.game.isHomeTeam(widget.season.teamId)
-                            ? widget.game.homeTeam
-                            : widget.game.awayTeam;
-
                     return ListTile(
-                        leading: AutoSizeText('${event.eventMinute}\'',
-                            minFontSize: 14),
-                        title: event.team.id == widget.season.team.id
-                            ? AutoSizeText(event.player?.displayName ?? '',
-                                minFontSize: 14)
-                            : AutoSizeText(event.team.shortName,
-                                minFontSize: 14),
-                        subtitle: AutoSizeText(
-                          event.team.id == widget.season.team.id &&
-                                  assistEvent != null
-                              ? assistEvent.display
-                              : event.eventType == 'PenaltyKick'
-                                  ? 'PK'
-                                  : event.team.id == widget.season.team.id
-                                      ? event.player == null ||
-                                              event.player?.id == -2
-                                          ? 'Own goal by ${opponent.shortName}'
-                                          : 'No assist'
-                                      : '',
-                        ),
-                        trailing: Text(
-                            maxLines: 1,
-                            _game.getScore(widget.season.teamId,
-                                minute: event.eventMinute),
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.bold)));
-                  } else if (index == _game.scoringEvents.length + 1) {
-                    return const ListTile(
                         title: Center(
-                            child: Text('Game Stats',
-                                style:
-                                    TextStyle(fontWeight: FontWeight.bold))));
+                            child: Text(loc.scoringSummary,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold))));
+                  } else if (index == 1) {
+                    return ScoringSummary(
+                        widget.season, widget.season.team, _game);
+                  } else if (index == 2) {
+                    return ListTile(
+                        title: Center(
+                            child: Text(loc.gameStats,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold))));
                   } else {
-                    return _statCategoryTiles[
-                        index - _game.scoringEvents.length - 2];
+                    return _statCategoryTiles[index - 3];
                   }
                 },
                 separatorBuilder: (context, index) {
                   return const Divider(height: 1);
                 });
           } else if (snapshot.hasError) {
-            return const Center(child: Text('Error loading stats'));
+            return Center(child: Text(loc.errorLoadingStats));
           } else {
             return const Center(child: CircularProgressIndicator());
           }
@@ -145,6 +103,13 @@ class _GameStatsViewState extends State<GameStatsView> {
 
       int opponentTotalForCategory = 0;
       for (final event in _game.allGameEvents) {
+        // Count team corners separately since they don't have player stats
+        if (category == LeaderCategory.corners &&
+            event.eventType == 'Corner' &&
+            event.team.id == widget.season.teamId) {
+          teamTotalForCategory++;
+        }
+
         switch (category) {
           case LeaderCategory.goals:
             if (event.eventType == 'Shot' &&
@@ -210,6 +175,12 @@ class _GameStatsViewState extends State<GameStatsView> {
               opponentTotalForCategory++;
             }
             break;
+          case LeaderCategory.corners:
+            if (event.eventType == 'Corner' &&
+                event.team.id != widget.season.teamId) {
+              opponentTotalForCategory++;
+            }
+            break;
           case LeaderCategory.fouls:
             if (event.eventType == 'Foul' &&
                 event.team.id != widget.season.teamId) {
@@ -245,9 +216,9 @@ class _GameStatsViewState extends State<GameStatsView> {
             child: Text(category.name.toSentenceCase().toTitleCase(),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 24))),
-        leading: GestureDetector(
+        leading: InkWell(
             onTap: () async {
-              if (playerStats.isNotEmpty) {
+              if (teamTotalForCategory != 0) {
                 final sortedStats = List.from(playerStats[category]!.entries);
                 sortedStats.sort((a, b) => b.value.compareTo(a.value));
 
@@ -273,11 +244,14 @@ class _GameStatsViewState extends State<GameStatsView> {
                             final player = sortedStats[index - 1].key;
                             final count = sortedStats[index - 1].value;
                             return ListTile(
-                              leading: Text(player.displayName,
+                              leading: ResponsivePlayerAvatar(
+                                  player: player, avatarSize: 40),
+                              title: Text(player.displayName,
                                   style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold)),
-                              title: Text(count.toString(),
+                              subtitle: Text('#${player.number}'),
+                              trailing: Text(count.toString(),
                                   style: const TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold)),
@@ -290,16 +264,17 @@ class _GameStatsViewState extends State<GameStatsView> {
                 style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 24,
-                    decoration: category.name != 'Corners' &&
-                            _game.allGameEvents
-                                .where((e) =>
-                                    e.eventType == category.name &&
-                                    e.team.id == widget.season.teamId)
-                                .isNotEmpty
-                        ? TextDecoration.underline
-                        : null))),
-        trailing: Text(opponentTotalForCategory.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+                    decoration:
+                        category.name != 'corners' && teamTotalForCategory != 0
+                            ? TextDecoration.underline
+                            : null))),
+        trailing: category.name == 'assists'
+            ? Text('-',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24))
+            : Text(opponentTotalForCategory.toString(),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
       );
     }).toList(growable: false);
 

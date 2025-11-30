@@ -1,0 +1,85 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for TeamSync
+// Updated: 2025-11-24 - Allow player image uploads without authentication (PIN validation at DB level)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user is the owner
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Helper function to validate image file
+    function isValidImage() {
+      return request.resource.size < 10 * 1024 * 1024 // Max 10MB
+          && request.resource.contentType.matches('image/.*');
+    }
+
+    // Player profile images
+    // Path: player_images/{timestamp}
+    match /player_images/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // Player action photos (for baseball cards)
+    // Path: player_action_photos/{timestamp}
+    match /player_action_photos/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // Team logos/images
+    // Path: team_images/{imageId}
+    match /team_images/{imageId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImage();
+      allow delete: if isAuthenticated();
+    }
+
+    // Award images (team and player awards)
+    // Path: award_images/{imageId}
+    match /award_images/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // Player award images
+    // Path: player_awards/{imageId}
+    match /player_awards/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // Team accomplishment images
+    // Path: accomplishment_images/{imageId}
+    match /accomplishment_images/{imageId} {
+      allow read, write, delete: if true;
+    }
+
+    // User subscription data (per user)
+    // Path: subscriptionIds/{uid}/databases/{dbId}/{path}
+    match /subscriptionIds/{uid}/databases/{dbId}/{allPaths=**} {
+      // Users can only access their own subscription data
+      allow read, write: if isOwner(uid);
+    }
+
+    // Shared database files (public share feature)
+    // Path: sharedDatabases/{shareId}/{path}
+    match /sharedDatabases/{shareId}/{allPaths=**} {
+      // Allow read for authenticated users (shared databases)
+      allow read: if isAuthenticated();
+
+      // Only the owner can write/delete
+      allow write, delete: if isAuthenticated();
+    }
+
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

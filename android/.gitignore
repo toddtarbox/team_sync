@@ -12,3 +12,7 @@ key.properties
 **/*.keystore
 **/*.jks
 .env
+
+# Google Play service account JSON (for automated deployment)
+play-service-account.json
+

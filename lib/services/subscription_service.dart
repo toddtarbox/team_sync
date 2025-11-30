@@ -35,6 +35,7 @@ class SubscriptionService {
 
       var firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser != null) {
+        // Use current UID for RevenueCat
         Purchases.logIn(firebaseUser.uid).then((loginResult) {
           _customerInfo = loginResult.customerInfo;
           _updateSubscriptionStatus();
@@ -70,29 +71,19 @@ class SubscriptionService {
   Future<void> purchaseSubscription() async {
     if (!kIsWeb) {
       try {
-        AuthProvider provider;
-        if (Platform.isIOS) {
-          provider = AppleAuthProvider()
-              .addScope('ASAuthorizationScopeFullName')
-              .addScope('ASAuthorizationScopeEmail');
-        } else {
-          provider = GoogleAuthProvider();
-        }
-
-        // Get the current user from Firebase Auth.
+        // Get the current user from Firebase Auth (should already be signed in)
         var firebaseUser = FirebaseAuth.instance.currentUser;
+
         if (firebaseUser == null) {
-          final userCredential =
-              await FirebaseAuth.instance.signInWithProvider(provider);
-          firebaseUser = userCredential.user;
+          debugPrint(
+              'Error: User must be signed in before purchasing subscription');
+          return;
         }
 
-        // Log in to RevenueCat with the Firebase user's UID.
-        // This links the RevenueCat customer to your Firebase user.
-        await Purchases.logIn(firebaseUser!.uid);
+        // Log in to RevenueCat with current UID
+        await Purchases.logIn(firebaseUser.uid);
 
-        // Present the paywall. `presentPaywallIfNeeded` is a convenient method
-        // that checks if the user already has the required entitlement.
+        // Present the paywall
         await RevenueCatUI.presentPaywallIfNeeded("cloud-storage");
       } catch (e) {
         debugPrint('Error purchasing subscription: $e');

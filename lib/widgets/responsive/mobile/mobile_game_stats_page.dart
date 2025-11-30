@@ -2,8 +2,11 @@ import 'package:eventify/eventify.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class MobileGameStatsPage extends StatelessWidget {
   final Season season;
@@ -15,23 +18,38 @@ class MobileGameStatsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          leading: GestureDetector(
-              onTap: () {
-                Navigator.of(context).pop();
-              },
-              child: const Icon(Icons.arrow_back)),
+        appBar: buildStandardAppBar(
+          context: context,
+          team: season.team,
           title: Text(game.displayName(season.teamId),
               style:
                   const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          bottom: PreferredSize(
-              preferredSize: Size(width, 100), child: Scoreboard(game, season)),
         ),
-        body: GameStatsView(
-            season: season, game: game, eventEmitter: _eventEmitter));
+        body: Column(
+          children: [
+            ScoreboardWidget(
+              compact: true,
+              margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
+              season: season,
+              game: game,
+              teamId: season.team.id,
+            ),
+            Breadcrumbs(
+              items: buildTeamBreadcrumbs(
+                databaseId: DatabaseService.instance.publicShareId ?? '',
+                teamName: season.team.fullName,
+                seasonName: season.name,
+                seasonId: season.id,
+                gameName: game.displayName(season.teamId),
+                additionalLabel: 'Stats',
+              ),
+            ),
+            Expanded(
+              child: GameStatsView(
+                  season: season, game: game, eventEmitter: _eventEmitter),
+            ),
+          ],
+        ));
   }
 }

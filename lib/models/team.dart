@@ -20,27 +20,56 @@ class Team extends Equatable {
   final Color color1;
   final Color color2;
   final String? logoUrl;
+  final int? clubId;
+  final String? createdBy; // User ID of team creator (team admin)
+  final List<String>? adminIds; // List of team admin user IDs
+  final String? liveUrl;
 
-  const Team(
-      {required this.id,
-      required this.fullName,
-      required this.shortName,
-      this.color1 = Colors.green,
-      this.color2 = Colors.green,
-      this.logoUrl});
+  const Team({
+    required this.id,
+    required this.fullName,
+    required this.shortName,
+    this.color1 = Colors.green,
+    this.color2 = Colors.green,
+    this.logoUrl,
+    this.clubId,
+    this.createdBy,
+    this.adminIds,
+    this.liveUrl,
+  });
 
   factory Team.fromMap(Map<String, dynamic> map) {
     return Team(
-        id: map['id'],
-        fullName: map['fullName'],
-        shortName: map['shortName'],
-        color1: map['color1'] != null && map['color1'] != 0
-            ? Color(map['color1'])
-            : Colors.green,
-        color2: map['color2'] != null && map['color2'] != 0
-            ? Color(map['color2'])
-            : Colors.green,
-        logoUrl: map['logoUrl']);
+      id: map['id'],
+      fullName: map['fullName'],
+      shortName: map['shortName'],
+      color1: map['color1'] != null && map['color1'] != 0
+          ? Color(map['color1'])
+          : Colors.green,
+      color2: map['color2'] != null && map['color2'] != 0
+          ? Color(map['color2'])
+          : Colors.green,
+      logoUrl: map['logoUrl'],
+      clubId: map['clubId'],
+      createdBy: map['createdBy'],
+      adminIds:
+          map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
+      liveUrl: map['liveUrl'],
+    );
+  }
+
+  /// Check if a user is an admin of this team
+  /// Includes: team creator, team admins, and database owner (subscription ID)
+  bool isTeamAdmin(String? userId) {
+    if (userId == null) return false;
+    if (createdBy == userId) return true;
+    if (adminIds != null && adminIds!.contains(userId)) return true;
+
+    // Check if user is the database owner (subscription ID)
+    final subscriptionId = DatabaseService.instance.subscriptionId;
+    if (subscriptionId.isNotEmpty && subscriptionId == userId) return true;
+
+    return false;
   }
 
   static Future<Team> fromId(int id) async {
@@ -52,6 +81,28 @@ class Team extends Equatable {
   static Future<List<Team>> all() async {
     final results = await DatabaseService.instance.query('Teams');
     return results.map((t) => Team.fromMap(t)).toList(growable: false);
+  }
+
+  static Future<List<Team>> listFromSeasonId(int seasonId) async {
+    // Get all games for this season
+    final games = await DatabaseService.instance
+        .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
+
+    // Extract unique team IDs from homeTeamId and awayTeamId
+    final teamIds = <int>{};
+    for (final game in games) {
+      if (game['homeTeamId'] != null) {
+        teamIds.add(game['homeTeamId'] as int);
+      }
+      if (game['awayTeamId'] != null) {
+        teamIds.add(game['awayTeamId'] as int);
+      }
+    }
+
+    // Fetch all teams by their IDs
+    final teams = await Future.wait(teamIds.map((id) => Team.fromId(id)));
+
+    return teams;
   }
 
   Future<dynamic> fetchAllDataForCareer() async {
@@ -89,6 +140,13 @@ class Team extends Equatable {
   Future<Map<LeaderCategory, MapEntry<Player, int>>> calculateCareerStats(
       dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final events = data as List<Map<String, dynamic>>;
     final stats = CareerStats.fromMap(id, events);
     final careerStats = <LeaderCategory, MapEntry<Player, int>>{};
@@ -98,6 +156,9 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       final statPlayers = await stats.getStatPlayers(category);
       if (statPlayers.isNotEmpty) {
         final sortedStats = List.from(statPlayers.entries);
@@ -111,6 +172,13 @@ class Team extends Equatable {
 
   Future<Map<LeaderCategory, SeasonStat>> calculateBestSeasonStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
@@ -126,7 +194,8 @@ class Team extends Equatable {
     }
     int i = 0;
     for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+      if (category == LeaderCategory.ownGoalsEarned ||
+          category == LeaderCategory.corners) {
         i++;
         continue;
       }
@@ -134,6 +203,9 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       int bestValue = 0;
       Player? bestPlayer;
       Season? bestSeason;
@@ -166,12 +238,20 @@ class Team extends Equatable {
 
   Future<BestGameStats> calculateBestGameStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    // Emit initial progress
+    progressController?.add(CalculationProgress(
+        total: LeaderCategory.values.length,
+        current: 0,
+        message: 'Starting...'));
+    await Future.delayed(Duration.zero);
+
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<GameEvent>;
     final bestGameStats = BestGameStats();
 
+    // Build event lookup map
     final eventsByGame = <int, List<GameEvent>>{};
     for (final event in events) {
       final gameId = event.game.id;
@@ -181,9 +261,14 @@ class Team extends Equatable {
       eventsByGame[gameId]!.add(event);
     }
 
+    // Process games in batches to avoid memory issues
+    const batchSize = 50;
+    final totalGames = games.length;
+
     int i = 0;
     for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+      if (category == LeaderCategory.ownGoalsEarned ||
+          category == LeaderCategory.corners) {
         i++;
         continue;
       }
@@ -191,27 +276,45 @@ class Team extends Equatable {
           total: LeaderCategory.values.length,
           current: i,
           message: 'Calculating ${category.name}'));
+      // Allow the UI to update with progress
+      await Future.delayed(Duration.zero);
+
       int bestValue = 0;
       Player? bestPlayer;
       Game? bestGame;
       Season? bestSeason;
 
-      for (final game in games) {
-        final gameEvents = eventsByGame[game.id] ?? [];
-        final gameStats = GameStats.fromEvents(id, gameEvents);
-        final statPlayers = await gameStats.getStatPlayers(category);
+      // Process games in batches
+      for (int batchStart = 0;
+          batchStart < totalGames;
+          batchStart += batchSize) {
+        final batchEnd = (batchStart + batchSize < totalGames)
+            ? batchStart + batchSize
+            : totalGames;
+        final gameBatch = games.sublist(batchStart, batchEnd);
 
-        for (final entry in statPlayers.entries) {
-          if (entry.value > bestValue) {
-            final player = players[entry.key.id];
-            if (player != null) {
-              bestValue = entry.value;
-              bestPlayer = player;
-              bestGame = game;
-              bestSeason = seasons.firstWhere((s) => s.id == game.seasonId);
+        for (final game in gameBatch) {
+          final gameEvents = eventsByGame[game.id] ?? [];
+          if (gameEvents.isEmpty) continue;
+
+          final gameStats = GameStats.fromEvents(id, gameEvents);
+          final statPlayers = await gameStats.getStatPlayers(category);
+
+          for (final entry in statPlayers.entries) {
+            if (entry.value > bestValue) {
+              final player = players[entry.key.id];
+              if (player != null) {
+                bestValue = entry.value;
+                bestPlayer = player;
+                bestGame = game;
+                bestSeason = seasons.firstWhere((s) => s.id == game.seasonId);
+              }
             }
           }
         }
+
+        // Allow garbage collection between batches
+        await Future.delayed(const Duration(milliseconds: 10));
       }
 
       if (bestPlayer != null && bestGame != null && bestSeason != null) {
@@ -221,6 +324,117 @@ class Team extends Equatable {
       i++;
     }
     return bestGameStats;
+  }
+
+  /// Update best game stats for a specific completed game
+  /// This is called after a game is finalized to incrementally update cached stats
+  Future<void> updateBestGameStatsForGame(Game game) async {
+    try {
+      // Load current cached best game stats
+      final currentBestStats = await BestGameStats.loadFromDatabase(id);
+
+      // Load game events and calculate stats for this game
+      final gameEvents = await GameEvent.listFromGameId(game.id);
+      if (gameEvents.isEmpty) return;
+
+      final gameStats = GameStats.fromEvents(id, gameEvents);
+
+      // Load seasons for this team and find the one matching this game
+      final seasons = await Season.fromTeamId(id);
+      final season = seasons.where((s) => s.id == game.seasonId).firstOrNull;
+      if (season == null) return;
+
+      // Check each category to see if this game has a new best
+      bool hasUpdates = false;
+      for (final category in LeaderCategory.values) {
+        if (category == LeaderCategory.ownGoalsEarned ||
+            category == LeaderCategory.corners) {
+          continue;
+        }
+
+        final statPlayers = await gameStats.getStatPlayers(category);
+        if (statPlayers.isEmpty) continue;
+
+        // Find the best player in this game for this category
+        int bestGameValue = 0;
+        Player? bestGamePlayer;
+        for (final entry in statPlayers.entries) {
+          if (entry.value > bestGameValue) {
+            bestGameValue = entry.value;
+            bestGamePlayer = entry.key;
+          }
+        }
+
+        if (bestGamePlayer == null || bestGameValue == 0) continue;
+
+        // Check if this beats the current best
+        final currentBest = currentBestStats.getBestStat(category);
+        if (currentBest == null || bestGameValue > currentBest.value) {
+          currentBestStats.setBestStat(
+            category,
+            bestGamePlayer,
+            game,
+            season,
+            bestGameValue,
+          );
+          hasUpdates = true;
+        }
+      }
+
+      // Save updates to database if there were any changes
+      if (hasUpdates) {
+        await currentBestStats.saveToDatabase(id);
+      }
+    } catch (e) {
+      debugPrint('Error updating best game stats: $e');
+    }
+  }
+
+  /// Get best game stats, using cached values from database if available
+  /// Falls back to full recalculation if cache is empty
+  Future<BestGameStats> getBestGameStats({
+    StreamController<CalculationProgress>? progressController,
+  }) async {
+    // Try to load from cache first
+    final cachedStats = await BestGameStats.loadFromDatabase(id);
+
+    if (cachedStats.hasCachedStats) {
+      // Return cached stats immediately
+      progressController?.add(CalculationProgress(
+          total: 1, current: 1, message: 'Loaded from cache'));
+      return cachedStats;
+    }
+
+    // No cache exists, calculate from scratch
+    progressController?.add(CalculationProgress(
+        total: 1, current: 0, message: 'Building cache...'));
+
+    final data = await fetchAllDataForGame();
+    final calculatedStats = await calculateBestGameStats(data,
+        progressController: progressController);
+
+    // Save to database for future use
+    await calculatedStats.saveToDatabase(id);
+
+    return calculatedStats;
+  }
+
+  /// Rebuild entire best game stats cache from scratch
+  /// Use this when data integrity issues are suspected or after bulk imports
+  Future<void> rebuildBestGameStatsCache({
+    StreamController<CalculationProgress>? progressController,
+  }) async {
+    progressController?.add(CalculationProgress(
+        total: 1, current: 0, message: 'Rebuilding cache...'));
+
+    final data = await fetchAllDataForGame();
+    final calculatedStats = await calculateBestGameStats(data,
+        progressController: progressController);
+
+    await calculatedStats.saveToDatabase(id);
+
+    progressController?.add(
+        CalculationProgress(total: 1, current: 1, message: 'Cache rebuilt'));
   }
 
   Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(
@@ -324,5 +538,6 @@ class Team extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, color1, color2];
+  List<Object?> get props =>
+      [id, color1, color2, clubId, createdBy, adminIds, liveUrl];
 }

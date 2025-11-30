@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/widgets/custom_appbar.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
+import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
-import 'package:team_sync/widgets/scoreboard.dart';
+import 'package:team_sync/widgets/scoreboard_widget.dart';
+import 'package:team_sync/widgets/standard_appbar.dart';
 
 class MobileGamePage extends StatefulWidget {
   final Season season;
@@ -29,10 +32,12 @@ class _MobileGamePageState extends State<MobileGamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final width = MediaQuery.of(context).size.width;
 
     return Scaffold(
-        appBar: CustomAppBar(
+        appBar: buildStandardAppBar(
+          context: context,
           team: widget.season.team,
           title: Text(widget.game.displayName(widget.season.teamId),
               style:
@@ -49,24 +54,32 @@ class _MobileGamePageState extends State<MobileGamePage> {
                           padding: EdgeInsets.all(5),
                           child: Icon(Icons.paste, size: 24))),
                   GestureDetector(
+                      onTap: () {
+                        AdhocTweetDialog.show(context);
+                      },
+                      child: const Padding(
+                          padding: EdgeInsets.all(5),
+                          child: Icon(Icons.send, size: 24))),
+                  GestureDetector(
                       onTap: () async {
                         await showDialog(
                             context: context,
                             builder: (context) {
+                              final loc = AppLocalizations.of(context)!;
                               return AlertDialog(
-                                title: const Text("Advance Game"),
+                                title: Text(loc.advanceGame),
                                 content: const Text(
                                     "Are you sure you want to advance to the next period?"),
                                 actions: [
                                   TextButton(
-                                    child: const Text("Continue"),
+                                    child: Text(loc.continueText),
                                     onPressed: () async {
                                       Navigator.pop(context, true);
                                       _eventEmitter.emit('advanceGame');
                                     },
                                   ),
                                   TextButton(
-                                    child: const Text("Cancel"),
+                                    child: Text(loc.cancel),
                                     onPressed: () {
                                       Navigator.pop(context, false);
                                     },
@@ -82,20 +95,19 @@ class _MobileGamePageState extends State<MobileGamePage> {
                         final selectedStatus = await showDialog<int>(
                             context: context,
                             builder: (context) {
+                              final loc = AppLocalizations.of(context)!;
                               int? status = 9;
 
                               return StatefulBuilder(builder:
                                   (BuildContext context,
                                       StateSetter setModalState) {
                                 return AlertDialog(
-                                  title: const Text('End Game'),
+                                  title: Text(loc.endGame),
                                   content: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         RadioListTile(
-                                          title: Text(
-                                              AppLocalizations.of(context)!
-                                                  .finalText),
+                                          title: Text(loc.finalText),
                                           value: 9,
                                           groupValue: status,
                                           onChanged: (i) {
@@ -105,9 +117,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                           },
                                         ),
                                         RadioListTile(
-                                          title: Text(
-                                              AppLocalizations.of(context)!
-                                                  .finalOTText),
+                                          title: Text(loc.finalOTText),
                                           value: 10,
                                           groupValue: status,
                                           onChanged: (i) {
@@ -117,9 +127,7 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                           },
                                         ),
                                         RadioListTile(
-                                          title: Text(
-                                              AppLocalizations.of(context)!
-                                                  .finalPKsText),
+                                          title: Text(loc.finalPKsText),
                                           value: 11,
                                           groupValue: status,
                                           onChanged: (i) {
@@ -131,13 +139,13 @@ class _MobileGamePageState extends State<MobileGamePage> {
                                       ]),
                                   actions: [
                                     TextButton(
-                                      child: const Text("Continue"),
+                                      child: Text(loc.continueText),
                                       onPressed: () {
                                         Navigator.pop(context, status);
                                       },
                                     ),
                                     TextButton(
-                                      child: const Text("Cancel"),
+                                      child: Text(loc.cancel),
                                       onPressed: () {
                                         Navigator.pop(context, null);
                                       },
@@ -167,9 +175,6 @@ class _MobileGamePageState extends State<MobileGamePage> {
                           padding: EdgeInsets.only(right: 10),
                           child: Icon(Icons.paste, size: 24))),
                 ],
-          bottom: PreferredSize(
-              preferredSize: Size(width, 100),
-              child: Scoreboard(widget.game, widget.season)),
         ),
         floatingActionButton: kIsWeb
             ? null
@@ -202,19 +207,20 @@ class _MobileGamePageState extends State<MobileGamePage> {
                         final shouldAdvance = await showDialog<bool>(
                             context: context,
                             builder: (BuildContext context) {
+                              final loc = AppLocalizations.of(context)!;
                               return AlertDialog(
-                                  title: const Text("Advance Game"),
+                                  title: Text(loc.advanceGame),
                                   content: const Text(
                                       "Do you want to advance to the next period?"),
                                   actions: [
                                     TextButton(
-                                      child: const Text("Advance"),
+                                      child: Text(loc.advanceGame),
                                       onPressed: () async {
                                         Navigator.pop(context, true);
                                       },
                                     ),
                                     TextButton(
-                                      child: const Text("Cancel"),
+                                      child: Text(loc.cancel),
                                       onPressed: () {
                                         Navigator.pop(context, false);
                                       },
@@ -229,9 +235,31 @@ class _MobileGamePageState extends State<MobileGamePage> {
 
                       _eventEmitter.emit('createEvent');
                     })),
-        body: GameView(
-            season: widget.season,
-            game: widget.game,
-            eventEmitter: _eventEmitter));
+        body: Column(
+          children: [
+            ScoreboardWidget(
+              compact: true,
+              margin: EdgeInsets.only(left: 20, right: 20, top: 5, bottom: 5),
+              season: widget.season,
+              game: widget.game,
+              teamId: widget.season.team.id,
+            ),
+            Breadcrumbs(
+              items: buildTeamBreadcrumbs(
+                databaseId: DatabaseService.instance.publicShareId ?? '',
+                teamName: widget.season.team.fullName,
+                seasonName: widget.season.name,
+                seasonId: widget.season.id,
+                gameName: widget.game.displayName(widget.season.teamId),
+              ),
+            ),
+            Expanded(
+              child: GameView(
+                  season: widget.season,
+                  game: widget.game,
+                  eventEmitter: _eventEmitter),
+            ),
+          ],
+        ));
   }
 }

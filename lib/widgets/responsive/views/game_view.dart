@@ -1,17 +1,20 @@
-import 'package:dart_twitter_api/twitter_api.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:intl/intl.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
+import 'package:team_sync/services/twitter_service.dart';
+import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GameView extends StatefulWidget {
@@ -30,13 +33,9 @@ class GameView extends StatefulWidget {
 }
 
 class _GameViewState extends State<GameView> {
-  final format = DateFormat('E MMM dd, yyyy');
-
+  GameEvent? _autoCreateSave;
+  GameEvent? _autoCreateAssist;
   late Game _game;
-
-  late TwitterApi _twitterAPI;
-
-  Save? _autoCreateSave;
 
   @override
   void initState() {
@@ -50,17 +49,18 @@ class _GameViewState extends State<GameView> {
       await _advanceGame();
     });
 
+    widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
+      await AdhocTweetDialog.show(context, teamId: widget.season.teamId);
+    });
+
     widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
-      const storage = FlutterSecureStorage();
-      _twitterAPI = TwitterApi(
-          client: TwitterClient(
-        consumerKey: await storage.read(key: 'twitter_consumer_key') ?? '',
-        consumerSecret:
-            await storage.read(key: 'twitter_consumer_secret') ?? '',
-        token: await storage.read(key: 'twitter_access_token') ?? '',
-        secret: await storage.read(key: 'twitter_access_token_secret') ?? '',
-      ));
+      // Initialize with team credentials if available, fallback to local
+      final success = await TwitterService.instance
+          .initializeWithTeamCredentials(widget.season.teamId);
+      if (!success) {
+        await TwitterService.instance.initializeWithLocalCredentials();
+      }
     });
     widget.eventEmitter.emit('loadSettings');
 
@@ -69,6 +69,8 @@ class _GameViewState extends State<GameView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     if (_autoCreateSave != null) {
       if (_autoCreateSave!.team.id == widget.season.teamId) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -79,6 +81,43 @@ class _GameViewState extends State<GameView> {
         _saveEvent(_autoCreateSave!);
         _autoCreateSave = null;
       }
+    }
+
+    if (_autoCreateAssist != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final shouldCreateAssist = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            final loc = AppLocalizations.of(context)!;
+            return AlertDialog(
+              title: Text(loc.addAssistQuestion),
+              content: const Text(
+                  "Was this goal assisted? Select 'Yes' to assign an assist or 'No' for unassisted goal."),
+              actions: [
+                TextButton(
+                  child: const Text("Yes"),
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                ),
+                TextButton(
+                  child: const Text("No"),
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                ),
+              ],
+            );
+          },
+        );
+
+        if (shouldCreateAssist == true) {
+          await _editEvent(event: _autoCreateAssist);
+        }
+        setState(() {
+          _autoCreateAssist = null;
+        });
+      });
     }
 
     return FutureBuilder(
@@ -115,7 +154,12 @@ class _GameViewState extends State<GameView> {
                 return Visibility(
                     key: ValueKey('scoring-${event.id}'),
                     visible: showScoringEvents,
-                    child: _getEventTile(event));
+                    child: Column(
+                      children: [
+                        _getEventTile(event, loc),
+                        const Divider(height: 1),
+                      ],
+                    ));
               }
 
               if (index == _game.scoringEvents.length + 1) {
@@ -133,14 +177,19 @@ class _GameViewState extends State<GameView> {
                     _game.gameEvents[index - _game.scoringEvents.length - 2];
                 return KeyedSubtree(
                     key: ValueKey('event-${event.id}'),
-                    child: _getEventTile(event));
+                    child: Column(
+                      children: [
+                        _getEventTile(event, loc),
+                        const Divider(height: 1),
+                      ],
+                    ));
               }
 
               if (_game.shootoutEvents.isNotEmpty) {
                 if (index == _game.gameEvents.length + 2) {
-                  return const ListTile(
-                      key: ValueKey('regulation-end'),
-                      title: Center(child: Text('End of Regulation')));
+                  return ListTile(
+                      key: const ValueKey('regulation-end'),
+                      title: Center(child: Text(loc.endOfRegulation)));
                 }
 
                 if (index >=
@@ -157,13 +206,18 @@ class _GameViewState extends State<GameView> {
                       1];
                   return KeyedSubtree(
                       key: ValueKey('shootout-${event.id}'),
-                      child: _getEventTile(event));
+                      child: Column(
+                        children: [
+                          _getEventTile(event, loc),
+                          const Divider(height: 1),
+                        ],
+                      ));
                 }
               }
 
-              return const ListTile(
-                  key: ValueKey('game-end'),
-                  title: Center(child: Text('End of Game')));
+              return ListTile(
+                  key: const ValueKey('game-end'),
+                  title: Center(child: Text(loc.endOfGame)));
             }
 
             if (enableReorder) {
@@ -228,7 +282,7 @@ class _GameViewState extends State<GameView> {
           } else if (snapshot.hasError) {
             debugPrint(snapshot.error.toString());
             debugPrintStack(stackTrace: snapshot.stackTrace);
-            return const Center(child: Text('Error loading events'));
+            return Center(child: Text(loc.errorLoadingEvents));
           } else {
             return const Center(child: CircularProgressIndicator());
           }
@@ -239,7 +293,7 @@ class _GameViewState extends State<GameView> {
     await launchUrl(Uri.parse(url));
   }
 
-  Widget _getEventTile(GameEvent event) {
+  Widget _getEventTile(GameEvent event, AppLocalizations loc) {
     final eventMinuteWidget = SizedBox(
         width: 48,
         child: Center(
@@ -263,16 +317,30 @@ class _GameViewState extends State<GameView> {
 
     final linkWidget = event.eventUrls?.isNotEmpty ?? false
         ? Center(
-            child: IconButton(
-                icon: Icon(Icons.link, color: Colors.blue),
-                onPressed: () {
-                  _launchUrl(event.eventUrls!);
-                }))
+            child: GestureDetector(
+              onTap: () => _launchUrl(event.eventUrls!),
+              child: VideoThumbnail(event.eventUrls!, width: 40, height: 28),
+            ),
+          )
         : Container();
 
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
+
+    final assistEvents = widget.game.allGameEvents
+        .where((e) => e.eventType == 'Assist')
+        .toList(growable: false);
+
+    final assistEvent = assistEvents
+        .where((e) =>
+            event.eventType == 'Shot' &&
+                event.eventData == ShotResult.goal.index &&
+                (((e.id == event.id + 1) ||
+                        e.eventMinute == event.eventMinute) &&
+                    e.eventType == 'Assist') ||
+            e.eventData == event.id)
+        .firstOrNull;
 
     final eventCard = ListTile(
         leading: eventMinuteWidget,
@@ -292,8 +360,48 @@ class _GameViewState extends State<GameView> {
           linkWidget
         ]),
         subtitle: Visibility(
-            visible: event.eventType != 'Period',
-            child: Text(event.player?.displayName ?? event.team.shortName)),
+            visible: event.eventType != 'Period' && event.eventType != 'Assist',
+            child: event.player != null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          if (event.player != null &&
+                              event.player!.id != -2) ...[
+                            ResponsivePlayerAvatar(
+                                player: event.player!, avatarSize: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: AutoSizeText(event.player?.displayName ?? '',
+                                minFontSize: 14),
+                          ),
+                        ],
+                      ),
+                      if (assistEvent != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (assistEvent.player != null &&
+                                assistEvent.player!.id != -2) ...[
+                              AutoSizeText(loc.assistedBy, minFontSize: 14),
+                              const SizedBox(width: 8),
+                              ResponsivePlayerAvatar(
+                                  player: assistEvent.player!, avatarSize: 18),
+                              const SizedBox(width: 8),
+                            ],
+                            Expanded(
+                              child: AutoSizeText(
+                                  assistEvent.player?.displayName ?? '',
+                                  minFontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ]
+                    ],
+                  )
+                : Text(event.team.shortName)),
         onTap: () {
           _editEvent(event: event);
         });
@@ -318,19 +426,20 @@ class _GameViewState extends State<GameView> {
           return showDialog(
             context: context,
             builder: (BuildContext context) {
+              final loc = AppLocalizations.of(context)!;
               return AlertDialog(
-                title: const Text("Confirm Delete"),
+                title: Text(loc.confirmDelete),
                 content: const Text(
                     "Are you sure you want to delete this Event? All data associated with this Event will be deleted. This cannot be undone."),
                 actions: [
                   TextButton(
-                    child: const Text("Continue"),
+                    child: Text(loc.continueText),
                     onPressed: () {
                       Navigator.pop(context, true);
                     },
                   ),
                   TextButton(
-                    child: const Text("Cancel"),
+                    child: Text(loc.cancel),
                     onPressed: () {
                       Navigator.pop(context, false);
                     },
@@ -375,7 +484,12 @@ class _GameViewState extends State<GameView> {
       '2nd Yellow Card',
       'Red Card'
     ]
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     final eventPeriods = [
@@ -385,7 +499,12 @@ class _GameViewState extends State<GameView> {
       '2nd Half Overtime',
       'Penalty Kicks'
     ]
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     List<Player> awayTeamPlayers =
@@ -439,11 +558,23 @@ class _GameViewState extends State<GameView> {
                         : '';
 
     List<DropdownMenuEntry> homePlayerEntries = homeTeamPlayers
-        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .map((p) => DropdownMenuEntry<Player>(
+            value: p,
+            label: p.displayName,
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
         .toList();
 
     List<DropdownMenuEntry> awayPlayerEntries = awayTeamPlayers
-        .map((p) => DropdownMenuEntry<Player>(value: p, label: p.displayName))
+        .map((p) => DropdownMenuEntry<Player>(
+            value: p,
+            label: p.displayName,
+            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
         .toList();
 
     var playerEntries = event.team.id == _game.homeTeam.id
@@ -451,7 +582,12 @@ class _GameViewState extends State<GameView> {
         : awayPlayerEntries;
 
     final shotResultEntries = ['Goal', 'Saved', 'Post', 'Off Target', 'Blocked']
-        .map((t) => DropdownMenuEntry<String>(value: t, label: t))
+        .map((t) => DropdownMenuEntry<String>(
+            value: t,
+            label: t,
+            style: ButtonStyle(
+                textStyle:
+                    WidgetStateProperty.all(const TextStyle(fontSize: 18)))))
         .toList(growable: false);
 
     final ownGoalPlayer = Player(
@@ -469,6 +605,7 @@ class _GameViewState extends State<GameView> {
         showDragHandle: true,
         scrollControlDisabledMaxHeightRatio: .75,
         builder: (context) {
+          final loc = AppLocalizations.of(context)!;
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
@@ -522,7 +659,9 @@ class _GameViewState extends State<GameView> {
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Period'),
+                          textStyle: const TextStyle(fontSize: 18),
+                          label: Text(loc.selectPeriod,
+                              style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventPeriods),
                       const SizedBox(height: 30),
                       DropdownMenu(
@@ -547,7 +686,9 @@ class _GameViewState extends State<GameView> {
                             });
                           },
                           width: double.infinity,
-                          label: const Text('Select Event Type'),
+                          textStyle: const TextStyle(fontSize: 18),
+                          label: Text(loc.selectEventType,
+                              style: TextStyle(fontSize: 18)),
                           dropdownMenuEntries: eventEntries),
                       Visibility(
                           visible: playerEntries.isNotEmpty,
@@ -567,7 +708,9 @@ class _GameViewState extends State<GameView> {
                                 });
                               },
                               width: double.infinity,
-                              label: const Text('Select Player'),
+                              textStyle: const TextStyle(fontSize: 18),
+                              label: const Text('Select Player',
+                                  style: TextStyle(fontSize: 18)),
                               dropdownMenuEntries: playerEntries)),
                       const SizedBox(height: 30),
                       Visibility(
@@ -595,7 +738,9 @@ class _GameViewState extends State<GameView> {
                                 });
                               },
                               width: double.infinity,
-                              label: const Text('Shot Result'),
+                              textStyle: const TextStyle(fontSize: 18),
+                              label: const Text('Shot Result',
+                                  style: TextStyle(fontSize: 18)),
                               dropdownMenuEntries: shotResultEntries)),
                       const SizedBox(height: 20),
                       Visibility(
@@ -657,13 +802,13 @@ class _GameViewState extends State<GameView> {
                                     await _saveEvent(event);
                                   }
                                 },
-                                child: const Text('Save',
+                                child: Text(loc.save,
                                     style: TextStyle(fontSize: 20))),
                             TextButton(
                                 onPressed: () async {
                                   Navigator.pop(context);
                                 },
-                                child: const Text('Cancel',
+                                child: Text(loc.cancel,
                                     style: TextStyle(fontSize: 20)))
                           ])
                     ])));
@@ -736,16 +881,37 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      try {
-        if (event.shouldTweet) {
-          final tweetText = event.tweetText(_game);
-          if (tweetText.isNotEmpty) {
-            await _twitterAPI.tweetService.update(
-              status: tweetText,
-            );
+      // Only send tweets when game is in progress
+      final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
+          _game.gameStatus != GameStatus.gameFinal &&
+          _game.gameStatus != GameStatus.gameFinalOT &&
+          _game.gameStatus != GameStatus.gameFinalPKs;
+
+      if (event.shouldTweet && gameInProgress) {
+        final tweetText = event.tweetText(_game);
+        if (tweetText.isNotEmpty) {
+          // Ensure Twitter is initialized before sending
+          bool isConfigured = await TwitterService.instance
+              .isConfigured(teamId: widget.season.teamId);
+          if (!isConfigured) {
+            // Try to initialize with team credentials
+            isConfigured = await TwitterService.instance
+                .initializeWithTeamCredentials(widget.season.teamId);
+            if (!isConfigured) {
+              // Fallback to local credentials
+              isConfigured = await TwitterService.instance
+                  .initializeWithLocalCredentials();
+            }
+          }
+
+          if (isConfigured) {
+            // Only send if configured
+            await TwitterService.instance.sendTweet(tweetText);
+          } else {
+            debugPrint('Twitter not configured - skipping tweet: $tweetText');
           }
         }
-      } catch (e) {}
+      }
 
       if (event.eventType == 'Shot' &&
           event.eventData == ShotResult.onTargetSave.index) {
@@ -762,11 +928,31 @@ class _GameViewState extends State<GameView> {
             seasonId: _game.seasonId,
             eventType: 'Save',
             eventMinute: event.eventMinute,
-            eventPeriod: -1,
+            eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: 0);
+            eventData: event.id);
         setState(() {
           _autoCreateSave = saveEvent;
+        });
+      } else if (event.eventType == 'Shot' &&
+          event.eventData == ShotResult.goal.index &&
+          event.player?.id != -2 &&
+          event.team.id == widget.season.teamId) {
+        // Auto-create an Assist event for goals by our team (excluding own goals)
+        final assistEvent = Assist(
+            id: -1,
+            index: -1,
+            player: null,
+            team: event.team,
+            game: _game,
+            seasonId: _game.seasonId,
+            eventType: 'Assist',
+            eventMinute: event.eventMinute,
+            eventPeriod: event.eventPeriod,
+            eventUrls: event.eventUrls ?? '',
+            eventData: event.id);
+        setState(() {
+          _autoCreateAssist = assistEvent;
         });
       } else {
         setState(() {});

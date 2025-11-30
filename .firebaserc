@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "team-sync-soccer"
+  },
+  "targets": {
+    "team-sync-soccer": {
+      "hosting": {
+        "team-sync-soccer": [
+          "team-sync-soccer"
+        ],
+        "team-sync-club-soccer": [
+          "team-sync-club-soccer"
+        ]
+      }
+    }
   }
 }

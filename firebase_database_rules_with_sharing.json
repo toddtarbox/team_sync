@@ -1,0 +1,77 @@
+{
+  "rules": {
+    "database_access": {
+      "$ownerId": {
+        ".read": "$ownerId === auth.uid",
+        ".write": "$ownerId === auth.uid",
+        ".indexOn": ["email"]
+      }
+    },
+    "user_database_access": {
+      "$userId": {
+        ".read": "$userId === auth.uid",
+        ".write": false
+      }
+    },
+    "users": {
+      "$userId": {
+        ".read": "auth != null",
+        ".write": "$userId === auth.uid"
+      },
+      ".indexOn": ["email"]
+    },
+    "subscriptionIds": {
+      "$ownerId": {
+        "databases": {
+          "$dbName": {
+            ".read": "auth != null && ($ownerId === auth.uid || root.child('user_database_access').child(auth.uid).child($ownerId).child($dbName).exists())",
+            ".write": "auth != null && ($ownerId === auth.uid || root.child('user_database_access').child(auth.uid).child($ownerId).child($dbName).child('accessLevel').val() === 'write')"
+          }
+        }
+      }
+    },
+    "Clubs": {
+      ".read": "auth != null",
+      "$clubId": {
+        ".write": "auth != null"
+      }
+    },
+    "ClubTeams": {
+      ".read": "auth != null",
+      "$teamId": {
+        ".write": "auth != null"
+      }
+    },
+    "ClubSeasons": {
+      ".read": "auth != null",
+      "$seasonId": {
+        ".write": "auth != null"
+      }
+    },
+    "ClubGames": {
+      ".read": "auth != null",
+      "$gameId": {
+        ".write": "auth != null"
+      }
+    },
+    "ClubPlayers": {
+      ".read": "auth != null",
+      "$playerId": {
+        ".write": "auth != null"
+      }
+    },
+    "ClubEvents": {
+      ".read": "auth != null",
+      "$eventId": {
+        ".write": "auth != null"
+      }
+    },
+    "shared_databases": {
+      "$publicId": {
+        ".read": true,
+        ".write": false
+      }
+    }
+  }
+}
+

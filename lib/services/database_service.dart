@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart' as fs;
@@ -8,6 +7,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:team_sync/services/database_sharing_service.dart';
 
 /// Progress event emitted during Firestore -> RTDB import.
 class ImportProgress {
@@ -111,48 +111,77 @@ class LocalDatabaseProvider implements DatabaseProvider {
 
   @override
   Future<bool> open(String path) async {
-    _database =
-        await openDatabase(path, version: 1, onCreate: (db, version) async {
-      db.execute(
-          "create table Seasons (id integer primary key autoincrement, " +
-              "name text not null, " +
-              "teamId integer not null);");
+    _database = await openDatabase(
+      path,
+      version: 2,
+      onCreate: (db, version) async {
+        db.execute(
+            "create table Clubs (id integer primary key autoincrement, " +
+                "name text not null, " +
+                "description text, " +
+                "color1 integer not null, " +
+                "color2 integer not null, " +
+                "logoUrl text, " +
+                "createdAt integer not null);");
 
-      db.execute("create table Teams (id integer primary key autoincrement, " +
-          "fullName text not null, " +
-          "shortName text not null, " +
-          "color1 integer not null, " +
-          "color2 integer not null);");
+        db.execute(
+            "create table Seasons (id integer primary key autoincrement, " +
+                "name text not null, " +
+                "teamId integer not null);");
 
-      db.execute("create table Games (id integer primary key autoincrement, " +
-          "seasonId integer not null, " +
-          "homeTeamId integer not null, " +
-          "awayTeamId integer not null, " +
-          "homeTeamScore integer not null, " +
-          "awayTeamScore integer not null, " +
-          "date text not null, " +
-          "gameStatus text not null, " +
-          "milliSecondsLeft long not null);");
+        db.execute(
+            "create table Teams (id integer primary key autoincrement, " +
+                "fullName text not null, " +
+                "shortName text not null, " +
+                "color1 integer not null, " +
+                "color2 integer not null, " +
+                "clubId integer);");
 
-      db.execute("create table Players (id integer not null, " +
-          "teamId integer not null, " +
-          "seasonId integer not null, " +
-          "firstName string not null, " +
-          "lastName string not null, " +
-          "number integer not null, primary key(id, teamId, seasonId));");
+        db.execute(
+            "create table Games (id integer primary key autoincrement, " +
+                "seasonId integer not null, " +
+                "homeTeamId integer not null, " +
+                "awayTeamId integer not null, " +
+                "homeTeamScore integer not null, " +
+                "awayTeamScore integer not null, " +
+                "date text not null, " +
+                "gameStatus text not null, " +
+                "milliSecondsLeft long not null);");
 
-      db.execute("create table Events (id integer primary key autoincrement, " +
-          "playerId integer not null, " +
-          "teamId integer not null, " +
-          "gameId integer not null, " +
-          "seasonId integer not null, " +
-          "eventType text not null, " +
-          "eventLocation text not null, " +
-          "eventMinute integer not null, " +
-          "eventPeriod integer not null, " +
-          "eventData integer not null, " +
-          "eventTextData text);");
-    });
+        db.execute("create table Players (id integer not null, " +
+            "teamId integer not null, " +
+            "seasonId integer not null, " +
+            "firstName string not null, " +
+            "lastName string not null, " +
+            "number integer not null, " +
+            "profileImage text, " +
+            "primary key(id, teamId, seasonId));");
+
+        db.execute(
+            "create table Events (id integer primary key autoincrement, " +
+                "playerId integer not null, " +
+                "teamId integer not null, " +
+                "gameId integer not null, " +
+                "seasonId integer not null, " +
+                "eventType text not null, " +
+                "eventLocation text not null, " +
+                "eventMinute integer not null, " +
+                "eventPeriod integer not null, " +
+                "eventData integer not null, " +
+                "eventTextData text);");
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Add profileImage column to Players table
+          try {
+            await db
+                .execute("ALTER TABLE Players ADD COLUMN profileImage text;");
+          } catch (e) {
+            debugPrint('Migration failed: $e');
+          }
+        }
+      },
+    );
 
     return true;
   }
@@ -270,19 +299,60 @@ class FirebaseDBProvider implements DatabaseProvider {
     }
   }
 
-  late String _subscriptionId;
+  String _subscriptionId = '';
   String _path = '';
+  int? _clubTeamId; // Track the current team ID when in club mode
   DatabaseEvent? _dbEvent;
   DataSnapshot? get dbSnapshot => _dbEvent?.snapshot;
   DataSnapshot? get dbDocumentSnapshot => dbSnapshot;
+
+  /// Check if we're in club mode (loading from ClubTeams collection)
+  bool get _isClubMode => _path.startsWith('ClubTeams/');
+
+  /// Validate that a path is safe for Firebase Realtime Database
+  /// Firebase paths cannot contain: . $ # [ ] or have empty components
+  bool _isValidFirebasePath(String path) {
+    if (path.isEmpty) return false;
+    if (path.contains('//')) return false; // Empty path component
+    if (path.contains('.')) return false;
+    if (path.contains('\$')) return false;
+    if (path.contains('#')) return false;
+    if (path.contains('[')) return false;
+    if (path.contains(']')) return false;
+    return true;
+  }
+
+  /// Translate table names for club mode
+  String _getTableName(String table) {
+    if (!_isClubMode) return table;
+
+    // Map TeamSync table names to ClubSync collection names
+    switch (table) {
+      case 'Teams':
+        return 'ClubTeams';
+      case 'Seasons':
+        return 'ClubSeasons';
+      case 'Games':
+        return 'ClubGames';
+      case 'Players':
+        return 'ClubPlayers';
+      case 'Events':
+        return 'ClubEvents';
+      default:
+        return table;
+    }
+  }
 
   String? get publicShareId {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
     final data = snap.value as Map<dynamic, dynamic>?;
-    return data != null && data.containsKey('publicShareId')
-        ? data['publicShareId'] as String?
-        : null;
+    if (data != null && data.containsKey('publicShareId')) {
+      final id = data['publicShareId'];
+      // Handle both String and int types
+      return id?.toString();
+    }
+    return null;
   }
 
   @override
@@ -305,44 +375,100 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   Future<void> _getSubscriptionId() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      AuthProvider provider;
-      if (Platform.isIOS) {
-        provider = AppleAuthProvider()
-            .addScope('ASAuthorizationScopeFullName')
-            .addScope('ASAuthorizationScopeEmail');
-      } else {
-        provider = GoogleAuthProvider();
-      }
-
-      var firebaseUser = FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null) {
-        await FirebaseAuth.instance.signInWithProvider(provider);
-      }
+    // If already have a valid subscription ID, return early
+    if (_subscriptionId.isNotEmpty) {
+      return;
     }
 
-    _subscriptionId = FirebaseAuth.instance.currentUser!.uid;
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        debugPrint('User must be signed in before accessing cloud database');
+        return;
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid.isNotEmpty) {
+        _subscriptionId = user.uid;
+        debugPrint('Subscription ID set to: $_subscriptionId');
+
+        // Register user in lookup table for sharing features
+        if (user.email != null && !kIsWeb) {
+          try {
+            await DatabaseSharingService.instance.registerUserInLookup();
+          } catch (e) {
+            debugPrint('Failed to register user for sharing: $e');
+          }
+        }
+      } else {
+        debugPrint('Failed to get subscription ID - no user authenticated');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error getting subscription ID: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
   }
 
   @override
   Future<List<String>> getAvailableDatabases() async {
     await _getSubscriptionId();
 
-    final ref = _database.ref('subscriptionIds/$_subscriptionId/databases');
+    // Validate that we have a valid subscription ID
+    if (_subscriptionId.isEmpty) {
+      debugPrint('getAvailableDatabases: No subscription ID available');
+      return [];
+    }
+
+    final dbPath = 'subscriptionIds/$_subscriptionId/databases';
+    if (!_isValidFirebasePath(dbPath)) {
+      debugPrint('getAvailableDatabases: Invalid path: $dbPath');
+      return [];
+    }
+
+    // Get user's own databases
+    final ref = _database.ref(dbPath);
     final snapshot = await ref.get();
-    if (!snapshot.exists || snapshot.value == null) return [];
-    final data = snapshot.value as Map<dynamic, dynamic>;
-    return data.keys.map((k) => k.toString()).toList();
+    final ownDatabases = <String>[];
+    if (snapshot.exists && snapshot.value != null) {
+      final data = snapshot.value as Map<dynamic, dynamic>;
+      ownDatabases.addAll(data.keys.map((k) => k.toString()));
+    }
+
+    // Get shared databases (for Pro users only)
+    final sharedDatabases = <String>[];
+    try {
+      final shared = await DatabaseSharingService.instance.getSharedDatabases();
+      for (final sharedDb in shared) {
+        // Add with prefix to distinguish from own databases
+        final displayName =
+            '${sharedDb['ownerEmail']} - ${sharedDb['databaseName']}';
+        sharedDatabases.add(displayName);
+      }
+    } catch (e) {
+      debugPrint('getAvailableDatabases: Error getting shared databases: $e');
+    }
+
+    return [...ownDatabases, ...sharedDatabases];
   }
 
   @override
   Future<bool> open(String path) async {
     await _getSubscriptionId();
 
+    // Validate that we have a valid subscription ID
+    if (_subscriptionId.isEmpty) {
+      debugPrint('open: No subscription ID available for path: $path');
+      return false;
+    }
+
     _path = path;
 
-    final ref =
-        _database.ref('subscriptionIds/$_subscriptionId/databases/$_path');
+    final dbPath = 'subscriptionIds/$_subscriptionId/databases/$_path';
+    if (!_isValidFirebasePath(dbPath)) {
+      debugPrint('open: Invalid Firebase path: $dbPath');
+      return false;
+    }
+
+    final ref = _database.ref(dbPath);
     _dbEvent = await ref.once();
     if (_dbEvent?.snapshot.exists == false) {
       await ref.set({'version': 1});
@@ -383,42 +509,109 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<bool> openFromPath(String path) async {
-    final ref = _database.ref(path);
-    _dbEvent = await ref.once();
-
-    final parts = path.split('/');
-    _path = parts.isNotEmpty ? parts.last : path;
-    _subscriptionId = parts.length > 1 ? parts[1] : '';
-
-    if (_dbEvent?.snapshot.exists == false) {
+    // Validate path is not empty and doesn't contain empty components
+    if (path.isEmpty) {
+      debugPrint('openFromPath: Empty path provided');
       return false;
     }
 
-    // Subscribe to value events for this database path
-    try {
-      await _dbValueSub?.cancel();
-      _dbValueSub = ref.onValue.listen((ev) {
+    // Check for empty path components (consecutive slashes)
+    if (path.contains('//')) {
+      debugPrint('openFromPath: Invalid path with empty components: $path');
+      return false;
+    }
+
+    final parts = path.split('/');
+
+    // For club team paths (e.g., 'ClubTeams/123'), handle specially
+    if (parts.isNotEmpty && parts[0] == 'ClubTeams') {
+      _path = path; // Store full path like 'ClubTeams/123'
+      _subscriptionId = ''; // No subscription ID for club teams
+      _clubTeamId = parts.length > 1 ? int.tryParse(parts[1]) : null;
+
+      // For club teams, we just need to verify the team exists
+      try {
+        final ref = _database.ref(path);
+        final snapshot = await ref.once();
+        _dbEvent = snapshot;
+
+        if (!snapshot.snapshot.exists) {
+          debugPrint('openFromPath: Club team not found at path: $path');
+          return false;
+        }
+
+        // Subscribe to value events for this team
         try {
-          final snap = ev.snapshot;
-          if (snap.exists && snap.value != null) {
-            final map = snap.value as dynamic;
-            if (map is Map && map.containsKey('lastUpdated')) {
-              final lu = map['lastUpdated'];
-              if (lu is int) {
-                _updateController
-                    .add(DateTime.fromMillisecondsSinceEpoch(lu, isUtc: true));
-                return;
+          await _dbValueSub?.cancel();
+          _dbValueSub = ref.onValue.listen((ev) {
+            _updateController.add(DateTime.now().toUtc());
+          });
+        } catch (e) {
+          debugPrint('Failed to subscribe to team value events: $e');
+        }
+
+        return true;
+      } catch (e, stackTrace) {
+        debugPrint('openFromPath: Error opening club team path: $e');
+        debugPrint('Stack trace: $stackTrace');
+        return false;
+      }
+    }
+
+    // For subscription-based databases, parse and validate the path
+    // Expected format: subscriptionIds/{uid}/databases/{dbName}
+    _path = parts.isNotEmpty ? parts.last : path;
+    _subscriptionId = parts.length > 1 ? parts[1] : '';
+    _clubTeamId = null; // Clear club team ID
+
+    // Validate subscription ID is not empty for subscription-based paths
+    if (_subscriptionId.isEmpty &&
+        parts.isNotEmpty &&
+        parts[0] == 'subscriptionIds') {
+      debugPrint(
+          'openFromPath: Invalid subscription path - missing subscription ID: $path');
+      return false;
+    }
+
+    try {
+      final ref = _database.ref(path);
+      _dbEvent = await ref.once();
+
+      if (_dbEvent?.snapshot.exists == false) {
+        debugPrint('openFromPath: Database not found at path: $path');
+        return false;
+      }
+
+      // Subscribe to value events for this database path
+      try {
+        await _dbValueSub?.cancel();
+        _dbValueSub = ref.onValue.listen((ev) {
+          try {
+            final snap = ev.snapshot;
+            if (snap.exists && snap.value != null) {
+              final map = snap.value as dynamic;
+              if (map is Map && map.containsKey('lastUpdated')) {
+                final lu = map['lastUpdated'];
+                if (lu is int) {
+                  _updateController.add(
+                      DateTime.fromMillisecondsSinceEpoch(lu, isUtc: true));
+                  return;
+                }
               }
             }
+          } catch (e) {
+            debugPrint(
+                'updateStream: failed to read lastUpdated from snapshot: $e');
           }
-        } catch (e) {
-          debugPrint(
-              'updateStream: failed to read lastUpdated from snapshot: $e');
-        }
-        _updateController.add(DateTime.now().toUtc());
-      });
-    } catch (e) {
-      debugPrint('Failed to subscribe to database value events: $e');
+          _updateController.add(DateTime.now().toUtc());
+        });
+      } catch (e) {
+        debugPrint('Failed to subscribe to database value events: $e');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('openFromPath: Error accessing path: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return false;
     }
 
     return !(await isImporting);
@@ -426,6 +619,9 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   String get path => _path;
+
+  /// Get the current subscription ID (user ID who owns the database)
+  String get subscriptionId => _subscriptionId;
 
   @override
   Future<void> close() async {
@@ -450,8 +646,14 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return [];
 
-    final String nodePath =
-        (path != null && path.isNotEmpty) ? path : '${snap.ref.path}/$table';
+    // Translate table name for club mode
+    final translatedTable = _getTableName(table);
+
+    final String nodePath = (path != null && path.isNotEmpty)
+        ? path
+        : (_isClubMode
+            ? translatedTable // In club mode, use root-level collection
+            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
     final ref = _database.ref(nodePath);
 
     // If caller provided RTDB-style args, build a native Query
@@ -484,7 +686,11 @@ class FirebaseDBProvider implements DatabaseProvider {
           for (final entry in val.entries) {
             final v = entry.value;
             if (v is Map) {
-              final m = Map<String, dynamic>.from(v);
+              // Use more robust map conversion that preserves all fields
+              final m = <String, dynamic>{};
+              v.forEach((key, value) {
+                m[key.toString()] = value;
+              });
               m['_key'] = entry.key.toString();
               rows.add(m);
             }
@@ -529,13 +735,22 @@ class FirebaseDBProvider implements DatabaseProvider {
     if (value is List) {
       for (final e in value) {
         if (e == null) continue;
-        if (e is Map) rows.add(Map<String, dynamic>.from(e));
+        if (e is Map) {
+          final m = <String, dynamic>{};
+          e.forEach((key, value) {
+            m[key.toString()] = value;
+          });
+          rows.add(m);
+        }
       }
     } else if (value is Map) {
       for (final entry in value.entries) {
         final v = entry.value;
         if (v is Map) {
-          final m = Map<String, dynamic>.from(v);
+          final m = <String, dynamic>{};
+          v.forEach((key, value) {
+            m[key.toString()] = value;
+          });
           m['_key'] = entry.key.toString();
           rows.add(m);
         }
@@ -599,8 +814,15 @@ class FirebaseDBProvider implements DatabaseProvider {
       {ConflictAlgorithm? conflictAlgorithm, String? key, String? path}) async {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
-    final nodePath =
-        (path != null && path.isNotEmpty) ? path : '${snap.ref.path}/$table';
+
+    // Translate table name for club mode
+    final translatedTable = _getTableName(table);
+
+    final nodePath = (path != null && path.isNotEmpty)
+        ? path
+        : (_isClubMode
+            ? translatedTable // In club mode, use root-level collection
+            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
     final collectionRef = _database.ref(nodePath);
     if (key != null && key.isNotEmpty) {
       await collectionRef.child(key).set(data);
@@ -621,8 +843,15 @@ class FirebaseDBProvider implements DatabaseProvider {
       dynamic equalTo}) async {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
-    final nodePath =
-        (path != null && path.isNotEmpty) ? path : '${snap.ref.path}/$table';
+
+    // Translate table name for club mode
+    final translatedTable = _getTableName(table);
+
+    final nodePath = (path != null && path.isNotEmpty)
+        ? path
+        : (_isClubMode
+            ? translatedTable // In club mode, use root-level collection
+            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -715,8 +944,15 @@ class FirebaseDBProvider implements DatabaseProvider {
       dynamic equalTo}) async {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
-    final nodePath =
-        (path != null && path.isNotEmpty) ? path : '${snap.ref.path}/$table';
+
+    // Translate table name for club mode
+    final translatedTable = _getTableName(table);
+
+    final nodePath = (path != null && path.isNotEmpty)
+        ? path
+        : (_isClubMode
+            ? translatedTable // In club mode, use root-level collection
+            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -799,7 +1035,9 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     final data = doc.value as Map<dynamic, dynamic>?;
     if (data != null && data.containsKey('publicShareId')) {
-      return data['publicShareId'] as String?;
+      // Handle both String and int types from Firebase
+      final id = data['publicShareId'];
+      return id?.toString();
     }
 
     // Generate a random 6-digit id and ensure it doesn't collide with existing mapping.
@@ -1233,6 +1471,26 @@ class DatabaseService {
 
   String get path => _provider.path;
 
+  /// Get the current subscription ID (user ID who owns the database)
+  /// Returns empty string if not using FirebaseDBProvider or if no subscription
+  String get subscriptionId {
+    if (_provider is FirebaseDBProvider) {
+      return (_provider as FirebaseDBProvider).subscriptionId;
+    }
+    return '';
+  }
+
+  /// Get the full database path for Cloud Functions
+  /// Returns path like: subscriptionIds/[uid]/databases/[dbname]
+  /// Returns empty string if not available
+  String get fullDatabasePath {
+    if (_provider is! FirebaseDBProvider) return '';
+    final subId = subscriptionId;
+    final dbPath = path;
+    if (subId.isEmpty || dbPath.isEmpty) return '';
+    return 'subscriptionIds/$subId/databases/$dbPath';
+  }
+
   Future<void> close() async => await _provider.close();
 
   Future<List<String>> getAvailableDatabases() async =>
@@ -1324,6 +1582,150 @@ class DatabaseService {
   Future<bool> openFromId(String id) async {
     if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
     return await (_provider as FirebaseDBProvider).openFromId(id);
+  }
+
+  /// Open a club team context. This sets the provider to use ClubSync collections
+  /// at the root level instead of subscription-based paths.
+  /// Returns true if the club team exists and was opened successfully.
+  Future<bool> openClubTeam(int clubId, int teamId) async {
+    if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
+
+    // Verify the team exists and belongs to the club
+    final snapshot = await FirebaseDatabase.instance
+        .ref('ClubTeams')
+        .child(teamId.toString())
+        .get();
+
+    if (!snapshot.exists || snapshot.value == null) {
+      return false;
+    }
+
+    final teamData = Map<String, dynamic>.from(snapshot.value as Map);
+    final teamClubId = teamData['clubId'] as int?;
+
+    if (teamClubId != clubId) {
+      return false;
+    }
+
+    // Set a special path to indicate we're in club mode
+    // This will be used by the provider to determine which collections to use
+    await (_provider as FirebaseDBProvider).openFromPath('ClubTeams/$teamId');
+    return true;
+  }
+
+  /// Check if the current database context is a club team
+  bool get isClubTeam => _provider.path.startsWith('ClubTeams/');
+
+  /// Open a shared database by owner and database name.
+  /// Returns true if the database was opened successfully and user has access.
+  Future<bool> openSharedDatabase(String ownerId, String databaseName) async {
+    if (_provider is! FirebaseDBProvider) {
+      setProvider(FirebaseDBProvider());
+    }
+
+    // Check if user has access
+    final accessLevel = await DatabaseSharingService.instance
+        .checkDatabaseAccess(ownerId, databaseName);
+
+    if (accessLevel == null) {
+      debugPrint(
+          'openSharedDatabase: No access to database $databaseName owned by $ownerId');
+      return false;
+    }
+
+    // Construct the path to the shared database
+    final sharedDbPath = 'subscriptionIds/$ownerId/databases/$databaseName';
+
+    // Open the database
+    final opened =
+        await (_provider as FirebaseDBProvider).openFromPath(sharedDbPath);
+
+    if (opened) {
+      debugPrint(
+          'openSharedDatabase: Opened shared database with $accessLevel access');
+    }
+
+    return opened;
+  }
+
+  /// Get information about shared databases available to the current user.
+  Future<List<Map<String, dynamic>>> getSharedDatabasesInfo() async {
+    return await DatabaseSharingService.instance.getSharedDatabases();
+  }
+
+  /// Grant access to the current database to another user (Pro only).
+  Future<bool> shareDatabaseWithUser(String userEmail,
+      {String accessLevel = 'read'}) async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('shareDatabaseWithUser: Can only share cloud databases');
+      return false;
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('shareDatabaseWithUser: No database currently open');
+      return false;
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance.grantDatabaseAccess(
+      databaseName,
+      userEmail,
+      accessLevel: accessLevel,
+    );
+  }
+
+  /// Revoke access to the current database from a user (Pro only).
+  Future<bool> unshareDatabaseFromUser(String userEmail) async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('unshareDatabaseFromUser: Can only manage cloud databases');
+      return false;
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('unshareDatabaseFromUser: No database currently open');
+      return false;
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance.revokeDatabaseAccess(
+      databaseName,
+      userEmail,
+    );
+  }
+
+  /// Get list of users who have access to the current database.
+  Future<List<Map<String, dynamic>>> getDatabaseAccessList() async {
+    if (_provider is! FirebaseDBProvider) {
+      debugPrint('getDatabaseAccessList: Can only manage cloud databases');
+      return [];
+    }
+
+    final dbPath = _provider.path;
+    if (dbPath.isEmpty) {
+      debugPrint('getDatabaseAccessList: No database currently open');
+      return [];
+    }
+
+    // Extract database name from path
+    String databaseName = dbPath;
+    if (dbPath.contains('/')) {
+      databaseName = dbPath.split('/').last;
+    }
+
+    return await DatabaseSharingService.instance
+        .getDatabaseAccessList(databaseName);
   }
 
   Future<bool> exists(String dbName) async {
