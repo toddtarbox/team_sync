@@ -1332,6 +1332,25 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              // Edit button for admins on mobile
+                              if (!kIsWeb &&
+                                  _team?.isTeamAdmin(FirebaseAuth
+                                          .instance.currentUser?.uid) ==
+                                      true) ...[
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.edit,
+                                    size: 20,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                  onPressed: () =>
+                                      _showEditSeasonNameDialog(season),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                               if (season.logoUrl != null &&
                                   season.logoUrl!.isNotEmpty) ...[
                                 const SizedBox(width: 12),
@@ -4246,6 +4265,99 @@ $liveLink
         );
       },
     );
+  }
+
+  Future<void> _showEditSeasonNameDialog(Season season) async {
+    final loc = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: season.name);
+
+    // Capture context-dependent values before async gap
+    final dialogContext = context;
+
+    final result = await showDialog<bool>(
+      context: dialogContext,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(loc.editSeasonName),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              labelText: loc.seasonName,
+            ),
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(loc.cancelButton),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newName = nameController.text.trim();
+                if (newName.isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(loc.seasonNameRequired)),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(loc.save),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      final newName = nameController.text.trim();
+      if (newName.isNotEmpty && newName != season.name) {
+        try {
+          // Update season name in database
+          await DatabaseService.instance.update(
+            'Seasons',
+            {'name': newName},
+            key: season.id.toString(),
+          );
+
+          // Update local season object
+          setState(() {
+            // Find and update the season in the local list
+            final index = _seasons.indexWhere((s) => s.id == season.id);
+            if (index != -1) {
+              _seasons[index] = Season(
+                id: season.id,
+                name: newName,
+                teamId: season.teamId,
+                logoUrl: season.logoUrl,
+                isFromImport: season.isFromImport,
+              )..team = season.team;
+            }
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(loc.seasonNameUpdated)),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${loc.errorMessage}: ${e.toString()}'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    // Dispose controller after dialog animation completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nameController.dispose();
+    });
   }
 }
 

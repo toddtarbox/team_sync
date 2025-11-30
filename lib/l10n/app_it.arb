@@ -435,5 +435,8 @@
   "gamesPlural": "partite",
   "gamesPlayed": "{count} {count, plural, =1{partita} other{partite}} giocate",
   "versus": "vs.",
-  "unknown": "Sconosciuto"
+  "unknown": "Sconosciuto",
+  "editSeasonName": "Modifica nome stagione",
+  "seasonNameRequired": "Il nome della stagione è obbligatorio",
+  "seasonNameUpdated": "Nome della stagione aggiornato con successo"
 }

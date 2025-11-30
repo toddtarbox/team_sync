@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -174,6 +175,15 @@ class _SeasonPageState extends State<SeasonPage> {
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
                   actions: [
+                    // Edit season name button for mobile admins
+                    if (!kIsWeb &&
+                        season.team.isTeamAdmin(
+                            FirebaseAuth.instance.currentUser?.uid))
+                      IconButton(
+                        onPressed: () => _showEditSeasonNameDialog(season),
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Edit season name',
+                      ),
                     IconButton(
                         onPressed: () {
                           final databaseId = _getDatabaseId(context);
@@ -249,6 +259,15 @@ class _SeasonPageState extends State<SeasonPage> {
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
                   actions: [
+                    // Edit season name button for mobile admins
+                    if (!kIsWeb &&
+                        season.team.isTeamAdmin(
+                            FirebaseAuth.instance.currentUser?.uid))
+                      IconButton(
+                        onPressed: () => _showEditSeasonNameDialog(season),
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Edit season name',
+                      ),
                     IconButton(
                         onPressed: () {
                           final databaseId = _getDatabaseId(context);
@@ -1969,5 +1988,91 @@ class _SeasonPageState extends State<SeasonPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showEditSeasonNameDialog(Season season) async {
+    final loc = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: season.name);
+
+    // Capture context before async gap
+    final dialogContext = context;
+
+    final result = await showDialog<bool>(
+      context: dialogContext,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(loc.editSeasonName),
+          content: TextField(
+            controller: nameController,
+            decoration: InputDecoration(
+              labelText: loc.seasonName,
+            ),
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(loc.cancelButton),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newName = nameController.text.trim();
+                if (newName.isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(content: Text(loc.seasonNameRequired)),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(loc.save),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result == true) {
+      final newName = nameController.text.trim();
+      if (newName.isNotEmpty && newName != season.name) {
+        try {
+          // Update season name in database
+          await DatabaseService.instance.update(
+            'Seasons',
+            {'name': newName},
+            key: season.id.toString(),
+          );
+
+          // Reload the season to reflect the change
+          setState(() {
+            _seasonFuture = null;
+          });
+
+          // Trigger a rebuild to reload the season
+          setState(() {});
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(loc.seasonNameUpdated)),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${loc.errorMessage}: ${e.toString()}'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    // Dispose controller after dialog animation completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      nameController.dispose();
+    });
   }
 }

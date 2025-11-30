@@ -1399,4 +1399,13 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get unknown => 'Sconosciuto';
+
+  @override
+  String get editSeasonName => 'Modifica nome stagione';
+
+  @override
+  String get seasonNameRequired => 'Il nome della stagione è obbligatorio';
+
+  @override
+  String get seasonNameUpdated => 'Nome della stagione aggiornato con successo';
 }

@@ -2667,6 +2667,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get unknown;
+
+  /// No description provided for @editSeasonName.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Season Name'**
+  String get editSeasonName;
+
+  /// No description provided for @seasonNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Season name is required'**
+  String get seasonNameRequired;
+
+  /// No description provided for @seasonNameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Season name updated successfully'**
+  String get seasonNameUpdated;
 }
 
 class _AppLocalizationsDelegate

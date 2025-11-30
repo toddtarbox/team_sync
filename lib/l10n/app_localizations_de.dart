@@ -1406,4 +1406,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get unknown => 'Unbekannt';
+
+  @override
+  String get editSeasonName => 'Saisonname bearbeiten';
+
+  @override
+  String get seasonNameRequired => 'Saisonname ist erforderlich';
+
+  @override
+  String get seasonNameUpdated => 'Saisonname erfolgreich aktualisiert';
 }

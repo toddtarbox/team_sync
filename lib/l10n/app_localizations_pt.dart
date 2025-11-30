@@ -1404,4 +1404,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get unknown => 'Desconhecido';
+
+  @override
+  String get editSeasonName => 'Editar nome da temporada';
+
+  @override
+  String get seasonNameRequired => 'O nome da temporada é obrigatório';
+
+  @override
+  String get seasonNameUpdated => 'Nome da temporada atualizado com sucesso';
 }

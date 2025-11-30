@@ -632,5 +632,8 @@
     }
   },
   "versus": "vs.",
-  "unknown": "Unknown"
+  "unknown": "Unknown",
+  "editSeasonName": "Edit Season Name",
+  "seasonNameRequired": "Season name is required",
+  "seasonNameUpdated": "Season name updated successfully"
 }
