@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
@@ -13,8 +12,7 @@ import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
-import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
+import 'package:team_sync/widgets/responsive/game_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
@@ -293,11 +291,7 @@ final router = GoRouter(
                 final game = extras?['game'] as Game?;
 
                 if (season != null && game != null) {
-                  if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-                    return TabletGamePage(season: season, game: game);
-                  } else {
-                    return MobileGamePage(season: season, game: game);
-                  }
+                  return GamePage(season: season, game: game);
                 }
 
                 final databaseId = state.pathParameters['databaseId'];
@@ -320,14 +314,7 @@ final router = GoRouter(
                     if (snapshot.hasData && snapshot.data != null) {
                       final loadedSeason = snapshot.data!['season'] as Season;
                       final loadedGame = snapshot.data!['game'] as Game;
-                      if (ResponsiveBreakpoints.of(context)
-                          .largerThan(MOBILE)) {
-                        return TabletGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      } else {
-                        return MobileGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      }
+                      return GamePage(season: loadedSeason, game: loadedGame);
                     } else if (snapshot.hasError) {
                       return Scaffold(
                         appBar: AppBar(title: const Text('Error')),

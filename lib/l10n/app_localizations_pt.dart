@@ -988,7 +988,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get records => 'Recordes';
 
   @override
-  String get redCards => 'Cartões vermelhos';
+  String get redCards => 'Cartões Vermelhos';
 
   @override
   String get remindMeLater => 'Lembrar mais tarde';
@@ -1320,7 +1320,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get year => 'Ano';
 
   @override
-  String get yellowCards => 'Cartões amarelos';
+  String get yellowCards => 'Cartões Amarelos';
 
   @override
   String get noGamesYet => 'Ainda não há jogos';
@@ -1498,4 +1498,19 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get cardsPerGame => 'Cartões por Jogo';
+
+  @override
+  String get statistics => 'Estatísticas';
+
+  @override
+  String get scoringEvents => 'Eventos de Gol';
+
+  @override
+  String get noScoringEventsYet => 'Ainda não há eventos de gol';
+
+  @override
+  String get gameStatistics => 'Estatísticas do Jogo';
+
+  @override
+  String get shotsOnTarget => 'Chutes no Alvo';
 }

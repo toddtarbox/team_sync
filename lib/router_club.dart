@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
@@ -9,15 +8,14 @@ import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/club_home_page.dart';
 import 'package:team_sync/widgets/club_stats_page.dart';
-import 'package:team_sync/widgets/home_page.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 import 'package:team_sync/widgets/players_page.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
-import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
+import 'package:team_sync/widgets/responsive/game_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
 import 'package:team_sync/widgets/sign_in_page.dart';
+import 'package:team_sync/widgets/team_sync/team_home_page.dart';
 
 /// Router for ClubSync app with distinct URLs for each page
 ///
@@ -53,12 +51,13 @@ final routerClub = GoRouter(
       builder: (context, state) {
         final clubId = int.tryParse(state.pathParameters['clubId']!);
         final teamId = int.tryParse(state.pathParameters['teamId']!);
-        final club = state.extra as Club?;
 
-        return HomePage(
-          teamId: teamId,
-          club: club,
-          clubId: clubId,
+        // Construct database ID from club and team IDs for multi-team club structure
+        // Format: club_{clubId}_team_{teamId}
+        final databaseId = 'club_${clubId}_team_${teamId}';
+
+        return TeamHomePage(
+          databaseId: databaseId,
         );
       },
       routes: [
@@ -220,11 +219,7 @@ final routerClub = GoRouter(
                 final game = extras?['game'] as Game?;
 
                 if (season != null && game != null) {
-                  if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-                    return TabletGamePage(season: season, game: game);
-                  } else {
-                    return MobileGamePage(season: season, game: game);
-                  }
+                  return GamePage(season: season, game: game);
                 }
 
                 return FutureBuilder<Map<String, dynamic>?>(
@@ -233,14 +228,7 @@ final routerClub = GoRouter(
                     if (snapshot.hasData && snapshot.data != null) {
                       final loadedSeason = snapshot.data!['season'] as Season;
                       final loadedGame = snapshot.data!['game'] as Game;
-                      if (ResponsiveBreakpoints.of(context)
-                          .largerThan(MOBILE)) {
-                        return TabletGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      } else {
-                        return MobileGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      }
+                      return GamePage(season: loadedSeason, game: loadedGame);
                     } else if (snapshot.hasError) {
                       return Scaffold(
                         appBar: AppBar(title: const Text('Error')),

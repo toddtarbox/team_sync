@@ -466,5 +466,15 @@
   "shootingAccuracy": "Precisão de Chute",
   "comebackWins": "Vitórias de Virada",
   "lateGoals": "Gols Tardios (80+)",
-  "cardsPerGame": "Cartões por Jogo"
+  "cardsPerGame": "Cartões por Jogo",
+  "statistics": "Estatísticas",
+  "scoringEvents": "Eventos de Gol",
+  "noScoringEventsYet": "Ainda não há eventos de gol",
+  "gameStatistics": "Estatísticas do Jogo",
+  "shots": "Chutes",
+  "shotsOnTarget": "Chutes no Alvo",
+  "corners": "Escanteios",
+  "fouls": "Faltas",
+  "yellowCards": "Cartões Amarelos",
+  "redCards": "Cartões Vermelhos"
 }

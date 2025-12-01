@@ -626,5 +626,15 @@
   "shootingAccuracy": "Precisión de Tiro",
   "comebackWins": "Victorias Remontadas",
   "lateGoals": "Goles Tardíos (80+)",
-  "cardsPerGame": "Tarjetas por Partido"
+  "cardsPerGame": "Tarjetas por Partido",
+  "statistics": "Estadísticas",
+  "scoringEvents": "Eventos de Gol",
+  "noScoringEventsYet": "No hay eventos de gol aún",
+  "gameStatistics": "Estadísticas del Partido",
+  "shots": "Tiros",
+  "shotsOnTarget": "Tiros a Puerta",
+  "corners": "Corners",
+  "fouls": "Faltas",
+  "yellowCards": "Tarjetas Amarillas",
+  "redCards": "Tarjetas Rojas"
 }

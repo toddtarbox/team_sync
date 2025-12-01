@@ -663,5 +663,15 @@
   "shootingAccuracy": "Shooting Accuracy",
   "comebackWins": "Comeback Wins",
   "lateGoals": "Late Goals (80+)",
-  "cardsPerGame": "Cards Per Game"
+  "cardsPerGame": "Cards Per Game",
+  "statistics": "Statistics",
+  "scoringEvents": "Scoring Events",
+  "noScoringEventsYet": "No scoring events yet",
+  "gameStatistics": "Game Statistics",
+  "shots": "Shots",
+  "shotsOnTarget": "Shots on Target",
+  "corners": "Corners",
+  "fouls": "Fouls",
+  "yellowCards": "Yellow Cards",
+  "redCards": "Red Cards"
 }

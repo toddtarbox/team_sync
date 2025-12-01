@@ -2853,6 +2853,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cards Per Game'**
   String get cardsPerGame;
+
+  /// No description provided for @statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statistics;
+
+  /// No description provided for @scoringEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Scoring Events'**
+  String get scoringEvents;
+
+  /// No description provided for @noScoringEventsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No scoring events yet'**
+  String get noScoringEventsYet;
+
+  /// No description provided for @gameStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Statistics'**
+  String get gameStatistics;
+
+  /// No description provided for @shotsOnTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Shots on Target'**
+  String get shotsOnTarget;
 }
 
 class _AppLocalizationsDelegate

@@ -1,4 +1,3 @@
-import 'package:auto_size_text/auto_size_text.dart';
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,12 +8,12 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
-import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GameView extends StatefulWidget {
@@ -125,6 +124,16 @@ class _GameViewState extends State<GameView> {
         builder:
             (BuildContext context, AsyncSnapshot<List<GameEvent>> snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
+            // Web layout: side-by-side scoring events and stats
+            // Always use web layout on web platform (shows only scoring events)
+            if (kIsWeb) {
+              return _buildWebLayout(loc);
+            }
+
+            // Mobile layout: full event list with reordering
+            final isLargeScreen =
+                ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+
             var itemCount = _game.scoringEvents.length +
                 _game.gameEvents.length +
                 _game.shootoutEvents.length +
@@ -133,8 +142,7 @@ class _GameViewState extends State<GameView> {
               itemCount += 1;
             }
 
-            bool showScoringEvents =
-                ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+            bool showScoringEvents = isLargeScreen;
 
             // Enable reorder only on mobile
             final bool enableReorder = !kIsWeb;
@@ -294,36 +302,6 @@ class _GameViewState extends State<GameView> {
   }
 
   Widget _getEventTile(GameEvent event, AppLocalizations loc) {
-    final eventMinuteWidget = SizedBox(
-        width: 48,
-        child: Center(
-            child: Text(
-                event.eventMinute > 0
-                    ? '${event.eventMinute.toString()}\''
-                    : '',
-                style: const TextStyle(fontSize: 20))));
-
-    final scoreWidget = event.eventMinute > 0 &&
-            (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
-            event.eventData == ShotResult.goal.index
-        ? SizedBox(
-            width: 50,
-            child: Center(
-                child: Text(
-                    _game.getScore(widget.season.teamId,
-                        minute: event.eventMinute),
-                    style: const TextStyle(fontSize: 20))))
-        : null;
-
-    final linkWidget = event.eventUrls?.isNotEmpty ?? false
-        ? Center(
-            child: GestureDetector(
-              onTap: () => _launchUrl(event.eventUrls!),
-              child: VideoThumbnail(event.eventUrls!, width: 40, height: 28),
-            ),
-          )
-        : Container();
-
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
@@ -342,69 +320,56 @@ class _GameViewState extends State<GameView> {
             e.eventData == event.id)
         .firstOrNull;
 
-    final eventCard = ListTile(
-        leading: eventMinuteWidget,
-        trailing: scoreWidget,
-        title: Row(children: [
-          event.image,
-          const SizedBox(width: 10),
-          Text(event.eventType == 'Shot' &&
-                  event.eventData == ShotResult.goal.index &&
-                  ((event.player == null &&
-                          event.team.id == widget.season.teamId) ||
-                      event.player?.id == -2)
-              ? event.team.id == widget.season.teamId
-                  ? 'Own goal by ${opponent.shortName}'
-                  : 'Own goal'
-              : event.display),
-          linkWidget
-        ]),
-        subtitle: Visibility(
-            visible: event.eventType != 'Period' && event.eventType != 'Assist',
-            child: event.player != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (event.player != null &&
-                              event.player!.id != -2) ...[
-                            ResponsivePlayerAvatar(
-                                player: event.player!, avatarSize: 18),
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: AutoSizeText(event.player?.displayName ?? '',
-                                minFontSize: 14),
-                          ),
-                        ],
-                      ),
-                      if (assistEvent != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (assistEvent.player != null &&
-                                assistEvent.player!.id != -2) ...[
-                              AutoSizeText(loc.assistedBy, minFontSize: 14),
-                              const SizedBox(width: 8),
-                              ResponsivePlayerAvatar(
-                                  player: assistEvent.player!, avatarSize: 18),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              child: AutoSizeText(
-                                  assistEvent.player?.displayName ?? '',
-                                  minFontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ]
-                    ],
-                  )
-                : Text(event.team.shortName)),
+    // Determine event color based on type
+    final Color eventColor = _getEventColor(event);
+    final bool isGoal =
+        event.eventType == 'Shot' && event.eventData == ShotResult.goal.index;
+    final bool isPeriodEvent = event.eventType == 'Period';
+
+    // Responsive sizing based on screen width
+    final isLargeScreen = ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+    final bool isWeb = kIsWeb;
+
+    // Use smaller, more compact layout on smaller screens
+    final bool useCompactLayout = !isLargeScreen || !isWeb;
+
+    final eventCard = Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: useCompactLayout ? 4 : 16,
+        vertical: useCompactLayout ? 4 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isPeriodEvent
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+              : eventColor.withValues(alpha: 0.2),
+          width: isPeriodEvent ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
         onTap: () {
           _editEvent(event: event);
-        });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.all(useCompactLayout ? 10 : 20),
+          child: useCompactLayout
+              ? _buildCompactEventLayout(
+                  event, loc, eventColor, isGoal, opponent, assistEvent)
+              : _buildLargeEventLayout(
+                  event, loc, eventColor, isGoal, opponent, assistEvent),
+        ),
+      ),
+    );
 
     if (kIsWeb) {
       return eventCard;
@@ -412,16 +377,41 @@ class _GameViewState extends State<GameView> {
 
     return Dismissible(
         key: Key(event.id.toString()),
-        direction:
-            DismissDirection.startToEnd, // Only allow right to left swipe
+        direction: DismissDirection.endToStart,
         dismissThresholds: const {
-          DismissDirection.startToEnd: 0.5, // Require 50% swipe to trigger
+          DismissDirection.endToStart: 0.7,
         },
+        movementDuration: const Duration(milliseconds: 200),
+        resizeDuration: const Duration(milliseconds: 200),
+        crossAxisEndOffset: 0.0,
         background: Container(
-            color: Colors.red,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Colors.white)),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Colors.red, Colors.redAccent],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.delete, color: Colors.white, size: 32),
+              SizedBox(height: 4),
+              Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
         confirmDismiss: (_) {
           return showDialog(
             context: context,
@@ -457,6 +447,911 @@ class _GameViewState extends State<GameView> {
           });
         },
         child: eventCard);
+  }
+
+  // Compact layout for small screens - vertical stacking
+  Widget _buildCompactEventLayout(
+    GameEvent event,
+    AppLocalizations loc,
+    Color eventColor,
+    bool isGoal,
+    Team opponent,
+    GameEvent? assistEvent,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top row: Icon, Title, Score
+        Row(
+          children: [
+            // Event icon
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: eventColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: eventColor.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                  child: Transform.scale(scale: 0.9, child: event.image)),
+            ),
+            const SizedBox(width: 10),
+            // Event title
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event.eventType == 'Shot' &&
+                            event.eventData == ShotResult.goal.index &&
+                            ((event.player == null &&
+                                    event.team.id == widget.season.teamId) ||
+                                event.player?.id == -2)
+                        ? event.team.id == widget.season.teamId
+                            ? 'Own goal by ${opponent.shortName}'
+                            : 'Own goal'
+                        : event.display,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isGoal ? eventColor : null,
+                    ),
+                  ),
+                  // Minute badge
+                  if (event.eventMinute > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: eventColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: eventColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        '${event.eventMinute}\'',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: eventColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Score + Video link
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (event.eventUrls?.isNotEmpty ?? false) ...[
+                  GestureDetector(
+                    onTap: () => _launchUrl(event.eventUrls!),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.play_circle_outline,
+                        size: 18,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (event.eventMinute > 0 &&
+                    (event.eventType == 'Shot' ||
+                        event.eventType == 'PenaltyKick') &&
+                    event.eventData == ShotResult.goal.index)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          eventColor.withValues(alpha: 0.2),
+                          eventColor.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: eventColor.withValues(alpha: 0.4),
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      _game.getScore(widget.season.teamId,
+                          minute: event.eventMinute),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: eventColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        // Player info
+        if (event.eventType != 'Period' && event.eventType != 'Assist') ...[
+          const SizedBox(height: 8),
+          if (event.player != null)
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: event.team.color1.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: event.team.color1.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  if (event.player!.id != -2) ...[
+                    ResponsivePlayerAvatar(
+                      player: event.player!,
+                      avatarSize: 28,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      event.player!.displayName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: event.team.color1.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                event.team.shortName,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: event.team.color1,
+                ),
+              ),
+            ),
+          // Assist info
+          if (assistEvent != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.green.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.sports_soccer,
+                    size: 14,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    loc.assistedBy,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (assistEvent.player != null &&
+                      assistEvent.player!.id != -2) ...[
+                    ResponsivePlayerAvatar(
+                      player: assistEvent.player!,
+                      avatarSize: 24,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      assistEvent.player?.displayName ?? '',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  // Large layout for big screens - horizontal layout
+  Widget _buildLargeEventLayout(
+    GameEvent event,
+    AppLocalizations loc,
+    Color eventColor,
+    bool isGoal,
+    Team opponent,
+    GameEvent? assistEvent,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Time and Icon section
+        Column(
+          children: [
+            // Event icon with colored background
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: eventColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: eventColor.withValues(alpha: 0.3),
+                  width: 3,
+                ),
+              ),
+              child: Center(
+                child: Transform.scale(
+                  scale: 1.5,
+                  child: event.image,
+                ),
+              ),
+            ),
+            // Event minute
+            if (event.eventMinute > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: eventColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: eventColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Text(
+                  '${event.eventMinute}\'',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: eventColor,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(width: 24),
+        // Event details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Event type and team
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      event.eventType == 'Shot' &&
+                              event.eventData == ShotResult.goal.index &&
+                              ((event.player == null &&
+                                      event.team.id == widget.season.teamId) ||
+                                  event.player?.id == -2)
+                          ? event.team.id == widget.season.teamId
+                              ? 'Own goal by ${opponent.shortName}'
+                              : 'Own goal'
+                          : event.display,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isGoal ? eventColor : null,
+                      ),
+                    ),
+                  ),
+                  // Video link indicator
+                  if (event.eventUrls?.isNotEmpty ?? false)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      child: GestureDetector(
+                        onTap: () => _launchUrl(event.eventUrls!),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.play_circle_outline,
+                            size: 28,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              // Player information
+              if (event.eventType != 'Period' &&
+                  event.eventType != 'Assist') ...[
+                const SizedBox(height: 12),
+                if (event.player != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: event.team.color1.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: event.team.color1.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        if (event.player!.id != -2) ...[
+                          ResponsivePlayerAvatar(
+                            player: event.player!,
+                            avatarSize: 48,
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            event.player!.displayName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: event.team.color1.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      event.team.shortName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: event.team.color1,
+                      ),
+                    ),
+                  ),
+                // Assist information
+                if (assistEvent != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.green.withValues(alpha: 0.2),
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.sports_soccer,
+                          size: 20,
+                          color: Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          loc.assistedBy,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        if (assistEvent.player != null &&
+                            assistEvent.player!.id != -2) ...[
+                          ResponsivePlayerAvatar(
+                            player: assistEvent.player!,
+                            avatarSize: 40,
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Text(
+                            assistEvent.player?.displayName ?? '',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+        // Score display for goals
+        if (event.eventMinute > 0 &&
+            (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
+            event.eventData == ShotResult.goal.index)
+          Container(
+            margin: const EdgeInsets.only(left: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  eventColor.withValues(alpha: 0.2),
+                  eventColor.withValues(alpha: 0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: eventColor.withValues(alpha: 0.4),
+                width: 3,
+              ),
+            ),
+            child: Text(
+              _game.getScore(widget.season.teamId, minute: event.eventMinute),
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: eventColor,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Helper method to get event color based on type
+  Color _getEventColor(GameEvent event) {
+    if (event.eventType == 'Shot' && event.eventData == ShotResult.goal.index) {
+      return Colors.green;
+    } else if (event.eventType == 'PenaltyKick' &&
+        event.eventData == ShotResult.goal.index) {
+      return Colors.green;
+    } else if (event.eventType == 'Assist') {
+      return Colors.lightGreen;
+    } else if (event.eventType == 'Save') {
+      return Colors.blue;
+    } else if (event.eventType == 'Shot') {
+      return Colors.orange;
+    } else if (event.eventType == 'Card') {
+      return event.eventData == 2 ? Colors.red : Colors.amber;
+    } else if (event.eventType == 'Foul') {
+      return Colors.deepOrange;
+    } else if (event.eventType == 'Corner') {
+      return Colors.purple;
+    } else if (event.eventType == 'Offsides') {
+      return Colors.brown;
+    } else if (event.eventType == 'Period') {
+      return Colors.grey;
+    }
+    return Colors.grey;
+  }
+
+  // Build web-specific layout with scoring events and stats side-by-side
+  Widget _buildWebLayout(AppLocalizations loc) {
+    final isLargeScreen = ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left side: Scoring events
+        Expanded(
+          flex: isLargeScreen ? 3 : 1,
+          child: Container(
+            decoration: BoxDecoration(
+              border: isLargeScreen
+                  ? Border(
+                      right: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                        width: 1,
+                      ),
+                    )
+                  : null,
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: widget.season.team.color1.withValues(alpha: 0.1),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: widget.season.team.color1.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sports_soccer,
+                        color: widget.season.team.color1,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        loc.scoringEvents,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: widget.season.team.color1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Scoring events list
+                Expanded(
+                  child: _game.scoringEvents.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.sports_soccer_outlined,
+                                  size: 64,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  loc.noScoringEventsYet,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _game.scoringEvents.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final event = _game.scoringEvents[index];
+                            return _getEventTile(event, loc);
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Right side: Game stats (only on larger screens)
+        if (isLargeScreen)
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stats header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: widget.season.team.color2.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: widget.season.team.color2.withValues(alpha: 0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.bar_chart,
+                          color: widget.season.team.color2,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          loc.gameStatistics,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: widget.season.team.color2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Stats content
+                  Expanded(
+                    child: _buildGameStats(loc),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Build game statistics summary
+  Widget _buildGameStats(AppLocalizations loc) {
+    final homeTeam = _game.homeTeam;
+    final awayTeam = _game.awayTeam;
+
+    // Calculate stats
+    final homeShots = _game.gameEvents
+        .where((e) => e.eventType == 'Shot' && e.team.id == homeTeam.id)
+        .length;
+    final awayShots = _game.gameEvents
+        .where((e) => e.eventType == 'Shot' && e.team.id == awayTeam.id)
+        .length;
+
+    final homeShotsOnTarget = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Shot' &&
+            e.team.id == homeTeam.id &&
+            (e.eventData == ShotResult.goal.index ||
+                e.eventData == ShotResult.onTargetSave.index))
+        .length;
+    final awayShotsOnTarget = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Shot' &&
+            e.team.id == awayTeam.id &&
+            (e.eventData == ShotResult.goal.index ||
+                e.eventData == ShotResult.onTargetSave.index))
+        .length;
+
+    final homeCorners = _game.gameEvents
+        .where((e) => e.eventType == 'Corner' && e.team.id == homeTeam.id)
+        .length;
+    final awayCorners = _game.gameEvents
+        .where((e) => e.eventType == 'Corner' && e.team.id == awayTeam.id)
+        .length;
+
+    final homeFouls = _game.gameEvents
+        .where((e) => e.eventType == 'Foul' && e.team.id == homeTeam.id)
+        .length;
+    final awayFouls = _game.gameEvents
+        .where((e) => e.eventType == 'Foul' && e.team.id == awayTeam.id)
+        .length;
+
+    final homeYellowCards = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Card' &&
+            e.team.id == homeTeam.id &&
+            (e.eventData == 0 || e.eventData == 1))
+        .length;
+    final awayYellowCards = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Card' &&
+            e.team.id == awayTeam.id &&
+            (e.eventData == 0 || e.eventData == 1))
+        .length;
+
+    final homeRedCards = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Card' &&
+            e.team.id == homeTeam.id &&
+            e.eventData == 2)
+        .length;
+    final awayRedCards = _game.gameEvents
+        .where((e) =>
+            e.eventType == 'Card' &&
+            e.team.id == awayTeam.id &&
+            e.eventData == 2)
+        .length;
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _buildStatRow(
+            loc.shots,
+            homeShots,
+            awayShots,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            loc.shotsOnTarget,
+            homeShotsOnTarget,
+            awayShotsOnTarget,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            loc.corners,
+            homeCorners,
+            awayCorners,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            loc.fouls,
+            homeFouls,
+            awayFouls,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            loc.yellowCards,
+            homeYellowCards,
+            awayYellowCards,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+          const SizedBox(height: 16),
+          _buildStatRow(
+            loc.redCards,
+            homeRedCards,
+            awayRedCards,
+            homeTeam.shortName,
+            awayTeam.shortName,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a single stat row with comparison bar
+  Widget _buildStatRow(
+    String label,
+    int homeValue,
+    int awayValue,
+    String homeTeam,
+    String awayTeam,
+  ) {
+    final total = homeValue + awayValue;
+    final homePercentage = total > 0 ? homeValue / total : 0.5;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Values and bar
+        Row(
+          children: [
+            // Home value
+            SizedBox(
+              width: 30,
+              child: Text(
+                homeValue.toString(),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Comparison bar
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                  ),
+                  child: Row(
+                    children: [
+                      if (homeValue > 0)
+                        Expanded(
+                          flex: (homePercentage * 100).toInt(),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  widget.season.team.color1,
+                                  widget.season.team.color1
+                                      .withValues(alpha: 0.7),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (awayValue > 0)
+                        Expanded(
+                          flex: ((1 - homePercentage) * 100).toInt(),
+                          child: Container(
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Away value
+            SizedBox(
+              width: 30,
+              child: Text(
+                awayValue.toString(),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Future<List<GameEvent>> _loadGameEvents() async {

@@ -8,7 +8,6 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
-import 'package:team_sync/widgets/scoring_summary.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -54,25 +53,16 @@ class _GameStatsViewState extends State<GameStatsView> {
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
           if (snapshot.hasData) {
             return ListView.separated(
-                itemCount: 3 + _statCategoryTiles.length,
+                itemCount: 1 + _statCategoryTiles.length,
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    return ListTile(
-                        title: Center(
-                            child: Text(loc.scoringSummary,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold))));
-                  } else if (index == 1) {
-                    return ScoringSummary(
-                        widget.season, widget.season.team, _game);
-                  } else if (index == 2) {
                     return ListTile(
                         title: Center(
                             child: Text(loc.gameStats,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold))));
                   } else {
-                    return _statCategoryTiles[index - 3];
+                    return _statCategoryTiles[index - 1];
                   }
                 },
                 separatorBuilder: (context, index) {

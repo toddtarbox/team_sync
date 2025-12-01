@@ -466,5 +466,15 @@
   "shootingAccuracy": "Precisione di Tiro",
   "comebackWins": "Vittorie in Rimonta",
   "lateGoals": "Gol Tardivi (80+)",
-  "cardsPerGame": "Cartellini per Partita"
+  "cardsPerGame": "Cartellini per Partita",
+  "statistics": "Statistiche",
+  "scoringEvents": "Eventi di Gol",
+  "noScoringEventsYet": "Nessun evento di gol ancora",
+  "gameStatistics": "Statistiche della Partita",
+  "shots": "Tiri",
+  "shotsOnTarget": "Tiri in Porta",
+  "corners": "Calci d'Angolo",
+  "fouls": "Falli",
+  "yellowCards": "Cartellini Gialli",
+  "redCards": "Cartellini Rossi"
 }

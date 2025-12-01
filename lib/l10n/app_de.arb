@@ -466,5 +466,15 @@
   "shootingAccuracy": "Schussgenauigkeit",
   "comebackWins": "Aufholjagd-Siege",
   "lateGoals": "Späte Tore (80+)",
-  "cardsPerGame": "Karten pro Spiel"
+  "cardsPerGame": "Karten pro Spiel",
+  "statistics": "Statistiken",
+  "scoringEvents": "Torereignisse",
+  "noScoringEventsYet": "Noch keine Torereignisse",
+  "gameStatistics": "Spielstatistiken",
+  "shots": "Schüsse",
+  "shotsOnTarget": "Schüsse aufs Tor",
+  "corners": "Ecken",
+  "fouls": "Fouls",
+  "yellowCards": "Gelbe Karten",
+  "redCards": "Rote Karten"
 }

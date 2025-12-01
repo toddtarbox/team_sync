@@ -191,7 +191,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get convertToCloud => 'Converti in database cloud';
 
   @override
-  String get corners => 'Calci d\'angolo';
+  String get corners => 'Calci d\'Angolo';
 
   @override
   String couldNotOpenUrl(Object url) {
@@ -984,7 +984,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get records => 'Record';
 
   @override
-  String get redCards => 'Cartellini rossi';
+  String get redCards => 'Cartellini Rossi';
 
   @override
   String get remindMeLater => 'Ricordamelo più tardi';
@@ -1315,7 +1315,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get year => 'Anno';
 
   @override
-  String get yellowCards => 'Cartellini gialli';
+  String get yellowCards => 'Cartellini Gialli';
 
   @override
   String get noGamesYet => 'Nessuna partita ancora';
@@ -1493,4 +1493,19 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get cardsPerGame => 'Cartellini per Partita';
+
+  @override
+  String get statistics => 'Statistiche';
+
+  @override
+  String get scoringEvents => 'Eventi di Gol';
+
+  @override
+  String get noScoringEventsYet => 'Nessun evento di gol ancora';
+
+  @override
+  String get gameStatistics => 'Statistiche della Partita';
+
+  @override
+  String get shotsOnTarget => 'Tiri in Porta';
 }

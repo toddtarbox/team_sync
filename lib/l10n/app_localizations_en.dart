@@ -1485,4 +1485,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cardsPerGame => 'Cards Per Game';
+
+  @override
+  String get statistics => 'Statistics';
+
+  @override
+  String get scoringEvents => 'Scoring Events';
+
+  @override
+  String get noScoringEventsYet => 'No scoring events yet';
+
+  @override
+  String get gameStatistics => 'Game Statistics';
+
+  @override
+  String get shotsOnTarget => 'Shots on Target';
 }
