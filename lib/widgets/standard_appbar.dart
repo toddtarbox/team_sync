@@ -23,12 +23,12 @@ AppBar buildStandardAppBar({
   // On web, don't show back button - use browser navigation instead
   final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
-  Future<void> goToWebSite() async {
-    if (kIsWeb) {
-      final uri = Uri.parse('https://sites.google.com/view/team-sync/home');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+  Future<void> launchPrivacyPolicy() async {
+    final uri = Uri.parse('https://sites.google.com/view/team-sync/home');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not launch URL: $e');
     }
   }
 
@@ -39,9 +39,7 @@ AppBar buildStandardAppBar({
   if (!automaticallyImplyLeading) {
     // Custom icon without auto back button
     leadingWidget = InkWell(
-      onTap: () {
-        goToWebSite();
-      },
+      onTap: launchPrivacyPolicy,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -55,9 +53,7 @@ AppBar buildStandardAppBar({
   } else {
     // Custom icon when no back button is needed
     leadingWidget = InkWell(
-      onTap: () {
-        goToWebSite();
-      },
+      onTap: launchPrivacyPolicy,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -71,9 +67,7 @@ AppBar buildStandardAppBar({
     automaticallyImplyLeading: implicitLeading,
     title: !showBackButton
         ? InkWell(
-            onTap: () {
-              goToWebSite();
-            },
+            onTap: launchPrivacyPolicy,
             child: title,
           )
         : title,

@@ -71,10 +71,11 @@ class VideoThumbnail extends StatelessWidget {
   }
 
   Future<void> _openUrl(BuildContext context) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    try {
+      final uri = Uri.parse(url);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    } catch (e) {
+      debugPrint('Could not launch URL: $e');
       if (context.mounted) {
         final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(

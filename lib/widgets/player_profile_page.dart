@@ -2054,9 +2054,10 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Future<void> _launchUrl(String urlString) async {
     final loc = AppLocalizations.of(context)!;
     final uri = Uri.parse(urlString);
-    if (await canLaunchUrl(uri)) {
+    try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    } catch (e) {
+      debugPrint('Could not launch URL: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(loc.couldNotOpenUrl(urlString))),
@@ -2699,11 +2700,12 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () async {
-                    final uri = Uri.parse(award.url!);
-                    if (await canLaunchUrl(uri)) {
+                    try {
+                      final uri = Uri.parse(award.url!);
                       await launchUrl(uri,
                           mode: LaunchMode.externalApplication);
-                    } else {
+                    } catch (e) {
+                      debugPrint('Could not launch URL: $e');
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
