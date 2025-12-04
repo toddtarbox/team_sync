@@ -338,6 +338,8 @@ class Game {
       required this.description,
       required this.gameLinks});
 
+  bool get isCompleted => gameStatus.index >= 9;
+
   static Game initial(
       {required int seasonId, required Team homeTeam, required Team awayTeam}) {
     return Game(

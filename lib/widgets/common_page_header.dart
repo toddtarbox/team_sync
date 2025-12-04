@@ -26,13 +26,14 @@ class CommonPageHeader extends StatelessWidget {
     this.height,
     this.padding,
     this.summaryMessage,
-    this.showSummary = false,
+    this.showSummary = true,
     this.onSummaryChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final responsiveAvatar = ResponsiveAvatar(
+      backgroundColor: Colors.transparent,
       imageUrl: team.logoUrl,
       initials: team.fullName.isNotEmpty ? team.fullName[0] : '?',
       isSquare: team.isLogoSquare ?? false,
@@ -41,6 +42,7 @@ class CommonPageHeader extends StatelessWidget {
     final organizationAvatar =
         team.organizationLogoUrl != null && team.organizationLogoUrl!.isNotEmpty
             ? ResponsiveAvatar(
+                backgroundColor: Colors.transparent,
                 imageUrl: team.organizationLogoUrl,
                 initials: team.fullName.isNotEmpty ? team.fullName[0] : '?',
                 isSquare: team.isOrganizationLogoSquare ?? false,

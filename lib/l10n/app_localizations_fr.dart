@@ -1523,4 +1523,88 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get shotsOnTarget => 'Tirs Cadrés';
+
+  @override
+  String get goalAnalytics => 'Analyse des Buts';
+
+  @override
+  String get totalGoalsScored => 'Total de Buts Marqués';
+
+  @override
+  String get totalGoalsConceded => 'Total de Buts Concédés';
+
+  @override
+  String get avgGoalsPerGame => 'Moyenne Buts Par Match';
+
+  @override
+  String get streaksRecords => 'Séries et Records';
+
+  @override
+  String get longestUnbeatenStreak => 'Plus Longue Série Invaincu';
+
+  @override
+  String get mostGoalsInGame => 'Plus de Buts en un Match';
+
+  @override
+  String get biggestVictory => 'Plus Grande Victoire';
+
+  @override
+  String get homeAwayAnalysis => 'Domicile vs Extérieur';
+
+  @override
+  String get homeWinPercentage => '% Victoires Domicile';
+
+  @override
+  String get awayWinPercentage => '% Victoires Extérieur';
+
+  @override
+  String get defensiveStats => 'Statistiques Défensives';
+
+  @override
+  String get cleanSheetPercentage => '% Cage Inviolée';
+
+  @override
+  String get avgGoalsConceded => 'Moyenne Buts Concédés';
+
+  @override
+  String get shutoutsRecorded => 'Cages Inviolées Enregistrées';
+
+  @override
+  String get allTime => 'Tous les Temps';
+
+  @override
+  String get currentSeason => 'Saison Actuelle';
+
+  @override
+  String get lastSeason => 'Dernière Saison';
+
+  @override
+  String get last3Years => '3 Dernières Saisons';
+
+  @override
+  String get last5Years => '5 Dernières Saisons';
+
+  @override
+  String get last10Years => '10 Dernières Saisons';
+
+  @override
+  String get overallStatistics => 'Statistiques Générales';
+
+  @override
+  String get recordSummary => 'Résumé des Records';
+
+  @override
+  String get totalGames => 'Total des Matchs';
+
+  @override
+  String get wins => 'Victoires';
+
+  @override
+  String get losses => 'Défaites';
+
+  @override
+  String get ties => 'Nuls';
+
+  @override
+  String get winPercentage => '% Victoires';
 }

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 
 class HistoryVersusView extends StatefulWidget {
@@ -22,8 +23,21 @@ enum SortOption {
   winPercentage,
 }
 
+enum TimeFilter {
+  allTime,
+  currentSeason,
+  lastSeason,
+  last3Years,
+  last5Years,
+  last10Years,
+}
+
 class _HistoryVersusViewState extends State<HistoryVersusView> {
+  List<Season> _allSeasons = [];
   SortOption _sortOption = SortOption.recentFirst;
+  TimeFilter _timeFilter = TimeFilter.allTime;
+  final Set<int> _expandedTeams =
+      {}; // Track which team analytics are expanded (by team ID)
 
   @override
   void initState() {
@@ -101,6 +115,566 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     }
   }
 
+  String _getTimeFilterLabel(TimeFilter filter) {
+    final loc = AppLocalizations.of(context)!;
+    switch (filter) {
+      case TimeFilter.allTime:
+        return loc.allTime;
+      case TimeFilter.currentSeason:
+        return loc.currentSeason;
+      case TimeFilter.lastSeason:
+        return loc.lastSeason;
+      case TimeFilter.last3Years:
+        return loc.last3Years;
+      case TimeFilter.last5Years:
+        return loc.last5Years;
+      case TimeFilter.last10Years:
+        return loc.last10Years;
+    }
+  }
+
+  /// Filter games based on selected seasons filter
+  List<Game> _filterGamesByTime(
+    List<Game> games, {
+    Set<int>? globalSeasonIdsForRange,
+  }) {
+    switch (_timeFilter) {
+      case TimeFilter.allTime:
+        return games;
+
+      default:
+        if (globalSeasonIdsForRange == null ||
+            globalSeasonIdsForRange.isEmpty) {
+          return [];
+        }
+
+        // Return only completed games from the specified season range
+        return games
+            .where((g) =>
+                globalSeasonIdsForRange.contains(g.seasonId) &&
+                g.gameStatus.index >= 9)
+            .toList();
+    }
+  }
+
+  /// Apply time filter to the history map
+  Map<Team, List<Game>> _applyTimeFilter(Map<Team, List<Game>> history) {
+    Set<int>? globalSeasonIdsForRange;
+
+    if (_timeFilter != TimeFilter.allTime) {
+      if (_allSeasons.isNotEmpty) {
+        final sortedSeasonIds = _allSeasons.map((s) => s.id).toList();
+
+        if (_timeFilter != TimeFilter.currentSeason) {
+          // Check if any games in the current season have been played.
+          // If not, then don't consider the current season in history.
+          final currentSeasonGames = history.values.where((games) => games.any(
+              (game) =>
+                  game.seasonId == sortedSeasonIds.first && game.isCompleted));
+          if (currentSeasonGames.isEmpty) {
+            sortedSeasonIds.removeWhere((id) => id == sortedSeasonIds.first);
+          }
+        }
+
+        switch (_timeFilter) {
+          case TimeFilter.currentSeason:
+            globalSeasonIdsForRange = sortedSeasonIds.take(1).toSet();
+            break;
+          case TimeFilter.lastSeason:
+            globalSeasonIdsForRange = sortedSeasonIds.take(1).toSet();
+            break;
+          case TimeFilter.last3Years:
+            // Last 3 seasons = top 3 season IDs
+            globalSeasonIdsForRange = sortedSeasonIds.take(3).toSet();
+            break;
+          case TimeFilter.last5Years:
+            // Last 5 seasons = top 5 season IDs
+            globalSeasonIdsForRange = sortedSeasonIds.take(5).toSet();
+            break;
+          case TimeFilter.last10Years:
+            // Last 10 seasons = top 10 season IDs
+            globalSeasonIdsForRange = sortedSeasonIds.take(10).toSet();
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    final filtered = <Team, List<Game>>{};
+
+    for (final entry in history.entries) {
+      final filteredGames = _filterGamesByTime(
+        entry.value,
+        globalSeasonIdsForRange: globalSeasonIdsForRange,
+      );
+      if (filteredGames.isNotEmpty) {
+        filtered[entry.key] = filteredGames;
+      }
+    }
+
+    return filtered;
+  }
+
+  /// Build overall analytics section showing aggregate stats for filtered period
+  Widget _buildOverallAnalytics(Map<Team, List<Game>> history) {
+    final loc = AppLocalizations.of(context)!;
+
+    // Collect all games from all opponents
+    final allGames = <Game>[];
+    for (final games in history.values) {
+      allGames.addAll(games);
+    }
+
+    // Calculate overall statistics
+    final stats = _calculateAggregateStats(allGames);
+
+    if (stats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Icon(
+                Icons.analytics,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                loc.overallStatistics,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const Spacer(),
+              // Show filter indicator
+              if (_timeFilter != TimeFilter.allTime)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _getTimeFilterLabel(_timeFilter),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // Analytics cards grid
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 600;
+
+            if (isWide) {
+              // 2x2 grid for wider screens
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAnalyticsSummaryCard(
+                          loc.recordSummary,
+                          Icons.emoji_events,
+                          Colors.amber,
+                          [
+                            _buildStatRow2(loc.totalGames,
+                                '${stats['totalGames']}', Icons.sports_soccer),
+                            _buildStatRow2(loc.wins, '${stats['wins']}',
+                                Icons.trending_up),
+                            _buildStatRow2(loc.losses, '${stats['losses']}',
+                                Icons.trending_down),
+                            _buildStatRow2(
+                                loc.ties, '${stats['ties']}', Icons.remove),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAnalyticsSummaryCard(
+                          loc.goalAnalytics,
+                          Icons.sports_score,
+                          Colors.green,
+                          [
+                            _buildStatRow2(loc.totalGoalsScored,
+                                '${stats['totalGoalsScored']}', Icons.north),
+                            _buildStatRow2(loc.totalGoalsConceded,
+                                '${stats['totalGoalsConceded']}', Icons.south),
+                            _buildStatRow2(
+                                loc.avgGoalsPerGame,
+                                stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                                Icons.functions),
+                            _buildStatRow2(
+                                loc.goalDifferential,
+                                stats['goalDifferential']! >= 0
+                                    ? '+${stats['goalDifferential']}'
+                                    : '${stats['goalDifferential']}',
+                                Icons.compare_arrows),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAnalyticsSummaryCard(
+                          loc.streaksRecords,
+                          Icons.flash_on,
+                          Colors.purple,
+                          [
+                            _buildStatRow2(
+                                loc.longestWinStreak,
+                                '${stats['longestWinStreak']}W',
+                                Icons.trending_up),
+                            _buildStatRow2(
+                                loc.biggestVictory,
+                                '+${stats['biggestVictory']}',
+                                Icons.celebration),
+                            _buildStatRow2(loc.cleanSheets,
+                                '${stats['cleanSheets']}', Icons.shield),
+                            _buildStatRow2(
+                                loc.winPercentage,
+                                '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
+                                Icons.percent),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildAnalyticsSummaryCard(
+                          loc.homeAwayAnalysis,
+                          Icons.home,
+                          Colors.blue,
+                          [
+                            _buildStatRow2(
+                                loc.homeRecord,
+                                '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
+                                Icons.home),
+                            _buildStatRow2(
+                                loc.awayRecord,
+                                '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
+                                Icons.flight_takeoff),
+                            _buildStatRow2(
+                                loc.homeWinPercentage,
+                                '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                                Icons.home_outlined),
+                            _buildStatRow2(
+                                loc.awayWinPercentage,
+                                '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                                Icons.flight_outlined),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            } else {
+              // Single column for narrow screens
+              return Column(
+                children: [
+                  _buildAnalyticsSummaryCard(
+                    loc.recordSummary,
+                    Icons.emoji_events,
+                    Colors.amber,
+                    [
+                      _buildStatRow2(loc.totalGames, '${stats['totalGames']}',
+                          Icons.sports_soccer),
+                      _buildStatRow2(
+                          loc.wins, '${stats['wins']}', Icons.trending_up),
+                      _buildStatRow2(loc.losses, '${stats['losses']}',
+                          Icons.trending_down),
+                      _buildStatRow2(
+                          loc.ties, '${stats['ties']}', Icons.remove),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAnalyticsSummaryCard(
+                    loc.goalAnalytics,
+                    Icons.sports_score,
+                    Colors.green,
+                    [
+                      _buildStatRow2(loc.totalGoalsScored,
+                          '${stats['totalGoalsScored']}', Icons.north),
+                      _buildStatRow2(loc.totalGoalsConceded,
+                          '${stats['totalGoalsConceded']}', Icons.south),
+                      _buildStatRow2(
+                          loc.avgGoalsPerGame,
+                          stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                          Icons.functions),
+                      _buildStatRow2(
+                          loc.goalDifferential,
+                          stats['goalDifferential']! >= 0
+                              ? '+${stats['goalDifferential']}'
+                              : '${stats['goalDifferential']}',
+                          Icons.compare_arrows),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAnalyticsSummaryCard(
+                    loc.streaksRecords,
+                    Icons.flash_on,
+                    Colors.purple,
+                    [
+                      _buildStatRow2(loc.longestWinStreak,
+                          '${stats['longestWinStreak']}W', Icons.trending_up),
+                      _buildStatRow2(loc.biggestVictory,
+                          '+${stats['biggestVictory']}', Icons.celebration),
+                      _buildStatRow2(loc.cleanSheets, '${stats['cleanSheets']}',
+                          Icons.shield),
+                      _buildStatRow2(
+                          loc.winPercentage,
+                          '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
+                          Icons.percent),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAnalyticsSummaryCard(
+                    loc.homeAwayAnalysis,
+                    Icons.home,
+                    Colors.blue,
+                    [
+                      _buildStatRow2(
+                          loc.homeRecord,
+                          '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
+                          Icons.home),
+                      _buildStatRow2(
+                          loc.awayRecord,
+                          '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
+                          Icons.flight_takeoff),
+                      _buildStatRow2(
+                          loc.homeWinPercentage,
+                          '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                          Icons.home_outlined),
+                      _buildStatRow2(
+                          loc.awayWinPercentage,
+                          '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                          Icons.flight_outlined),
+                    ],
+                  ),
+                ],
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Build individual analytics summary card
+  Widget _buildAnalyticsSummaryCard(
+    String title,
+    IconData icon,
+    Color color,
+    List<Widget> stats,
+  ) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: color.withValues(alpha: 0.3),
+          width: 2,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.08),
+              Theme.of(context).colorScheme.surface,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...stats,
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build stat row for analytics summary cards
+  Widget _buildStatRow2(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: Theme.of(context)
+                .colorScheme
+                .onSurfaceVariant
+                .withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Calculate aggregate statistics from all filtered games
+  Map<String, num> _calculateAggregateStats(List<Game> allGames) {
+    final stats = <String, num>{};
+
+    final now = DateTime.now();
+
+    // Only consider completed games from the past
+    final completedGames = allGames
+        .where((g) => g.gameStatus.index >= 9 && g.date.isBefore(now))
+        .toList();
+
+    if (completedGames.isEmpty) {
+      return stats;
+    }
+
+    // Sort games chronologically for streak calculations
+    final sortedGames = List<Game>.from(completedGames)
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    int wins = 0, losses = 0, ties = 0;
+    int homeWins = 0, homeLosses = 0, homeTies = 0;
+    int awayWins = 0, awayLosses = 0, awayTies = 0;
+    int totalGoalsScored = 0, totalGoalsConceded = 0;
+    int cleanSheets = 0;
+    int longestWinStreak = 0, currentWinStreak = 0;
+    int biggestVictory = 0;
+
+    for (final game in sortedGames) {
+      final isHome = game.isHomeTeam(widget.team.id);
+      final goalsFor = isHome ? game.homeTeamScore : game.awayTeamScore;
+      final goalsAgainst = isHome ? game.awayTeamScore : game.homeTeamScore;
+      final goalDiff = goalsFor - goalsAgainst;
+
+      totalGoalsScored += goalsFor;
+      totalGoalsConceded += goalsAgainst;
+
+      if (goalsAgainst == 0) cleanSheets++;
+      if (goalDiff > biggestVictory) biggestVictory = goalDiff;
+
+      // Track wins/losses/ties
+      if (game.isWin(widget.team.id)) {
+        wins++;
+        currentWinStreak++;
+        if (currentWinStreak > longestWinStreak) {
+          longestWinStreak = currentWinStreak;
+        }
+
+        if (isHome)
+          homeWins++;
+        else
+          awayWins++;
+      } else if (game.isTie) {
+        ties++;
+        currentWinStreak = 0;
+
+        if (isHome)
+          homeTies++;
+        else
+          awayTies++;
+      } else {
+        losses++;
+        currentWinStreak = 0;
+
+        if (isHome)
+          homeLosses++;
+        else
+          awayLosses++;
+      }
+    }
+
+    final totalGames = completedGames.length;
+    final homeGames = homeWins + homeLosses + homeTies;
+    final awayGames = awayWins + awayLosses + awayTies;
+
+    stats['totalGames'] = totalGames;
+    stats['wins'] = wins;
+    stats['losses'] = losses;
+    stats['ties'] = ties;
+    stats['winPercentage'] = totalGames > 0 ? wins / totalGames : 0;
+
+    stats['totalGoalsScored'] = totalGoalsScored;
+    stats['totalGoalsConceded'] = totalGoalsConceded;
+    stats['avgGoalsPerGame'] =
+        totalGames > 0 ? totalGoalsScored / totalGames : 0;
+    stats['goalDifferential'] = totalGoalsScored - totalGoalsConceded;
+
+    stats['longestWinStreak'] = longestWinStreak;
+    stats['biggestVictory'] = biggestVictory;
+    stats['cleanSheets'] = cleanSheets;
+
+    stats['homeWins'] = homeWins;
+    stats['homeLosses'] = homeLosses;
+    stats['homeTies'] = homeTies;
+    stats['homeWinPct'] = homeGames > 0 ? homeWins / homeGames : 0;
+
+    stats['awayWins'] = awayWins;
+    stats['awayLosses'] = awayLosses;
+    stats['awayTies'] = awayTies;
+    stats['awayWinPct'] = awayGames > 0 ? awayWins / awayGames : 0;
+
+    return stats;
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
@@ -108,41 +682,13 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
         builder: (BuildContext context,
             AsyncSnapshot<Map<Team, List<Game>>?> snapshot) {
           if (snapshot.hasData) {
+            // Apply time filter first
+            final filteredHistory = _applyTimeFilter(snapshot.data ?? {});
+
             final sortedEntries = _sortTeams(
-              snapshot.data ?? {},
+              filteredHistory,
               _sortOption,
             );
-
-            if (sortedEntries.isEmpty) {
-              final loc = AppLocalizations.of(context)!;
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.sports_soccer,
-                      size: 64,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withOpacity(0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      loc.noMatchupHistoryYet,
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyLarge
-                            ?.color
-                            ?.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
 
             return Column(
               children: [
@@ -193,490 +739,691 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                     ),
                   ),
                 ),
-                // Teams list
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: sortedEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = sortedEntries[index];
-                      final team = entry.key;
-                      final games = entry.value;
-                      final loc = AppLocalizations.of(context)!;
-
-                      int wins =
-                          games.where((g) => g.isWin(widget.team.id)).length;
-                      int losses = games
-                          .where((g) =>
-                              g.gameStatus.index >= 9 &&
-                              !g.isWin(widget.team.id) &&
-                              !g.isTie)
-                          .length;
-                      int ties = games.where((g) => g.isTie).length;
-                      final totalGames = games.length;
-                      final winPercentage =
-                          totalGames > 0 ? (wins / totalGames) : 0.0;
-
-                      final dominantColor = (wins > losses)
-                          ? Colors.green
-                          : (wins < losses)
-                              ? Colors.red
-                              : Colors.grey;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: dominantColor.withOpacity(0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: InkWell(
-                          onTap: () =>
-                              _showMatchupDetails(context, team, games),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Team name and logo row
-                                Row(
-                                  children: [
-                                    // Team Logo/Avatar
-                                    if (team.logoUrl != null &&
-                                        team.logoUrl!.isNotEmpty)
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          image: DecorationImage(
-                                            image: NetworkImage(team.logoUrl!),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: team.color1.withOpacity(0.2),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            team.shortName.isNotEmpty
-                                                ? team.shortName[0]
-                                                    .toUpperCase()
-                                                : '?',
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: team.color1,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    const SizedBox(width: 16),
-                                    // Team name and record
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            team.fullName,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            totalGames == 1
-                                                ? '1 ${loc.gamesSingular}'
-                                                : '$totalGames ${loc.gamesPlural}',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.color
-                                                  ?.withOpacity(0.6),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    // Win percentage badge
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: dominantColor.withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: dominantColor.withOpacity(0.5),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        '${(winPercentage * 100).toStringAsFixed(0)}%',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: dominantColor,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                // Record display with visual bars
-                                Row(
-                                  children: [
-                                    // Wins
-                                    _buildRecordStat(
-                                      context,
-                                      loc.winAbbreviation,
-                                      wins,
-                                      Colors.green,
-                                      winPercentage,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // Losses
-                                    _buildRecordStat(
-                                      context,
-                                      loc.lossAbbreviation,
-                                      losses,
-                                      Colors.red,
-                                      totalGames > 0
-                                          ? (losses / totalGames)
-                                          : 0.0,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    // Ties
-                                    _buildRecordStat(
-                                      context,
-                                      loc.tieAbbreviation,
-                                      ties,
-                                      Colors.grey,
-                                      totalGames > 0
-                                          ? (ties / totalGames)
-                                          : 0.0,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                // Progress bar showing win/loss distribution
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: SizedBox(
-                                    height: 8,
-                                    child: Row(
-                                      children: [
-                                        if (wins > 0)
-                                          Expanded(
-                                            flex: wins,
-                                            child:
-                                                Container(color: Colors.green),
-                                          ),
-                                        if (losses > 0)
-                                          Expanded(
-                                            flex: losses,
-                                            child: Container(color: Colors.red),
-                                          ),
-                                        if (ties > 0)
-                                          Expanded(
-                                            flex: ties,
-                                            child:
-                                                Container(color: Colors.grey),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                // Analytics section
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceVariant
-                                        .withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .outline
-                                          .withOpacity(0.2),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.analytics,
-                                            size: 16,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            loc.analytics,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      // Goals and streaks
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.avgGoalsFor,
-                                              _calculateAvgGoalsFor(games)
-                                                  .toStringAsFixed(1),
-                                              Icons.sports_soccer,
-                                              Colors.green,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.avgGoalsAgainst,
-                                              _calculateAvgGoalsAgainst(games)
-                                                  .toStringAsFixed(1),
-                                              Icons.shield,
-                                              Colors.red,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.biggestWin,
-                                              '+${_calculateBiggestWin(games)}',
-                                              Icons.trending_up,
-                                              Colors.green,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.biggestLoss,
-                                              '-${_calculateBiggestLoss(games)}',
-                                              Icons.trending_down,
-                                              Colors.red,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.currentStreak,
-                                              _calculateCurrentStreak(games),
-                                              Icons.flash_on,
-                                              dominantColor,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.longestWinStreak,
-                                              '${_calculateLongestWinStreak(games)}W',
-                                              Icons.emoji_events,
-                                              Colors.amber,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Tier 1 Analytics Row 1
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.cleanSheets,
-                                              '${(_calculateCleanSheetPercentage(games) * 100).toStringAsFixed(0)}%',
-                                              Icons.block,
-                                              Colors.blue,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.goalDifferential,
-                                              _calculateGoalDifferential(
-                                                          games) >=
-                                                      0
-                                                  ? '+${_calculateGoalDifferential(games)}'
-                                                  : '${_calculateGoalDifferential(games)}',
-                                              Icons.compare_arrows,
-                                              _calculateGoalDifferential(
-                                                          games) >=
-                                                      0
-                                                  ? Colors.green
-                                                  : Colors.red,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Tier 1 Analytics Row 2
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.homeRecord,
-                                              _formatRecord(
-                                                  _calculateHomeRecord(games)),
-                                              Icons.home,
-                                              Colors.teal,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _buildAnalyticItem(
-                                              context,
-                                              loc.awayRecord,
-                                              _formatRecord(
-                                                  _calculateAwayRecord(games)),
-                                              Icons.flight_takeoff,
-                                              Colors.purple,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      // Points Per Game
-                                      _buildAnalyticItem(
-                                        context,
-                                        loc.pointsPerGame,
-                                        _calculatePointsPerGame(games)
-                                            .toStringAsFixed(2),
-                                        Icons.grade,
-                                        Colors.indigo,
-                                      ),
-                                      // Tier 2 Analytics - Only show if data exists
-                                      if (_hasTier2Analytics(games)) ...[
-                                        const SizedBox(height: 8),
-                                        // Tier 2 Analytics Row 1
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: _buildAnalyticItem(
-                                                context,
-                                                loc.shootingAccuracy,
-                                                '${(_calculateShootingAccuracy(games) * 100).toStringAsFixed(0)}%',
-                                                Icons.gps_fixed,
-                                                Colors.deepOrange,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: _buildAnalyticItem(
-                                                context,
-                                                loc.comebackWins,
-                                                '${_calculateComebackWins(games)}',
-                                                Icons.trending_up,
-                                                Colors.lightGreen,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        // Tier 2 Analytics Row 2
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: _buildAnalyticItem(
-                                                context,
-                                                loc.lateGoals,
-                                                '${_calculateLateGoals(games)}',
-                                                Icons.access_time,
-                                                Colors.deepPurple,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: _buildAnalyticItem(
-                                                context,
-                                                loc.cardsPerGame,
-                                                _calculateCardsPerGame(games)
-                                                    .toStringAsFixed(2),
-                                                Icons.style,
-                                                Colors.yellow.shade700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                      const SizedBox(height: 12),
-                                      // Recent form
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            loc.recentForm,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.color
-                                                  ?.withOpacity(0.7),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          _buildFormIndicator(
-                                            context,
-                                            _getRecentForm(games),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                // Time filter chips
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: TimeFilter.values.map((filter) {
+                        final isSelected = _timeFilter == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(_getTimeFilterLabel(filter)),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _timeFilter = filter;
+                              });
+                            },
+                            backgroundColor:
+                                Theme.of(context).colorScheme.surface,
+                            selectedColor:
+                                Theme.of(context).colorScheme.primaryContainer,
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurface,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .outline
+                                      .withOpacity(0.3),
+                              width: isSelected ? 2 : 1,
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      }).toList(),
+                    ),
                   ),
+                ),
+                // Teams list with analytics header or empty state
+                Expanded(
+                  child: sortedEntries.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.sports_soccer,
+                                size: 64,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.5),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                AppLocalizations.of(context)!
+                                    .noMatchupHistoryYet,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.color
+                                      ?.withOpacity(0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: sortedEntries.length +
+                              1, // +1 for analytics header
+                          itemBuilder: (context, index) {
+                            // First item is the analytics section
+                            if (index == 0 && sortedEntries.isNotEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: _buildOverallAnalytics(filteredHistory),
+                              );
+                            }
+
+                            // Adjust index for actual team entries
+                            final adjustedIndex = index - 1;
+                            if (adjustedIndex < 0 ||
+                                adjustedIndex >= sortedEntries.length) {
+                              return const SizedBox.shrink();
+                            }
+
+                            final entry = sortedEntries[adjustedIndex];
+                            final team = entry.key;
+                            final games = entry
+                                .value; // Already filtered by _applyTimeFilter
+                            final loc = AppLocalizations.of(context)!;
+
+                            // Games are already filtered by _applyTimeFilter, no need to filter again
+                            int wins = games
+                                .where((g) => g.isWin(widget.team.id))
+                                .length;
+                            int losses = games
+                                .where((g) =>
+                                    g.gameStatus.index >= 9 &&
+                                    !g.isWin(widget.team.id) &&
+                                    !g.isTie)
+                                .length;
+                            int ties = games.where((g) => g.isTie).length;
+                            final totalGames = games.length;
+                            final winPercentage =
+                                totalGames > 0 ? (wins / totalGames) : 0.0;
+
+                            final dominantColor = (wins > losses)
+                                ? Colors.green
+                                : (wins < losses)
+                                    ? Colors.red
+                                    : Colors.grey;
+
+                            return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: dominantColor.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: InkWell(
+                                  onTap: () =>
+                                      _showMatchupDetails(context, team, games),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Team name and logo row
+                                        Row(
+                                          children: [
+                                            // Team Logo/Avatar
+                                            if (team.logoUrl != null &&
+                                                team.logoUrl!.isNotEmpty)
+                                              Container(
+                                                width: 48,
+                                                height: 48,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  image: DecorationImage(
+                                                    image: NetworkImage(
+                                                        team.logoUrl!),
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Container(
+                                                width: 48,
+                                                height: 48,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: team.color1
+                                                      .withOpacity(0.2),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    team.shortName.isNotEmpty
+                                                        ? team.shortName[0]
+                                                            .toUpperCase()
+                                                        : '?',
+                                                    style: TextStyle(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: team.color1,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            const SizedBox(width: 16),
+                                            // Team name and record
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    team.fullName,
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    totalGames == 1
+                                                        ? '1 ${loc.gamesSingular}'
+                                                        : '$totalGames ${loc.gamesPlural}',
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: Theme.of(context)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.color
+                                                          ?.withOpacity(0.6),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Win percentage badge
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: dominantColor
+                                                    .withOpacity(0.15),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: dominantColor
+                                                      .withOpacity(0.5),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${(winPercentage * 100).toStringAsFixed(0)}%',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: dominantColor,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Record display with visual bars
+                                        Row(
+                                          children: [
+                                            // Wins
+                                            _buildRecordStat(
+                                              context,
+                                              loc.winAbbreviation,
+                                              wins,
+                                              Colors.green,
+                                              winPercentage,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            // Losses
+                                            _buildRecordStat(
+                                              context,
+                                              loc.lossAbbreviation,
+                                              losses,
+                                              Colors.red,
+                                              totalGames > 0
+                                                  ? (losses / totalGames)
+                                                  : 0.0,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            // Ties
+                                            _buildRecordStat(
+                                              context,
+                                              loc.tieAbbreviation,
+                                              ties,
+                                              Colors.grey,
+                                              totalGames > 0
+                                                  ? (ties / totalGames)
+                                                  : 0.0,
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        // Progress bar showing win/loss distribution
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          child: SizedBox(
+                                            height: 8,
+                                            child: Row(
+                                              children: [
+                                                if (wins > 0)
+                                                  Expanded(
+                                                    flex: wins,
+                                                    child: Container(
+                                                        color: Colors.green),
+                                                  ),
+                                                if (losses > 0)
+                                                  Expanded(
+                                                    flex: losses,
+                                                    child: Container(
+                                                        color: Colors.red),
+                                                  ),
+                                                if (ties > 0)
+                                                  Expanded(
+                                                    flex: ties,
+                                                    child: Container(
+                                                        color: Colors.grey),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Analytics section - Collapsible
+                                        Column(
+                                          children: [
+                                            // Analytics header with expand/collapse button
+                                            InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  if (_expandedTeams
+                                                      .contains(team.id)) {
+                                                    _expandedTeams
+                                                        .remove(team.id);
+                                                  } else {
+                                                    _expandedTeams.add(team.id);
+                                                  }
+                                                });
+                                              },
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceVariant
+                                                      .withOpacity(0.3),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline
+                                                        .withOpacity(0.2),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.analytics,
+                                                      size: 16,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    Text(
+                                                      loc.analytics,
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
+                                                      ),
+                                                    ),
+                                                    const Spacer(),
+                                                    Icon(
+                                                      _expandedTeams
+                                                              .contains(team.id)
+                                                          ? Icons.expand_less
+                                                          : Icons.expand_more,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            // Expandable analytics content
+                                            if (_expandedTeams
+                                                .contains(team.id)) ...[
+                                              const SizedBox(height: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surfaceVariant
+                                                      .withOpacity(0.3),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline
+                                                        .withOpacity(0.2),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    // Goals and streaks
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.avgGoalsFor,
+                                                            _calculateAvgGoalsFor(
+                                                                    games)
+                                                                .toStringAsFixed(
+                                                                    1),
+                                                            Icons.sports_soccer,
+                                                            Colors.green,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.avgGoalsAgainst,
+                                                            _calculateAvgGoalsAgainst(
+                                                                    games)
+                                                                .toStringAsFixed(
+                                                                    1),
+                                                            Icons.shield,
+                                                            Colors.red,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.biggestWin,
+                                                            '+${_calculateBiggestWin(games)}',
+                                                            Icons.trending_up,
+                                                            Colors.green,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.biggestLoss,
+                                                            '-${_calculateBiggestLoss(games)}',
+                                                            Icons.trending_down,
+                                                            Colors.red,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.currentStreak,
+                                                            _calculateCurrentStreak(
+                                                                games),
+                                                            Icons.flash_on,
+                                                            dominantColor,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.longestWinStreak,
+                                                            '${_calculateLongestWinStreak(games)}W',
+                                                            Icons.emoji_events,
+                                                            Colors.amber,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Tier 1 Analytics Row 1
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.cleanSheets,
+                                                            '${(_calculateCleanSheetPercentage(games) * 100).toStringAsFixed(0)}%',
+                                                            Icons.block,
+                                                            Colors.blue,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.goalDifferential,
+                                                            _calculateGoalDifferential(
+                                                                        games) >=
+                                                                    0
+                                                                ? '+${_calculateGoalDifferential(games)}'
+                                                                : '${_calculateGoalDifferential(games)}',
+                                                            Icons
+                                                                .compare_arrows,
+                                                            _calculateGoalDifferential(
+                                                                        games) >=
+                                                                    0
+                                                                ? Colors.green
+                                                                : Colors.red,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Tier 1 Analytics Row 2
+                                                    Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.homeRecord,
+                                                            _formatRecord(
+                                                                _calculateHomeRecord(
+                                                                    games)),
+                                                            Icons.home,
+                                                            Colors.teal,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        Expanded(
+                                                          child:
+                                                              _buildAnalyticItem(
+                                                            context,
+                                                            loc.awayRecord,
+                                                            _formatRecord(
+                                                                _calculateAwayRecord(
+                                                                    games)),
+                                                            Icons
+                                                                .flight_takeoff,
+                                                            Colors.purple,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    // Points Per Game
+                                                    _buildAnalyticItem(
+                                                      context,
+                                                      loc.pointsPerGame,
+                                                      _calculatePointsPerGame(
+                                                              games)
+                                                          .toStringAsFixed(2),
+                                                      Icons.grade,
+                                                      Colors.indigo,
+                                                    ),
+                                                    // Tier 2 Analytics - Only show if data exists
+                                                    if (_hasTier2Analytics(
+                                                        games)) ...[
+                                                      const SizedBox(height: 8),
+                                                      // Tier 2 Analytics Row 1
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child:
+                                                                _buildAnalyticItem(
+                                                              context,
+                                                              loc.shootingAccuracy,
+                                                              '${(_calculateShootingAccuracy(games) * 100).toStringAsFixed(0)}%',
+                                                              Icons.gps_fixed,
+                                                              Colors.deepOrange,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Expanded(
+                                                            child:
+                                                                _buildAnalyticItem(
+                                                              context,
+                                                              loc.comebackWins,
+                                                              '${_calculateComebackWins(games)}',
+                                                              Icons.trending_up,
+                                                              Colors.lightGreen,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      // Tier 2 Analytics Row 2
+                                                      Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child:
+                                                                _buildAnalyticItem(
+                                                              context,
+                                                              loc.lateGoals,
+                                                              '${_calculateLateGoals(games)}',
+                                                              Icons.access_time,
+                                                              Colors.deepPurple,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                              width: 8),
+                                                          Expanded(
+                                                            child:
+                                                                _buildAnalyticItem(
+                                                              context,
+                                                              loc.cardsPerGame,
+                                                              _calculateCardsPerGame(
+                                                                      games)
+                                                                  .toStringAsFixed(
+                                                                      2),
+                                                              Icons.style,
+                                                              Colors.yellow
+                                                                  .shade700,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                    const SizedBox(height: 12),
+                                                    // Recent form
+                                                    Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          loc.recentForm,
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .bodySmall
+                                                                ?.color
+                                                                ?.withOpacity(
+                                                                    0.7),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 6),
+                                                        _buildFormIndicator(
+                                                          context,
+                                                          _getRecentForm(games),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ));
+                          },
+                        ),
                 ),
               ],
             );
@@ -1103,6 +1850,8 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
   }
 
   Future<SplayTreeMap<Team, List<Game>>?> _loadHistory() async {
+    _allSeasons = await Season.fromTeamId(widget.team.id);
+
     final allGames = await widget.team.getGameHistory(widget.team.id);
 
     final gameHistory = SplayTreeMap<Team, List<Game>>(

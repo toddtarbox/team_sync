@@ -1513,4 +1513,88 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get shotsOnTarget => 'Chutes no Alvo';
+
+  @override
+  String get goalAnalytics => 'Análise de Gols';
+
+  @override
+  String get totalGoalsScored => 'Total de Gols Marcados';
+
+  @override
+  String get totalGoalsConceded => 'Total de Gols Sofridos';
+
+  @override
+  String get avgGoalsPerGame => 'Média Gols Por Jogo';
+
+  @override
+  String get streaksRecords => 'Sequências e Recordes';
+
+  @override
+  String get longestUnbeatenStreak => 'Maior Sequência Invicta';
+
+  @override
+  String get mostGoalsInGame => 'Mais Gols em um Jogo';
+
+  @override
+  String get biggestVictory => 'Maior Vitória';
+
+  @override
+  String get homeAwayAnalysis => 'Casa vs Fora';
+
+  @override
+  String get homeWinPercentage => '% Vitórias Casa';
+
+  @override
+  String get awayWinPercentage => '% Vitórias Fora';
+
+  @override
+  String get defensiveStats => 'Estatísticas Defensivas';
+
+  @override
+  String get cleanSheetPercentage => '% Gol Invicto';
+
+  @override
+  String get avgGoalsConceded => 'Média Gols Sofridos';
+
+  @override
+  String get shutoutsRecorded => 'Gols Invictos Registrados';
+
+  @override
+  String get allTime => 'Todos os Tempos';
+
+  @override
+  String get currentSeason => 'Temporada Atual';
+
+  @override
+  String get lastSeason => 'Última Temporada';
+
+  @override
+  String get last3Years => 'Últimas 3 Temporadas';
+
+  @override
+  String get last5Years => 'Últimas 5 Temporadas';
+
+  @override
+  String get last10Years => 'Últimas 10 Temporadas';
+
+  @override
+  String get overallStatistics => 'Estatísticas Gerais';
+
+  @override
+  String get recordSummary => 'Resumo de Recordes';
+
+  @override
+  String get totalGames => 'Total de Jogos';
+
+  @override
+  String get wins => 'Vitórias';
+
+  @override
+  String get losses => 'Derrotas';
+
+  @override
+  String get ties => 'Empates';
+
+  @override
+  String get winPercentage => '% Vitórias';
 }

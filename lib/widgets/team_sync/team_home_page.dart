@@ -71,7 +71,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
   bool _isSharing = false;
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
-  bool _accomplishmentsExpanded = true; // Track accomplishments section state
+  bool _accomplishmentsExpanded =
+      false; // Track accomplishments section state - collapsed by default
   bool _isLoadingImportedSeasons =
       false; // Track if imported seasons are loading
   bool _allSeasonsLoaded =
@@ -1096,6 +1097,11 @@ class _TeamHomePageState extends State<TeamHomePage> {
                       ),
                     ),
                   ),
+                // Analytics Carousel - Show comprehensive team statistics
+                if (_allSeasonsLoaded) ...[
+                  const SizedBox(height: 16),
+                  _buildAnalyticsCarousel(),
+                ],
               ],
               // Team Accomplishments Section (Collapsible)
               // Show if there are accomplishments OR if user is admin (to allow adding first one)
@@ -1831,6 +1837,397 @@ class _TeamHomePageState extends State<TeamHomePage> {
     return loc.teamPerformance;
   }
 
+  /// Build analytics carousel with multiple cards showing overall statistics
+  Widget _buildAnalyticsCarousel() {
+    final loc = AppLocalizations.of(context)!;
+    final allSeasons = [..._seasons, ..._importedSeasons];
+
+    // Calculate overall statistics
+    final stats = _calculateOverallStats(allSeasons);
+
+    return Column(
+      children: [
+        // Analytics cards carousel
+        CarouselSlider(
+          options: CarouselOptions(
+            height: 200,
+            viewportFraction: 0.85,
+            enlargeCenterPage: true,
+            enableInfiniteScroll: stats.isNotEmpty,
+            autoPlay: stats.length > 1,
+            autoPlayInterval: const Duration(seconds: 5),
+          ),
+          items: [
+            // Goals Analytics Card
+            if (stats.containsKey('totalGoalsScored'))
+              _buildAnalyticsCard(
+                title: loc.goalAnalytics,
+                icon: Icons.sports_soccer,
+                iconColor: Colors.green,
+                stats: [
+                  _buildStatRow(loc.totalGoalsScored,
+                      '${stats['totalGoalsScored']}', Icons.sports_score),
+                  _buildStatRow(loc.totalGoalsConceded,
+                      '${stats['totalGoalsConceded']}', Icons.shield),
+                  _buildStatRow(
+                      loc.avgGoalsPerGame,
+                      stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                      Icons.trending_up),
+                  _buildStatRow(
+                      loc.goalDifferential,
+                      stats['goalDifferential']! >= 0
+                          ? '+${stats['goalDifferential']}'
+                          : '${stats['goalDifferential']}',
+                      Icons.compare_arrows),
+                ],
+              ),
+            // Win Streaks Card
+            if (stats.containsKey('longestWinStreak'))
+              _buildAnalyticsCard(
+                title: loc.streaksRecords,
+                icon: Icons.emoji_events,
+                iconColor: Colors.amber,
+                stats: [
+                  _buildStatRow(
+                      loc.longestWinStreak,
+                      '${stats['longestWinStreak']} ${loc.games}',
+                      Icons.trending_up),
+                  _buildStatRow(
+                      loc.longestUnbeatenStreak,
+                      '${stats['longestUnbeatenStreak']} ${loc.games}',
+                      Icons.shield_outlined),
+                  _buildStatRow(loc.mostGoalsInGame,
+                      '${stats['mostGoalsInGame']}', Icons.sports_score),
+                  _buildStatRow(loc.biggestVictory,
+                      '+${stats['biggestVictory']}', Icons.celebration),
+                ],
+              ),
+            // Home vs Away Card
+            if (stats.containsKey('homeWins'))
+              _buildAnalyticsCard(
+                title: loc.homeAwayAnalysis,
+                icon: Icons.home,
+                iconColor: Colors.blue,
+                stats: [
+                  _buildStatRow(
+                      loc.homeRecord,
+                      '${stats['homeWins']}-${stats['homeDraws']}-${stats['homeLosses']}',
+                      Icons.home),
+                  _buildStatRow(
+                      loc.awayRecord,
+                      '${stats['awayWins']}-${stats['awayDraws']}-${stats['awayLosses']}',
+                      Icons.flight_takeoff),
+                  _buildStatRow(
+                      loc.homeWinPercentage,
+                      '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                      Icons.percent),
+                  _buildStatRow(
+                      loc.awayWinPercentage,
+                      '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                      Icons.percent),
+                ],
+              ),
+            // Clean Sheets & Defense Card
+            if (stats.containsKey('cleanSheets'))
+              _buildAnalyticsCard(
+                title: loc.defensiveStats,
+                icon: Icons.shield,
+                iconColor: Colors.indigo,
+                stats: [
+                  _buildStatRow(
+                      loc.cleanSheets, '${stats['cleanSheets']}', Icons.block),
+                  _buildStatRow(
+                      loc.cleanSheetPercentage,
+                      '${(stats['cleanSheetPct']! * 100).toStringAsFixed(0)}%',
+                      Icons.percent),
+                  _buildStatRow(
+                      loc.avgGoalsConceded,
+                      stats['avgGoalsConceded']!.toStringAsFixed(2),
+                      Icons.shield_outlined),
+                  _buildStatRow(loc.shutoutsRecorded, '${stats['shutouts']}',
+                      Icons.verified_user),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Page indicators
+        if (stats.isNotEmpty)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              4,
+              (index) => Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Build individual analytics card
+  Widget _buildAnalyticsCard({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<Widget> stats,
+  }) {
+    return InkWell(
+      onTap: () {
+        // Navigate to Analytics (History Versus) page
+        final databaseId = DatabaseService.instance.publicShareId;
+        if (databaseId != null) {
+          NavigationHelper.navigateTo(
+            context,
+            '/team/$databaseId/history',
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 4,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: iconColor.withValues(alpha: 0.3),
+            width: 2,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                iconColor.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.surface,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Card header
+              Row(
+                children: [
+                  Icon(icon, color: iconColor, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                  // Add tap indicator icon
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: iconColor.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              // Stats rows
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: stats,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build individual stat row
+  Widget _buildStatRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Calculate overall statistics from all seasons
+  /// Only includes completed games from the past
+  Map<String, num> _calculateOverallStats(List<Season> seasons) {
+    final stats = <String, num>{};
+
+    if (seasons.isEmpty) return stats;
+
+    final now = DateTime.now();
+    int totalGoalsScored = 0;
+    int totalGoalsConceded = 0;
+    int totalGames = 0;
+    int homeWins = 0, homeDraws = 0, homeLosses = 0;
+    int awayWins = 0, awayDraws = 0, awayLosses = 0;
+    int cleanSheets = 0;
+    int shutouts = 0;
+    int longestWinStreak = 0;
+    int longestUnbeatenStreak = 0;
+    int mostGoalsInGame = 0;
+    int biggestVictory = 0;
+
+    int currentWinStreak = 0;
+    int currentUnbeatenStreak = 0;
+
+    for (final season in seasons) {
+      // Process games for detailed stats
+      for (final game in season.games) {
+        // Only include completed games from the past
+        // GameStatus index 9+ means completed/final
+        final isCompleted = game.gameStatus.index >= 9;
+        final isInPast = game.date.isBefore(now);
+
+        // Skip if game is not completed or is in the future
+        if (!isCompleted || !isInPast) {
+          continue;
+        }
+
+        final isHome = game.isHomeTeam(season.teamId);
+        final goalsFor = isHome ? game.homeTeamScore : game.awayTeamScore;
+        final goalsAgainst = isHome ? game.awayTeamScore : game.homeTeamScore;
+        final goalDiff = goalsFor - goalsAgainst;
+
+        totalGoalsScored += goalsFor;
+        totalGoalsConceded += goalsAgainst;
+        totalGames++;
+
+        // Track biggest victory
+        if (goalDiff > biggestVictory) {
+          biggestVictory = goalDiff;
+        }
+
+        // Track most goals in a game
+        if (goalsFor > mostGoalsInGame) {
+          mostGoalsInGame = goalsFor;
+        }
+
+        // Track clean sheets (no goals conceded)
+        if (goalsAgainst == 0) {
+          cleanSheets++;
+          if (goalsFor > 0) shutouts++;
+        }
+
+        // Track home/away records
+        if (isHome) {
+          if (goalDiff > 0)
+            homeWins++;
+          else if (goalDiff == 0)
+            homeDraws++;
+          else
+            homeLosses++;
+        } else {
+          if (goalDiff > 0)
+            awayWins++;
+          else if (goalDiff == 0)
+            awayDraws++;
+          else
+            awayLosses++;
+        }
+
+        // Track streaks
+        if (goalDiff > 0) {
+          currentWinStreak++;
+          currentUnbeatenStreak++;
+          if (currentWinStreak > longestWinStreak) {
+            longestWinStreak = currentWinStreak;
+          }
+          if (currentUnbeatenStreak > longestUnbeatenStreak) {
+            longestUnbeatenStreak = currentUnbeatenStreak;
+          }
+        } else if (goalDiff == 0) {
+          currentWinStreak = 0;
+          currentUnbeatenStreak++;
+          if (currentUnbeatenStreak > longestUnbeatenStreak) {
+            longestUnbeatenStreak = currentUnbeatenStreak;
+          }
+        } else {
+          currentWinStreak = 0;
+          currentUnbeatenStreak = 0;
+        }
+      }
+    }
+
+    // Calculate derived stats
+    final homeGames = homeWins + homeDraws + homeLosses;
+    final awayGames = awayWins + awayDraws + awayLosses;
+
+    stats['totalGoalsScored'] = totalGoalsScored;
+    stats['totalGoalsConceded'] = totalGoalsConceded;
+    stats['avgGoalsPerGame'] =
+        totalGames > 0 ? totalGoalsScored / totalGames : 0;
+    stats['avgGoalsConceded'] =
+        totalGames > 0 ? totalGoalsConceded / totalGames : 0;
+    stats['goalDifferential'] = totalGoalsScored - totalGoalsConceded;
+
+    stats['homeWins'] = homeWins;
+    stats['homeDraws'] = homeDraws;
+    stats['homeLosses'] = homeLosses;
+    stats['homeWinPct'] = homeGames > 0 ? homeWins / homeGames : 0;
+
+    stats['awayWins'] = awayWins;
+    stats['awayDraws'] = awayDraws;
+    stats['awayLosses'] = awayLosses;
+    stats['awayWinPct'] = awayGames > 0 ? awayWins / awayGames : 0;
+
+    stats['cleanSheets'] = cleanSheets;
+    stats['shutouts'] = shutouts;
+    stats['cleanSheetPct'] = totalGames > 0 ? cleanSheets / totalGames : 0;
+
+    stats['longestWinStreak'] = longestWinStreak;
+    stats['longestUnbeatenStreak'] = longestUnbeatenStreak;
+    stats['mostGoalsInGame'] = mostGoalsInGame;
+    stats['biggestVictory'] = biggestVictory;
+
+    return stats;
+  }
+
   Future<void> _loadCurrentOrLastGame() async {
     if (_team == null) return;
 
@@ -1855,11 +2252,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
       // Filter to only games that have started or completed
       final startedOrCompletedGames = games.where((game) {
         final isStarted = game.gameStatus.index > 0;
-        final isNotInFuture = game.date.isBefore(now) ||
+        return isStarted ||
             (game.date.year == now.year &&
                 game.date.month == now.month &&
                 game.date.day == now.day);
-        return isStarted || (game.gameStatus.index == 0 && isNotInFuture);
       }).toList();
 
       if (startedOrCompletedGames.isEmpty) {
@@ -2929,7 +3325,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 ),
               );
             }
-            return;
           }
         } else {
           // User cancelled time picker
@@ -4261,8 +4656,8 @@ $liveLink
               ],
             ), // Close AlertDialog
           ), // Close PopScope
-        ); // Close StatefulBuilder builder
-      }, // Close builder function
+        ); // Close StatefulBuilder
+      },
     ); // Close showDialog
   }
 
@@ -4305,19 +4700,19 @@ $liveLink
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () => Navigator.pop(context, false),
               child: Text(loc.cancelButton),
             ),
             ElevatedButton(
               onPressed: () {
                 final newName = nameController.text.trim();
                 if (newName.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(loc.seasonNameRequired)),
                   );
                   return;
                 }
-                Navigator.of(dialogContext).pop(true);
+                Navigator.of(context).pop(true);
               },
               child: Text(loc.save),
             ),

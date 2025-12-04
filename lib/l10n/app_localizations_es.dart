@@ -1519,4 +1519,88 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get shotsOnTarget => 'Tiros a Puerta';
+
+  @override
+  String get goalAnalytics => 'Análisis de Goles';
+
+  @override
+  String get totalGoalsScored => 'Total de Goles Marcados';
+
+  @override
+  String get totalGoalsConceded => 'Total de Goles Concedidos';
+
+  @override
+  String get avgGoalsPerGame => 'Promedio Goles Por Partido';
+
+  @override
+  String get streaksRecords => 'Rachas y Récords';
+
+  @override
+  String get longestUnbeatenStreak => 'Racha Invicta Más Larga';
+
+  @override
+  String get mostGoalsInGame => 'Más Goles en un Partido';
+
+  @override
+  String get biggestVictory => 'Mayor Victoria';
+
+  @override
+  String get homeAwayAnalysis => 'Local vs Visitante';
+
+  @override
+  String get homeWinPercentage => '% Victorias Local';
+
+  @override
+  String get awayWinPercentage => '% Victorias Visitante';
+
+  @override
+  String get defensiveStats => 'Estadísticas Defensivas';
+
+  @override
+  String get cleanSheetPercentage => '% Portería Invicta';
+
+  @override
+  String get avgGoalsConceded => 'Promedio Goles Concedidos';
+
+  @override
+  String get shutoutsRecorded => 'Porterías Invictas Registradas';
+
+  @override
+  String get allTime => 'Todos los Tiempos';
+
+  @override
+  String get currentSeason => 'Temporada Actual';
+
+  @override
+  String get lastSeason => 'Última Temporada';
+
+  @override
+  String get last3Years => 'Últimas 3 Temporadas';
+
+  @override
+  String get last5Years => 'Últimas 5 Temporadas';
+
+  @override
+  String get last10Years => 'Últimas 10 Temporadas';
+
+  @override
+  String get overallStatistics => 'Estadísticas Generales';
+
+  @override
+  String get recordSummary => 'Resumen de Récords';
+
+  @override
+  String get totalGames => 'Total de Partidos';
+
+  @override
+  String get wins => 'Victorias';
+
+  @override
+  String get losses => 'Derrotas';
+
+  @override
+  String get ties => 'Empates';
+
+  @override
+  String get winPercentage => '% Victorias';
 }

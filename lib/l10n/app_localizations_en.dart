@@ -1500,4 +1500,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shotsOnTarget => 'Shots on Target';
+
+  @override
+  String get goalAnalytics => 'Goal Analytics';
+
+  @override
+  String get totalGoalsScored => 'Total Goals Scored';
+
+  @override
+  String get totalGoalsConceded => 'Total Goals Conceded';
+
+  @override
+  String get avgGoalsPerGame => 'Avg Goals Per Game';
+
+  @override
+  String get streaksRecords => 'Streaks & Records';
+
+  @override
+  String get longestUnbeatenStreak => 'Longest Unbeaten Streak';
+
+  @override
+  String get mostGoalsInGame => 'Most Goals in Game';
+
+  @override
+  String get biggestVictory => 'Biggest Victory';
+
+  @override
+  String get homeAwayAnalysis => 'Home vs Away';
+
+  @override
+  String get homeWinPercentage => 'Home Win %';
+
+  @override
+  String get awayWinPercentage => 'Away Win %';
+
+  @override
+  String get defensiveStats => 'Defensive Stats';
+
+  @override
+  String get cleanSheetPercentage => 'Clean Sheet %';
+
+  @override
+  String get avgGoalsConceded => 'Avg Goals Conceded';
+
+  @override
+  String get shutoutsRecorded => 'Shutouts Recorded';
+
+  @override
+  String get allTime => 'All Time';
+
+  @override
+  String get currentSeason => 'Current Season';
+
+  @override
+  String get lastSeason => 'Last Season';
+
+  @override
+  String get last3Years => 'Last 3 Seasons';
+
+  @override
+  String get last5Years => 'Last 5 Seasons';
+
+  @override
+  String get last10Years => 'Last 10 Seasons';
+
+  @override
+  String get overallStatistics => 'Overall Statistics';
+
+  @override
+  String get recordSummary => 'Record Summary';
+
+  @override
+  String get totalGames => 'Total Games';
+
+  @override
+  String get wins => 'Wins';
+
+  @override
+  String get losses => 'Losses';
+
+  @override
+  String get ties => 'Ties';
+
+  @override
+  String get winPercentage => 'Win %';
 }

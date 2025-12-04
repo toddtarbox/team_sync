@@ -2883,6 +2883,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shots on Target'**
   String get shotsOnTarget;
+
+  /// No description provided for @goalAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal Analytics'**
+  String get goalAnalytics;
+
+  /// No description provided for @totalGoalsScored.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Goals Scored'**
+  String get totalGoalsScored;
+
+  /// No description provided for @totalGoalsConceded.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Goals Conceded'**
+  String get totalGoalsConceded;
+
+  /// No description provided for @avgGoalsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Per Game'**
+  String get avgGoalsPerGame;
+
+  /// No description provided for @streaksRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaks & Records'**
+  String get streaksRecords;
+
+  /// No description provided for @longestUnbeatenStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest Unbeaten Streak'**
+  String get longestUnbeatenStreak;
+
+  /// No description provided for @mostGoalsInGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Goals in Game'**
+  String get mostGoalsInGame;
+
+  /// No description provided for @biggestVictory.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Victory'**
+  String get biggestVictory;
+
+  /// No description provided for @homeAwayAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Home vs Away'**
+  String get homeAwayAnalysis;
+
+  /// No description provided for @homeWinPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Win %'**
+  String get homeWinPercentage;
+
+  /// No description provided for @awayWinPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Away Win %'**
+  String get awayWinPercentage;
+
+  /// No description provided for @defensiveStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Defensive Stats'**
+  String get defensiveStats;
+
+  /// No description provided for @cleanSheetPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean Sheet %'**
+  String get cleanSheetPercentage;
+
+  /// No description provided for @avgGoalsConceded.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Conceded'**
+  String get avgGoalsConceded;
+
+  /// No description provided for @shutoutsRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Shutouts Recorded'**
+  String get shutoutsRecorded;
+
+  /// No description provided for @allTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All Time'**
+  String get allTime;
+
+  /// No description provided for @currentSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Season'**
+  String get currentSeason;
+
+  /// No description provided for @lastSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Season'**
+  String get lastSeason;
+
+  /// No description provided for @last3Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 3 Seasons'**
+  String get last3Years;
+
+  /// No description provided for @last5Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 5 Seasons'**
+  String get last5Years;
+
+  /// No description provided for @last10Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 10 Seasons'**
+  String get last10Years;
+
+  /// No description provided for @overallStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall Statistics'**
+  String get overallStatistics;
+
+  /// No description provided for @recordSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Summary'**
+  String get recordSummary;
+
+  /// No description provided for @totalGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Games'**
+  String get totalGames;
+
+  /// No description provided for @wins.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get wins;
+
+  /// No description provided for @losses.
+  ///
+  /// In en, this message translates to:
+  /// **'Losses'**
+  String get losses;
+
+  /// No description provided for @ties.
+  ///
+  /// In en, this message translates to:
+  /// **'Ties'**
+  String get ties;
+
+  /// No description provided for @winPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Win %'**
+  String get winPercentage;
 }
 
 class _AppLocalizationsDelegate
