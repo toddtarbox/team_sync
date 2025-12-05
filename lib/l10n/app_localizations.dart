@@ -106,6 +106,18 @@ abstract class AppLocalizations {
     Locale('pt')
   ];
 
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
   /// No description provided for @accessGrantedTo.
   ///
   /// In en, this message translates to:
@@ -172,7 +184,7 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get addButton;
 
-  /// Tooltip/title for adding a highlight
+  /// No description provided for @addHighlight.
   ///
   /// In en, this message translates to:
   /// **'Add Highlight'**
@@ -460,7 +472,7 @@ abstract class AppLocalizations {
   /// **'Corners'**
   String get corners;
 
-  /// Snackbar text when a URL can't be opened
+  /// No description provided for @couldNotOpenUrl.
   ///
   /// In en, this message translates to:
   /// **'Could not open URL: {url}'**
@@ -640,12 +652,6 @@ abstract class AppLocalizations {
   /// **'Delete Highlight'**
   String get deleteHighlightTitle;
 
-  /// No description provided for @description.
-  ///
-  /// In en, this message translates to:
-  /// **'Description'**
-  String get description;
-
   /// No description provided for @displayOrder.
   ///
   /// In en, this message translates to:
@@ -711,12 +717,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit Profile'**
   String get editProfile;
-
-  /// No description provided for @email.
-  ///
-  /// In en, this message translates to:
-  /// **'Email'**
-  String get email;
 
   /// No description provided for @endGame.
   ///
@@ -832,7 +832,7 @@ abstract class AppLocalizations {
   /// **'Error loading events'**
   String get errorLoadingEvents;
 
-  /// Error when highlights fail to load
+  /// No description provided for @errorLoadingHighlights.
   ///
   /// In en, this message translates to:
   /// **'Error loading highlights: {error}'**
@@ -844,7 +844,7 @@ abstract class AppLocalizations {
   /// **'Error loading history'**
   String get errorLoadingHistory;
 
-  /// Error message when player stats load fails
+  /// No description provided for @errorLoadingPlayerStats.
   ///
   /// In en, this message translates to:
   /// **'Error loading player stats: {error}\n\nStack trace: {stack}'**
@@ -1114,7 +1114,7 @@ abstract class AppLocalizations {
   /// **'Got it'**
   String get gotIt;
 
-  /// Tooltip text to hide highlights panel
+  /// No description provided for @hideHighlights.
   ///
   /// In en, this message translates to:
   /// **'Hide Highlights'**
@@ -1132,7 +1132,7 @@ abstract class AppLocalizations {
   /// **'Highlight saved successfully'**
   String get highlightSaved;
 
-  /// Header for the highlights section
+  /// No description provided for @highlights.
   ///
   /// In en, this message translates to:
   /// **'Highlights'**
@@ -1864,7 +1864,7 @@ abstract class AppLocalizations {
   /// **'Recent Games'**
   String get recentGames;
 
-  /// Header for recent highlights on the team home page
+  /// No description provided for @recentHighlights.
   ///
   /// In en, this message translates to:
   /// **'Recent highlights'**
@@ -2116,7 +2116,7 @@ abstract class AppLocalizations {
   /// **'Shots on Goal'**
   String get shotsOnGoal;
 
-  /// Tooltip text to show highlights panel
+  /// No description provided for @showHighlights.
   ///
   /// In en, this message translates to:
   /// **'Show Highlights'**
@@ -2488,7 +2488,7 @@ abstract class AppLocalizations {
   /// **'Validate Only'**
   String get validateOnly;
 
-  /// Label prefix for numbered video buttons, e.g. "Video 1"
+  /// No description provided for @videoLabel.
   ///
   /// In en, this message translates to:
   /// **'Video'**
@@ -2500,7 +2500,7 @@ abstract class AppLocalizations {
   /// **'View More'**
   String get viewMore;
 
-  /// Label for a single watch/play button
+  /// No description provided for @watchLabel.
   ///
   /// In en, this message translates to:
   /// **'Watch'**
@@ -2720,7 +2720,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count} {count, plural, =1{game} other{games}} played'**
-  String gamesPlayed(int count);
+  String gamesPlayed(num count);
 
   /// No description provided for @versus.
   ///

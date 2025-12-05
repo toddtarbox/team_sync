@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -388,90 +389,86 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                 ],
               );
             } else {
-              // Single column for narrow screens
-              return Column(
-                children: [
-                  _buildAnalyticsSummaryCard(
-                    loc.recordSummary,
-                    Icons.emoji_events,
-                    Colors.amber,
-                    [
-                      _buildStatRow2(loc.totalGames, '${stats['totalGames']}',
-                          Icons.sports_soccer),
-                      _buildStatRow2(
-                          loc.wins, '${stats['wins']}', Icons.trending_up),
-                      _buildStatRow2(loc.losses, '${stats['losses']}',
-                          Icons.trending_down),
-                      _buildStatRow2(
-                          loc.ties, '${stats['ties']}', Icons.remove),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAnalyticsSummaryCard(
-                    loc.goalAnalytics,
-                    Icons.sports_score,
-                    Colors.green,
-                    [
-                      _buildStatRow2(loc.totalGoalsScored,
-                          '${stats['totalGoalsScored']}', Icons.north),
-                      _buildStatRow2(loc.totalGoalsConceded,
-                          '${stats['totalGoalsConceded']}', Icons.south),
-                      _buildStatRow2(
-                          loc.avgGoalsPerGame,
-                          stats['avgGoalsPerGame']!.toStringAsFixed(2),
-                          Icons.functions),
-                      _buildStatRow2(
-                          loc.goalDifferential,
-                          stats['goalDifferential']! >= 0
-                              ? '+${stats['goalDifferential']}'
-                              : '${stats['goalDifferential']}',
-                          Icons.compare_arrows),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAnalyticsSummaryCard(
-                    loc.streaksRecords,
-                    Icons.flash_on,
-                    Colors.purple,
-                    [
-                      _buildStatRow2(loc.longestWinStreak,
-                          '${stats['longestWinStreak']}W', Icons.trending_up),
-                      _buildStatRow2(loc.biggestVictory,
-                          '+${stats['biggestVictory']}', Icons.celebration),
-                      _buildStatRow2(loc.cleanSheets, '${stats['cleanSheets']}',
-                          Icons.shield),
-                      _buildStatRow2(
-                          loc.winPercentage,
-                          '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
-                          Icons.percent),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAnalyticsSummaryCard(
-                    loc.homeAwayAnalysis,
-                    Icons.home,
-                    Colors.blue,
-                    [
-                      _buildStatRow2(
-                          loc.homeRecord,
-                          '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
-                          Icons.home),
-                      _buildStatRow2(
-                          loc.awayRecord,
-                          '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
-                          Icons.flight_takeoff),
-                      _buildStatRow2(
-                          loc.homeWinPercentage,
-                          '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
-                          Icons.home_outlined),
-                      _buildStatRow2(
-                          loc.awayWinPercentage,
-                          '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
-                          Icons.flight_outlined),
-                    ],
-                  ),
-                ],
-              );
+              // Carousel for narrow screens
+              final carouselItems = [
+                _buildAnalyticsSummaryCard(
+                  loc.recordSummary,
+                  Icons.emoji_events,
+                  Colors.amber,
+                  [
+                    _buildStatRow2(loc.totalGames, '${stats['totalGames']}',
+                        Icons.sports_soccer),
+                    _buildStatRow2(
+                        loc.wins, '${stats['wins']}', Icons.trending_up),
+                    _buildStatRow2(
+                        loc.losses, '${stats['losses']}', Icons.trending_down),
+                    _buildStatRow2(loc.ties, '${stats['ties']}', Icons.remove),
+                  ],
+                ),
+                _buildAnalyticsSummaryCard(
+                  loc.goalAnalytics,
+                  Icons.sports_score,
+                  Colors.green,
+                  [
+                    _buildStatRow2(loc.totalGoalsScored,
+                        '${stats['totalGoalsScored']}', Icons.north),
+                    _buildStatRow2(loc.totalGoalsConceded,
+                        '${stats['totalGoalsConceded']}', Icons.south),
+                    _buildStatRow2(
+                        loc.avgGoalsPerGame,
+                        stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                        Icons.functions),
+                    _buildStatRow2(
+                        loc.goalDifferential,
+                        stats['goalDifferential']! >= 0
+                            ? '+${stats['goalDifferential']}'
+                            : '${stats['goalDifferential']}',
+                        Icons.compare_arrows),
+                  ],
+                ),
+                _buildAnalyticsSummaryCard(
+                  loc.streaksRecords,
+                  Icons.flash_on,
+                  Colors.purple,
+                  [
+                    _buildStatRow2(loc.longestWinStreak,
+                        '${stats['longestWinStreak']}W', Icons.trending_up),
+                    _buildStatRow2(loc.biggestVictory,
+                        '+${stats['biggestVictory']}', Icons.celebration),
+                    _buildStatRow2(loc.cleanSheets, '${stats['cleanSheets']}',
+                        Icons.shield),
+                    _buildStatRow2(
+                        loc.winPercentage,
+                        '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
+                        Icons.percent),
+                  ],
+                ),
+                _buildAnalyticsSummaryCard(
+                  loc.homeAwayAnalysis,
+                  Icons.home,
+                  Colors.blue,
+                  [
+                    _buildStatRow2(
+                        loc.homeRecord,
+                        '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
+                        Icons.home),
+                    _buildStatRow2(
+                        loc.awayRecord,
+                        '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
+                        Icons.flight_takeoff),
+                    _buildStatRow2(
+                        loc.homeWinPercentage,
+                        '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                        Icons.home_outlined),
+                    _buildStatRow2(
+                        loc.awayWinPercentage,
+                        '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                        Icons.flight_outlined),
+                  ],
+                ),
+              ];
+
+              return _AnalyticsCarousel(items: carouselItems);
             }
           },
         ),
@@ -2244,5 +2241,66 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
 
     // Show Tier 2 if any of these have data
     return hasShots || comebackWins > 0 || lateGoals > 0 || cardsPerGame > 0;
+  }
+}
+
+/// Carousel widget for displaying analytics cards on smaller screens
+class _AnalyticsCarousel extends StatefulWidget {
+  final List<Widget> items;
+
+  const _AnalyticsCarousel({required this.items});
+
+  @override
+  State<_AnalyticsCarousel> createState() => _AnalyticsCarouselState();
+}
+
+class _AnalyticsCarouselState extends State<_AnalyticsCarousel> {
+  int _currentPage = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        CarouselSlider.builder(
+          options: CarouselOptions(
+            height: 220,
+            viewportFraction: 0.9,
+            enlargeCenterPage: true,
+            enableInfiniteScroll: false,
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+          ),
+          itemCount: widget.items.length,
+          itemBuilder: (context, index, realIndex) {
+            return widget.items[index];
+          },
+        ),
+        const SizedBox(height: 12),
+        // Page indicators
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.items.length,
+            (index) => Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _currentPage == index
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

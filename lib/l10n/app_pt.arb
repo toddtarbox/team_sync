@@ -295,7 +295,7 @@
   "recentHighlights": "Destaques recentes",
   "recordHolders": "Detentores de recordes",
   "records": "Recordes",
-  "redCards": "Cartões vermelhos",
+  "redCards": "Cartões Vermelhos",
   "remindMeLater": "Lembrar mais tarde",
   "remove": "Remover",
   "removeButton": "Remover",
@@ -402,7 +402,7 @@
   "welcomeToTeamSync": "Bem-vindo ao TeamSync!",
   "winAbbreviation": "V",
   "year": "Ano",
-  "yellowCards": "Cartões amarelos",
+  "yellowCards": "Cartões Amarelos",
   "noGamesYet": "Ainda não há jogos",
   "live": "AO VIVO",
   "win": "VITÓRIA",
@@ -410,11 +410,6 @@
   "tie": "EMPATE",
   "teamPerformance": "Desempenho da equipe",
   "teamPerformanceSince": "Desempenho da equipe (Desde {year})",
-  "@teamPerformanceSince": {
-    "placeholders": {
-      "year": {}
-    }
-  },
   "since": "Desde",
   "addAccomplishment": "Adicionar realização",
   "editAccomplishment": "Editar realização",
@@ -430,11 +425,6 @@
   "notAuthorizedUploadImages": "Não autorizado a carregar imagens. Faça login no celular para adicionar imagens.",
   "games": "Jogos",
   "gameTimeSet": "Horário do jogo definido para {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Este jogo não tem horário definido (atualmente 00:00). Gostaria de definir o horário antes de tweetar?",
   "sortByTeamName": "Nome da equipe",
   "sortByMostGames": "Mais jogos",
@@ -471,12 +461,7 @@
   "scoringEvents": "Eventos de Gol",
   "noScoringEventsYet": "Ainda não há eventos de gol",
   "gameStatistics": "Estatísticas do Jogo",
-  "shots": "Chutes",
   "shotsOnTarget": "Chutes no Alvo",
-  "corners": "Escanteios",
-  "fouls": "Faltas",
-  "yellowCards": "Cartões Amarelos",
-  "redCards": "Cartões Vermelhos",
   "goalAnalytics": "Análise de Gols",
   "totalGoalsScored": "Total de Gols Marcados",
   "totalGoalsConceded": "Total de Gols Sofridos",

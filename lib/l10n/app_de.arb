@@ -410,11 +410,6 @@
   "tie": "UNENTSCHIEDEN",
   "teamPerformance": "Team-Leistung",
   "teamPerformanceSince": "Team-Leistung (Seit {year})",
-  "@teamPerformanceSince": {
-    "placeholders": {
-      "year": {}
-    }
-  },
   "since": "Seit",
   "addAccomplishment": "Erfolg hinzufügen",
   "editAccomplishment": "Erfolg bearbeiten",
@@ -430,11 +425,6 @@
   "notAuthorizedUploadImages": "Nicht berechtigt, Bilder hochzuladen. Melden Sie sich auf dem Handy an, um Bilder hinzuzufügen.",
   "games": "Spiele",
   "gameTimeSet": "Spielzeit auf {time} festgelegt",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Dieses Spiel hat keine Uhrzeit festgelegt (aktuell 00:00). Möchten Sie die Spielzeit vor dem Tweeten festlegen?",
   "sortByTeamName": "Teamname",
   "sortByMostGames": "Meiste Spiele",
@@ -471,12 +461,7 @@
   "scoringEvents": "Torereignisse",
   "noScoringEventsYet": "Noch keine Torereignisse",
   "gameStatistics": "Spielstatistiken",
-  "shots": "Schüsse",
   "shotsOnTarget": "Schüsse aufs Tor",
-  "corners": "Ecken",
-  "fouls": "Fouls",
-  "yellowCards": "Gelbe Karten",
-  "redCards": "Rote Karten",
   "goalAnalytics": "Tor-Analyse",
   "totalGoalsScored": "Gesamt Erzielte Tore",
   "totalGoalsConceded": "Gesamt Kassierte Tore",

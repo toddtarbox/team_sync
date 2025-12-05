@@ -1,169 +1,6 @@
 {
-  "@accessGrantedTo": {
-    "placeholders": {
-      "email": {}
-    }
-  },
-  "@addHighlight": {
-    "description": "Tooltip/título para agregar un destacado"
-  },
-  "@couldNotOpenUrl": {
-    "description": "Texto de snackbar cuando no se puede abrir una URL",
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "@deleteHighlightConfirm": {
-    "placeholders": {
-      "title": {}
-    }
-  },
-  "@durationSeconds": {
-    "placeholders": {
-      "seconds": {}
-    }
-  },
-  "@errorDeletingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorDeletingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorGeneratingLineup": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAccessList": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAwards": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingCredentials": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingDuplicates": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingHighlights": {
-    "description": "Error al cargar destacados",
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingPlayerStats": {
-    "description": "Mensaje de error al fallar la carga de stats del jugador",
-    "placeholders": {
-      "error": {},
-      "stack": {}
-    }
-  },
-  "@errorLoadingSharedDatabases": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoggingOut": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorMessage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorOpeningLink": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSaving": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingSettings": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingImage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingToTwitter": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUpdatingProfile": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUploadingImages": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@hideHighlights": {
-    "description": "Tooltip para ocultar el panel de destacados"
-  },
-  "@highlights": {
-    "description": "Encabezado para la sección de destacados"
-  },
-  "@openedDatabase": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "@recentHighlights": {
-    "description": "Encabezado para los destacados recientes en la página de inicio del equipo"
-  },
-  "@rowNumber": {
-    "placeholders": {
-      "number": {}
-    }
-  },
-  "@showHighlights": {
-    "description": "Tooltip para mostrar el panel de destacados"
-  },
-  "@signedInWith": {
-    "placeholders": {
-      "provider": {}
-    }
-  },
-  "@videoLabel": {
-    "description": "Prefijo de etiqueta para botones de video numerados, p. ej. \"Video 1\""
-  },
-  "@watchLabel": {
-    "description": "Etiqueta para un botón de ver/reproducir"
-  },
+  "email": "Correo electrónico",
+  "description": "Descripción",
   "accessGrantedTo": "Acceso otorgado a {email}",
   "accomplishmentDeleted": "Logro eliminado",
   "accomplishmentsReordered": "Logros reordenados",
@@ -222,7 +59,7 @@
   "continueText": "Continuar",
   "continueWithoutSigningIn": "Continuar sin iniciar sesión",
   "convertToCloud": "Convertir a una base de datos en la nube",
-  "corners": "Córners",
+  "corners": "Corners",
   "couldNotOpenUrl": "No se pudo abrir la URL: {url}",
   "create": "Crear",
   "createAnyway": "Crear de todos modos",
@@ -253,7 +90,6 @@
   "deleteAwardTitle": "Eliminar premio",
   "deleteHighlightConfirm": "¿Estás seguro de que deseas eliminar \"{title}\"?",
   "deleteHighlightTitle": "Eliminar destacado",
-  "description": "Descripción",
   "displayOrder": "Orden de visualización",
   "downloadErrorReport": "Descargar informe de errores",
   "downloadTemplate": "Descargar plantilla",
@@ -265,7 +101,6 @@
   "editHighlight": "Editar destacado",
   "editPlayer": "Editar jugador",
   "editProfile": "Editar perfil",
-  "email": "Correo electrónico",
   "endGame": "Finalizar juego",
   "endOfGame": "Fin del juego",
   "endOfRegulation": "Fin del tiempo regular",
@@ -460,7 +295,7 @@
   "recentHighlights": "Destacados recientes",
   "recordHolders": "Poseedores de récords",
   "records": "Récords",
-  "redCards": "Tarjetas rojas",
+  "redCards": "Tarjetas Rojas",
   "remindMeLater": "Recordar más tarde",
   "remove": "Eliminar",
   "removeButton": "Eliminar",
@@ -567,7 +402,7 @@
   "welcomeToTeamSync": "¡Bienvenido a TeamSync!",
   "winAbbreviation": "G",
   "year": "Año",
-  "yellowCards": "Tarjetas amarillas",
+  "yellowCards": "Tarjetas Amarillas",
   "noGamesYet": "Aún no hay partidos",
   "live": "EN VIVO",
   "win": "VICTORIA",
@@ -590,11 +425,6 @@
   "notAuthorizedUploadImages": "No autorizado para subir imágenes. Inicia sesión en el móvil para agregar imágenes.",
   "games": "Partidos",
   "gameTimeSet": "Hora del partido establecida en {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Este partido no tiene horario establecido (actualmente 00:00). ¿Quieres establecer la hora antes de tuitear?",
   "sortByTeamName": "Nombre del equipo",
   "sortByMostGames": "Más partidos",
@@ -631,12 +461,7 @@
   "scoringEvents": "Eventos de Gol",
   "noScoringEventsYet": "No hay eventos de gol aún",
   "gameStatistics": "Estadísticas del Partido",
-  "shots": "Tiros",
   "shotsOnTarget": "Tiros a Puerta",
-  "corners": "Corners",
-  "fouls": "Faltas",
-  "yellowCards": "Tarjetas Amarillas",
-  "redCards": "Tarjetas Rojas",
   "goalAnalytics": "Análisis de Goles",
   "totalGoalsScored": "Total de Goles Marcados",
   "totalGoalsConceded": "Total de Goles Concedidos",

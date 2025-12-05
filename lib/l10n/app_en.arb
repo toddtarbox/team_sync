@@ -1,194 +1,6 @@
 {
-  "@accessGrantedTo": {
-    "placeholders": {
-      "email": {}
-    }
-  },
-  "@addHighlight": {
-    "description": "Tooltip/title for adding a highlight"
-  },
-  "@couldNotOpenUrl": {
-    "description": "Snackbar text when a URL can't be opened",
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "@deleteHighlightConfirm": {
-    "placeholders": {
-      "title": {}
-    }
-  },
-  "@durationSeconds": {
-    "placeholders": {
-      "seconds": {}
-    }
-  },
-  "@errorDeletingAccomplishment": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorDeletingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorDeletingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorGeneratingLineup": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAccessList": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAwards": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingCredentials": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingDuplicates": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingHighlights": {
-    "description": "Error when highlights fail to load",
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingPlayerStats": {
-    "description": "Error message when player stats load fails",
-    "placeholders": {
-      "error": {},
-      "stack": {}
-    }
-  },
-  "@errorLoadingSharedDatabases": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoggingOut": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorMessage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorOpeningLink": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorReordering": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSaving": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingSettings": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSendingTweet": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingImage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingToTwitter": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUpdatingGameTime": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUpdatingProfile": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUploadingImages": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@hideHighlights": {
-    "description": "Tooltip text to hide highlights panel"
-  },
-  "@highlights": {
-    "description": "Header for the highlights section"
-  },
-  "@openedDatabase": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "@recentHighlights": {
-    "description": "Header for recent highlights on the team home page"
-  },
-  "@rowNumber": {
-    "placeholders": {
-      "number": {}
-    }
-  },
-  "@showHighlights": {
-    "description": "Tooltip text to show highlights panel"
-  },
-  "@signInFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@signedInWith": {
-    "placeholders": {
-      "provider": {}
-    }
-  },
-  "@videoLabel": {
-    "description": "Label prefix for numbered video buttons, e.g. \"Video 1\""
-  },
-  "@watchLabel": {
-    "description": "Label for a single watch/play button"
-  },
+  "email": "Email",
+  "description": "Description",
   "accessGrantedTo": "Access granted to {email}",
   "accomplishmentDeleted": "Accomplishment deleted",
   "accomplishmentsReordered": "Accomplishments reordered",
@@ -278,7 +90,6 @@
   "deleteAwardTitle": "Delete Award",
   "deleteHighlightConfirm": "Are you sure you want to delete \"{title}\"?",
   "deleteHighlightTitle": "Delete Highlight",
-  "description": "Description",
   "displayOrder": "Display Order",
   "downloadErrorReport": "Download Error Report",
   "downloadTemplate": "Download Template",
@@ -290,7 +101,6 @@
   "editHighlight": "Edit Highlight",
   "editPlayer": "Edit Player",
   "editProfile": "Edit Profile",
-  "email": "Email",
   "endGame": "End Game",
   "endOfGame": "End of Game",
   "endOfRegulation": "End of Regulation",
@@ -600,11 +410,6 @@
   "tie": "TIE",
   "teamPerformance": "Team Performance",
   "teamPerformanceSince": "Team Performance (Since {year})",
-  "@teamPerformanceSince": {
-    "placeholders": {
-      "year": {}
-    }
-  },
   "addAccomplishment": "Add Accomplishment",
   "editAccomplishment": "Edit Accomplishment",
   "titleRequired": "Title *",
@@ -620,11 +425,6 @@
   "notAuthorizedUploadImages": "Not authorized to upload images. Please sign in on mobile to add images.",
   "games": "Games",
   "gameTimeSet": "Game time set to {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "This game doesn't have a time set (currently 00:00). Would you like to set the game time before tweeting?",
   "sortByTeamName": "Team Name",
   "sortByMostGames": "Most Games",
@@ -635,13 +435,6 @@
   "gamesSingular": "game",
   "gamesPlural": "games",
   "gamesPlayed": "{count} {count, plural, =1{game} other{games}} played",
-  "@gamesPlayed": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "versus": "vs.",
   "unknown": "Unknown",
   "editSeasonName": "Edit Season Name",
@@ -668,12 +461,7 @@
   "scoringEvents": "Scoring Events",
   "noScoringEventsYet": "No scoring events yet",
   "gameStatistics": "Game Statistics",
-  "shots": "Shots",
   "shotsOnTarget": "Shots on Target",
-  "corners": "Corners",
-  "fouls": "Fouls",
-  "yellowCards": "Yellow Cards",
-  "redCards": "Red Cards",
   "goalAnalytics": "Goal Analytics",
   "totalGoalsScored": "Total Goals Scored",
   "totalGoalsConceded": "Total Goals Conceded",

@@ -57,7 +57,7 @@
   "continueText": "Continua",
   "continueWithoutSigningIn": "Continua senza accedere",
   "convertToCloud": "Converti in database cloud",
-  "corners": "Calci d'angolo",
+  "corners": "Calci d'Angolo",
   "couldNotOpenUrl": "Impossibile aprire l'URL: {url}",
   "create": "Crea",
   "createAnyway": "Crea comunque",
@@ -295,7 +295,7 @@
   "recentHighlights": "Highlights recenti",
   "recordHolders": "Detentori di record",
   "records": "Record",
-  "redCards": "Cartellini rossi",
+  "redCards": "Cartellini Rossi",
   "remindMeLater": "Ricordamelo più tardi",
   "remove": "Rimuovi",
   "removeButton": "Rimuovi",
@@ -402,7 +402,7 @@
   "welcomeToTeamSync": "Benvenuto su TeamSync!",
   "winAbbreviation": "V",
   "year": "Anno",
-  "yellowCards": "Cartellini gialli",
+  "yellowCards": "Cartellini Gialli",
   "noGamesYet": "Nessuna partita ancora",
   "live": "LIVE",
   "win": "VITTORIA",
@@ -410,11 +410,6 @@
   "tie": "PAREGGIO",
   "teamPerformance": "Prestazioni della squadra",
   "teamPerformanceSince": "Prestazioni della squadra (Dal {year})",
-  "@teamPerformanceSince": {
-    "placeholders": {
-      "year": {}
-    }
-  },
   "since": "Dal",
   "addAccomplishment": "Aggiungi risultato",
   "editAccomplishment": "Modifica risultato",
@@ -430,11 +425,6 @@
   "notAuthorizedUploadImages": "Non autorizzato a caricare immagini. Accedi da mobile per aggiungere immagini.",
   "games": "Partite",
   "gameTimeSet": "Orario della partita impostato su {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Questa partita non ha un orario impostato (attualmente 00:00). Vuoi impostare l'orario prima di twittare?",
   "sortByTeamName": "Nome squadra",
   "sortByMostGames": "Più partite",
@@ -471,12 +461,7 @@
   "scoringEvents": "Eventi di Gol",
   "noScoringEventsYet": "Nessun evento di gol ancora",
   "gameStatistics": "Statistiche della Partita",
-  "shots": "Tiri",
   "shotsOnTarget": "Tiri in Porta",
-  "corners": "Calci d'Angolo",
-  "fouls": "Falli",
-  "yellowCards": "Cartellini Gialli",
-  "redCards": "Cartellini Rossi",
   "goalAnalytics": "Analisi Gol",
   "totalGoalsScored": "Totale Gol Segnati",
   "totalGoalsConceded": "Totale Gol Subiti",

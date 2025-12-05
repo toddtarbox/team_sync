@@ -295,7 +295,7 @@
   "recentHighlights": "Moments forts récents",
   "recordHolders": "Détenteurs de records",
   "records": "Records",
-  "redCards": "Cartons rouges",
+  "redCards": "Cartons Rouges",
   "remindMeLater": "Me le rappeler plus tard",
   "remove": "Supprimer",
   "removeButton": "Supprimer",
@@ -402,7 +402,7 @@
   "welcomeToTeamSync": "Bienvenue sur TeamSync !",
   "winAbbreviation": "V",
   "year": "Année",
-  "yellowCards": "Cartons jaunes",
+  "yellowCards": "Cartons Jaunes",
   "noGamesYet": "Pas encore de matchs",
   "live": "EN DIRECT",
   "win": "VICTOIRE",
@@ -425,11 +425,6 @@
   "notAuthorizedUploadImages": "Non autorisé à télécharger des images. Connectez-vous sur mobile pour ajouter des images.",
   "games": "Matchs",
   "gameTimeSet": "Heure du match définie à {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Ce match n'a pas d'heure définie (actuellement 00:00). Voulez-vous définir l'heure avant de tweeter?",
   "sortByTeamName": "Nom de l'équipe",
   "sortByMostGames": "Plus de matchs",
@@ -466,12 +461,7 @@
   "scoringEvents": "Événements de But",
   "noScoringEventsYet": "Pas encore d'événements de but",
   "gameStatistics": "Statistiques du Match",
-  "shots": "Tirs",
   "shotsOnTarget": "Tirs Cadrés",
-  "corners": "Corners",
-  "fouls": "Fautes",
-  "yellowCards": "Cartons Jaunes",
-  "redCards": "Cartons Rouges",
   "goalAnalytics": "Analyse des Buts",
   "totalGoalsScored": "Total de Buts Marqués",
   "totalGoalsConceded": "Total de Buts Concédés",

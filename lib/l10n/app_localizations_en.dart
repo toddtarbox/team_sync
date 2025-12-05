@@ -9,6 +9,12 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get email => 'Email';
+
+  @override
+  String get description => 'Description';
+
+  @override
   String accessGrantedTo(Object email) {
     return 'Access granted to $email';
   }
@@ -293,9 +299,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get deleteHighlightTitle => 'Delete Highlight';
 
   @override
-  String get description => 'Description';
-
-  @override
   String get displayOrder => 'Display Order';
 
   @override
@@ -329,9 +332,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editProfile => 'Edit Profile';
-
-  @override
-  String get email => 'Email';
 
   @override
   String get endGame => 'End Game';
@@ -1410,7 +1410,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gamesPlural => 'games';
 
   @override
-  String gamesPlayed(int count) {
+  String gamesPlayed(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
