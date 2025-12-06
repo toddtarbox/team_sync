@@ -489,5 +489,12 @@
   "wins": "Victoires",
   "losses": "Défaites",
   "ties": "Nuls",
-  "winPercentage": "% Victoires"
+  "winPercentage": "% Victoires",
+  "playerProfileQRCode": "Code QR du Profil du Joueur",
+  "scanQRCodeToViewProfile": "Scannez le code QR pour voir le profil de ce joueur",
+  "tapToEnlarge": "Appuyez pour agrandir",
+  "playerProfileLink": "Profil du Joueur: {playerName}",
+  "errorSharingLink": "Erreur lors du partage du lien",
+  "share": "Partager",
+  "opponents": "Adversaires"
 }

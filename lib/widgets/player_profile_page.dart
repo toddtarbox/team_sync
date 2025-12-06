@@ -6,6 +6,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
@@ -20,7 +22,6 @@ import 'package:team_sync/widgets/highlight_reel_player.dart';
 import 'package:team_sync/widgets/pin_entry_dialog.dart';
 import 'package:team_sync/widgets/player_card_generator.dart';
 import 'package:team_sync/widgets/player_profile_editor.dart';
-import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -47,7 +48,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   Future<Season?>?
       _currentSeasonFuture; // will load if widget.currentSeason is null
   Season? _loadedSeason;
-  bool _showHighlights = true;
+  bool _showHighlights = true; // Control right panel visibility
   bool _isEditMode = false;
   String? _validatedPin; // Store the validated PIN for web saves
 
@@ -340,34 +341,37 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   tooltip: 'Play Highlight Reel',
                   onPressed: () => _launchHighlightReel(),
                 ),
-              // Toggle highlights button
+              // Toggle highlights panel button
               if (!_isEditMode)
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    // On small screens, open modal dialog
-                    // On large screens, toggle inline panel
-                    return IconButton(
-                      icon: Icon(_showHighlights
-                          ? Icons.video_library
-                          : Icons.video_library_outlined),
-                      tooltip: _showHighlights
-                          ? loc.hideHighlights
-                          : loc.showHighlights,
-                      onPressed: () {
-                        // Get screen width from MediaQuery
-                        final screenWidth = MediaQuery.of(context).size.width;
+                    final screenWidth = MediaQuery.of(context).size.width;
 
-                        if (screenWidth < 900) {
-                          // Small screen - show modal dialog
-                          _showHighlightsModal();
-                        } else {
-                          // Large screen - toggle inline panel
+                    if (screenWidth < 900) {
+                      // Small screen - show modal dialog
+                      return IconButton(
+                        icon: const Icon(Icons.video_library),
+                        tooltip: loc.showHighlights,
+                        onPressed: () => _showHighlightsModal(),
+                      );
+                    } else {
+                      // Wide screen - toggle right panel
+                      return IconButton(
+                        icon: Icon(
+                          _showHighlights
+                              ? Icons.video_library
+                              : Icons.video_library_outlined,
+                        ),
+                        tooltip: _showHighlights
+                            ? loc.hideHighlights
+                            : loc.showHighlights,
+                        onPressed: () {
                           setState(() {
                             _showHighlights = !_showHighlights;
                           });
-                        }
-                      },
-                    );
+                        },
+                      );
+                    }
                   },
                 ),
             ],
@@ -387,110 +391,324 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 ),
               ],
               Expanded(
-                child: _isEditMode
-                    ? ListView(
-                        children: [
-                          PlayerProfileEditor(
-                            player: widget.player,
-                            onExitEditMode: _exitEditMode,
-                            pin: _validatedPin,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWideScreen = constraints.maxWidth > 900;
+
+                    // Build the avatar header section
+                    final avatarSection = Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 24, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
-                      )
-                    : _seasonStatsFuture == null
-                        ? const Center(child: CircularProgressIndicator())
-                        : FutureBuilder<Map<Season, SeasonStats>>(
-                            future: _seasonStatsFuture,
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                    child: CircularProgressIndicator());
-                              }
-
-                              if (snapshot.hasError) {
-                                return Center(
-                                  child: Text(loc.errorLoadingPlayerStats(
-                                      snapshot.error?.toString() ?? '',
-                                      snapshot.stackTrace?.toString() ?? '')),
-                                );
-                              }
-
-                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                return Center(
-                                    child: Text(loc.noStatsAvailable));
-                              }
-
-                              final seasonStats = snapshot.data!;
-                              final seasons = seasonStats.keys.toList()
-                                ..sort((a, b) => b.name
-                                    .compareTo(a.name)); // Most recent first
-
-                              // Build main content
-                              final mainContent = ListView(
-                                children: [
-                                  // Player header with avatar and basic info
-                                  _buildPlayerHeader(),
-
-                                  const Divider(thickness: 2),
-
-                                  // Career Stats Section
-                                  _buildCareerStats(seasonStats),
-
-                                  const Divider(thickness: 2),
-
-                                  // Stats for each season
-                                  ...seasons.map((season) => _buildSeasonStats(
-                                        season,
-                                        seasonStats[season]!,
-                                        currentSeason,
-                                      )),
-                                ],
-                              );
-
-                              // Responsive layout
-                              return LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final isWideScreen =
-                                      constraints.maxWidth > 900;
-
-                                  if (isWideScreen && _showHighlights) {
-                                    // Two-column layout for wide screens
-                                    return Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        // Main content (left side)
-                                        Expanded(
-                                          flex: 2,
-                                          child: mainContent,
-                                        ),
-
-                                        // Highlights panel (right side)
-                                        Container(
-                                          width: 400,
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              left: BorderSide(
-                                                color: Theme.of(context)
-                                                    .dividerColor,
-                                                width: 1,
-                                              ),
-                                            ),
+                      ),
+                      child: Column(
+                        children: [
+                          // Avatar and QR Code Row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Large Avatar
+                              Hero(
+                                tag: 'player_avatar_${widget.player.id}',
+                                child: Container(
+                                  width: 160,
+                                  height: 160,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      width: 4,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.2),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: widget.player.profileImage != null &&
+                                            widget
+                                                .player.profileImage!.isNotEmpty
+                                        ? Image.network(
+                                            widget.player.profileImage!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return _buildDefaultAvatar();
+                                            },
+                                          )
+                                        : _buildDefaultAvatar(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 24),
+                              // QR Code section (only show if we have a current season for URL generation)
+                              if (currentSeason != null)
+                                Column(
+                                  children: [
+                                    // QR Code
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _showQRCodeDialog(currentSeason),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outline,
+                                            width: 2,
                                           ),
-                                          child: _buildHighlightsPanel(),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.1),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    );
-                                  } else {
-                                    // Single column layout for smaller screens
-                                    // Highlights shown in modal dialog (opened via button)
-                                    return mainContent;
-                                  }
-                                },
-                              );
-                            },
+                                        child: QrImageView(
+                                          data: _getPlayerWebUrl(currentSeason),
+                                          version: QrVersions.auto,
+                                          size: 100,
+                                          backgroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      loc.tapToEnlarge,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
+                          const SizedBox(height: 16),
+                          // Player name
+                          Text(
+                            widget.player.displayName,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Jersey number
+                          Text(
+                            '#${widget.player.number}',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    // Two-column layout with right panel extending full height
+                    if (isWideScreen && _showHighlights) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Left column: avatar + content
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              children: [
+                                avatarSection,
+                                Expanded(
+                                  child: _isEditMode
+                                      ? ListView(
+                                          children: [
+                                            PlayerProfileEditor(
+                                              player: widget.player,
+                                              onExitEditMode: _exitEditMode,
+                                              pin: _validatedPin,
+                                            ),
+                                          ],
+                                        )
+                                      : _seasonStatsFuture == null
+                                          ? const Center(
+                                              child:
+                                                  CircularProgressIndicator())
+                                          : FutureBuilder<
+                                              Map<Season, SeasonStats>>(
+                                              future: _seasonStatsFuture,
+                                              builder: (context, snapshot) {
+                                                if (snapshot.connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return const Center(
+                                                      child:
+                                                          CircularProgressIndicator());
+                                                }
+
+                                                if (snapshot.hasError) {
+                                                  return Center(
+                                                    child: Text(loc
+                                                        .errorLoadingPlayerStats(
+                                                            snapshot.error
+                                                                    ?.toString() ??
+                                                                '',
+                                                            snapshot.stackTrace
+                                                                    ?.toString() ??
+                                                                '')),
+                                                  );
+                                                }
+
+                                                if (!snapshot.hasData ||
+                                                    snapshot.data!.isEmpty) {
+                                                  return Center(
+                                                      child: Text(loc
+                                                          .noStatsAvailable));
+                                                }
+
+                                                final seasonStats =
+                                                    snapshot.data!;
+                                                final seasons = seasonStats.keys
+                                                    .toList()
+                                                  ..sort((a, b) =>
+                                                      b.name.compareTo(a.name));
+
+                                                return ListView(
+                                                  children: [
+                                                    _buildPlayerHeader(),
+                                                    const Divider(thickness: 2),
+                                                    _buildCareerStats(
+                                                        seasonStats),
+                                                    const Divider(thickness: 2),
+                                                    ...seasons.map((season) =>
+                                                        _buildSeasonStats(
+                                                          season,
+                                                          seasonStats[season]!,
+                                                          currentSeason,
+                                                        )),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Right column: full-height highlights panel
+                          SizedBox(
+                            width: 400,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                border: Border(
+                                  left: BorderSide(
+                                    color: Theme.of(context).dividerColor,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                              child: _buildHighlightsPanel(),
+                            ),
+                          ),
+                        ],
+                      );
+                    } else {
+                      // Single column layout (narrow screen or panel hidden)
+                      return Column(
+                        children: [
+                          avatarSection,
+                          Expanded(
+                            child: _isEditMode
+                                ? ListView(
+                                    children: [
+                                      PlayerProfileEditor(
+                                        player: widget.player,
+                                        onExitEditMode: _exitEditMode,
+                                        pin: _validatedPin,
+                                      ),
+                                    ],
+                                  )
+                                : _seasonStatsFuture == null
+                                    ? const Center(
+                                        child: CircularProgressIndicator())
+                                    : FutureBuilder<Map<Season, SeasonStats>>(
+                                        future: _seasonStatsFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const Center(
+                                                child:
+                                                    CircularProgressIndicator());
+                                          }
+
+                                          if (snapshot.hasError) {
+                                            return Center(
+                                              child: Text(
+                                                  loc.errorLoadingPlayerStats(
+                                                      snapshot.error
+                                                              ?.toString() ??
+                                                          '',
+                                                      snapshot.stackTrace
+                                                              ?.toString() ??
+                                                          '')),
+                                            );
+                                          }
+
+                                          if (!snapshot.hasData ||
+                                              snapshot.data!.isEmpty) {
+                                            return Center(
+                                                child:
+                                                    Text(loc.noStatsAvailable));
+                                          }
+
+                                          final seasonStats = snapshot.data!;
+                                          final seasons = seasonStats.keys
+                                              .toList()
+                                            ..sort((a, b) =>
+                                                b.name.compareTo(a.name));
+
+                                          return ListView(
+                                            children: [
+                                              _buildPlayerHeader(),
+                                              const Divider(thickness: 2),
+                                              _buildCareerStats(seasonStats),
+                                              const Divider(thickness: 2),
+                                              ...seasons.map(
+                                                  (season) => _buildSeasonStats(
+                                                        season,
+                                                        seasonStats[season]!,
+                                                        currentSeason,
+                                                      )),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                          ),
+                        ],
+                      );
+                    }
+                  },
+                ),
               ),
             ],
           ),
@@ -770,34 +988,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
-          // Avatar
-          ResponsivePlayerAvatar(player: widget.player),
-
-          const SizedBox(height: 16),
-
-          // Player name
-          Text(
-            widget.player.displayName,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Jersey number
-          Text(
-            '#${widget.player.number}',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey,
-            ),
-          ),
-
           // Generate Player Card button (mobile only)
           if (!kIsWeb && _loadedSeason?.team != null) ...[
-            const SizedBox(height: 20),
             FutureBuilder<Season?>(
               future: _currentSeasonFuture,
               builder: (context, snapshot) {
@@ -832,6 +1024,145 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               },
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  // Helper method to build default avatar
+  Widget _buildDefaultAvatar() {
+    return Container(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Center(
+        child: Icon(
+          Icons.person,
+          size: 80,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      ),
+    );
+  }
+
+  // Generate the web URL for this player
+  String _getPlayerWebUrl(Season season) {
+    final databaseId = DatabaseService.instance.publicShareId ?? '';
+    // Use Firebase hosting URL as base - this can be customized
+    final baseUrl = 'https://team-sync-soccer.web.app';
+    return '$baseUrl/#/team/$databaseId/season/${season.id}/players/${widget.player.id}';
+  }
+
+  // Show QR code dialog
+  void _showQRCodeDialog(Season season) {
+    final loc = AppLocalizations.of(context)!;
+    final playerUrl = _getPlayerWebUrl(season);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.qr_code_2, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(loc.playerProfileQRCode),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Large QR Code
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 2,
+                ),
+              ),
+              child: QrImageView(
+                data: playerUrl,
+                version: QrVersions.auto,
+                size: 280,
+                backgroundColor: Colors.white,
+                errorCorrectionLevel: QrErrorCorrectLevel.H,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Player info
+            Text(
+              widget.player.displayName,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              '#${widget.player.number}',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // URL display
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                playerUrl,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              loc.scanQRCodeToViewProfile,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.close),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              // Share the URL
+              final loc = AppLocalizations.of(context)!;
+              try {
+                await SharePlus.instance.share(
+                  ShareParams(
+                    text: playerUrl,
+                    subject: loc.playerProfileLink(widget.player.displayName),
+                  ),
+                );
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(loc.errorSharingLink)),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.share),
+            label: Text(loc.share),
+          ),
         ],
       ),
     );
@@ -1001,7 +1332,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         final totalHighlights =
             gameEventHighlights.length + independentHighlights.length;
 
-        // For right panel (large screens), use two carousel sections
+        // For right panel (large screens), use column layout that fills height
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

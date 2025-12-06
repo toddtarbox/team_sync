@@ -301,9 +301,20 @@ class _SeasonPageState extends State<SeasonPage> {
                           onPressed: () {
                             _showGame(season: season);
                           })),
-              body: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
+              body: Column(
+                children: [
+                  // Fixed header section - image, title, and record
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       children: [
                         Breadcrumbs(
@@ -317,8 +328,8 @@ class _SeasonPageState extends State<SeasonPage> {
                         ),
                         SeasonWithLogo(season: season),
                         Container(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.only(
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
                               bottomLeft: Radius.circular(25),
                               bottomRight: Radius.circular(25),
                             ),
@@ -331,18 +342,18 @@ class _SeasonPageState extends State<SeasonPage> {
                             ),
                           ),
                         ),
-                        // Awards Section
-                        _buildAwardsSection(season),
                       ],
                     ),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(10),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final game = games[index];
-
+                  // Scrollable content section
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(10),
+                      children: [
+                        // Awards Section
+                        _buildAwardsSection(season),
+                        // Games list
+                        ...games.map((game) {
                           final linkWidget = game.gameLinks?.isNotEmpty ?? false
                               ? GestureDetector(
                                   onTap: () async {
@@ -465,9 +476,8 @@ class _SeasonPageState extends State<SeasonPage> {
                             },
                             child: gameCard,
                           );
-                        },
-                        childCount: games.length,
-                      ),
+                        }).toList(),
+                      ],
                     ),
                   ),
                 ],

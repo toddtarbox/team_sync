@@ -3051,6 +3051,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Win %'**
   String get winPercentage;
+
+  /// No description provided for @playerProfileQRCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Profile QR Code'**
+  String get playerProfileQRCode;
+
+  /// No description provided for @scanQRCodeToViewProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code to view this player\'s profile'**
+  String get scanQRCodeToViewProfile;
+
+  /// No description provided for @tapToEnlarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to enlarge'**
+  String get tapToEnlarge;
+
+  /// No description provided for @playerProfileLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Profile: {playerName}'**
+  String playerProfileLink(Object playerName);
+
+  /// No description provided for @errorSharingLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Error sharing link'**
+  String get errorSharingLink;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @sending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending...'**
+  String get sending;
+
+  /// No description provided for @twitterNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Twitter is not configured. Please configure Twitter in Settings.'**
+  String get twitterNotConfigured;
+
+  /// No description provided for @opponents.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponents'**
+  String get opponents;
 }
 
 class _AppLocalizationsDelegate

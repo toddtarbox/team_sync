@@ -392,7 +392,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
             onSelected: (value) async {
               switch (value) {
                 case 'tweet':
-                  await AdhocTweetDialog.show(context, teamId: _team?.id);
+                  await AdhocTweetDialog.show(context,
+                      teamId: _team?.id, team: _team);
                   break;
                 case 'share':
                   await _shareDatabase();
@@ -3341,62 +3342,14 @@ class _TeamHomePageState extends State<TeamHomePage> {
     // Generate tweet text
     String tweetText = _generateGameDayTweet(game, liveLink);
 
-    // Show preview dialog using common component
-    final finalTweetText = await TweetPreviewDialog.show(
+    // Show preview dialog - it handles initialization, sending, and feedback internally
+    await TweetPreviewDialog.show(
       context,
       initialText: tweetText,
+      teamId: _team!.id,
       team: _team!,
     );
-
-    // If user confirmed, send the tweet
-    if (finalTweetText != null && finalTweetText.isNotEmpty) {
-      try {
-        // Initialize Twitter with team credentials
-        final initialized = await TwitterService.instance
-            .initializeWithTeamCredentials(_team!.id);
-
-        if (!initialized) {
-          // Try local credentials as fallback
-          final localInit =
-              await TwitterService.instance.initializeWithLocalCredentials();
-          if (!localInit) {
-            throw Exception('Failed to initialize Twitter');
-          }
-        }
-
-        // Send the tweet
-        final success = await TwitterService.instance.sendTweet(finalTweetText);
-
-        if (success && mounted) {
-          final loc = AppLocalizations.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Text(loc.gameDayTweetSentSuccessfully),
-                ],
-              ),
-              backgroundColor: const Color(0xFF1DA1F2),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (!success && mounted) {
-          throw Exception('Failed to send tweet');
-        }
-      } catch (e) {
-        if (mounted) {
-          final loc = AppLocalizations.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(loc.errorSendingTweet(e.toString())),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
+    // Dialog handles all success/error feedback
   }
 
   String _generateGameDayTweet(Game? game, String liveLink) {

@@ -1607,62 +1607,23 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
       // Generate initial tweet text
       final tweetText = _generateTweetText();
 
-      // Show tweet preview dialog with lineup image (don't close lineup preview yet)
+      // Show tweet preview dialog - it handles initialization, sending, and feedback internally
       if (!mounted) return;
 
-      final finalTweetText = await TweetPreviewDialog.show(
+      final success = await TweetPreviewDialog.show(
         context,
         initialText: tweetText,
+        teamId: widget.team.id,
         team: widget.team,
         imageFile: file,
         eventContext: 'Starting XI',
       );
 
-      // If user confirmed, send the tweet
-      if (finalTweetText != null && finalTweetText.isNotEmpty) {
-        // Initialize Twitter with team credentials
-        bool initialized = await TwitterService.instance
-            .initializeWithTeamCredentials(widget.team.id);
-
-        if (!initialized) {
-          // Try local credentials as fallback
-          initialized =
-              await TwitterService.instance.initializeWithLocalCredentials();
-        }
-
-        if (!initialized) {
-          throw Exception('Twitter not configured');
-        }
-
-        // Send the tweet
-        final success = await TwitterService.instance.sendTweet(finalTweetText);
-
-        if (mounted) {
-          // Close lineup preview dialog on success
-          Navigator.of(context).pop();
-
-          if (success) {
-            final loc = AppLocalizations.of(context)!;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle,
-                        color: Colors.white, size: 20),
-                    const SizedBox(width: 12),
-                    Text(loc.lineupTweetedSuccessfully),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF1DA1F2),
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          } else {
-            throw Exception('Failed to send tweet');
-          }
-        }
+      // If tweet was sent successfully, close the lineup preview
+      if (success && mounted) {
+        Navigator.of(context).pop();
       }
-      // If user cancelled (finalTweetText is null), lineup preview stays open
+      // If user cancelled or failed, lineup preview stays open
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

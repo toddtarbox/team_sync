@@ -8,6 +8,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/match_result_card.dart';
 import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
 import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
@@ -272,9 +273,24 @@ class _GamePageState extends State<GamePage> {
     Season season,
     bool isTabletOrLarger,
   ) {
-    // Mobile: Show stats button for completed games
-    if (!isTabletOrLarger && _game.gameStatus.index >= 9) {
+    // Mobile: Show stats and match report buttons for completed games
+    if (!kIsWeb && _game.gameStatus.index >= 9) {
       return [
+        // Match Report button
+        GestureDetector(
+          onTap: () {
+            MatchResultCard.showMatchResultDialog(
+              context,
+              season: season,
+              game: _game,
+            );
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(5),
+            child: Icon(Icons.newspaper, size: 24),
+          ),
+        ),
+        // Stats button
         GestureDetector(
           onTap: () {
             Navigator.of(context).push(MaterialPageRoute(
@@ -308,7 +324,8 @@ class _GamePageState extends State<GamePage> {
         // Tweet button
         GestureDetector(
           onTap: () {
-            AdhocTweetDialog.show(context);
+            AdhocTweetDialog.show(context,
+                teamId: season.teamId, team: season.team);
           },
           child: const Padding(
             padding: EdgeInsets.all(5),

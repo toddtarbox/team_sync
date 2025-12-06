@@ -9,8 +9,8 @@ import 'package:team_sync/services/twitter_service.dart';
 /// for all tweet sending flows (adhoc, game day, player cards, etc.)
 class TweetPreviewDialog {
   /// Show a tweet preview dialog before sending
-  /// Returns the final tweet text if user confirms, null if cancelled
-  static Future<String?> show(
+  /// Returns true if tweet was sent successfully, false if cancelled or failed
+  static Future<bool> show(
     BuildContext context, {
     required String initialText,
     int? teamId,
@@ -18,7 +18,7 @@ class TweetPreviewDialog {
     File? imageFile,
     String? eventContext,
   }) async {
-    return await showDialog<String>(
+    final result = await showDialog<bool>(
       context: context,
       builder: (context) => _TweetPreviewDialogWidget(
         initialText: initialText,
@@ -28,6 +28,7 @@ class TweetPreviewDialog {
         eventContext: eventContext,
       ),
     );
+    return result ?? false;
   }
 }
 
@@ -55,6 +56,7 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
   late TextEditingController _textController;
   String? _twitterHandle;
   bool _loadingHandle = true;
+  bool _isSending = false;
 
   @override
   void initState() {
@@ -401,12 +403,22 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _textController.text.isEmpty || isOverLimit
+                      onPressed: _isSending ||
+                              _textController.text.isEmpty ||
+                              isOverLimit
                           ? null
-                          : () =>
-                              Navigator.of(context).pop(_textController.text),
-                      icon: const Icon(Icons.send, size: 18),
-                      label: Text(loc.sendTweet),
+                          : () => _sendTweet(),
+                      icon: _isSending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send, size: 18),
+                      label: Text(_isSending ? 'Sending...' : loc.sendTweet),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1DA1F2),
                         foregroundColor: Colors.white,
@@ -421,6 +433,70 @@ class _TweetPreviewDialogWidgetState extends State<_TweetPreviewDialogWidget> {
         ),
       ),
     );
+  }
+
+  Future<void> _sendTweet() async {
+    final loc = AppLocalizations.of(context)!;
+
+    setState(() => _isSending = true);
+
+    try {
+      // Ensure Twitter is initialized
+      final initialized = await TwitterService.instance.ensureInitialized(
+        teamId: widget.teamId ?? widget.team?.id,
+      );
+
+      if (!initialized) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Twitter is not configured. Please configure Twitter in Settings.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.of(context).pop(false);
+        }
+        return;
+      }
+
+      // Send tweet with image if available
+      final success = await TwitterService.instance.sendTweetWithImage(
+        _textController.text,
+        imageFile: widget.imageFile,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(loc.tweetSentSuccessfully)),
+          );
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(loc.failedToSendTweet),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.of(context).pop(false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${loc.failedToSendTweet}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.of(context).pop(false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
+    }
   }
 }
 

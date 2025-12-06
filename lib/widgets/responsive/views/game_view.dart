@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
@@ -14,6 +18,7 @@ import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class GameView extends StatefulWidget {
@@ -49,17 +54,15 @@ class _GameViewState extends State<GameView> {
     });
 
     widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
-      await AdhocTweetDialog.show(context, teamId: widget.season.teamId);
+      await AdhocTweetDialog.show(context,
+          teamId: widget.season.teamId, team: widget.season.team);
     });
 
     widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
-      // Initialize with team credentials if available, fallback to local
-      final success = await TwitterService.instance
-          .initializeWithTeamCredentials(widget.season.teamId);
-      if (!success) {
-        await TwitterService.instance.initializeWithLocalCredentials();
-      }
+      // Initialize Twitter with team credentials once at startup
+      await TwitterService.instance
+          .ensureInitialized(teamId: widget.season.teamId);
     });
     widget.eventEmitter.emit('loadSettings');
 
@@ -84,6 +87,9 @@ class _GameViewState extends State<GameView> {
 
     if (_autoCreateAssist != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final assistEvent = _autoCreateAssist!;
+        final goalEventId = assistEvent.eventData; // This is the goal event ID
+
         final shouldCreateAssist = await showDialog<bool>(
           context: context,
           builder: (BuildContext context) {
@@ -110,12 +116,19 @@ class _GameViewState extends State<GameView> {
           },
         );
 
+        Player? assistPlayer;
         if (shouldCreateAssist == true) {
-          await _editEvent(event: _autoCreateAssist);
+          await _editEvent(event: assistEvent);
+          // Get the assist player after it's been assigned
+          assistPlayer = assistEvent.player;
         }
+
         setState(() {
           _autoCreateAssist = null;
         });
+
+        // Now send the goal tweet with assist information (if any)
+        await _sendGoalTweet(goalEventId, assistPlayer);
       });
     }
 
@@ -131,8 +144,6 @@ class _GameViewState extends State<GameView> {
             }
 
             // Mobile layout: full event list with reordering
-            final isLargeScreen =
-                ResponsiveBreakpoints.of(context).largerThan(MOBILE);
 
             var itemCount = _game.scoringEvents.length +
                 _game.gameEvents.length +
@@ -142,7 +153,8 @@ class _GameViewState extends State<GameView> {
               itemCount += 1;
             }
 
-            bool showScoringEvents = isLargeScreen;
+            // Always show scoring events on mobile
+            bool showScoringEvents = true;
 
             // Enable reorder only on mobile
             final bool enableReorder = !kIsWeb;
@@ -322,8 +334,7 @@ class _GameViewState extends State<GameView> {
 
     // Determine event color based on type
     final Color eventColor = _getEventColor(event);
-    final bool isGoal =
-        event.eventType == 'Shot' && event.eventData == ShotResult.goal.index;
+    final bool isGoal = event.isGoalEvent;
     final bool isPeriodEvent = event.eventType == 'Period';
 
     // Responsive sizing based on screen width
@@ -476,8 +487,7 @@ class _GameViewState extends State<GameView> {
                   width: 2,
                 ),
               ),
-              child: Center(
-                  child: Transform.scale(scale: 0.9, child: event.image)),
+              child: Center(child: event.image),
             ),
             const SizedBox(width: 10),
             // Event title
@@ -725,12 +735,7 @@ class _GameViewState extends State<GameView> {
                   width: 3,
                 ),
               ),
-              child: Center(
-                child: Transform.scale(
-                  scale: 1.5,
-                  child: event.image,
-                ),
-              ),
+              child: Center(child: event.image),
             ),
             // Event minute
             if (event.eventMinute > 0) ...[
@@ -961,10 +966,7 @@ class _GameViewState extends State<GameView> {
 
   // Helper method to get event color based on type
   Color _getEventColor(GameEvent event) {
-    if (event.eventType == 'Shot' && event.eventData == ShotResult.goal.index) {
-      return Colors.green;
-    } else if (event.eventType == 'PenaltyKick' &&
-        event.eventData == ShotResult.goal.index) {
+    if (event.isGoalEvent) {
       return Colors.green;
     } else if (event.eventType == 'Assist') {
       return Colors.lightGreen;
@@ -1356,6 +1358,74 @@ class _GameViewState extends State<GameView> {
 
   Future<List<GameEvent>> _loadGameEvents() async {
     return await _game.loadGameEvents();
+  }
+
+  /// Send a tweet for a goal event, including assist information if provided
+  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer) async {
+    try {
+      // Find the goal event
+      final goalEvent =
+          _game.allGameEvents.firstWhere((e) => e.id == goalEventId);
+
+      if (!goalEvent.isGoalEvent) return;
+
+      // Check if game is in progress
+      final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
+          _game.gameStatus != GameStatus.gameFinal &&
+          _game.gameStatus != GameStatus.gameFinalOT &&
+          _game.gameStatus != GameStatus.gameFinalPKs;
+
+      if (!gameInProgress && !kDebugMode) return;
+
+      // Generate tweet text with assist information
+      String tweetText;
+      if (goalEvent.player != null) {
+        tweetText =
+            '(${goalEvent.eventMinute}\') Goal by ${goalEvent.player!.displayName}';
+        if (assistPlayer != null) {
+          tweetText += '\nAssist: ${assistPlayer.displayName}';
+        }
+      } else {
+        tweetText =
+            '(${goalEvent.eventMinute}\') Goal by ${goalEvent.team.shortName}';
+      }
+
+      tweetText = '$tweetText\n\n${_game.tweetStatus()}';
+
+      // Check if goal scorer has a profile image
+      File? playerImageFile;
+      if (goalEvent.player != null &&
+          goalEvent.player!.profileImage != null &&
+          goalEvent.player!.profileImage!.isNotEmpty) {
+        try {
+          final response =
+              await http.get(Uri.parse(goalEvent.player!.profileImage!));
+          if (response.statusCode == 200) {
+            final tempDir = await getTemporaryDirectory();
+            final imageFile = File(
+                '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await imageFile.writeAsBytes(response.bodyBytes);
+            playerImageFile = imageFile;
+          }
+        } catch (e) {
+          debugPrint('Error downloading player image for tweet: $e');
+        }
+      }
+
+      if (mounted) {
+        // Show tweet preview dialog - it handles initialization and sending internally
+        await TweetPreviewDialog.show(
+          context,
+          initialText: tweetText,
+          teamId: widget.season.teamId,
+          team: widget.season.team,
+          imageFile: playerImageFile,
+          eventContext: 'GOAL!',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending goal tweet: $e');
+    }
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
@@ -1776,34 +1846,24 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      // Only send tweets when game is in progress
+      // Only send tweets when game is in progress (but NOT for goals - those are sent after assist dialog)
       final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
           _game.gameStatus != GameStatus.gameFinal &&
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      if (event.shouldTweet && gameInProgress) {
+      // Don't tweet goals here - they'll be tweeted after assist dialog
+      if (event.shouldTweet && !event.isGoalEvent && gameInProgress) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
-          // Ensure Twitter is initialized before sending
-          bool isConfigured = await TwitterService.instance
-              .isConfigured(teamId: widget.season.teamId);
-          if (!isConfigured) {
-            // Try to initialize with team credentials
-            isConfigured = await TwitterService.instance
-                .initializeWithTeamCredentials(widget.season.teamId);
-            if (!isConfigured) {
-              // Fallback to local credentials
-              isConfigured = await TwitterService.instance
-                  .initializeWithLocalCredentials();
-            }
-          }
-
-          if (isConfigured) {
-            // Only send if configured
-            await TwitterService.instance.sendTweet(tweetText);
-          } else {
-            debugPrint('Twitter not configured - skipping tweet: $tweetText');
+          if (mounted) {
+            // Show tweet preview dialog - it handles initialization and sending internally
+            await TweetPreviewDialog.show(
+              context,
+              initialText: tweetText,
+              teamId: widget.season.teamId,
+              team: widget.season.team,
+            );
           }
         }
       }
@@ -1829,8 +1889,7 @@ class _GameViewState extends State<GameView> {
         setState(() {
           _autoCreateSave = saveEvent;
         });
-      } else if (event.eventType == 'Shot' &&
-          event.eventData == ShotResult.goal.index &&
+      } else if (event.isGoalEvent &&
           event.player?.id != -2 &&
           event.team.id == widget.season.teamId) {
         // Auto-create an Assist event for goals by our team (excluding own goals)

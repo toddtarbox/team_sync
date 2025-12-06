@@ -489,5 +489,14 @@
   "wins": "Wins",
   "losses": "Losses",
   "ties": "Ties",
-  "winPercentage": "Win %"
+  "winPercentage": "Win %",
+  "playerProfileQRCode": "Player Profile QR Code",
+  "scanQRCodeToViewProfile": "Scan QR code to view this player's profile",
+  "tapToEnlarge": "Tap to enlarge",
+  "playerProfileLink": "Player Profile: {playerName}",
+  "errorSharingLink": "Error sharing link",
+  "share": "Share",
+  "sending": "Sending...",
+  "twitterNotConfigured": "Twitter is not configured. Please configure Twitter in Settings.",
+  "opponents": "Opponents"
 }

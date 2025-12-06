@@ -1603,4 +1603,35 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get winPercentage => '% Victorias';
+
+  @override
+  String get playerProfileQRCode => 'Código QR del Perfil del Jugador';
+
+  @override
+  String get scanQRCodeToViewProfile =>
+      'Escanea el código QR para ver el perfil de este jugador';
+
+  @override
+  String get tapToEnlarge => 'Toca para ampliar';
+
+  @override
+  String playerProfileLink(Object playerName) {
+    return 'Perfil del Jugador: $playerName';
+  }
+
+  @override
+  String get errorSharingLink => 'Error al compartir el enlace';
+
+  @override
+  String get share => 'Compartir';
+
+  @override
+  String get sending => 'Sending...';
+
+  @override
+  String get twitterNotConfigured =>
+      'Twitter is not configured. Please configure Twitter in Settings.';
+
+  @override
+  String get opponents => 'Oponentes';
 }

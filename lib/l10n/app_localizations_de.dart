@@ -1600,4 +1600,35 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get winPercentage => 'Sieg %';
+
+  @override
+  String get playerProfileQRCode => 'Spielerprofil QR-Code';
+
+  @override
+  String get scanQRCodeToViewProfile =>
+      'QR-Code scannen, um dieses Spielerprofil anzuzeigen';
+
+  @override
+  String get tapToEnlarge => 'Tippen zum Vergrößern';
+
+  @override
+  String playerProfileLink(Object playerName) {
+    return 'Spielerprofil: $playerName';
+  }
+
+  @override
+  String get errorSharingLink => 'Fehler beim Teilen des Links';
+
+  @override
+  String get share => 'Teilen';
+
+  @override
+  String get sending => 'Sending...';
+
+  @override
+  String get twitterNotConfigured =>
+      'Twitter is not configured. Please configure Twitter in Settings.';
+
+  @override
+  String get opponents => 'Gegner';
 }
