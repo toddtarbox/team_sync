@@ -400,30 +400,6 @@ abstract class AppLocalizations {
   /// **'Close sidebar'**
   String get closeSidebar;
 
-  /// No description provided for @clubDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Description (Optional)'**
-  String get clubDescription;
-
-  /// No description provided for @clubDescriptionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Brief description of your club'**
-  String get clubDescriptionHint;
-
-  /// No description provided for @clubName.
-  ///
-  /// In en, this message translates to:
-  /// **'Club Name'**
-  String get clubName;
-
-  /// No description provided for @clubSyncAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'ClubSync Available'**
-  String get clubSyncAvailable;
-
   /// No description provided for @composeTweet.
   ///
   /// In en, this message translates to:
@@ -490,23 +466,11 @@ abstract class AppLocalizations {
   /// **'Create Anyway'**
   String get createAnyway;
 
-  /// No description provided for @createClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Create Club'**
-  String get createClub;
-
   /// No description provided for @createNewCloudDatabase.
   ///
   /// In en, this message translates to:
   /// **'Create New Cloud Database'**
   String get createNewCloudDatabase;
-
-  /// No description provided for @createNewClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Create New Club'**
-  String get createNewClub;
 
   /// No description provided for @createNewDatabase.
   ///
@@ -1510,12 +1474,6 @@ abstract class AppLocalizations {
   /// **'No cloud databases found'**
   String get noCloudDatabasesFound;
 
-  /// No description provided for @noClubDatabasesFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No cloud databases found'**
-  String get noClubDatabasesFound;
-
   /// No description provided for @noData.
   ///
   /// In en, this message translates to:
@@ -1906,12 +1864,6 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get removeButton;
 
-  /// No description provided for @removeFromClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove from Club'**
-  String get removeFromClub;
-
   /// No description provided for @removeImage.
   ///
   /// In en, this message translates to:
@@ -1995,12 +1947,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select a Cloud Database'**
   String get selectACloudDatabase;
-
-  /// No description provided for @selectAClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a Club'**
-  String get selectAClub;
 
   /// No description provided for @selectADatabase.
   ///

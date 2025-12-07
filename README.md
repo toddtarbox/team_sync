@@ -12,15 +12,6 @@ A comprehensive Flutter application for managing soccer teams and analyzing game
 - **Career & Season Analytics**: Track player performance over time
 - **Record Holders**: View best performances and season records
 
-### NEW: ClubSync
-- **Multi-Team Organization**: Manage multiple teams under a single club
-- **Aggregated Statistics**: View combined stats across all teams in your club
-- **Club Leaderboards**: See top performers across all teams
-- **Team Standings**: Track win/loss records and rankings
-- **Flexible Structure**: Teams can operate independently or within a club
-
-[📖 Read the full ClubSync documentation](docs/CLUB_MANAGEMENT.md)
-
 ### Cloud Features
 - **Firebase Integration**: Cloud sync across devices
 - **Offline Support**: Local database with automatic sync

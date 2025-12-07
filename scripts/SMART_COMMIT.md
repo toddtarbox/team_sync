@@ -25,7 +25,6 @@ That's it! The script handles everything interactively.
 The following files are **automatically excluded** from commits:
 
 - `android/app/google-services.json` - Firebase Android config
-- `android/app/src/clubSync/google-services.json` - Firebase ClubSync flavor config
 - `android/app/src/teamSync/google-services.json` - Firebase TeamSync flavor config
 - `ios/Runner/GoogleService-Info.plist` - Firebase iOS config
 - `ios/Runner/Info.plist` - iOS app configuration
@@ -214,7 +213,6 @@ git push origin <branch-name>
 
 ### Always Excluded
 - `android/app/google-services.json`
-- `android/app/src/clubSync/google-services.json`
 - `android/app/src/teamSync/google-services.json`
 - `ios/Runner/GoogleService-Info.plist`
 - `ios/Runner/Info.plist`

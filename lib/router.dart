@@ -16,7 +16,6 @@ import 'package:team_sync/widgets/responsive/game_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
-import 'package:team_sync/widgets/sign_in_page.dart';
 import 'package:team_sync/widgets/team_sync/team_home_page.dart';
 
 /// Router for TeamSync app with distinct URLs for each page
@@ -434,12 +433,6 @@ final router = GoRouter(
     ),
 
     // ==================== AUTH & UTILITY ROUTES ====================
-
-    GoRoute(
-      path: '/signin',
-      name: 'signin',
-      builder: (context, state) => const SignInPage(),
-    ),
 
     GoRoute(
       path: '/settings',

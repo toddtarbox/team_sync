@@ -116,15 +116,6 @@ class LocalDatabaseProvider implements DatabaseProvider {
       version: 2,
       onCreate: (db, version) async {
         db.execute(
-            "create table Clubs (id integer primary key autoincrement, " +
-                "name text not null, " +
-                "description text, " +
-                "color1 integer not null, " +
-                "color2 integer not null, " +
-                "logoUrl text, " +
-                "createdAt integer not null);");
-
-        db.execute(
             "create table Seasons (id integer primary key autoincrement, " +
                 "name text not null, " +
                 "teamId integer not null);");
@@ -134,8 +125,7 @@ class LocalDatabaseProvider implements DatabaseProvider {
                 "fullName text not null, " +
                 "shortName text not null, " +
                 "color1 integer not null, " +
-                "color2 integer not null, " +
-                "clubId integer);");
+                "color2 integer not null);");
 
         db.execute(
             "create table Games (id integer primary key autoincrement, " +

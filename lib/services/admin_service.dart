@@ -59,33 +59,4 @@ class AdminService {
   String? get currentUserId {
     return FirebaseAuth.instance.currentUser?.uid;
   }
-
-  /// Check if current user can manage a specific club
-  /// Returns true if user is system admin or club admin
-  bool canManageClub(dynamic club) {
-    if (isAdmin) return true; // System admins can manage any club
-
-    final userId = currentUserId;
-    if (userId == null) return false;
-
-    // Check if user is a club admin
-    if (club != null && club is Map<String, dynamic>) {
-      // Club from map
-      if (club['createdBy'] == userId) return true;
-      final adminIds = club['adminIds'];
-      if (adminIds != null && adminIds is List && adminIds.contains(userId)) {
-        return true;
-      }
-    } else if (club != null) {
-      // Club object with isClubAdmin method
-      try {
-        return club.isClubAdmin(userId);
-      } catch (e) {
-        // Club object doesn't have isClubAdmin method
-        return false;
-      }
-    }
-
-    return false;
-  }
 }

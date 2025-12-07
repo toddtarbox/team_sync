@@ -55,14 +55,13 @@ class CsvTemplateService {
     return const CsvTemplate(
       entityType: 'Team',
       requiredColumns: ['fullName', 'shortName'],
-      optionalColumns: ['color1', 'color2', 'logoUrl', 'clubId'],
+      optionalColumns: ['color1', 'color2', 'logoUrl'],
       columnDescriptions: {
         'fullName': 'Full team name (required)',
         'shortName': 'Short/abbreviated team name (required)',
         'color1': 'Primary color as hex (#RRGGBB) or ARGB integer',
         'color2': 'Secondary color as hex (#RRGGBB) or ARGB integer',
         'logoUrl': 'URL to team logo image',
-        'clubId': 'Club ID if team belongs to a club',
       },
       exampleValues: {
         'fullName': 'Springfield Strikers',
@@ -70,7 +69,6 @@ class CsvTemplateService {
         'color1': '#0000FF',
         'color2': '#FFFFFF',
         'logoUrl': 'https://example.com/logo.png',
-        'clubId': '1',
       },
     );
   }

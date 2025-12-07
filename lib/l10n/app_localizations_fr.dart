@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -165,18 +166,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get closeSidebar => 'Fermer la barre latérale';
 
   @override
-  String get clubDescription => 'Description (facultative)';
-
-  @override
-  String get clubDescriptionHint => 'Brève description de votre club';
-
-  @override
-  String get clubName => 'Nom du club';
-
-  @override
-  String get clubSyncAvailable => 'ClubSync disponible';
-
-  @override
   String get composeTweet => 'Composer un tweet';
 
   @override
@@ -212,14 +201,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get createAnyway => 'Créer quand même';
 
   @override
-  String get createClub => 'Créer un club';
-
-  @override
   String get createNewCloudDatabase =>
       'Créer une nouvelle base de données cloud';
-
-  @override
-  String get createNewClub => 'Créer un nouveau club';
 
   @override
   String get createNewDatabase => 'Créer une nouvelle base de données';
@@ -798,9 +781,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noCloudDatabasesFound => 'Aucune base de données cloud trouvée';
 
   @override
-  String get noClubDatabasesFound => 'Aucune base de données cloud trouvée';
-
-  @override
   String get noData => 'Aucune donnée';
 
   @override
@@ -1007,9 +987,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get removeButton => 'Supprimer';
 
   @override
-  String get removeFromClub => 'Retirer du club';
-
-  @override
   String get removeImage => 'Supprimer l\'image';
 
   @override
@@ -1052,9 +1029,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get selectACloudDatabase => 'Sélectionner une base de données cloud';
-
-  @override
-  String get selectAClub => 'Sélectionner un club';
 
   @override
   String get selectADatabase => 'Sélectionner une base de données';

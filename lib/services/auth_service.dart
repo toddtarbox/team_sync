@@ -3,7 +3,7 @@ import 'dart:io' show Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-/// Authentication service for ClubSync
+/// Authentication service for TeamSync
 class AuthService {
   static final AuthService instance = AuthService._internal();
 

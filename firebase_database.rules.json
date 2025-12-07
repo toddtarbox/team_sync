@@ -59,40 +59,6 @@
       "$publicId": {
         ".validate": "newData.hasChildren(['databasePath']) && newData.child('databasePath').isString()"
       }
-    },
-
-    "Clubs": {
-      ".read": true,
-      ".write": "auth != null && auth.token.email == 'ttarbox0603@gmail.com'",
-      ".indexOn": ["id"],
-      "$clubId": {
-        ".validate": "newData.hasChildren(['id', 'name', 'createdAt'])"
-      }
-    },
-    "ClubTeams": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "id"]
-    },
-    "ClubSeasons": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "teamId"]
-    },
-    "ClubGames": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "seasonId"]
-    },
-    "ClubPlayers": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "teamId"]
-    },
-    "ClubEvents": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "gameId"]
     }
   }
 }
