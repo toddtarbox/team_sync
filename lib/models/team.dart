@@ -20,7 +20,6 @@ class Team extends Equatable {
   final Color color1;
   final Color color2;
   final String? logoUrl;
-  final int? clubId;
   final String? createdBy; // User ID of team creator (team admin)
   final List<String>? adminIds; // List of team admin user IDs
   final String? liveUrl;
@@ -38,7 +37,6 @@ class Team extends Equatable {
     this.color1 = Colors.green,
     this.color2 = Colors.green,
     this.logoUrl,
-    this.clubId,
     this.createdBy,
     this.adminIds,
     this.liveUrl,
@@ -60,7 +58,6 @@ class Team extends Equatable {
           ? Color(map['color2'])
           : Colors.green,
       logoUrl: map['logoUrl'],
-      clubId: map['clubId'],
       createdBy: map['createdBy'],
       adminIds:
           map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
@@ -556,7 +553,6 @@ class Team extends Equatable {
         id,
         color1,
         color2,
-        clubId,
         createdBy,
         adminIds,
         liveUrl,

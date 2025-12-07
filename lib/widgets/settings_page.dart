@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/main.dart';
-import 'package:team_sync/models/club.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -19,9 +18,8 @@ import 'markdown_viewer.dart';
 
 class SettingsPage extends StatefulWidget {
   final Team? team;
-  final Club? club;
 
-  const SettingsPage({required this.team, this.club, super.key});
+  const SettingsPage({required this.team, super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -154,18 +152,11 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               if (widget.team != null) ...[
                 Breadcrumbs(
-                  items: widget.club != null
-                      ? buildClubBreadcrumbs(
-                          clubName: widget.club!.name,
-                          clubId: widget.club!.id.toString(),
-                          additionalLabel: 'Settings',
-                        )
-                      : buildTeamBreadcrumbs(
-                          databaseId:
-                              DatabaseService.instance.publicShareId ?? '',
-                          teamName: widget.team!.fullName,
-                          additionalLabel: 'Settings',
-                        ),
+                  items: buildTeamBreadcrumbs(
+                    databaseId: DatabaseService.instance.publicShareId ?? '',
+                    teamName: widget.team!.fullName,
+                    additionalLabel: 'Settings',
+                  ),
                 ),
               ],
               // Account Section (hidden on web)

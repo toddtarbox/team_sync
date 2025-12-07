@@ -407,7 +407,7 @@ final router = GoRouter(
             final team = state.extra as Team?;
 
             if (team != null) {
-              return SettingsPage(team: team, club: null);
+              return SettingsPage(team: team);
             }
 
             return FutureBuilder<Team?>(
@@ -415,7 +415,7 @@ final router = GoRouter(
                   _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
-                  return SettingsPage(team: snapshot.data!, club: null);
+                  return SettingsPage(team: snapshot.data!);
                 } else if (snapshot.hasError) {
                   return Scaffold(
                     appBar: AppBar(title: const Text('Error')),
@@ -444,7 +444,7 @@ final router = GoRouter(
     GoRoute(
       path: '/settings',
       name: 'settings',
-      builder: (context, state) => SettingsPage(team: null, club: null),
+      builder: (context, state) => SettingsPage(team: null),
     ),
 
     GoRoute(

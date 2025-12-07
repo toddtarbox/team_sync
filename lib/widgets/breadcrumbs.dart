@@ -179,32 +179,3 @@ List<BreadcrumbItem> buildTeamBreadcrumbs({
 
   return breadcrumbs;
 }
-
-/// Helper function to build breadcrumbs for club pages
-List<BreadcrumbItem> buildClubBreadcrumbs({
-  required String clubName,
-  String? clubId,
-  String? teamName,
-  String? additionalLabel,
-}) {
-  final List<BreadcrumbItem> breadcrumbs = [
-    BreadcrumbItem(
-      label: clubName,
-      route: clubId != null ? '/club/$clubId' : null,
-    ),
-  ];
-
-  if (teamName != null) {
-    breadcrumbs.add(BreadcrumbItem(
-      label: teamName,
-    ));
-  }
-
-  if (additionalLabel != null) {
-    breadcrumbs.add(BreadcrumbItem(
-      label: additionalLabel,
-    ));
-  }
-
-  return breadcrumbs;
-}

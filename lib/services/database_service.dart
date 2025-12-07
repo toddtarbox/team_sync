@@ -301,13 +301,9 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   String _subscriptionId = '';
   String _path = '';
-  int? _clubTeamId; // Track the current team ID when in club mode
   DatabaseEvent? _dbEvent;
   DataSnapshot? get dbSnapshot => _dbEvent?.snapshot;
   DataSnapshot? get dbDocumentSnapshot => dbSnapshot;
-
-  /// Check if we're in club mode (loading from ClubTeams collection)
-  bool get _isClubMode => _path.startsWith('ClubTeams/');
 
   /// Validate that a path is safe for Firebase Realtime Database
   /// Firebase paths cannot contain: . $ # [ ] or have empty components
@@ -322,25 +318,9 @@ class FirebaseDBProvider implements DatabaseProvider {
     return true;
   }
 
-  /// Translate table names for club mode
+  /// Get table name (no translation needed)
   String _getTableName(String table) {
-    if (!_isClubMode) return table;
-
-    // Map TeamSync table names to ClubSync collection names
-    switch (table) {
-      case 'Teams':
-        return 'ClubTeams';
-      case 'Seasons':
-        return 'ClubSeasons';
-      case 'Games':
-        return 'ClubGames';
-      case 'Players':
-        return 'ClubPlayers';
-      case 'Events':
-        return 'ClubEvents';
-      default:
-        return table;
-    }
+    return table;
   }
 
   String? get publicShareId {
@@ -523,46 +503,10 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     final parts = path.split('/');
 
-    // For club team paths (e.g., 'ClubTeams/123'), handle specially
-    if (parts.isNotEmpty && parts[0] == 'ClubTeams') {
-      _path = path; // Store full path like 'ClubTeams/123'
-      _subscriptionId = ''; // No subscription ID for club teams
-      _clubTeamId = parts.length > 1 ? int.tryParse(parts[1]) : null;
-
-      // For club teams, we just need to verify the team exists
-      try {
-        final ref = _database.ref(path);
-        final snapshot = await ref.once();
-        _dbEvent = snapshot;
-
-        if (!snapshot.snapshot.exists) {
-          debugPrint('openFromPath: Club team not found at path: $path');
-          return false;
-        }
-
-        // Subscribe to value events for this team
-        try {
-          await _dbValueSub?.cancel();
-          _dbValueSub = ref.onValue.listen((ev) {
-            _updateController.add(DateTime.now().toUtc());
-          });
-        } catch (e) {
-          debugPrint('Failed to subscribe to team value events: $e');
-        }
-
-        return true;
-      } catch (e, stackTrace) {
-        debugPrint('openFromPath: Error opening club team path: $e');
-        debugPrint('Stack trace: $stackTrace');
-        return false;
-      }
-    }
-
     // For subscription-based databases, parse and validate the path
     // Expected format: subscriptionIds/{uid}/databases/{dbName}
     _path = parts.isNotEmpty ? parts.last : path;
     _subscriptionId = parts.length > 1 ? parts[1] : '';
-    _clubTeamId = null; // Clear club team ID
 
     // Validate subscription ID is not empty for subscription-based paths
     if (_subscriptionId.isEmpty &&
@@ -646,14 +590,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return [];
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final String nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final ref = _database.ref(nodePath);
 
     // If caller provided RTDB-style args, build a native Query
@@ -815,14 +757,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
     if (key != null && key.isNotEmpty) {
       await collectionRef.child(key).set(data);
@@ -844,14 +784,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -945,14 +883,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -1583,38 +1519,6 @@ class DatabaseService {
     if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
     return await (_provider as FirebaseDBProvider).openFromId(id);
   }
-
-  /// Open a club team context. This sets the provider to use ClubSync collections
-  /// at the root level instead of subscription-based paths.
-  /// Returns true if the club team exists and was opened successfully.
-  Future<bool> openClubTeam(int clubId, int teamId) async {
-    if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
-
-    // Verify the team exists and belongs to the club
-    final snapshot = await FirebaseDatabase.instance
-        .ref('ClubTeams')
-        .child(teamId.toString())
-        .get();
-
-    if (!snapshot.exists || snapshot.value == null) {
-      return false;
-    }
-
-    final teamData = Map<String, dynamic>.from(snapshot.value as Map);
-    final teamClubId = teamData['clubId'] as int?;
-
-    if (teamClubId != clubId) {
-      return false;
-    }
-
-    // Set a special path to indicate we're in club mode
-    // This will be used by the provider to determine which collections to use
-    await (_provider as FirebaseDBProvider).openFromPath('ClubTeams/$teamId');
-    return true;
-  }
-
-  /// Check if the current database context is a club team
-  bool get isClubTeam => _provider.path.startsWith('ClubTeams/');
 
   /// Open a shared database by owner and database name.
   /// Returns true if the database was opened successfully and user has access.
