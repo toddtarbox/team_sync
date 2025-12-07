@@ -273,7 +273,7 @@ class _GamePageState extends State<GamePage> {
     Season season,
     bool isTabletOrLarger,
   ) {
-    // Mobile: Show stats and match report buttons for completed games
+    // Mobile app (not web): Show stats and match report buttons for completed games
     if (!kIsWeb && _game.gameStatus.index >= 9) {
       return [
         // Match Report button
@@ -305,10 +305,28 @@ class _GamePageState extends State<GamePage> {
       ];
     }
 
+    // Web on mobile screen for completed games: Show stats only
+    if (kIsWeb && !isTabletOrLarger && _game.gameStatus.index >= 9) {
+      return [
+        // Stats button
+        GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) =>
+                    MobileGameStatsPage(season: season, game: _game)));
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(5),
+            child: Icon(Icons.paste, size: 24),
+          ),
+        ),
+      ];
+    }
+
     // In-progress game actions (mobile and tablet)
     if (_game.gameStatus.index < 9) {
       return [
-        // Stats button (mobile only)
+        // Stats button (mobile screen size only - both web and app)
         if (!isTabletOrLarger)
           GestureDetector(
             onTap: () {
