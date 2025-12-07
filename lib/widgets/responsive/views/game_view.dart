@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
@@ -1811,22 +1810,19 @@ class _GameViewState extends State<GameView> {
     if (event.eventPeriod >= 0) {
       if (event.id == -1) {
         final newId = DateTime.now().millisecondsSinceEpoch;
-        await DatabaseService.instance.insert(
-            'Events',
-            {
-              'id': newId,
-              'index': newId,
-              'playerId': event.player?.id ?? -1,
-              'teamId': event.team.id,
-              'gameId': event.game.id,
-              'seasonId': event.game.seasonId,
-              'eventType': event.eventType,
-              'eventMinute': event.eventMinute,
-              'eventPeriod': event.eventPeriod,
-              'eventData': event.eventData,
-              'eventUrls': event.eventUrls
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace);
+        await DatabaseService.instance.insert('Events', {
+          'id': newId,
+          'index': newId,
+          'playerId': event.player?.id ?? -1,
+          'teamId': event.team.id,
+          'gameId': event.game.id,
+          'seasonId': event.game.seasonId,
+          'eventType': event.eventType,
+          'eventMinute': event.eventMinute,
+          'eventPeriod': event.eventPeriod,
+          'eventData': event.eventData,
+          'eventUrls': event.eventUrls
+        });
       } else {
         await DatabaseService.instance.update(
             'Events',

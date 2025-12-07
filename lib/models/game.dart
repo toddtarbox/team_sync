@@ -2,7 +2,6 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season_stats.dart';
@@ -555,8 +554,7 @@ class Game {
       };
 
       if (id == -1) {
-        await DatabaseService.instance.insert('Games', data,
-            conflictAlgorithm: ConflictAlgorithm.replace);
+        await DatabaseService.instance.insert('Games', data);
       } else {
         await DatabaseService.instance
             .update('Games', data, key: id.toString());

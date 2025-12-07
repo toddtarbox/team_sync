@@ -2691,11 +2691,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
       return null;
     }
 
-    if (DatabaseService.instance.isLocalDatabase) {
-      await DatabaseService.instance.close();
-      DatabaseService.instance.setProvider(FirebaseDBProvider());
-    }
-
     final entries = await DatabaseService.instance.getAvailableDatabases();
     if (entries.isEmpty) {
       showDialog(
