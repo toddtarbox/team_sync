@@ -282,47 +282,94 @@ final router = GoRouter(
               path: 'game/:gameId',
               name: 'game',
               builder: (context, state) {
-                final seasonId = int.parse(state.pathParameters['seasonId']!);
                 final gameId = int.parse(state.pathParameters['gameId']!);
                 final extras = state.extra as Map<String, dynamic>?;
                 final season = extras?['season'] as Season?;
                 final game = extras?['game'] as Game?;
 
+                // If we have both season and game from navigation extras, use them
                 if (season != null && game != null) {
+                  debugPrint('Router: Using season and game from extras');
                   return GamePage(season: season, game: game);
                 }
 
-                final databaseId = state.pathParameters['databaseId'];
-                final future = () async {
-                  if (databaseId != null) {
-                    try {
-                      await DatabaseService.instance
-                          .openFromId(databaseId)
-                          .timeout(const Duration(seconds: 10));
-                    } catch (e) {
-                      debugPrint('Router: failed to open DB $databaseId: $e');
-                    }
-                  }
-                  return await _loadSeasonAndGame(seasonId, gameId);
-                }();
+                // For deep links, load the game and pass season: null to let GamePage handle season loading
+                debugPrint(
+                    'Router: Deep link detected - loading game for GamePage');
 
-                return FutureBuilder<Map<String, dynamic>?>(
-                  future: future,
+                return FutureBuilder<Game?>(
+                  future: () async {
+                    final databaseId = state.pathParameters['databaseId'];
+                    if (databaseId != null) {
+                      debugPrint('Router: Opening database $databaseId');
+                      try {
+                        await DatabaseService.instance
+                            .openFromId(databaseId)
+                            .timeout(const Duration(seconds: 10));
+                      } catch (e) {
+                        debugPrint('Router: failed to open DB $databaseId: $e');
+                      }
+                    }
+
+                    debugPrint('Router: Querying for game $gameId');
+                    final results = await DatabaseService.instance
+                        .query('Games', orderByChild: 'id', equalTo: gameId);
+
+                    if (results.isEmpty) {
+                      debugPrint('Router: Game not found');
+                      return null;
+                    }
+
+                    final loadedGame = await Game.fromMap(results.first);
+                    debugPrint('Router: Game loaded successfully');
+                    return loadedGame;
+                  }(),
                   builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      final loadedSeason = snapshot.data!['season'] as Season;
-                      final loadedGame = snapshot.data!['game'] as Game;
-                      return GamePage(season: loadedSeason, game: loadedGame);
-                    } else if (snapshot.hasError) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      debugPrint('Router: Waiting for game to load');
+                      return const Scaffold(
+                        body: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text('Loading game...'),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      debugPrint(
+                          'Router: Error loading game: ${snapshot.error}');
                       return Scaffold(
                         appBar: AppBar(title: const Text('Error')),
                         body: Center(
-                            child:
-                                Text('Error loading game: ${snapshot.error}')),
+                          child: Text('Error loading game: ${snapshot.error}'),
+                        ),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
+
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      debugPrint('Router: Game not found in database');
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('Not Found')),
+                        body: const Center(
+                          child: Text('Game not found'),
+                        ),
+                      );
+                    }
+
+                    debugPrint(
+                        'Router: Passing game to GamePage with season: null');
+                    // Pass the loaded game with season: null and databaseId so GamePage loads the season
+                    final databaseId = state.pathParameters['databaseId'];
+                    return GamePage(
+                      season: null,
+                      game: snapshot.data!,
+                      databaseId: databaseId,
                     );
                   },
                 );
@@ -475,20 +522,6 @@ Future<Season?> _loadSeasonById(int seasonId) async {
     final season = Season.fromMap(results.first);
     await season.load();
     return season;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Helper function to load both season and game
-Future<Map<String, dynamic>?> _loadSeasonAndGame(
-    int seasonId, int gameId) async {
-  try {
-    final season = await _loadSeasonById(seasonId);
-    if (season == null) return null;
-
-    final game = season.games.firstWhere((g) => g.id == gameId);
-    return {'season': season, 'game': game};
   } catch (e) {
     return null;
   }

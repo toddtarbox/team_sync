@@ -8,7 +8,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/widgets/game_stats_display.dart';
-import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -199,45 +199,17 @@ class _GameStatsViewState extends State<GameStatsView> {
         leading: InkWell(
             onTap: () async {
               if (teamTotalForCategory != 0) {
-                final sortedStats = List.from(playerStats[category]!.entries);
-                sortedStats.sort((a, b) => b.value.compareTo(a.value));
-
                 if (!mounted) return;
-                showModalBottomSheet(
-                    context: context,
-                    builder: (context) {
-                      return ListView.builder(
-                          itemCount: sortedStats.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return ListTile(
-                                  title: Center(
-                                      child: Text(
-                                          category.name
-                                              .toSentenceCase()
-                                              .toTitleCase(),
-                                          style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold))));
-                            }
 
-                            final player = sortedStats[index - 1].key;
-                            final count = sortedStats[index - 1].value;
-                            return ListTile(
-                              leading: ResponsivePlayerAvatar(
-                                  player: player, avatarSize: 40),
-                              title: Text(player.displayName,
-                                  style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold)),
-                              subtitle: Text('#${player.number}'),
-                              trailing: Text(count.toString(),
-                                  style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold)),
-                            );
-                          });
-                    });
+                // Use the common dialog component
+                await StatCategoryDialog.show(
+                  context: context,
+                  categoryName: category.name.toSentenceCase().toTitleCase(),
+                  playerStats: playerStats[category]!,
+                  showPlayerNumber: true,
+                  useModernStyle:
+                      false, // Use simple style to match existing behavior
+                );
               }
             },
             child: Text(teamTotalForCategory.toString(),

@@ -987,371 +987,82 @@ class _GameViewState extends State<GameView> {
     return Colors.grey;
   }
 
-  // Build web-specific layout with scoring events and stats side-by-side
+  // Build web-specific layout with scoring events
   Widget _buildWebLayout(AppLocalizations loc) {
-    final isLargeScreen = ResponsiveBreakpoints.of(context).largerThan(MOBILE);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left side: Scoring events
-        Expanded(
-          flex: isLargeScreen ? 3 : 1,
-          child: Container(
+    return Container(
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: isLargeScreen
-                  ? Border(
-                      right: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                        width: 1,
-                      ),
-                    )
-                  : null,
-            ),
-            child: Column(
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: widget.season.team.color1.withValues(alpha: 0.1),
-                    border: Border(
-                      bottom: BorderSide(
-                        color: widget.season.team.color1.withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.sports_soccer,
-                        color: widget.season.team.color1,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        loc.scoringEvents,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: widget.season.team.color1,
-                        ),
-                      ),
-                    ],
-                  ),
+              color: widget.season.team.color1.withValues(alpha: 0.1),
+              border: Border(
+                bottom: BorderSide(
+                  color: widget.season.team.color1.withValues(alpha: 0.3),
+                  width: 2,
                 ),
-                // Scoring events list
-                Expanded(
-                  child: _game.scoringEvents.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.sports_soccer_outlined,
-                                  size: 64,
-                                  color: Colors.grey.shade400,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  loc.noScoringEventsYet,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.all(8),
-                          itemCount: _game.scoringEvents.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 8),
-                          itemBuilder: (context, index) {
-                            final event = _game.scoringEvents[index];
-                            return _getEventTile(event, loc);
-                          },
-                        ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.sports_soccer,
+                  color: widget.season.team.color1,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  loc.scoringEvents,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: widget.season.team.color1,
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        // Right side: Game stats (only on larger screens)
-        if (isLargeScreen)
+          // Scoring events list
           Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Stats header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: widget.season.team.color2.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: widget.season.team.color2.withValues(alpha: 0.3),
-                        width: 2,
+            child: _game.scoringEvents.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.sports_soccer_outlined,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            loc.noScoringEventsYet,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.bar_chart,
-                          color: widget.season.team.color2,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          loc.gameStatistics,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: widget.season.team.color2,
-                          ),
-                        ),
-                      ],
-                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: _game.scoringEvents.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final event = _game.scoringEvents[index];
+                      return _getEventTile(event, loc);
+                    },
                   ),
-                  const SizedBox(height: 24),
-                  // Stats content
-                  Expanded(
-                    child: _buildGameStats(loc),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // Build game statistics summary
-  Widget _buildGameStats(AppLocalizations loc) {
-    final homeTeam = _game.homeTeam;
-    final awayTeam = _game.awayTeam;
-
-    // Calculate stats
-    final homeShots = _game.gameEvents
-        .where((e) => e.eventType == 'Shot' && e.team.id == homeTeam.id)
-        .length;
-    final awayShots = _game.gameEvents
-        .where((e) => e.eventType == 'Shot' && e.team.id == awayTeam.id)
-        .length;
-
-    final homeShotsOnTarget = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Shot' &&
-            e.team.id == homeTeam.id &&
-            (e.eventData == ShotResult.goal.index ||
-                e.eventData == ShotResult.onTargetSave.index))
-        .length;
-    final awayShotsOnTarget = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Shot' &&
-            e.team.id == awayTeam.id &&
-            (e.eventData == ShotResult.goal.index ||
-                e.eventData == ShotResult.onTargetSave.index))
-        .length;
-
-    final homeCorners = _game.gameEvents
-        .where((e) => e.eventType == 'Corner' && e.team.id == homeTeam.id)
-        .length;
-    final awayCorners = _game.gameEvents
-        .where((e) => e.eventType == 'Corner' && e.team.id == awayTeam.id)
-        .length;
-
-    final homeFouls = _game.gameEvents
-        .where((e) => e.eventType == 'Foul' && e.team.id == homeTeam.id)
-        .length;
-    final awayFouls = _game.gameEvents
-        .where((e) => e.eventType == 'Foul' && e.team.id == awayTeam.id)
-        .length;
-
-    final homeYellowCards = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Card' &&
-            e.team.id == homeTeam.id &&
-            (e.eventData == 0 || e.eventData == 1))
-        .length;
-    final awayYellowCards = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Card' &&
-            e.team.id == awayTeam.id &&
-            (e.eventData == 0 || e.eventData == 1))
-        .length;
-
-    final homeRedCards = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Card' &&
-            e.team.id == homeTeam.id &&
-            e.eventData == 2)
-        .length;
-    final awayRedCards = _game.gameEvents
-        .where((e) =>
-            e.eventType == 'Card' &&
-            e.team.id == awayTeam.id &&
-            e.eventData == 2)
-        .length;
-
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          _buildStatRow(
-            loc.shots,
-            homeShots,
-            awayShots,
-            homeTeam.shortName,
-            awayTeam.shortName,
-          ),
-          const SizedBox(height: 16),
-          _buildStatRow(
-            loc.shotsOnTarget,
-            homeShotsOnTarget,
-            awayShotsOnTarget,
-            homeTeam.shortName,
-            awayTeam.shortName,
-          ),
-          const SizedBox(height: 16),
-          _buildStatRow(
-            loc.corners,
-            homeCorners,
-            awayCorners,
-            homeTeam.shortName,
-            awayTeam.shortName,
-          ),
-          const SizedBox(height: 16),
-          _buildStatRow(
-            loc.fouls,
-            homeFouls,
-            awayFouls,
-            homeTeam.shortName,
-            awayTeam.shortName,
-          ),
-          const SizedBox(height: 16),
-          _buildStatRow(
-            loc.yellowCards,
-            homeYellowCards,
-            awayYellowCards,
-            homeTeam.shortName,
-            awayTeam.shortName,
-          ),
-          const SizedBox(height: 16),
-          _buildStatRow(
-            loc.redCards,
-            homeRedCards,
-            awayRedCards,
-            homeTeam.shortName,
-            awayTeam.shortName,
           ),
         ],
       ),
-    );
-  }
-
-  // Build a single stat row with comparison bar
-  Widget _buildStatRow(
-    String label,
-    int homeValue,
-    int awayValue,
-    String homeTeam,
-    String awayTeam,
-  ) {
-    final total = homeValue + awayValue;
-    final homePercentage = total > 0 ? homeValue / total : 0.5;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Label
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey,
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Values and bar
-        Row(
-          children: [
-            // Home value
-            SizedBox(
-              width: 30,
-              child: Text(
-                homeValue.toString(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Comparison bar
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                  ),
-                  child: Row(
-                    children: [
-                      if (homeValue > 0)
-                        Expanded(
-                          flex: (homePercentage * 100).toInt(),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  widget.season.team.color1,
-                                  widget.season.team.color1
-                                      .withValues(alpha: 0.7),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (awayValue > 0)
-                        Expanded(
-                          flex: ((1 - homePercentage) * 100).toInt(),
-                          child: Container(
-                            color: Colors.grey.shade400,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Away value
-            SizedBox(
-              width: 30,
-              child: Text(
-                awayValue.toString(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 

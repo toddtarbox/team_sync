@@ -27,8 +27,13 @@ PLATFORM=${1:-"all"}
 case $PLATFORM in
   web)
     echo "📦 Building for Web..."
+    echo "🧹 Cleaning previous build..."
+    cd "$PROJECT_ROOT"
+    flutter clean
+    flutter pub get
+    echo "🔨 Building web release..."
     flutter build web \
-      --target=lib/main_team_sync.dart \
+      --target=lib/main.dart \
       --release \
       --base-href=/ \
       --dart-define=WEB_API_KEY="$WEB_API_KEY" \
@@ -68,8 +73,13 @@ case $PLATFORM in
 
   all)
     echo "📦 Building for all platforms..."
+    echo "🧹 Cleaning previous builds..."
+    cd "$PROJECT_ROOT"
+    flutter clean
+    flutter pub get
 
     # Web
+    echo "🔨 Building web release..."
     flutter build web \
       --target=lib/main_team_sync.dart \
       --release \
@@ -84,6 +94,7 @@ case $PLATFORM in
       --dart-define=WEB_MEASUREMENT_ID="$WEB_MEASUREMENT_ID"
 
     # Android
+    echo "🔨 Building Android release..."
     flutter build appbundle \
       --target=lib/main_team_sync.dart \
       --release \

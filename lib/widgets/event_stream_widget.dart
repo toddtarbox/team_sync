@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
+import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 class EventStreamWidget extends StatefulWidget {
   final Game? game;
@@ -81,6 +83,60 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentGame == null) {
+      return _buildNoGameView(context);
+    }
+
+    // Show events only during live games
+    final showEvents = isLiveGame;
+
+    return PageView(
+      children: [
+        // Page 1: Game Stats (always shown)
+        _buildGameStatsPage(context),
+        // Page 2: Live Events (only during live games)
+        if (showEvents) _buildEventsPage(context),
+      ],
+    );
+  }
+
+  Widget _buildNoGameView(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sports_soccer,
+              size: 64,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No game to display',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Game details will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGameStatsPage(BuildContext context) {
     return Column(
       children: [
         // Header
@@ -98,16 +154,14 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
           child: Row(
             children: [
               Icon(
-                isLiveGame ? Icons.circle : Icons.event_note,
+                Icons.bar_chart,
                 size: 20,
-                color: isLiveGame
-                    ? Colors.red
-                    : Theme.of(context).colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isLiveGame ? 'Live Game Events' : 'Game Events',
+                  'Game Stats',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -116,81 +170,98 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
                 ),
               ),
               if (isLiveGame)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'LIVE',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.arrow_forward,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.6),
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Swipe for live events',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
         ),
-        // Event stream content
         Expanded(
-          flex: 2,
+          child: _buildGameStats(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventsPage(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.circle,
+                size: 20,
+                color: Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Live Game Events',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
           child: _buildEventStream(context),
         ),
-        // Divider
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: Theme.of(context).dividerColor,
-        ),
-        // Game stats section
-        if (_currentGame != null) _buildGameStats(context),
       ],
     );
   }
 
   Widget _buildEventStream(BuildContext context) {
-    if (_currentGame == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.sports_soccer,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No game to display',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Game events will appear here',
-                style: TextStyle(
-                  fontSize: 14,
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     final allEvents = _currentGame!.allGameEvents;
 
     if (allEvents.isEmpty) {
@@ -217,9 +288,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                isLiveGame
-                    ? 'Events will appear as the game progresses'
-                    : 'No events were recorded for this game',
+                'Events will appear as the game progresses',
                 style: TextStyle(
                   fontSize: 14,
                   color:
@@ -233,7 +302,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
       );
     }
 
-    // Filter out halftime period events
+    // ...existing code for filtering and sorting events...
     final filteredEvents = allEvents.where((event) {
       if (event.eventType == 'Period' &&
           event.display.toLowerCase().contains('halftime')) {
@@ -245,14 +314,12 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
     final sortedEvents = List<GameEvent>.from(filteredEvents);
     sortedEvents.sort((a, b) => b.index.compareTo(a.index));
 
-    // Check if game is completed
     final isCompleted = _currentGame!.gameStatus.index >= 9;
 
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       itemCount: sortedEvents.length + (isCompleted ? 1 : 0),
       itemBuilder: (context, index) {
-        // Show final score tile at the top for completed games
         if (isCompleted && index == 0) {
           return _buildFinalScoreTile(context);
         }
@@ -618,191 +685,200 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
     final homeStats = _calculateTeamStats(_currentGame!.homeTeam.id);
     final awayStats = _calculateTeamStats(_currentGame!.awayTeam.id);
 
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 400),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Stats header
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.bar_chart,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Game Stats',
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Team headers
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                // Home team name aligned with home values
+                SizedBox(
+                  width: 50,
+                  child: Text(
+                    _currentGame!.homeTeam.shortName,
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
+                      color: _currentGame!.homeTeam.color1,
                     ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                // Home bar space
+                const Expanded(child: SizedBox()),
+                const SizedBox(width: 8),
+                // Away bar space
+                const Expanded(child: SizedBox()),
+                const SizedBox(width: 8),
+                // Away team name aligned with away values
+                SizedBox(
+                  width: 50,
+                  child: Text(
+                    _currentGame!.awayTeam.shortName,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _currentGame!.awayTeam.color1,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            // Team headers
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                children: [
-                  // Home team name aligned with home values
-                  SizedBox(
-                    width: 50,
-                    child: Text(
-                      _currentGame!.homeTeam.shortName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: _currentGame!.homeTeam.color1,
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Home bar space
-                  const Expanded(child: SizedBox()),
-                  const SizedBox(width: 8),
-                  // Away bar space
-                  const Expanded(child: SizedBox()),
-                  const SizedBox(width: 8),
-                  // Away team name aligned with away values
-                  SizedBox(
-                    width: 50,
-                    child: Text(
-                      _currentGame!.awayTeam.shortName,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: _currentGame!.awayTeam.color1,
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, thickness: 1),
-            // Stats rows
-            _buildStatRow(context, 'Goals', homeStats.goals, awayStats.goals),
-            _buildStatRow(context, 'Shots', homeStats.shots, awayStats.shots),
-            _buildStatRow(context, 'Shots on Goal', homeStats.shotsOnGoal,
-                awayStats.shotsOnGoal),
-            _buildStatRow(context, 'Saves', homeStats.saves, awayStats.saves),
-            _buildStatRow(
-                context, 'Assists', homeStats.assists, awayStats.assists),
-            _buildStatRow(context, 'Fouls', homeStats.fouls, awayStats.fouls),
-            _buildStatRow(
-                context, 'Offsides', homeStats.offsides, awayStats.offsides),
-            _buildStatRow(
-                context, 'Yellow Cards', homeStats.yellows, awayStats.yellows),
-            _buildStatRow(context, 'Red Cards', homeStats.reds, awayStats.reds),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+          const Divider(height: 1, thickness: 1),
+          // Stats rows
+          _buildStatRow(context, 'Goals', homeStats.goals, awayStats.goals,
+              LeaderCategory.goals),
+          _buildStatRow(context, 'Shots', homeStats.shots, awayStats.shots,
+              LeaderCategory.shots),
+          _buildStatRow(context, 'Shots on Goal', homeStats.shotsOnGoal,
+              awayStats.shotsOnGoal, LeaderCategory.shotsOnGoal),
+          _buildStatRow(context, 'Saves', homeStats.saves, awayStats.saves,
+              LeaderCategory.saves),
+          _buildStatRow(context, 'Assists', homeStats.assists,
+              awayStats.assists, LeaderCategory.assists),
+          _buildStatRow(context, 'Fouls', homeStats.fouls, awayStats.fouls,
+              LeaderCategory.fouls),
+          _buildStatRow(context, 'Offsides', homeStats.offsides,
+              awayStats.offsides, LeaderCategory.offsides),
+          _buildStatRow(context, 'Yellow Cards', homeStats.yellows,
+              awayStats.yellows, LeaderCategory.yellows),
+          _buildStatRow(context, 'Red Cards', homeStats.reds, awayStats.reds,
+              LeaderCategory.reds),
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
 
-  Widget _buildStatRow(
-      BuildContext context, String label, int homeValue, int awayValue) {
+  Widget _buildStatRow(BuildContext context, String label, int homeValue,
+      int awayValue, LeaderCategory category) {
     final maxValue = homeValue > awayValue ? homeValue : awayValue;
     final homePercent = maxValue > 0 ? homeValue / maxValue : 0.0;
     final awayPercent = maxValue > 0 ? awayValue / maxValue : 0.0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Column(
-        children: [
-          // Label
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Values and bars
-          Row(
+    // Determine which team is "our" team for the dialog
+    final teamId = widget.teamId ?? _currentGame!.homeTeam.id;
+    final isHomeTeam = teamId == _currentGame!.homeTeam.id;
+    final teamTotal = isHomeTeam ? homeValue : awayValue;
+
+    return InkWell(
+        onTap: teamTotal > 0
+            ? () => _showStatCategoryDialog(context, category, label, teamId)
+            : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
             children: [
-              // Home value
-              SizedBox(
-                width: 30,
-                child: Text(
-                  homeValue.toString(),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  textAlign: TextAlign.right,
+              // Label
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Home bar (right-to-left)
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FractionallySizedBox(
-                    widthFactor: homePercent,
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _currentGame!.homeTeam.color1.withOpacity(0.7),
-                        borderRadius: const BorderRadius.horizontal(
-                          left: Radius.circular(4),
+              const SizedBox(height: 6),
+              // Values and bars
+              Row(
+                children: [
+                  // Home value
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      homeValue.toString(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Home bar (right-to-left)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FractionallySizedBox(
+                        widthFactor: homePercent,
+                        child: Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color:
+                                _currentGame!.homeTeam.color1.withOpacity(0.7),
+                            borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(4),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Away bar (left-to-right)
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: awayPercent,
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _currentGame!.awayTeam.color1.withOpacity(0.7),
-                        borderRadius: const BorderRadius.horizontal(
-                          right: Radius.circular(4),
+                  const SizedBox(width: 8),
+                  // Away bar (left-to-right)
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FractionallySizedBox(
+                        widthFactor: awayPercent,
+                        child: Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color:
+                                _currentGame!.awayTeam.color1.withOpacity(0.7),
+                            borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(4),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Away value
-              SizedBox(
-                width: 30,
-                child: Text(
-                  awayValue.toString(),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
+                  const SizedBox(width: 8),
+                  // Away value
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      awayValue.toString(),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
                   ),
-                  textAlign: TextAlign.left,
-                ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        ));
+  }
+
+  Future<void> _showStatCategoryDialog(BuildContext context,
+      LeaderCategory category, String label, int teamId) async {
+    // Get player stats for this category
+    final stats = await _currentGame!.getStats(teamId);
+    final playerStats = await stats.getStatPlayers(category);
+
+    if (!mounted) return;
+
+    // Use the common dialog component
+    await StatCategoryDialog.show(
+      context: context,
+      categoryName: label,
+      playerStats: playerStats,
+      useModernStyle: false, // Use simple style to match existing behavior
     );
   }
 
@@ -818,8 +894,16 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
     int reds = 0;
 
     for (final event in _currentGame!.allGameEvents) {
-      if (event.team.id != teamId) continue;
+      // Count saves when opponent shots are saved (defending team makes saves)
+      if (event.team.id != teamId) {
+        if (event.eventType == 'Shot' &&
+            event.eventData == ShotResult.onTargetSave.index) {
+          saves++;
+        }
+        continue;
+      }
 
+      // Count stats for this team
       switch (event.eventType) {
         case 'Shot':
           shots++;
@@ -834,9 +918,6 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
           if (event.eventData == ShotResult.goal.index) {
             goals++;
           }
-          break;
-        case 'Save':
-          saves++;
           break;
         case 'Assist':
           assists++;

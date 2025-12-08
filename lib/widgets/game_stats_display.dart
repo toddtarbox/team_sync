@@ -5,7 +5,7 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
-import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 /// Reusable widget to display game statistics in a modern layout
 /// Shows team comparison with visual bars and player detail drill-down
@@ -310,118 +310,16 @@ class GameStatsDisplay extends StatelessWidget {
   Future<void> _showPlayerDetailsDialog(
       BuildContext context, LeaderCategory category) async {
     final playerStats = await _getPlayerStatsForCategory(category);
-    final sortedStats = List.from(playerStats.entries);
-    sortedStats.sort((a, b) => b.value.compareTo(a.value));
 
     if (!context.mounted) return;
 
-    showModalBottomSheet(
+    // Use the common dialog component
+    await StatCategoryDialog.show(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 8, bottom: 16),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  category.name.toSentenceCase().toTitleCase(),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              // Player list
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: sortedStats.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final player = sortedStats[index].key;
-                    final count = sortedStats[index].value;
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Row(
-                        children: [
-                          ResponsivePlayerAvatar(
-                            player: player,
-                            avatarSize: 48,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  player.displayName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '#${player.number}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: season.team.color1.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              count.toString(),
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: season.team.color1,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      categoryName: category.name.toSentenceCase().toTitleCase(),
+      playerStats: playerStats,
+      showPlayerNumber: true,
+      useModernStyle: true, // Use modern style for this widget
     );
   }
 

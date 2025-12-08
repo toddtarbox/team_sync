@@ -8,9 +8,8 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/match_result_card.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_stats_page.dart';
-import 'package:team_sync/widgets/responsive/views/game_stats_view.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -19,8 +18,9 @@ import 'package:team_sync/widgets/standard_appbar.dart';
 class GamePage extends StatefulWidget {
   final Season? season; // nullable to support deep links
   final Game game;
+  final String? databaseId; // Add database ID for deep links
 
-  const GamePage({super.key, required this.game, this.season});
+  const GamePage({super.key, required this.game, this.season, this.databaseId});
 
   @override
   State<GamePage> createState() => _GamePageState();
@@ -36,6 +36,7 @@ class _GamePageState extends State<GamePage> {
 
   @override
   void initState() {
+    super.initState();
     _game = widget.game;
 
     if (widget.season == null) {
@@ -43,34 +44,67 @@ class _GamePageState extends State<GamePage> {
     } else {
       _seasonFuture = Future.value(widget.season);
     }
-
-    super.initState();
   }
 
   Future<Season?> _loadSeasonForGame() async {
     try {
-      // Ensure the database is opened if a shared database id exists in the URL
-      try {
-        final segments = Uri.base.pathSegments;
-        final teamIndex = segments.indexOf('team');
-        if (teamIndex != -1 && teamIndex + 1 < segments.length) {
-          final dbId = segments[teamIndex + 1];
-          if (DatabaseService.instance.publicShareId == null ||
-              DatabaseService.instance.publicShareId != dbId) {
-            await DatabaseService.instance.openFromId(dbId);
+      // Use databaseId from widget (passed by router) instead of parsing URL
+      final dbId = widget.databaseId;
+
+      if (dbId != null && dbId.isNotEmpty) {
+        // Check if database needs to be opened
+        if (DatabaseService.instance.publicShareId != dbId) {
+          // Add timeout to prevent infinite waiting
+          final opened =
+              await DatabaseService.instance.openFromId(dbId).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              return false;
+            },
+          );
+
+          if (!opened) {
+            throw Exception(
+                'Could not open shared database. The link may be invalid or expired.');
           }
+
+          // Give database a moment to fully initialize
+          await Future.delayed(const Duration(milliseconds: 500));
         }
-      } catch (_) {}
+      } else {
+        throw Exception(
+            'No shared database ID provided. Cannot load game data.');
+      }
+
+      // Now query for the season with timeout
       final results = await DatabaseService.instance
-          .query('Seasons', orderByChild: 'id', equalTo: widget.game.seasonId);
-      if (results.isEmpty) return null;
+          .query('Seasons', orderByChild: 'id', equalTo: widget.game.seasonId)
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          return [];
+        },
+      );
+
+      if (results.isEmpty) {
+        throw Exception(
+            'Season not found in database. The game data may not exist.');
+      }
+
       final season = Season.fromMap(results.first);
-      await season.load();
+
+      // Load season data with timeout
+      await season.load().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Season loading timed out');
+        },
+      );
+
       _loadedSeason = season;
       return season;
     } catch (e) {
-      debugPrint('Error loading season for game: $e');
-      return null;
+      rethrow; // Let FutureBuilder handle the error
     }
   }
 
@@ -84,6 +118,7 @@ class _GamePageState extends State<GamePage> {
     return FutureBuilder<Season?>(
       future: _seasonFuture,
       builder: (context, seasonSnapshot) {
+        // Show loading spinner while waiting
         if (seasonSnapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(
             appBar: buildStandardAppBar(
@@ -93,13 +128,62 @@ class _GamePageState extends State<GamePage> {
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold)),
             ),
-            body: const Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Loading...',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Check for errors
+        if (seasonSnapshot.hasError) {
+          return Scaffold(
+            appBar: buildStandardAppBar(
+              context: context,
+              team: null,
+              title: Text(_game.displayName(widget.game.seasonId),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
+            ),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: ${seasonSnapshot.error}',
+                    style: const TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _seasonFuture = _loadSeasonForGame();
+                      });
+                    },
+                    child: Text(loc.retry),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
         final Season? resolvedSeason =
             seasonSnapshot.data ?? widget.season ?? _loadedSeason;
 
+        // Show error if season couldn't be loaded
         if (resolvedSeason == null) {
           return Scaffold(
             appBar: buildStandardAppBar(
@@ -109,8 +193,34 @@ class _GamePageState extends State<GamePage> {
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold)),
             ),
-            body: const Center(
-              child: Text('Error: Could not load season'),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.warning_outlined,
+                      size: 48, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Could not load season data',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'The database may not be accessible or the season may not exist.',
+                    style: TextStyle(fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _seasonFuture = _loadSeasonForGame();
+                      });
+                    },
+                    child: Text(loc.retry),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -121,10 +231,9 @@ class _GamePageState extends State<GamePage> {
           eventEmitter: _eventEmitter,
         );
 
-        final gameStatsView = GameStatsView(
-          season: resolvedSeason,
+        final gameStatsView = EventStreamWidget(
           game: _game,
-          eventEmitter: _eventEmitter,
+          teamId: resolvedSeason.teamId,
         );
 
         return Scaffold(
@@ -273,7 +382,7 @@ class _GamePageState extends State<GamePage> {
     Season season,
     bool isTabletOrLarger,
   ) {
-    // Mobile app (not web): Show stats and match report buttons for completed games
+    // Mobile app (not web): Show match report and stats buttons for completed games
     if (!kIsWeb && _game.gameStatus.index >= 9) {
       return [
         // Match Report button
@@ -290,34 +399,51 @@ class _GamePageState extends State<GamePage> {
             child: Icon(Icons.newspaper, size: 24),
           ),
         ),
-        // Stats button
-        GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) =>
-                    MobileGameStatsPage(season: season, game: _game)));
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(Icons.paste, size: 24),
+        // Stats button (mobile phone only)
+        if (!isTabletOrLarger)
+          GestureDetector(
+            onTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) => SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.9,
+                  child: EventStreamWidget(
+                    game: _game,
+                    teamId: season.teamId,
+                  ),
+                ),
+              );
+            },
+            child: const Padding(
+              padding: EdgeInsets.all(5),
+              child: Icon(Icons.analytics, size: 24),
+            ),
           ),
-        ),
       ];
     }
 
-    // Web on mobile screen for completed games: Show stats only
+    // Web on mobile screen for completed games: Show stats button
     if (kIsWeb && !isTabletOrLarger && _game.gameStatus.index >= 9) {
       return [
         // Stats button
         GestureDetector(
           onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) =>
-                    MobileGameStatsPage(season: season, game: _game)));
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) => SizedBox(
+                height: MediaQuery.of(context).size.height * 0.9,
+                child: EventStreamWidget(
+                  game: _game,
+                  teamId: season.teamId,
+                ),
+              ),
+            );
           },
           child: const Padding(
             padding: EdgeInsets.all(5),
-            child: Icon(Icons.paste, size: 24),
+            child: Icon(Icons.analytics, size: 24),
           ),
         ),
       ];
@@ -326,17 +452,25 @@ class _GamePageState extends State<GamePage> {
     // In-progress game actions (mobile and tablet)
     if (_game.gameStatus.index < 9) {
       return [
-        // Stats button (mobile screen size only - both web and app)
+        // Stats button (mobile phone only)
         if (!isTabletOrLarger)
           GestureDetector(
             onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) =>
-                      MobileGameStatsPage(season: season, game: _game)));
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                builder: (context) => SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.9,
+                  child: EventStreamWidget(
+                    game: _game,
+                    teamId: season.teamId,
+                  ),
+                ),
+              );
             },
             child: const Padding(
               padding: EdgeInsets.all(5),
-              child: Icon(Icons.paste, size: 24),
+              child: Icon(Icons.analytics, size: 24),
             ),
           ),
         // Tweet button

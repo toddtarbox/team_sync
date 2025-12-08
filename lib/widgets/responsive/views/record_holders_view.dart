@@ -17,6 +17,7 @@ import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 enum StatType {
   career,
@@ -1096,157 +1097,71 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  void _showCareerStatsModal(BuildContext context, LeaderCategory category,
-      List<MapEntry<Player, int>> categoryStats) {
-    // Sort by stat value in descending order and limit to top 25
-    final sortedStats = List<MapEntry<Player, int>>.from(categoryStats)
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top25Stats = sortedStats.take(25).toList();
+  Future<void> _showCareerStatsModal(
+      BuildContext context,
+      LeaderCategory category,
+      List<MapEntry<Player, int>> categoryStats) async {
+    // Convert list to map for StatCategoryDialog
+    final playerStatsMap = Map<Player, int>.fromEntries(categoryStats);
 
-    showModalBottomSheet(
+    // Show dialog with navigation callback
+    await StatCategoryDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                  ),
-                  const Divider(),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: top25Stats.length,
-                      itemBuilder: (context, index) {
-                        final entry = top25Stats[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          elevation: 1,
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            leading: GestureDetector(
-                              onTap: () async {
-                                // Load the season for this player
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  },
-                                );
+      categoryName: category.name.toSentenceCase().toTitleCase(),
+      playerStats: playerStatsMap,
+      showPlayerNumber: false,
+      useModernStyle: true,
+      maxPlayers: 25, // Show top 25
+      onPlayerTap: (player) async {
+        // Close the dialog first
+        Navigator.pop(context);
 
-                                final seasonResults = await DatabaseService
-                                    .instance
-                                    .query('Seasons',
-                                        orderByChild: 'id',
-                                        equalTo: entry.key.seasonId);
-
-                                if (!mounted) return;
-                                Navigator.pop(context);
-
-                                if (seasonResults.isNotEmpty) {
-                                  final season =
-                                      Season.fromMap(seasonResults.first);
-                                  await season.load();
-
-                                  if (!mounted) return;
-
-                                  final currentUri =
-                                      GoRouterState.of(context).uri;
-                                  String? databaseId;
-                                  final pathSegments = currentUri.pathSegments;
-                                  if (pathSegments.isNotEmpty &&
-                                      pathSegments[0] == 'team' &&
-                                      pathSegments.length > 1) {
-                                    databaseId = pathSegments[1];
-                                  } else {
-                                    databaseId =
-                                        DatabaseService.instance.publicShareId;
-                                  }
-
-                                  if (databaseId != null) {
-                                    NavigationHelper.navigateTo(
-                                      context,
-                                      '/team/$databaseId/season/${season.id}/players/${entry.key.id}',
-                                      extra: {
-                                        'player': entry.key,
-                                        'season': season,
-                                      },
-                                    );
-                                  }
-                                }
-                              },
-                              child: ResponsivePlayerAvatar(
-                                  player: entry.key, avatarSize: 40),
-                            ),
-                            title: Text(
-                              entry.key.displayName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                entry.value.toString(),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSecondaryContainer,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
+        // Show loading indicator
+        showDialog(
+          context: context,
+          builder: (context) {
+            return const Center(child: CircularProgressIndicator());
           },
         );
+
+        // Load the season for this player
+        final seasonResults = await DatabaseService.instance.query(
+          'Seasons',
+          orderByChild: 'id',
+          equalTo: player.seasonId,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context);
+
+        if (seasonResults.isNotEmpty) {
+          final season = Season.fromMap(seasonResults.first);
+          await season.load();
+
+          if (!mounted) return;
+
+          final currentUri = GoRouterState.of(context).uri;
+          String? databaseId;
+          final pathSegments = currentUri.pathSegments;
+          if (pathSegments.isNotEmpty &&
+              pathSegments[0] == 'team' &&
+              pathSegments.length > 1) {
+            databaseId = pathSegments[1];
+          } else {
+            databaseId = DatabaseService.instance.publicShareId;
+          }
+
+          if (databaseId != null) {
+            NavigationHelper.navigateTo(
+              context,
+              '/team/$databaseId/season/${season.id}/players/${player.id}',
+              extra: {
+                'player': player,
+                'season': season,
+              },
+            );
+          }
+        }
       },
     );
   }

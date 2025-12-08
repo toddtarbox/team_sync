@@ -1321,6 +1321,11 @@ class _SeasonPageState extends State<SeasonPage> {
           );
         }
       },
+      onEdit: !kIsWeb
+          ? () =>
+              _showAddPlayerAwardDialog(season, award: award, player: player)
+          : null,
+      onDelete: !kIsWeb ? () => _deletePlayerAward(award, season) : null,
     );
   }
 
@@ -1720,6 +1725,53 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
+  Future<void> _deletePlayerAward(PlayerAward award, Season season) async {
+    final loc = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Player Award'),
+        content: Text('Delete "${award.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(loc.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await award.delete();
+
+        if (mounted) {
+          setState(() {
+            // Clear cache to force reload of awards
+            _awardsFutureCache.remove(season.id);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Player award deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error deleting player award: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
   void _showTeamAwardDetailsDialog(TeamAward award) {
     AwardDetailDialog.show(
       context,
@@ -1803,15 +1855,18 @@ class _SeasonPageState extends State<SeasonPage> {
     );
   }
 
-  void _showAddPlayerAwardDialog(Season season) {
+  void _showAddPlayerAwardDialog(Season season,
+      {PlayerAward? award, Player? player}) {
     // Only supported on mobile
     if (kIsWeb) return;
 
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final isEdit = award != null;
+    final titleController = TextEditingController(text: award?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: award?.description ?? '');
     Player? selectedPlayer =
-        season.players.isNotEmpty ? season.players.first : null;
-    String? imageUrl;
+        player ?? (season.players.isNotEmpty ? season.players.first : null);
+    String? imageUrl = award?.imageUrl;
     File? imageFile;
     bool isUploadingImage = false;
 
@@ -1819,7 +1874,7 @@ class _SeasonPageState extends State<SeasonPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add Player Award'),
+          title: Text(isEdit ? 'Edit Player Award' : 'Add Player Award'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1961,8 +2016,15 @@ class _SeasonPageState extends State<SeasonPage> {
                           finalImageUrl = await storageRef.getDownloadURL();
                         }
 
+                        final awardId = isEdit
+                            ? award.id
+                            : DateTime.now().millisecondsSinceEpoch;
+
+                        debugPrint(
+                            'Saving player award: isEdit=$isEdit, id=$awardId, title=$title');
+
                         final a = PlayerAward(
-                          id: DateTime.now().millisecondsSinceEpoch,
+                          id: awardId,
                           playerId: selectedPlayer!.id,
                           seasonId: season.id,
                           title: title,
@@ -1975,14 +2037,17 @@ class _SeasonPageState extends State<SeasonPage> {
                         await a.save();
 
                         if (mounted) {
-                          Navigator.pop(context);
+                          // Clear cache before closing dialog to force immediate refresh
                           setState(() {
-                            // Clear cache to force reload of awards
                             _awardsFutureCache.remove(season.id);
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Player award saved')));
+
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(isEdit
+                                  ? 'Player award updated'
+                                  : 'Player award saved')));
                         }
                       } catch (e) {
                         if (mounted) {

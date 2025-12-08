@@ -348,45 +348,85 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Animated flip card
-                        AnimatedBuilder(
-                          animation: _flipAnimation,
-                          builder: (context, child) {
-                            final angle =
-                                _flipAnimation.value * 3.14159; // π radians
-                            final transform = Matrix4.identity()
-                              ..setEntry(3, 2, 0.001) // perspective
-                              ..rotateY(angle);
+                        // Add zoom hint for back card
+                        if (_showingBack)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'Pinch to zoom • Drag to pan',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        // Animated flip card with zoom for back, scaled to fit for both
+                        _showingBack
+                            ? InteractiveViewer(
+                                panEnabled: true,
+                                boundaryMargin: const EdgeInsets.all(20),
+                                minScale: 0.5,
+                                maxScale: 4.0,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: AnimatedBuilder(
+                                    animation: _flipAnimation,
+                                    builder: (context, child) {
+                                      final angle = _flipAnimation.value *
+                                          3.14159; // π radians
+                                      final transform = Matrix4.identity()
+                                        ..setEntry(3, 2, 0.001) // perspective
+                                        ..rotateY(angle);
 
-                            return Transform(
-                              transform: transform,
-                              alignment: Alignment.center,
-                              child: angle < 3.14159 / 2
-                                  ? RepaintBoundary(
-                                      key: _cardKey,
-                                      child: _PlayerCardWidget(
-                                        team: widget.team,
-                                        player: widget.player,
-                                        style: _selectedStyle,
-                                        eventContext: widget.eventContext,
-                                      ),
-                                    )
-                                  : Transform(
-                                      transform: Matrix4.identity()
-                                        ..rotateY(3.14159),
+                                      return Transform(
+                                        transform: transform,
+                                        alignment: Alignment.center,
+                                        child: Transform(
+                                          transform: Matrix4.identity()
+                                            ..rotateY(3.14159),
+                                          alignment: Alignment.center,
+                                          child: RepaintBoundary(
+                                            key: _cardKey,
+                                            child: _PlayerCardBackWidget(
+                                              team: widget.team,
+                                              player: widget.player,
+                                              style: _selectedStyle,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              )
+                            : FittedBox(
+                                fit: BoxFit.contain,
+                                child: AnimatedBuilder(
+                                  animation: _flipAnimation,
+                                  builder: (context, child) {
+                                    final angle = _flipAnimation.value *
+                                        3.14159; // π radians
+                                    final transform = Matrix4.identity()
+                                      ..setEntry(3, 2, 0.001) // perspective
+                                      ..rotateY(angle);
+
+                                    return Transform(
+                                      transform: transform,
                                       alignment: Alignment.center,
                                       child: RepaintBoundary(
                                         key: _cardKey,
-                                        child: _PlayerCardBackWidget(
+                                        child: _PlayerCardWidget(
                                           team: widget.team,
                                           player: widget.player,
                                           style: _selectedStyle,
+                                          eventContext: widget.eventContext,
                                         ),
                                       ),
-                                    ),
-                            );
-                          },
-                        ),
+                                    );
+                                  },
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -1021,9 +1061,8 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
       final awards = await PlayerAward.listFromPlayerId(widget.player.id);
       if (mounted) {
         setState(() {
-          _awards = awards
-              .take(5)
-              .toList(); // Show max 5 awards (compact format fits more)
+          // Load all career awards (no season filter, no limit)
+          _awards = awards;
         });
       }
     } catch (e) {
@@ -1040,7 +1079,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
         equalTo: widget.player.id,
       );
 
-      // Calculate stats
+      // Calculate career stats (all seasons)
       int goals = 0;
       int assists = 0;
       int saves = 0;
@@ -1095,11 +1134,22 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   Widget build(BuildContext context) {
     final config = _getStyleConfig(widget.style);
 
-    // Standard baseball card size: 2.5" x 3.5" at 300 DPI = 750px x 1050px
-    // Fixed height to match front card
+    // Calculate dynamic height based on content
+    // Base height: 1050px (same as front card)
+    // For awards:
+    //   - 5 or fewer: ~70px per award (full card)
+    //   - More than 5: compact grid layout, ~40px per row (2 columns)
+    final baseHeight = 1050.0;
+    final awardsHeight = _awards.length <= 5
+        ? _awards.length * 70.0
+        : (_awards.length / 2).ceil() * 40.0; // Grid with 2 columns
+    final dynamicHeight = baseHeight + awardsHeight;
+
+    // Standard baseball card width: 750px
+    // Height expands based on content
     return Container(
       width: 750,
-      height: 1050,
+      height: dynamicHeight,
       decoration: BoxDecoration(
         color: config.backgroundColor,
         borderRadius: BorderRadius.circular(16),
@@ -1195,7 +1245,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
 
           Divider(height: 1, thickness: 2),
 
-          // Stats and content section - use Expanded with scrollable content
+          // Stats and content section - no scrolling, just content
           Expanded(
             child: _isLoading
                 ? Center(
@@ -1203,67 +1253,39 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                       color: config.accentColor,
                     ),
                   )
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Stats section
-                          if (hasStats) ...[
-                            if (_goals > 0)
-                              _StatRow(
-                                label: 'GOALS',
-                                value: _goals.toString(),
-                                icon: Icons.sports_soccer,
-                                config: config,
-                              ),
-                            if (_assists > 0)
-                              _StatRow(
-                                label: 'ASSISTS',
-                                value: _assists.toString(),
-                                icon: Icons.people,
-                                config: config,
-                              ),
-                            if (_saves > 0)
-                              _StatRow(
-                                label: 'SAVES',
-                                value: _saves.toString(),
-                                icon: Icons.back_hand,
-                                config: config,
-                              ),
-                          ],
-
-                          // Awards section - render as list for image capture
-                          if (_awards.isNotEmpty) ...[
-                            if (hasStats)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                child: Divider(
-                                  color:
-                                      config.textColor.withValues(alpha: 0.3),
-                                  thickness: 2,
-                                ),
-                              ),
-                            Text(
-                              'AWARDS',
-                              style: TextStyle(
-                                color: config.accentColor,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
-                              ),
+                : Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats section
+                        if (hasStats) ...[
+                          if (_goals > 0)
+                            _StatRow(
+                              label: 'GOALS',
+                              value: _goals.toString(),
+                              icon: Icons.sports_soccer,
+                              config: config,
                             ),
-                            const SizedBox(height: 12),
+                          if (_assists > 0)
+                            _StatRow(
+                              label: 'ASSISTS',
+                              value: _assists.toString(),
+                              icon: Icons.people,
+                              config: config,
+                            ),
+                          if (_saves > 0)
+                            _StatRow(
+                              label: 'SAVES',
+                              value: _saves.toString(),
+                              icon: Icons.back_hand,
+                              config: config,
+                            ),
+                        ],
 
-                            // Render awards as list (max 5 compact awards fit on card)
-                            ..._awards
-                                .map((award) => _buildAwardCard(award, config)),
-                          ],
-
-                          // QR code section - always show
-                          if (hasStats || _awards.isNotEmpty) ...[
+                        // Awards section - use compact layout for many awards
+                        if (_awards.isNotEmpty) ...[
+                          if (hasStats)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Divider(
@@ -1271,86 +1293,91 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                                 thickness: 2,
                               ),
                             ),
-                          ],
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  'SCAN FOR PROFILE',
-                                  style: TextStyle(
-                                    color: config.accentColor,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: config.accentColor
-                                          .withValues(alpha: 0.3),
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: QrImageView(
-                                    data: _getPlayerWebUrl(),
-                                    version: QrVersions.auto,
-                                    size: 130,
-                                    backgroundColor: Colors.white,
-                                    errorCorrectionLevel: QrErrorCorrectLevel.M,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            'CAREER AWARDS',
+                            style: TextStyle(
+                              color: config.accentColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
                             ),
                           ),
+                          const SizedBox(height: 12),
 
-                          // Show message if no stats and no awards
-                          if (!hasStats && _awards.isEmpty)
-                            Center(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 40),
-                                child: Text(
-                                  'No stats or awards yet',
-                                  style: TextStyle(
-                                    color:
-                                        config.textColor.withValues(alpha: 0.5),
-                                    fontSize: 28,
-                                    fontStyle: FontStyle.italic,
+                          // Use compact grid layout if more than 5 awards
+                          if (_awards.length > 5)
+                            _buildCompactAwardsGrid(config)
+                          else
+                            // Use full card layout for 5 or fewer awards
+                            ..._awards
+                                .map((award) => _buildAwardCard(award, config)),
+                        ],
+
+                        // QR code section - always show
+                        if (hasStats || _awards.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(
+                              color: config.textColor.withValues(alpha: 0.3),
+                              thickness: 2,
+                            ),
+                          ),
+                        ],
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'SCAN FOR PROFILE',
+                                style: TextStyle(
+                                  color: config.accentColor,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: config.accentColor
+                                        .withValues(alpha: 0.3),
+                                    width: 3,
                                   ),
+                                ),
+                                child: QrImageView(
+                                  data: _getPlayerWebUrl(),
+                                  version: QrVersions.auto,
+                                  size: 130,
+                                  backgroundColor: Colors.white,
+                                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Show message if no stats and no awards
+                        if (!hasStats && _awards.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Text(
+                                'No stats or awards yet',
+                                style: TextStyle(
+                                  color:
+                                      config.textColor.withValues(alpha: 0.5),
+                                  fontSize: 28,
+                                  fontStyle: FontStyle.italic,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
-          ),
-
-          // Footer
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: BoxDecoration(
-              color: config.accentColor.withValues(alpha: 0.1),
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(13)),
-            ),
-            child: Center(
-              child: Text(
-                widget.team.fullName.toUpperCase(),
-                style: TextStyle(
-                  color: config.textColor.withValues(alpha: 0.8),
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
           ),
         ],
       ),
@@ -1398,6 +1425,55 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Build compact awards grid for many awards (2 columns)
+  /// Used when there are more than 5 awards to save space
+  Widget _buildCompactAwardsGrid(_StyleConfig config) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _awards.map((award) {
+        return Container(
+          width: 330, // Fits 2 per row in 750px width with spacing
+          decoration: BoxDecoration(
+            color: config.accentColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: config.accentColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.emoji_events,
+                  size: 18,
+                  color: config.accentColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    award.title.toUpperCase(),
+                    style: TextStyle(
+                      color: config.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
