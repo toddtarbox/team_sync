@@ -158,9 +158,7 @@ List<BreadcrumbItem> buildTeamBreadcrumbs({
   if (playerName != null) {
     breadcrumbs.add(BreadcrumbItem(
       label: playerName,
-      route: playerId != null && seasonId != null
-          ? '/team/$databaseId/season/$seasonId/players/$playerId'
-          : null,
+      route: playerId != null ? '/team/$databaseId/player/$playerId' : null,
     ));
   }
 

@@ -1048,7 +1048,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     final databaseId = DatabaseService.instance.publicShareId ?? '';
     // Use Firebase hosting URL as base - this can be customized
     final baseUrl = 'https://team-sync-soccer.web.app';
-    return '$baseUrl/#/team/$databaseId/season/${season.id}/players/${widget.player.id}';
+    // Use global player route (not season-specific)
+    return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }
 
   // Show QR code dialog

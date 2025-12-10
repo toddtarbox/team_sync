@@ -99,7 +99,7 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
                 final currentLocation =
                     GoRouterState.of(context).uri.toString();
                 final playerProfileLocation =
-                    '/team/$databaseId/season/${widget.player.seasonId}/players/${widget.player.id}';
+                    '/team/$databaseId/player/${widget.player.id}';
                 final isOnPlayerProfile =
                     currentLocation.contains(playerProfileLocation);
 
@@ -111,7 +111,7 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
                 } else {
                   // Navigate to player profile page
                   final location =
-                      '/team/$databaseId/season/${widget.player.seasonId}/players/${widget.player.id}';
+                      '/team/$databaseId/player/${widget.player.id}';
                   NavigationHelper.navigateTo(context, location,
                       extra: {'player': widget.player});
                 }

@@ -380,7 +380,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 if (databaseId != null) {
                   NavigationHelper.navigateTo(
                     context,
-                    '/team/$databaseId/season/${topEntry.season.id}/players/${topEntry.player.id}',
+                    '/team/$databaseId/player/${topEntry.player.id}',
                     extra: {
                       'player': topEntry.player,
                       'season': topEntry.season,
@@ -573,7 +573,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 if (databaseId != null) {
                                   NavigationHelper.navigateTo(
                                     context,
-                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    '/team/$databaseId/player/${entry.player.id}',
                                     extra: {
                                       'player': entry.player,
                                       'season': entry.season,
@@ -693,7 +693,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 if (databaseId != null) {
                   NavigationHelper.navigateTo(
                     context,
-                    '/team/$databaseId/season/${bestStat.season.id}/players/${bestStat.player.id}',
+                    '/team/$databaseId/player/${bestStat.player.id}',
                     extra: {
                       'player': bestStat.player,
                       'season': bestStat.season,
@@ -888,7 +888,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 if (databaseId != null) {
                                   NavigationHelper.navigateTo(
                                     context,
-                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    '/team/$databaseId/player/${entry.player.id}',
                                     extra: {
                                       'player': entry.player,
                                       'season': entry.season,
@@ -1031,7 +1031,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   if (databaseId != null) {
                     NavigationHelper.navigateTo(
                       context,
-                      '/team/$databaseId/season/${season.id}/players/${topEntry.key.id}',
+                      '/team/$databaseId/player/${topEntry.key.id}',
                       extra: {
                         'player': topEntry.key,
                         'season': season,
@@ -1154,7 +1154,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
           if (databaseId != null) {
             NavigationHelper.navigateTo(
               context,
-              '/team/$databaseId/season/${season.id}/players/${player.id}',
+              '/team/$databaseId/player/${player.id}',
               extra: {
                 'player': player,
                 'season': season,

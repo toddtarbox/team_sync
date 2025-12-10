@@ -376,8 +376,12 @@ class _SeasonPageState extends State<SeasonPage> {
                                             game.displayName(season.teamId),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.bold)),
-                                        subtitle:
-                                            Text(format.format(game.date)),
+                                        subtitle: Text(
+                                          game.date.hour == 0 &&
+                                                  game.date.minute == 0
+                                              ? format.format(game.date)
+                                              : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
+                                        ),
                                         leading: linkWidget,
                                         trailing: Container(
                                           margin:
@@ -633,11 +637,19 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
-  void _showGame({Game? game, Season? season}) {
+  void _showGame({Game? game, Season? season}) async {
     final s = season ?? widget.season!;
-    final entries = s.teams
+
+    // Load all teams from database to show as available opponents
+    final allTeams = await Team.all();
+
+    // Filter out the current team and sort alphabetically by full name
+    final availableTeams = allTeams.where((t) => t.id != s.teamId).toList()
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+
+    // Create dropdown entries
+    final entries = availableTeams
         .map((t) => DropdownMenuEntry<int>(value: t.id, label: t.fullName))
-        .where((e) => e.value != s.teamId)
         .toList(growable: false);
 
     final isHomeTeam = game == null || game.isHomeTeam(s.teamId);
@@ -734,6 +746,7 @@ class _SeasonPageState extends State<SeasonPage> {
                               AppLocalizations.of(context)!.selectOpponent),
                           dropdownMenuEntries: entries),
                       const SizedBox(height: 30),
+                      // Date picker button
                       ElevatedButton(
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue),
@@ -748,7 +761,14 @@ class _SeasonPageState extends State<SeasonPage> {
                                           .add(const Duration(days: 365)));
                                   if (date != null) {
                                     setModalState(() {
-                                      game!.date = date;
+                                      // Preserve the time when updating date
+                                      game!.date = DateTime(
+                                        date.year,
+                                        date.month,
+                                        date.day,
+                                        game.date.hour,
+                                        game.date.minute,
+                                      );
                                     });
                                   }
                                 }
@@ -757,6 +777,43 @@ class _SeasonPageState extends State<SeasonPage> {
                               width: 200,
                               child: Center(
                                   child: Text(format.format(game.date),
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20))))),
+                      const SizedBox(height: 15),
+                      // Time picker button
+                      ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green),
+                          onPressed: game.gameStatus.index == 0
+                              ? () async {
+                                  final time = await showTimePicker(
+                                    context: context,
+                                    initialTime:
+                                        TimeOfDay.fromDateTime(game!.date),
+                                  );
+                                  if (time != null) {
+                                    setModalState(() {
+                                      // Update time while preserving date
+                                      game!.date = DateTime(
+                                        game.date.year,
+                                        game.date.month,
+                                        game.date.day,
+                                        time.hour,
+                                        time.minute,
+                                      );
+                                    });
+                                  }
+                                }
+                              : null,
+                          child: SizedBox(
+                              width: 200,
+                              child: Center(
+                                  child: Text(
+                                      game.date.hour == 0 &&
+                                              game.date.minute == 0
+                                          ? 'Set Time (optional)'
+                                          : _formatTime12Hour(game.date),
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 20))))),
@@ -809,6 +866,8 @@ class _SeasonPageState extends State<SeasonPage> {
 
                                   if (mounted) {
                                     Navigator.pop(context);
+                                    // Reload season data to refresh games list
+                                    await _loadSeason(context);
                                     setState(() {});
                                   }
                                 },
@@ -838,6 +897,22 @@ class _SeasonPageState extends State<SeasonPage> {
       '/team/$databaseId/season/${season.id}/game/${game.id}',
       extra: {'season': season, 'game': game},
     );
+  }
+
+  /// Format time in 12-hour format with AM/PM
+  String _formatTime12Hour(DateTime dateTime) {
+    int hour = dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12; // Midnight
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    return '$hour:$minute $period';
   }
 
   void _createOpponent(Season season) {

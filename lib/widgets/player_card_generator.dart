@@ -1481,7 +1481,8 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   String _getPlayerWebUrl() {
     final databaseId = DatabaseService.instance.publicShareId ?? '';
     final baseUrl = 'https://team-sync-soccer.web.app';
-    return '$baseUrl/#/team/$databaseId/season/${widget.player.seasonId}/players/${widget.player.id}';
+    // Use global player route (not season-specific)
+    return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }
 
   _StyleConfig _getStyleConfig(PlayerCardStyle style) {

@@ -475,6 +475,74 @@ final router = GoRouter(
             );
           },
         ),
+
+        // ==================== GLOBAL PLAYER ROUTE ====================
+        // Player profile without requiring season in URL
+        GoRoute(
+          path: 'player/:playerId',
+          name: 'player-profile-global',
+          builder: (context, state) {
+            final playerId = int.parse(state.pathParameters['playerId']!);
+            final databaseId = state.pathParameters['databaseId'];
+
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: _loadPlayerGlobal(playerId, databaseId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading player',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data;
+                if (data != null &&
+                    data['player'] != null &&
+                    data['season'] != null) {
+                  return PlayerProfilePage(
+                    player: data['player'] as Player,
+                    currentSeason: data['season'] as Season,
+                  );
+                }
+
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: const Center(
+                    child: Text('Player or season data not available'),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ],
     ),
 
@@ -601,5 +669,54 @@ Future<Map<String, dynamic>?> _loadPlayerAndSeason(
   } catch (e) {
     debugPrint('Error loading player and season: $e');
     rethrow; // Re-throw so FutureBuilder can catch it as an error
+  }
+}
+
+/// Load a player by ID and find their most recent season (global route)
+Future<Map<String, dynamic>?> _loadPlayerGlobal(
+    int playerId, String? databaseId) async {
+  try {
+    // Open the database if databaseId is provided
+    if (databaseId != null) {
+      final opened = await DatabaseService.instance.openFromId(databaseId);
+      if (!opened) {
+        throw Exception('Failed to open database: $databaseId');
+      }
+    }
+
+    // Load all player records with this ID (across all seasons)
+    final playerResults = await DatabaseService.instance
+        .query('Players', orderByChild: 'id', equalTo: playerId);
+
+    if (playerResults.isEmpty) {
+      throw Exception('Player not found: $playerId');
+    }
+
+    // Find the player record with the highest seasonId (most recent season)
+    Player? mostRecentPlayer;
+    int highestSeasonId = 0;
+
+    for (var result in playerResults) {
+      final player = Player.fromMap(result);
+      if (player.seasonId > highestSeasonId) {
+        highestSeasonId = player.seasonId;
+        mostRecentPlayer = player;
+      }
+    }
+
+    if (mostRecentPlayer == null) {
+      throw Exception('Could not determine most recent season for player');
+    }
+
+    // Load the season for this player
+    final season = await _loadSeasonById(mostRecentPlayer.seasonId);
+    if (season == null) {
+      throw Exception('Season not found: ${mostRecentPlayer.seasonId}');
+    }
+
+    return {'season': season, 'player': mostRecentPlayer};
+  } catch (e) {
+    debugPrint('Error loading player globally: $e');
+    rethrow;
   }
 }
