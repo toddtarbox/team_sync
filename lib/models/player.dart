@@ -11,10 +11,45 @@ class Player {
   int number;
   String? profileImage;
   String? actionPhoto; // Action photo for baseball-style player cards
+  String? headshot; // Headshot photo for stats and lineups
   String? editPin; // 4-digit PIN for player self-editing on web
 
   String get displayName {
     return '$firstName $lastName';
+  }
+
+  /// Returns the best available image URL for displaying in stats and lineups
+  /// Priority: headshot > profileImage > actionPhoto
+  String? get displayImageForStats {
+    return headshot ?? profileImage ?? actionPhoto;
+  }
+
+  /// Returns the best available image URL for general profile display
+  /// Priority: profileImage > headshot > actionPhoto
+  String? get displayImageForProfile {
+    return profileImage ?? headshot ?? actionPhoto;
+  }
+
+  /// Returns the best available image URL for player cards
+  /// Priority: actionPhoto > profileImage > headshot
+  String? get displayImageForCard {
+    return actionPhoto ?? profileImage ?? headshot;
+  }
+
+  /// Returns the best available image URL with custom priority
+  /// Use this when you want to specify exactly which image to prioritize
+  String? getDisplayImage({
+    bool preferHeadshot = false,
+    bool preferActionPhoto = false,
+  }) {
+    if (preferHeadshot) {
+      return headshot ?? profileImage ?? actionPhoto;
+    } else if (preferActionPhoto) {
+      return actionPhoto ?? profileImage ?? headshot;
+    } else {
+      // Default: prefer profile image
+      return profileImage ?? headshot ?? actionPhoto;
+    }
   }
 
   Player(
@@ -26,6 +61,7 @@ class Player {
       required this.number,
       this.profileImage,
       this.actionPhoto,
+      this.headshot,
       this.editPin});
 
   static initial({required int teamId, required int seasonId}) {
@@ -66,8 +102,9 @@ class Player {
             : 0,
         profileImage: map['profileImage'],
         actionPhoto: map['actionPhoto'],
+        headshot: map['headshot'],
         editPin:
-            null); // Never load PIN from database - validation is server-side only
+            map['editPin']); // Load PIN from database so coaches can see it
   }
 
   static Future<Player?> fromId(int id) async {
@@ -174,6 +211,7 @@ class Player {
       'number': number,
       'profileImage': profileImage,
       'actionPhoto': actionPhoto,
+      'headshot': headshot,
       'editPin': editPin,
     };
   }
@@ -225,6 +263,7 @@ class Player {
         'updates': {
           'profileImage': profileImage,
           'actionPhoto': actionPhoto,
+          'headshot': headshot,
           'firstName': firstName,
           'lastName': lastName,
           'number': number,
@@ -277,16 +316,18 @@ class Player {
     }
   }
 
-  /// Find the latest available profile or action photo for this player across all seasons
-  /// Returns a map with 'profileImage' and 'actionPhoto' keys
+  /// Find the latest available images for this player across all seasons
+  /// Returns a map with 'profileImage', 'actionPhoto', and 'headshot' keys
   /// Uses images from most recent season where they exist
   Future<Map<String, String?>> findLatestAvailableImages() async {
-    // If current player has images, return them
-    if ((profileImage != null && profileImage!.isNotEmpty) ||
-        (actionPhoto != null && actionPhoto!.isNotEmpty)) {
+    // If current player has all images, return them
+    if ((profileImage != null && profileImage!.isNotEmpty) &&
+        (actionPhoto != null && actionPhoto!.isNotEmpty) &&
+        (headshot != null && headshot!.isNotEmpty)) {
       return {
         'profileImage': profileImage,
         'actionPhoto': actionPhoto,
+        'headshot': headshot,
       };
     }
 
@@ -304,8 +345,9 @@ class Player {
     allPlayerInstances.sort((a, b) => b.seasonId.compareTo(a.seasonId));
 
     // Find the most recent images
-    String? latestProfileImage;
-    String? latestActionPhoto;
+    String? latestProfileImage = profileImage;
+    String? latestActionPhoto = actionPhoto;
+    String? latestHeadshot = headshot;
 
     for (final playerInstance in allPlayerInstances) {
       // Get profile image from most recent season that has it
@@ -322,8 +364,17 @@ class Player {
         latestActionPhoto = playerInstance.actionPhoto;
       }
 
-      // If we found both, we can stop
-      if (latestProfileImage != null && latestActionPhoto != null) {
+      // Get headshot from most recent season that has it
+      if (latestHeadshot == null &&
+          playerInstance.headshot != null &&
+          playerInstance.headshot!.isNotEmpty) {
+        latestHeadshot = playerInstance.headshot;
+      }
+
+      // If we found all three, we can stop
+      if (latestProfileImage != null &&
+          latestActionPhoto != null &&
+          latestHeadshot != null) {
         break;
       }
     }
@@ -331,6 +382,7 @@ class Player {
     return {
       'profileImage': latestProfileImage,
       'actionPhoto': latestActionPhoto,
+      'headshot': latestHeadshot,
     };
   }
 }

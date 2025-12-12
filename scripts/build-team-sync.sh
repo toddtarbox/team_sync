@@ -48,24 +48,67 @@ case $PLATFORM in
     ;;
 
   ios)
-    echo "📱 Building IPA for iOS..."
-    # Note: Requires iOS schemes to be configured in Xcode
-    # See docs/IOS_FLAVORS_SETUP.md for setup instructions
-    # Requires proper code signing certificates to be configured in Xcode
+    echo "📱 Building iOS Archive..."
+    echo "   Note: IPA export may fail due to Flutter/Xcode codesigning conflict"
+    echo "   If it fails, you'll distribute via Xcode Organizer instead"
+    echo ""
+
     flutter build ipa \
-      --target=lib/main_team_sync.dart \
+      --target=lib/main.dart \
       --release \
       --flavor teamSync \
       --export-options-plist=ios/ExportOptions.plist
-    echo "✅ iOS IPA build complete: build/ios/ipa/"
-    echo "⚠️  If build fails, you need to configure iOS schemes in Xcode"
-    echo "   See: docs/IOS_FLAVORS_SETUP.md"
+
+    BUILD_EXIT_CODE=$?
+
+    if [ $BUILD_EXIT_CODE -eq 0 ]; then
+      echo ""
+      echo "✅ iOS IPA build complete: build/ios/ipa/"
+      echo "   Ready to upload to App Store Connect!"
+    else
+      # Check if archive was created
+      ARCHIVE_PATH="$PROJECT_ROOT/build/ios/archive/TeamSync.xcarchive"
+      if [ -d "$ARCHIVE_PATH" ]; then
+        echo ""
+        echo "✅ Archive created successfully!"
+        echo "❌ IPA export failed (codesigning issue)"
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "📱 Distribute via Xcode (RECOMMENDED):"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "1. Opening archive in Xcode..."
+        open "$ARCHIVE_PATH"
+        echo ""
+        echo "2. In Xcode Organizer window that just opened:"
+        echo "   • Click 'Distribute App' button"
+        echo "   • Select 'App Store Connect'"
+        echo "   • Follow prompts to upload"
+        echo ""
+        echo "See IOS_IPA_EXPORT_FIX.md for details"
+        echo ""
+      else
+        echo ""
+        echo "❌ iOS build failed completely"
+        echo ""
+        echo "Common issues:"
+        echo "  • Wrong certificate (run: ./scripts/check-ios-certs.sh)"
+        echo "  • Wrong team selected in Xcode"
+        echo "  • Provisioning profile issues"
+        echo ""
+        echo "Quick fix:"
+        echo "  1. Open: open ios/Runner.xcworkspace"
+        echo "  2. Runner → Signing & Capabilities → Select team YW585V7K76"
+        echo ""
+        exit 1
+      fi
+    fi
     ;;
 
   android)
     echo "🤖 Building for Android..."
     flutter build appbundle \
-      --target=lib/main_team_sync.dart \
+      --target=lib/main.dart \
       --release \
       --flavor teamSync
     echo "✅ Android build complete: build/app/outputs/bundle/teamSyncRelease/"

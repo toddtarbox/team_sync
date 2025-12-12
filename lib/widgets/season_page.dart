@@ -26,7 +26,6 @@ import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
-import 'package:team_sync/widgets/season_with_logo.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -219,15 +218,15 @@ class _SeasonPageState extends State<SeasonPage> {
                           })),
               body: Column(
                 children: [
-                  Breadcrumbs(
+                  Center(
+                      child: Breadcrumbs(
                     items: buildTeamBreadcrumbs(
                       databaseId: DatabaseService.instance.publicShareId ?? '',
                       teamName: season.team.fullName,
                       seasonName: season.name,
                       seasonId: season.id,
                     ),
-                  ),
-                  SeasonWithLogo(season: season),
+                  )),
                   Expanded(
                     child: Center(
                         child: Column(
@@ -303,18 +302,8 @@ class _SeasonPageState extends State<SeasonPage> {
                           })),
               body: Column(
                 children: [
-                  // Fixed header section - image, title, and record
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
+                  // Fixed header section - image, and record
+                  Center(
                     child: Column(
                       children: [
                         Breadcrumbs(
@@ -326,7 +315,6 @@ class _SeasonPageState extends State<SeasonPage> {
                             seasonId: season.id,
                           ),
                         ),
-                        SeasonWithLogo(season: season),
                         Container(
                           decoration: const BoxDecoration(
                             borderRadius: BorderRadius.only(
@@ -350,137 +338,157 @@ class _SeasonPageState extends State<SeasonPage> {
                     child: ListView(
                       padding: const EdgeInsets.all(10),
                       children: [
-                        // Awards Section
-                        _buildAwardsSection(season),
-                        // Games list
-                        ...games.map((game) {
-                          final linkWidget = game.gameLinks?.isNotEmpty ?? false
-                              ? GestureDetector(
-                                  onTap: () async {
-                                    await _launchUrl(game.gameLinks!);
-                                  },
-                                  child: VideoThumbnail(game.gameLinks!,
-                                      width: 40, height: 28),
-                                )
-                              : const SizedBox(width: 24);
-
-                          final gameCard = Container(
-                            padding: const EdgeInsets.all(5),
-                            child: Stack(
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1400),
+                            child: Column(
                               children: [
-                                Card(
-                                  child: Column(
-                                    children: [
-                                      ListTile(
-                                        title: Text(
-                                            game.displayName(season.teamId),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold)),
-                                        subtitle: Text(
-                                          game.date.hour == 0 &&
-                                                  game.date.minute == 0
-                                              ? format.format(game.date)
-                                              : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
-                                        ),
-                                        leading: linkWidget,
-                                        trailing: Container(
-                                          margin:
-                                              const EdgeInsets.only(top: 20),
-                                          child: IconButton(
-                                            icon: Icon(
-                                                game.id == _expandedGameId
-                                                    ? Icons.expand_less
-                                                    : Icons.expand_more),
-                                            onPressed: () async {
-                                              setState(() {
-                                                _expandedGameId =
-                                                    game.id == _expandedGameId
-                                                        ? 0
-                                                        : game.id;
-                                              });
-                                            },
+                                // Awards Section
+                                _buildAwardsSection(season),
+                                // Games list
+                                ...games.map((game) {
+                                  final linkWidget = game
+                                              .gameLinks?.isNotEmpty ??
+                                          false
+                                      ? GestureDetector(
+                                          onTap: () async {
+                                            await _launchUrl(game.gameLinks!);
+                                          },
+                                          child: VideoThumbnail(game.gameLinks!,
+                                              width: 40, height: 28),
+                                        )
+                                      : const SizedBox(width: 24);
+
+                                  final gameCard = Container(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Stack(
+                                      children: [
+                                        Card(
+                                          child: Column(
+                                            children: [
+                                              ListTile(
+                                                title: Text(
+                                                    game.displayName(
+                                                        season.teamId),
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                subtitle: Text(
+                                                  game.date.hour == 0 &&
+                                                          game.date.minute == 0
+                                                      ? format.format(game.date)
+                                                      : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
+                                                ),
+                                                leading: linkWidget,
+                                                trailing: Container(
+                                                  margin: const EdgeInsets.only(
+                                                      top: 20),
+                                                  child: IconButton(
+                                                    icon: Icon(game.id ==
+                                                            _expandedGameId
+                                                        ? Icons.expand_less
+                                                        : Icons.expand_more),
+                                                    onPressed: () async {
+                                                      setState(() {
+                                                        _expandedGameId = game
+                                                                    .id ==
+                                                                _expandedGameId
+                                                            ? 0
+                                                            : game.id;
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                                onTap: () {
+                                                  if (!kIsWeb) {
+                                                    _showGame(
+                                                        game: game,
+                                                        season: season);
+                                                  } else {
+                                                    _goToGame(game, season);
+                                                  }
+                                                },
+                                              ),
+                                              if (game.id == _expandedGameId)
+                                                ScoringSummary(
+                                                    season, season.team, game),
+                                            ],
                                           ),
                                         ),
-                                        onTap: () {
-                                          if (!kIsWeb) {
-                                            _showGame(
-                                                game: game, season: season);
-                                          } else {
-                                            _goToGame(game, season);
-                                          }
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child:
+                                              GameResult(game, season.teamId),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (kIsWeb) return gameCard;
+
+                                  return Dismissible(
+                                    key: Key(game.id.toString()),
+                                    direction: DismissDirection.startToEnd,
+                                    dismissThresholds: const {
+                                      DismissDirection.startToEnd: 0.5,
+                                    },
+                                    background: Container(color: Colors.red),
+                                    confirmDismiss: (_) {
+                                      return showDialog<bool>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text(
+                                                AppLocalizations.of(context)!
+                                                    .confirmDelete),
+                                            content: Text(AppLocalizations.of(
+                                                    context)!
+                                                .areYouSureYouWantToDeleteThisGame),
+                                            actions: [
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .continueButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context, true);
+                                                },
+                                              ),
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .cancelButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context, false);
+                                                },
+                                              ),
+                                            ],
+                                          );
                                         },
-                                      ),
-                                      if (game.id == _expandedGameId)
-                                        ScoringSummary(
-                                            season, season.team, game),
-                                    ],
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: GameResult(game, season.teamId),
-                                ),
+                                      );
+                                    },
+                                    onDismissed: (direction) async {
+                                      final candidates = await DatabaseService
+                                          .instance
+                                          .query('Games',
+                                              orderByChild: 'id',
+                                              equalTo: game.id);
+                                      for (final c in candidates) {
+                                        final k = c['_key']?.toString();
+                                        if (k != null) {
+                                          await DatabaseService.instance
+                                              .delete('Games', key: k);
+                                        }
+                                      }
+                                      setState(() {});
+                                    },
+                                    child: gameCard,
+                                  );
+                                }).toList(),
                               ],
                             ),
-                          );
-
-                          if (kIsWeb) return gameCard;
-
-                          return Dismissible(
-                            key: Key(game.id.toString()),
-                            direction: DismissDirection.startToEnd,
-                            dismissThresholds: const {
-                              DismissDirection.startToEnd: 0.5,
-                            },
-                            background: Container(color: Colors.red),
-                            confirmDismiss: (_) {
-                              return showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(AppLocalizations.of(context)!
-                                        .confirmDelete),
-                                    content: Text(AppLocalizations.of(context)!
-                                        .areYouSureYouWantToDeleteThisGame),
-                                    actions: [
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .continueButton),
-                                        onPressed: () {
-                                          Navigator.pop(context, true);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .cancelButton),
-                                        onPressed: () {
-                                          Navigator.pop(context, false);
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            onDismissed: (direction) async {
-                              final candidates = await DatabaseService.instance
-                                  .query('Games',
-                                      orderByChild: 'id', equalTo: game.id);
-                              for (final c in candidates) {
-                                final k = c['_key']?.toString();
-                                if (k != null) {
-                                  await DatabaseService.instance
-                                      .delete('Games', key: k);
-                                }
-                              }
-                              setState(() {});
-                            },
-                            child: gameCard,
-                          );
-                        }).toList(),
+                          ),
+                        ),
                       ],
                     ),
                   ),

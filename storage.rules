@@ -33,6 +33,12 @@ service firebase.storage {
       allow read, write, delete: if true;
     }
 
+    // Player headshots (for stats and lineups)
+    // Path: player_headshots/{timestamp}
+    match /player_headshots/{imageId} {
+      allow read, write, delete: if true;
+    }
+
     // Team logos/images
     // Path: team_images/{imageId}
     match /team_images/{imageId} {

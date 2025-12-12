@@ -918,84 +918,166 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
   Widget _buildSeasonsList() {
     final loc = AppLocalizations.of(context)!;
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(16.0),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              // Show carousel of last 5 games or single live/last game
-              if (_currentSeason != null && _currentOrLastGame != null) ...[
-                if (_lastFiveGames.isEmpty)
-                  // Show single live or last game
-                  ScoreboardWidget(
-                    season: _currentSeason!,
-                    game: _currentOrLastGame!,
-                    teamId: _team!.id,
-                  )
-                else
-                  // Show carousel of last 5 games
-                  _buildGamesCarousel(),
-              ],
-              if (_seasons.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                // Enhanced Overall Record Card - Only show when all seasons are loaded
-                if (_allSeasonsLoaded)
-                  InkWell(
-                    onTap: () {
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                          context,
-                          '/team/$databaseId/history',
-                        );
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Card(
-                      elevation: 4,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate responsive horizontal padding
+        final screenWidth = constraints.maxWidth;
+        const maxContentWidth = 1400.0;
+        final horizontalPadding = screenWidth > maxContentWidth
+            ? (screenWidth - maxContentWidth) / 2
+            : 0.0;
+
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.only(
+                left: 16.0 + horizontalPadding,
+                right: 16.0 + horizontalPadding,
+                top: 16.0,
+                bottom: 16.0,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Show carousel of last 5 games or single live/last game
+                  if (_currentSeason != null && _currentOrLastGame != null) ...[
+                    if (_lastFiveGames.isEmpty)
+                      // Show single live or last game
+                      ScoreboardWidget(
+                        season: _currentSeason!,
+                        game: _currentOrLastGame!,
+                        teamId: _team!.id,
+                      )
+                    else
+                      // Show carousel of last 5 games
+                      _buildGamesCarousel(),
+                  ],
+                  if (_seasons.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    // Enhanced Overall Record Card - Only show when all seasons are loaded
+                    if (_allSeasonsLoaded)
+                      InkWell(
+                        onTap: () {
+                          final databaseId =
+                              DatabaseService.instance.publicShareId;
+                          if (databaseId != null) {
+                            NavigationHelper.navigateTo(
+                              context,
+                              '/team/$databaseId/history',
+                            );
+                          }
+                        },
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context)
+                        child: Card(
+                          elevation: 4,
+                          clipBehavior: Clip.antiAlias,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: Theme.of(context)
                                   .colorScheme
-                                  .primaryContainer
+                                  .primary
                                   .withValues(alpha: 0.3),
-                              Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHigh,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                              width: 2,
+                            ),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                      .withValues(alpha: 0.3),
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHigh,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.emoji_events,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        _getTeamPerformanceTitle(),
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                SeasonRecord([..._seasons, ..._importedSeasons],
+                                    singleSeason: false, isOverall: true),
+                              ],
+                            ),
                           ),
                         ),
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.emoji_events,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    _getTeamPerformanceTitle(),
+                      ),
+                    // Show loading placeholder when seasons are still loading
+                    if (!_allSeasonsLoaded)
+                      Card(
+                        elevation: 4,
+                        clipBehavior: Clip.antiAlias,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer
+                                    .withValues(alpha: 0.3),
+                                Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHigh,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.emoji_events,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    loc.teamPerformance,
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -1003,268 +1085,385 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                           .colorScheme
                                           .onSurface,
                                     ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    loc.loadingAllSeasons,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Analytics Carousel - Show comprehensive team statistics
+                    if (_allSeasonsLoaded) ...[
+                      const SizedBox(height: 16),
+                      _buildAnalyticsCarousel(),
+                    ],
+                  ],
+                  // Team Accomplishments Section (Collapsible)
+                  // Show if there are accomplishments OR if user is admin (to allow adding first one)
+                  if (_accomplishments.isNotEmpty ||
+                      (!kIsWeb &&
+                          _team?.isTeamAdmin(
+                                  FirebaseAuth.instance.currentUser?.uid) ==
+                              true)) ...[
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _accomplishmentsExpanded =
+                                !_accomplishmentsExpanded;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    _accomplishmentsExpanded
+                                        ? Icons.keyboard_arrow_down
+                                        : Icons.keyboard_arrow_right,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    loc.teamAccomplishments,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (!kIsWeb &&
+                                  _team?.isTeamAdmin(FirebaseAuth
+                                          .instance.currentUser?.uid) ==
+                                      true)
+                                IconButton(
+                                  icon: const Icon(Icons.add, size: 20),
+                                  onPressed: () =>
+                                      _showAddAccomplishmentDialog(),
+                                  tooltip: loc.addAccomplishment,
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Show content when expanded
+                    if (_accomplishmentsExpanded) ...[
+                      // Show empty state if no accomplishments
+                      if (_accomplishments.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Card(
+                            elevation: 1,
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outlineVariant,
+                                width: 1,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.emoji_events_outlined,
+                                    size: 48,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No team accomplishments yet',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Tap + to add championships, milestones, and awards',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .withValues(alpha: 0.7),
+                                    ),
                                     textAlign: TextAlign.center,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            SeasonRecord([..._seasons, ..._importedSeasons],
-                                singleSeason: false, isOverall: true),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                // Show loading placeholder when seasons are still loading
-                if (!_allSeasonsLoaded)
-                  Card(
-                    elevation: 4,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.3),
-                            Theme.of(context).colorScheme.surfaceContainerHigh,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.emoji_events,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.teamPerformance,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
                           ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                loc.loadingAllSeasons,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                // Analytics Carousel - Show comprehensive team statistics
-                if (_allSeasonsLoaded) ...[
-                  const SizedBox(height: 16),
-                  _buildAnalyticsCarousel(),
-                ],
-              ],
-              // Team Accomplishments Section (Collapsible)
-              // Show if there are accomplishments OR if user is admin (to allow adding first one)
-              if (_accomplishments.isNotEmpty ||
-                  (!kIsWeb &&
-                      _team?.isTeamAdmin(
-                              FirebaseAuth.instance.currentUser?.uid) ==
-                          true)) ...[
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _accomplishmentsExpanded = !_accomplishmentsExpanded;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                        ),
+                      // Show accomplishments - carousel on web, list on mobile
+                      if (_accomplishments.isNotEmpty)
+                        if (kIsWeb)
+                          // Web: Carousel view
+                          _buildAccomplishmentsCarousel()
+                        else if (_team?.isTeamAdmin(
+                                    FirebaseAuth.instance.currentUser?.uid) ==
+                                true &&
+                            _accomplishments.length > 1)
+                          // Mobile admin: Reorderable list
+                          ReorderableListView(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            onReorder: _onReorderAccomplishments,
+                            children: _accomplishments
+                                .map((accomplishment) => Padding(
+                                      key: ValueKey(accomplishment.id),
+                                      padding:
+                                          const EdgeInsets.only(bottom: 12),
+                                      child: _buildAccomplishmentCard(
+                                          accomplishment),
+                                    ))
+                                .toList(),
+                          )
+                        else
+                          // Mobile non-admin or single item: Regular list
+                          ..._accomplishments
+                              .map((accomplishment) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildAccomplishmentCard(
+                                        accomplishment),
+                                  ))
+                              .toList(),
+                    ],
+                  ],
+                  const SizedBox(height: 24),
+                  // Section header for individual seasons
+                  if (_seasons.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _accomplishmentsExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_right,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.teamAccomplishments,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (!kIsWeb &&
-                              _team?.isTeamAdmin(
-                                      FirebaseAuth.instance.currentUser?.uid) ==
-                                  true)
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 20),
-                              onPressed: () => _showAddAccomplishmentDialog(),
-                              tooltip: loc.addAccomplishment,
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
+                          Text(
+                            loc.seasons,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              letterSpacing: 0.5,
                             ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-                // Show content when expanded
-                if (_accomplishmentsExpanded) ...[
-                  // Show empty state if no accomplishments
-                  if (_accomplishments.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                ]),
+              ),
+            ),
+            SliverPadding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 16.0 + horizontalPadding),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final season = _seasons[index];
+                    final databaseId = DatabaseService.instance.publicShareId;
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (databaseId != null) {
+                          NavigationHelper.navigateTo(
+                              context, '/team/$databaseId/season/${season.id}',
+                              extra: season);
+                        }
+                      },
                       child: Card(
-                        elevation: 1,
+                        elevation: 3,
                         clipBehavior: Clip.antiAlias,
+                        color: Theme.of(context).colorScheme.surface,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                           side: BorderSide(
                             color: Theme.of(context).colorScheme.outlineVariant,
                             width: 1,
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.emoji_events_outlined,
-                                size: 48,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant
-                                    .withValues(alpha: 0.5),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Header section with season name - MOVED TO TOP
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
                               ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No team accomplishments yet',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    season.team.color1.withValues(alpha: 0.15),
+                                    season.team.color2.withValues(alpha: 0.10),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tap + to add championships, milestones, and awards',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant
-                                      .withValues(alpha: 0.7),
-                                ),
-                                textAlign: TextAlign.center,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (season.team.logoUrl != null &&
+                                      season.team.logoUrl!.isNotEmpty) ...[
+                                    ResponsiveAvatar(
+                                      size: 24,
+                                      imageUrl: season.team.logoUrl,
+                                      initials: season.team.fullName[0],
+                                    ),
+                                    const SizedBox(width: 12),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      season.name,
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  // Edit button for admins on mobile
+                                  if (!kIsWeb &&
+                                      _team?.isTeamAdmin(FirebaseAuth
+                                              .instance.currentUser?.uid) ==
+                                          true) ...[
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        size: 20,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                      onPressed: () =>
+                                          _showEditSeasonNameDialog(season),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                            // Season image banner (if available)
+                            if (season.logoUrl != null &&
+                                season.logoUrl!.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _showSeasonPhoto(context, season.logoUrl);
+                                },
+                                child: Container(
+                                  height: 180,
+                                  color: Colors.transparent,
+                                  child: Image.network(
+                                    season.logoUrl!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Icon(
+                                          Icons.image_not_supported,
+                                          size: 48,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            // Stats section
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: SeasonRecord([season]),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  // Show accomplishments - carousel on web, list on mobile
-                  if (_accomplishments.isNotEmpty)
-                    if (kIsWeb)
-                      // Web: Carousel view
-                      _buildAccomplishmentsCarousel()
-                    else if (_team?.isTeamAdmin(
-                                FirebaseAuth.instance.currentUser?.uid) ==
-                            true &&
-                        _accomplishments.length > 1)
-                      // Mobile admin: Reorderable list
-                      ReorderableListView(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        onReorder: _onReorderAccomplishments,
-                        children: _accomplishments
-                            .map((accomplishment) => Padding(
-                                  key: ValueKey(accomplishment.id),
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child:
-                                      _buildAccomplishmentCard(accomplishment),
-                                ))
-                            .toList(),
-                      )
-                    else
-                      // Mobile non-admin or single item: Regular list
-                      ..._accomplishments
-                          .map((accomplishment) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildAccomplishmentCard(accomplishment),
-                              ))
-                          .toList(),
-                ],
-              ],
-              const SizedBox(height: 24),
-              // Section header for individual seasons
-              if (_seasons.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                    );
+                  },
+                  childCount: _seasons.length,
+                ),
+              ),
+            ),
+            // Imported Seasons Section
+            if (_importedSeasons.isNotEmpty || _isLoadingImportedSeasons) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20 + horizontalPadding,
+                    right: 20 + horizontalPadding,
+                    top: 32,
+                    bottom: 8,
+                  ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Icon(
+                        Icons.cloud_download,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        loc.seasons,
+                        'Imported Seasons',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1272,308 +1471,170 @@ class _TeamHomePageState extends State<TeamHomePage> {
                           letterSpacing: 0.5,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      if (_isLoadingImportedSeasons) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Loading...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                      Expanded(
+                        child: Divider(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-            ]),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final season = _seasons[index];
-                final databaseId = DatabaseService.instance.publicShareId;
+              ),
+              SliverPadding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: 16.0 + horizontalPadding),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final season = _importedSeasons[index];
+                      final databaseId = DatabaseService.instance.publicShareId;
 
-                return GestureDetector(
-                  onTap: () {
-                    if (databaseId != null) {
-                      NavigationHelper.navigateTo(
-                          context, '/team/$databaseId/season/${season.id}',
-                          extra: season);
-                    }
-                  },
-                  child: Card(
-                    elevation: 3,
-                    clipBehavior: Clip.antiAlias,
-                    color: Theme.of(context).colorScheme.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Season image banner (if available)
-                        if (season.logoUrl != null &&
-                            season.logoUrl!.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _showSeasonPhoto(context, season.logoUrl);
-                            },
-                            child: Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: NetworkImage(season.logoUrl!),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
+                      return GestureDetector(
+                        onTap: () {
+                          if (databaseId != null) {
+                            NavigationHelper.navigateTo(context,
+                                '/team/$databaseId/season/${season.id}',
+                                extra: season);
+                          }
+                        },
+                        child: Card(
+                          elevation: 3,
+                          clipBehavior: Clip.antiAlias,
+                          color: Theme.of(context).colorScheme.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.3),
+                              width: 1.5,
                             ),
                           ),
-                        // Header section with gradient background
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                season.team.color1.withValues(alpha: 0.15),
-                                season.team.color2.withValues(alpha: 0.10),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (season.team.logoUrl != null &&
-                                  season.team.logoUrl!.isNotEmpty) ...[
-                                ResponsiveAvatar(
-                                  size: 24,
-                                  imageUrl: season.team.logoUrl,
-                                  initials: season.team.fullName[0],
+                              // Header section with season name - MOVED TO TOP
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 16,
                                 ),
-                                const SizedBox(width: 12),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  season.name,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(alpha: 0.08),
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .secondary
+                                          .withValues(alpha: 0.05),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_download,
+                                      size: 18,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (season.team.logoUrl != null &&
+                                        season.team.logoUrl!.isNotEmpty) ...[
+                                      ResponsiveAvatar(
+                                        size: 24,
+                                        imageUrl: season.team.logoUrl,
+                                        initials: season.team.fullName[0],
+                                      ),
+                                      const SizedBox(width: 12),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        season.name,
+                                        style: TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              // Edit button for admins on mobile
-                              if (!kIsWeb &&
-                                  _team?.isTeamAdmin(FirebaseAuth
-                                          .instance.currentUser?.uid) ==
-                                      true) ...[
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.edit,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                              // Season image banner (if available)
+                              if (season.logoUrl != null &&
+                                  season.logoUrl!.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    _showSeasonPhoto(context, season.logoUrl);
+                                  },
+                                  child: Container(
+                                    height: 180,
+                                    color: Colors.transparent,
+                                    child: Image.network(
+                                      season.logoUrl!,
+                                      fit: BoxFit.contain,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return Center(
+                                          child: Icon(
+                                            Icons.image_not_supported,
+                                            size: 48,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outline,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                  onPressed: () =>
-                                      _showEditSeasonNameDialog(season),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
                                 ),
-                              ],
+                              // Stats section
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: SeasonRecord([season]),
+                              ),
                             ],
                           ),
                         ),
-                        // Stats section
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: SeasonRecord([season]),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              childCount: _seasons.length,
-            ),
-          ),
-        ),
-        // Imported Seasons Section
-        if (_importedSeasons.isNotEmpty || _isLoadingImportedSeasons) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  left: 20, right: 20, top: 32, bottom: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.cloud_download,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Imported Seasons',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (_isLoadingImportedSeasons) ...[
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Loading...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                  Expanded(
-                    child: Divider(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final season = _importedSeasons[index];
-                  final databaseId = DatabaseService.instance.publicShareId;
-
-                  return GestureDetector(
-                    onTap: () {
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/season/${season.id}',
-                            extra: season);
-                      }
+                      );
                     },
-                    child: Card(
-                      elevation: 3,
-                      clipBehavior: Clip.antiAlias,
-                      color: Theme.of(context).colorScheme.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Season image banner (if available)
-                          if (season.logoUrl != null &&
-                              season.logoUrl!.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _showSeasonPhoto(context, season.logoUrl);
-                              },
-                              child: Container(
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: NetworkImage(season.logoUrl!),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          // Header section with gradient background
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.08),
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .secondary
-                                      .withValues(alpha: 0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.cloud_download,
-                                  size: 18,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                if (season.team.logoUrl != null &&
-                                    season.team.logoUrl!.isNotEmpty) ...[
-                                  ResponsiveAvatar(
-                                    size: 24,
-                                    imageUrl: season.team.logoUrl,
-                                    initials: season.team.fullName[0],
-                                  ),
-                                  const SizedBox(width: 12),
-                                ],
-                                Flexible(
-                                  child: Text(
-                                    season.name,
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Stats section
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: SeasonRecord([season]),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                childCount: _importedSeasons.length,
+                    childCount: _importedSeasons.length,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
-      ],
+            ],
+          ],
+        );
+      },
     );
   }
 

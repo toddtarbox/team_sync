@@ -45,6 +45,14 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       _errorMessage = null;
     });
 
+    // Debug logging
+    debugPrint('PIN Validation Attempt:');
+    debugPrint('  Player ID: ${widget.player.id}');
+    debugPrint('  Season ID: ${widget.player.seasonId}');
+    debugPrint('  PIN entered: $pin');
+    debugPrint('  PIN length: ${pin.length}');
+    debugPrint('  Database path: ${DatabaseService.instance.fullDatabasePath}');
+
     try {
       // Validate PIN via Cloud Function (server-side validation)
       final dbPath = DatabaseService.instance.fullDatabasePath;
@@ -61,13 +69,17 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
         'pin': pin,
       });
 
+      debugPrint('PIN validation result: ${result.data}');
+
       if (result.data['valid'] == true) {
         // PIN is correct - return the PIN value
+        debugPrint('PIN validation successful!');
         if (mounted) {
           Navigator.of(context).pop(pin);
         }
       } else {
         // PIN is incorrect
+        debugPrint('PIN validation failed: valid = ${result.data['valid']}');
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -78,6 +90,7 @@ class _PinEntryDialogState extends State<PinEntryDialog> {
       }
     } catch (e) {
       // Handle errors (invalid PIN, network issues, etc.)
+      debugPrint('PIN validation error: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;

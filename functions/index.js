@@ -1,19 +1,24 @@
-const functions = require('firebase-functions');
+const {onCall, HttpsError} = require('firebase-functions/v2/https');
+const {setGlobalOptions} = require('firebase-functions/v2');
+const {onValueWritten} = require('firebase-functions/v2/database');
 const admin = require('firebase-admin');
+
+// Set global options for all v2 functions
+setGlobalOptions({
+  region: 'us-central1',
+  maxInstances: 10,
+});
 
 admin.initializeApp();
 
-// When a database document's publicShareId is set/changed/removed, keep a
-// top-level mapping under /shared_databases/<publicId> => { databasePath }
-// This makes public lookups efficient while preserving per-db storage.
-
-exports.onDatabasePublicShareIdChange = functions.database
-  .ref('/subscriptionIds/{uid}/databases/{dbKey}/publicShareId')
-  .onWrite(async (change, context) => {
-    const before = change.before.val();
-    const after = change.after.val();
-    const uid = context.params.uid;
-    const dbKey = context.params.dbKey;
+// Convert v1 database trigger to v2
+exports.onDatabasePublicShareIdChange = onValueWritten(
+  '/subscriptionIds/{uid}/databases/{dbKey}/publicShareId',
+  async (event) => {
+    const before = event.data.before.val();
+    const after = event.data.after.val();
+    const uid = event.params.uid;
+    const dbKey = event.params.dbKey;
     const databasePath = `subscriptionIds/${uid}/databases/${dbKey}`;
 
     const db = admin.database();
@@ -42,11 +47,11 @@ exports.onDatabasePublicShareIdChange = functions.database
 // When any row under a database's tables is written, update the database
 // document's `lastUpdated` with a server timestamp. This allows read-only
 // web viewers to show an authoritative last-updated time.
-exports.onDatabaseRowWrite = functions.database
-  .ref('/subscriptionIds/{uid}/databases/{dbKey}/{table}/{id}')
-  .onWrite(async (change, context) => {
-    const uid = context.params.uid;
-    const dbKey = context.params.dbKey;
+exports.onDatabaseRowWrite = onValueWritten(
+  '/subscriptionIds/{uid}/databases/{dbKey}/{table}/{id}',
+  async (event) => {
+    const uid = event.params.uid;
+    const dbKey = event.params.dbKey;
     const databasePath = `subscriptionIds/${uid}/databases/${dbKey}`;
 
     const db = admin.database();
@@ -63,12 +68,12 @@ exports.onDatabaseRowWrite = functions.database
 
 // HTTP callable function to update player profile with PIN authentication
 // This allows unauthenticated web users to update their own profiles
-exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
-  const { databasePath, playerId, seasonId, pin, updates, table, operation } = data;
+exports.updatePlayerWithPin = onCall(async (request) => {
+  const { databasePath, playerId, seasonId, pin, updates, table, operation } = request.data;
 
   // Validate required fields
   if (!databasePath || !playerId || !seasonId || !pin) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Missing required fields: databasePath, playerId, seasonId, pin'
     );
@@ -80,7 +85,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
   // Validate table is allowed
   const allowedTables = ['Players', 'PlayerAwards', 'PlayerHighlights'];
   if (!allowedTables.includes(targetTable)) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       `Invalid table: ${targetTable}. Allowed tables: ${allowedTables.join(', ')}`
     );
@@ -94,7 +99,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
     const snapshot = await playersRef.orderByChild('id').equalTo(playerId).once('value');
 
     if (!snapshot.exists()) {
-      throw new functions.https.HttpsError('not-found', 'Player not found');
+      throw new HttpsError('not-found', 'Player not found');
     }
 
     // Find the specific player for this season
@@ -109,7 +114,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
     });
 
     if (!playerData) {
-      throw new functions.https.HttpsError('not-found', 'Player not found for this season');
+      throw new HttpsError('not-found', 'Player not found for this season');
     }
 
     // Validate PIN (compare as strings to handle type mismatches)
@@ -117,7 +122,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
     const providedPin = String(pin || '');
 
     if (storedPin !== providedPin) {
-      throw new functions.https.HttpsError('permission-denied', 'Invalid PIN');
+      throw new HttpsError('permission-denied', 'Invalid PIN');
     }
 
     // PIN is valid - now handle the specific table operation
@@ -126,7 +131,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
       const playerKey = await findPlayerKey(db, databasePath, playerId, seasonId);
 
       // Whitelist allowed fields for Players table
-      const allowedFields = ['profileImage', 'actionPhoto', 'firstName', 'lastName', 'number'];
+      const allowedFields = ['profileImage', 'actionPhoto', 'headshot', 'firstName', 'lastName', 'number', 'editPin'];
       const sanitizedUpdates = {};
 
       for (const field of allowedFields) {
@@ -135,9 +140,9 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
         }
       }
 
-      // Prevent removal of PIN
+      // Prevent removal of PIN - allow setting new PIN but not removing it
       if (sanitizedUpdates.hasOwnProperty('editPin') && !sanitizedUpdates.editPin) {
-        throw new functions.https.HttpsError('invalid-argument', 'Cannot remove PIN');
+        delete sanitizedUpdates.editPin; // Don't update if trying to clear
       }
 
       await db.ref(`${databasePath}/Players/${playerKey}`).update(sanitizedUpdates);
@@ -149,7 +154,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
       const { id, title, description, imageUrl } = updates || {};
 
       if (!id) {
-        throw new functions.https.HttpsError('invalid-argument', 'Award requires id');
+        throw new HttpsError('invalid-argument', 'Award requires id');
       }
 
       // Handle delete operation
@@ -160,7 +165,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
 
       // Handle save operation (insert or update)
       if (!title) {
-        throw new functions.https.HttpsError('invalid-argument', 'Award requires title');
+        throw new HttpsError('invalid-argument', 'Award requires title');
       }
 
       const awardData = {
@@ -178,11 +183,38 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
       return { success: true, message: 'Player award saved successfully' };
 
     } else if (targetTable === 'PlayerHighlights') {
-      // Handle PlayerHighlights - insert or update
+      // Handle PlayerHighlights - insert, update, or delete
       const { id, title, description, videoUrl, date } = updates || {};
 
-      if (!id || !title || !videoUrl) {
-        throw new functions.https.HttpsError('invalid-argument', 'Highlight requires id, title, and videoUrl');
+      if (!id) {
+        throw new HttpsError('invalid-argument', 'Highlight requires id');
+      }
+
+      // Handle delete operation
+      if (operation === 'delete') {
+        await db.ref(`${databasePath}/PlayerHighlights/${id}`).remove();
+        return { success: true, message: 'Player highlight deleted successfully' };
+      }
+
+      // Handle save operation (insert or update)
+      if (!title || !videoUrl) {
+        throw new HttpsError('invalid-argument', 'Highlight requires title and videoUrl');
+      }
+
+      // Convert date to ISO8601 string for consistency with mobile saves
+      let dateString;
+      if (date) {
+        // If date is provided as milliseconds, convert to ISO string
+        if (typeof date === 'number') {
+          dateString = new Date(date).toISOString();
+        } else if (typeof date === 'string') {
+          // Already a string, keep it
+          dateString = date;
+        } else {
+          dateString = new Date().toISOString();
+        }
+      } else {
+        dateString = new Date().toISOString();
       }
 
       const highlightData = {
@@ -191,7 +223,7 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
         title,
         description: description || null,
         videoUrl,
-        date: date || Date.now(),
+        date: dateString,
       };
 
       // Use the highlight ID as the key
@@ -200,18 +232,18 @@ exports.updatePlayerWithPin = functions.https.onCall(async (data, context) => {
       return { success: true, message: 'Player highlight saved successfully' };
     }
 
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid operation');
+    throw new HttpsError('invalid-argument', 'Invalid operation');
 
   } catch (error) {
     console.error('Error updating with PIN:', error);
 
     // Re-throw HttpsError
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
     // Wrap other errors
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'internal',
       'Failed to update',
       error.message
@@ -234,7 +266,7 @@ async function findPlayerKey(db, databasePath, playerId, seasonId) {
   });
 
   if (!playerKey) {
-    throw new functions.https.HttpsError('not-found', 'Player key not found');
+    throw new HttpsError('not-found', 'Player key not found');
   }
 
   return playerKey;
@@ -245,14 +277,14 @@ function generateNewPin() {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-// HTTP callable function to validate player PIN
+// Validate a player's PIN (web only)
 // This allows web users to authenticate without exposing the PIN to the client
-exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
-  const { databasePath, playerId, seasonId, pin } = data;
+exports.validatePlayerPin = onCall(async (request) => {
+  const { databasePath, playerId, seasonId, pin } = request.data;
 
   // Validate required fields
   if (!databasePath || !playerId || !seasonId || !pin) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Missing required fields: databasePath, playerId, seasonId, pin'
     );
@@ -266,7 +298,7 @@ exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
     const snapshot = await playersRef.orderByChild('id').equalTo(playerId).once('value');
 
     if (!snapshot.exists()) {
-      throw new functions.https.HttpsError('not-found', 'Player not found');
+      throw new HttpsError('not-found', 'Player not found');
     }
 
     // Find the specific player for this season
@@ -281,15 +313,33 @@ exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
     });
 
     if (!playerData) {
-      throw new functions.https.HttpsError('not-found', 'Player not found for this season');
+      throw new HttpsError('not-found', 'Player not found for this season');
     }
 
     // Validate PIN (compare as strings to handle type mismatches)
     const storedPin = String(playerData.editPin || '');
     const providedPin = String(pin || '');
 
+    console.log('PIN Validation Debug:', {
+      playerId,
+      seasonId,
+      storedPin: storedPin ? '****' : '(empty)',
+      storedPinLength: storedPin.length,
+      providedPin: providedPin ? '****' : '(empty)',
+      providedPinLength: providedPin.length,
+      storedPinType: typeof playerData.editPin,
+      providedPinType: typeof pin,
+      rawStoredPin: playerData.editPin,
+      rawProvidedPin: pin,
+    });
+
     if (storedPin !== providedPin) {
-      throw new functions.https.HttpsError('permission-denied', 'Invalid PIN');
+      console.error('PIN mismatch:', {
+        stored: storedPin,
+        provided: providedPin,
+        match: storedPin === providedPin
+      });
+      throw new HttpsError('permission-denied', 'Invalid PIN');
     }
 
     // PIN is valid
@@ -299,12 +349,12 @@ exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
     console.error('Error validating PIN:', error);
 
     // Re-throw HttpsError
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
     // Wrap other errors
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'internal',
       'Failed to validate PIN',
       error.message
@@ -314,12 +364,12 @@ exports.validatePlayerPin = functions.https.onCall(async (data, context) => {
 
 // HTTP callable function to regenerate PIN when user exits edit mode
 // This ensures PIN is single-session only
-exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {
-  const { databasePath, playerId, seasonId, currentPin } = data;
+exports.regeneratePlayerPin = onCall(async (request) => {
+  const { databasePath, playerId, seasonId, currentPin } = request.data;
 
   // Validate required fields
   if (!databasePath || !playerId || !seasonId || !currentPin) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Missing required fields: databasePath, playerId, seasonId, currentPin'
     );
@@ -333,7 +383,7 @@ exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {
     const snapshot = await playersRef.orderByChild('id').equalTo(playerId).once('value');
 
     if (!snapshot.exists()) {
-      throw new functions.https.HttpsError('not-found', 'Player not found');
+      throw new HttpsError('not-found', 'Player not found');
     }
 
     // Find the specific player for this season
@@ -350,7 +400,7 @@ exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {
     });
 
     if (!playerData || !playerKey) {
-      throw new functions.https.HttpsError('not-found', 'Player not found for this season');
+      throw new HttpsError('not-found', 'Player not found for this season');
     }
 
     // Validate current PIN (compare as strings to handle type mismatches)
@@ -358,7 +408,7 @@ exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {
     const providedPin = String(currentPin || '');
 
     if (storedPin !== providedPin) {
-      throw new functions.https.HttpsError('permission-denied', 'Invalid PIN');
+      throw new HttpsError('permission-denied', 'Invalid PIN');
     }
 
     // Generate new PIN
@@ -375,12 +425,12 @@ exports.regeneratePlayerPin = functions.https.onCall(async (data, context) => {
     console.error('Error regenerating PIN:', error);
 
     // Re-throw HttpsError
-    if (error instanceof functions.https.HttpsError) {
+    if (error instanceof HttpsError) {
       throw error;
     }
 
     // Wrap other errors
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'internal',
       'Failed to regenerate PIN',
       error.message

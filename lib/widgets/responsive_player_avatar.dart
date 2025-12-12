@@ -31,44 +31,11 @@ class ResponsivePlayerAvatar extends StatefulWidget {
 }
 
 class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
-  String? _profileImage;
-  String? _actionPhoto;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadImages();
-  }
-
-  @override
-  void didUpdateWidget(ResponsivePlayerAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reload images if player changed
-    if (oldWidget.player.id != widget.player.id ||
-        oldWidget.player.seasonId != widget.player.seasonId) {
-      _loadImages();
-    }
-  }
-
-  Future<void> _loadImages() async {
-    // Find latest available images across all seasons
-    final images = await widget.player.findLatestAvailableImages();
-    if (mounted) {
-      setState(() {
-        _profileImage = images['profileImage'];
-        _actionPhoto = images['actionPhoto'];
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Use loaded images from state (which includes fallback to previous seasons)
-    final imageUrl = (_profileImage != null && _profileImage!.isNotEmpty)
-        ? _profileImage
-        : _actionPhoto;
+    // Use the displayImageForStats helper which prioritizes:
+    // headshot > profileImage > actionPhoto
+    final imageUrl = widget.player.displayImageForStats;
 
     // Build a generic ResponsiveAvatar with player-derived data
     final responsiveAvatar = ResponsiveAvatar(
@@ -105,8 +72,7 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
 
                 // If already on the player profile page, show larger view
                 if (isOnPlayerProfile &&
-                    ((_profileImage != null && _profileImage!.isNotEmpty) ||
-                        (_actionPhoto != null && _actionPhoto!.isNotEmpty))) {
+                    widget.player.displayImageForProfile != null) {
                   _showLargeProfileImage(context);
                 } else {
                   // Navigate to player profile page
@@ -123,10 +89,9 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
 
   /// Shows a larger view of the player's profile image in a dialog
   void _showLargeProfileImage(BuildContext context) {
-    // Use loaded images from state (which includes fallback to previous seasons)
-    final imageUrl = (_profileImage != null && _profileImage!.isNotEmpty)
-        ? _profileImage
-        : _actionPhoto;
+    // Use displayImageForProfile helper which prioritizes:
+    // profileImage > headshot > actionPhoto
+    final imageUrl = widget.player.displayImageForProfile;
 
     showDialog(
       context: context,

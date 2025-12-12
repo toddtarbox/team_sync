@@ -1766,6 +1766,11 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   /// Build award card for carousel (compact, focused view)
   Widget _buildAwardCarouselCard(PlayerAward award) {
+    // Use award image if available, otherwise fall back to player's best image
+    final displayImage = (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+        ? award.imageUrl!
+        : widget.player.displayImageForStats;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8.0),
       elevation: 3,
@@ -1777,10 +1782,10 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Award image/icon
-              if (award.imageUrl != null && award.imageUrl!.isNotEmpty)
+              // Award image/icon - use player image as fallback
+              if (displayImage != null)
                 TappableImage.network(
-                  imageUrl: award.imageUrl!,
+                  imageUrl: displayImage,
                   width: 120,
                   height: 120,
                   fit: BoxFit.cover,

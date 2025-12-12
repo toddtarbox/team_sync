@@ -28,6 +28,7 @@ class PlayersPage extends StatefulWidget {
 class _PlayersPageState extends State<PlayersPage> {
   File? _imageFile;
   File? _actionPhotoFile; // For action photos (baseball card style)
+  File? _headshotFile; // For headshot photos (stats and lineups)
   bool _isLoading = true;
   bool _loadError = false;
 
@@ -354,6 +355,7 @@ class _PlayersPageState extends State<PlayersPage> {
     late int playerNumber = player.number;
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
+    _headshotFile = null; // Reset headshot file
     bool isSaving = false; // Local saving state for this dialog
 
     showModalBottomSheet(
@@ -367,7 +369,7 @@ class _PlayersPageState extends State<PlayersPage> {
                     child: Column(children: [
                       Text(AppLocalizations.of(context)!.editPlayer),
                       const SizedBox(height: 16),
-                      // Profile and Action Photo Row
+                      // Profile, Action Photo, and Headshot Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -565,6 +567,130 @@ class _PlayersPageState extends State<PlayersPage> {
                               ),
                             ],
                           ),
+                          // Headshot Photo
+                          Column(
+                            children: [
+                              InkWell(
+                                onTap: kIsWeb
+                                    ? null
+                                    : () async {
+                                        if (!SubscriptionService
+                                            .instance.isSubscribed) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .proFeature),
+                                                content: const Text(
+                                                    'Headshots for stats and lineups are a Pro feature!'),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .goPro),
+                                                    onPressed: () async {
+                                                      Navigator.pop(context);
+                                                      await SubscriptionService
+                                                          .instance
+                                                          .purchaseSubscription();
+                                                    },
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          return;
+                                        }
+                                        final pickedFile = await ImagePicker()
+                                            .pickImage(
+                                                source: ImageSource.gallery);
+                                        if (pickedFile != null) {
+                                          setModalState(() {
+                                            _headshotFile =
+                                                File(pickedFile.path);
+                                          });
+                                        }
+                                      },
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: widget.season.team.color1,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _headshotFile != null
+                                      ? ClipOval(
+                                          child: Image.file(
+                                            _headshotFile!,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : player.headshot != null &&
+                                              player.headshot!.isNotEmpty
+                                          ? player.headshot!.startsWith('http')
+                                              ? ClipOval(
+                                                  child: TappableImage.network(
+                                                    imageUrl: player.headshot!,
+                                                    fit: BoxFit.cover,
+                                                    heroTag:
+                                                        'player_headshot_${player.id}',
+                                                    errorWidget: const Icon(
+                                                      Icons.account_circle,
+                                                      size: 28,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                )
+                                              : ClipOval(
+                                                  child: Image.file(
+                                                    File(player.headshot!),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context,
+                                                        error, stackTrace) {
+                                                      return const Icon(
+                                                        Icons.account_circle,
+                                                        size: 28,
+                                                        color: Colors.grey,
+                                                      );
+                                                    },
+                                                  ),
+                                                )
+                                          : const Icon(
+                                              Icons.account_circle,
+                                              size: 28,
+                                              color: Colors.grey,
+                                            ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Headshot',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                              const Text(
+                                '(for stats/lineups)',
+                                style:
+                                    TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -667,6 +793,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                     player.profileImage;
                                                 String? actionPhotoUrl =
                                                     player.actionPhoto;
+                                                String? headshotUrl =
+                                                    player.headshot;
 
                                                 // Handle profile image upload
                                                 if (_imageFile != null) {
@@ -724,6 +852,33 @@ class _PlayersPageState extends State<PlayersPage> {
                                                           .getDownloadURL();
                                                 }
 
+                                                // Handle headshot upload
+                                                if (_headshotFile != null) {
+                                                  if (player.headshot != null &&
+                                                      player.headshot!
+                                                          .isNotEmpty) {
+                                                    try {
+                                                      await FirebaseStorage
+                                                          .instance
+                                                          .refFromURL(
+                                                              player.headshot!)
+                                                          .delete();
+                                                    } catch (e) {
+                                                      // Image may not exist, so we can ignore.
+                                                    }
+                                                  }
+                                                  final headshotStorageRef =
+                                                      FirebaseStorage.instance
+                                                          .ref()
+                                                          .child(
+                                                              'player_headshots/${DateTime.now().toIso8601String()}');
+                                                  await headshotStorageRef
+                                                      .putFile(_headshotFile!);
+                                                  headshotUrl =
+                                                      await headshotStorageRef
+                                                          .getDownloadURL();
+                                                }
+
                                                 final nameParts =
                                                     playerName.split(' ');
                                                 final firstName =
@@ -761,6 +916,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                                     imageUrl,
                                                                 'actionPhoto':
                                                                     actionPhotoUrl,
+                                                                'headshot':
+                                                                    headshotUrl,
                                                                 'editPin': player
                                                                     .editPin,
                                                               },

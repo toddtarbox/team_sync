@@ -32,8 +32,10 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   final ImagePicker _picker = ImagePicker();
   XFile? _profileImageFile;
   XFile? _actionPhotoFile;
+  XFile? _headshotFile;
   String? _profileImageUrl;
   String? _actionPhotoUrl;
+  String? _headshotUrl;
   bool _isUploading = false;
 
   Future<List<PlayerHighlight>>? _highlightsFuture;
@@ -44,6 +46,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     super.initState();
     _profileImageUrl = widget.player.profileImage;
     _actionPhotoUrl = widget.player.actionPhoto;
+    _headshotUrl = widget.player.headshot;
     _loadHighlights();
     _loadAwards();
   }
@@ -60,7 +63,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     });
   }
 
-  Future<void> _pickImage(ImageSource source, bool isProfileImage) async {
+  Future<void> _pickImage(ImageSource source, String imageType) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
@@ -71,16 +74,18 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
 
       if (pickedFile != null) {
         setState(() {
-          if (isProfileImage) {
+          if (imageType == 'profile') {
             _profileImageFile = pickedFile;
-          } else {
+          } else if (imageType == 'action') {
             _actionPhotoFile = pickedFile;
+          } else if (imageType == 'headshot') {
+            _headshotFile = pickedFile;
           }
         });
 
         // Auto-upload on web
         if (kIsWeb) {
-          await _uploadImage(isProfileImage);
+          await _uploadImage(imageType);
         }
       }
     } catch (e) {
@@ -92,7 +97,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     }
   }
 
-  Future<void> _uploadImage(bool isProfileImage) async {
+  Future<void> _uploadImage(String imageType) async {
     final loc = AppLocalizations.of(context)!;
 
     setState(() {
@@ -100,10 +105,17 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     });
 
     try {
-      final file = isProfileImage ? _profileImageFile : _actionPhotoFile;
-      final oldUrl = isProfileImage
+      final file = imageType == 'profile'
+          ? _profileImageFile
+          : imageType == 'action'
+              ? _actionPhotoFile
+              : _headshotFile;
+
+      final oldUrl = imageType == 'profile'
           ? widget.player.profileImage
-          : widget.player.actionPhoto;
+          : imageType == 'action'
+              ? widget.player.actionPhoto
+              : widget.player.headshot;
 
       if (file != null) {
         // Delete old image if exists
@@ -116,9 +128,11 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
         }
 
         // Upload new image
-        final path = isProfileImage
+        final path = imageType == 'profile'
             ? 'player_images/${widget.player.id}_${DateTime.now().millisecondsSinceEpoch}'
-            : 'player_action_photos/${widget.player.id}_${DateTime.now().millisecondsSinceEpoch}';
+            : imageType == 'action'
+                ? 'player_action_photos/${widget.player.id}_${DateTime.now().millisecondsSinceEpoch}'
+                : 'player_headshots/${widget.player.id}_${DateTime.now().millisecondsSinceEpoch}';
 
         final storageRef = FirebaseStorage.instance.ref().child(path);
 
@@ -136,12 +150,15 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
         final downloadUrl = await storageRef.getDownloadURL();
 
         // Update player
-        if (isProfileImage) {
+        if (imageType == 'profile') {
           widget.player.profileImage = downloadUrl;
           _profileImageUrl = downloadUrl;
-        } else {
+        } else if (imageType == 'action') {
           widget.player.actionPhoto = downloadUrl;
           _actionPhotoUrl = downloadUrl;
+        } else if (imageType == 'headshot') {
+          widget.player.headshot = downloadUrl;
+          _headshotUrl = downloadUrl;
         }
 
         // Use saveWithPin on web if PIN is available, otherwise use regular save
@@ -169,11 +186,12 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
         _isUploading = false;
         _profileImageFile = null;
         _actionPhotoFile = null;
+        _headshotFile = null;
       });
     }
   }
 
-  void _showImageSourceDialog(bool isProfileImage) {
+  void _showImageSourceDialog(String imageType) {
     final loc = AppLocalizations.of(context)!;
 
     showDialog(
@@ -189,7 +207,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                 title: Text(loc.camera),
                 onTap: () {
                   Navigator.pop(context);
-                  _pickImage(ImageSource.camera, isProfileImage);
+                  _pickImage(ImageSource.camera, imageType);
                 },
               ),
             ListTile(
@@ -197,7 +215,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
               title: Text(loc.gallery),
               onTap: () {
                 Navigator.pop(context);
-                _pickImage(ImageSource.gallery, isProfileImage);
+                _pickImage(ImageSource.gallery, imageType);
               },
             ),
           ],
@@ -245,7 +263,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
               title: loc.profilePicture,
               imageUrl: _profileImageUrl,
               imageFile: _profileImageFile,
-              onUpload: () => _showImageSourceDialog(true),
+              onUpload: () => _showImageSourceDialog('profile'),
               onRemove: () async {
                 if (_profileImageUrl != null) {
                   try {
@@ -278,7 +296,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
               title: loc.actionPhoto,
               imageUrl: _actionPhotoUrl,
               imageFile: _actionPhotoFile,
-              onUpload: () => _showImageSourceDialog(false),
+              onUpload: () => _showImageSourceDialog('action'),
               onRemove: () async {
                 if (_actionPhotoUrl != null) {
                   try {
@@ -299,6 +317,39 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
 
                   setState(() {
                     _actionPhotoUrl = null;
+                  });
+                }
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // Headshot Section
+            _buildImageSection(
+              title: 'Headshot (for stats & lineups)',
+              imageUrl: _headshotUrl,
+              imageFile: _headshotFile,
+              onUpload: () => _showImageSourceDialog('headshot'),
+              onRemove: () async {
+                if (_headshotUrl != null) {
+                  try {
+                    await FirebaseStorage.instance
+                        .refFromURL(_headshotUrl!)
+                        .delete();
+                  } catch (e) {
+                    // Ignore
+                  }
+                  widget.player.headshot = null;
+
+                  // Use saveWithPin on web if PIN is available
+                  if (kIsWeb && widget.pin != null) {
+                    await widget.player.saveWithPin(widget.pin!);
+                  } else {
+                    await widget.player.save();
+                  }
+
+                  setState(() {
+                    _headshotUrl = null;
                   });
                 }
               },
@@ -327,6 +378,16 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     required VoidCallback onRemove,
   }) {
     final loc = AppLocalizations.of(context)!;
+
+    // Determine image type based on title for mobile upload
+    String imageType;
+    if (title == loc.profilePicture) {
+      imageType = 'profile';
+    } else if (title == loc.actionPhoto) {
+      imageType = 'action';
+    } else {
+      imageType = 'headshot';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,9 +456,8 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                   if (!kIsWeb && imageFile != null) ...[
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
-                      onPressed: _isUploading
-                          ? null
-                          : () => _uploadImage(title == loc.profilePicture),
+                      onPressed:
+                          _isUploading ? null : () => _uploadImage(imageType),
                       icon: const Icon(Icons.cloud_upload),
                       label: Text(loc.save),
                     ),
@@ -703,7 +763,13 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                     date: selectedDate,
                   );
 
-                  await h.save();
+                  // Use saveWithPin on web if PIN is available, otherwise use regular save
+                  if (kIsWeb && widget.pin != null) {
+                    await h.saveWithPin(widget.pin!, widget.player.seasonId);
+                  } else {
+                    await h.save();
+                  }
+
                   _loadHighlights();
 
                   if (mounted) {
@@ -956,7 +1022,13 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
 
     if (confirmed == true) {
       try {
-        await highlight.delete();
+        // Use deleteWithPin on web if PIN is available, otherwise use regular delete
+        if (kIsWeb && widget.pin != null) {
+          await highlight.deleteWithPin(widget.pin!, widget.player.seasonId);
+        } else {
+          await highlight.delete();
+        }
+
         _loadHighlights();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
