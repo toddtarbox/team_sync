@@ -511,6 +511,8 @@ class _GameViewState extends State<GameView> {
               ResponsivePlayerAvatar(
                 player: event.player!,
                 avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true,
               )
             else
               Container(
@@ -726,6 +728,8 @@ class _GameViewState extends State<GameView> {
                   ResponsivePlayerAvatar(
                     player: assistEvent.player!,
                     avatarSize: 24,
+                    season: widget.season,
+                    useLatestImages: true,
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -766,6 +770,8 @@ class _GameViewState extends State<GameView> {
               ResponsivePlayerAvatar(
                 player: event.player!,
                 avatarSize: 72,
+                season: widget.season,
+                useLatestImages: true,
               )
             else
               Container(
@@ -1279,7 +1285,11 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            leadingIcon: ResponsivePlayerAvatar(
+                player: p,
+                avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true),
             style: ButtonStyle(
                 textStyle:
                     WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
@@ -1289,7 +1299,11 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            leadingIcon: ResponsivePlayerAvatar(
+                player: p,
+                avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true),
             style: ButtonStyle(
                 textStyle:
                     WidgetStateProperty.all(const TextStyle(fontSize: 24)))))

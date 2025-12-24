@@ -1,10 +1,14 @@
 import 'package:change_case/change_case.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/subscription_service.dart';
+import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 /// Reusable widget to display game statistics in a modern layout
@@ -319,6 +323,55 @@ class GameStatsDisplay extends StatelessWidget {
       categoryName: category.name.toSentenceCase().toTitleCase(),
       playerStats: playerStats,
       showPlayerNumber: true,
+      season: season,
+      onPlayerTap: (player) {
+        // Check subscription before navigating (unless on web)
+        if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+          Navigator.pop(context); // Close the stats dialog first
+
+          final loc = AppLocalizations.of(context)!;
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text(loc.proFeature),
+                content: Text(loc.playerProfilesProFeature),
+                actions: [
+                  TextButton(
+                    child: Text(loc.cancelButton),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  TextButton(
+                    child: Text(loc.goPro),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await SubscriptionService.instance.purchaseSubscription();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+          return;
+        }
+
+        // Navigate to player profile
+        Navigator.pop(context); // Close stats dialog
+
+        final databaseId = DatabaseService.instance.publicShareId;
+        if (databaseId != null) {
+          NavigationHelper.navigateTo(
+            context,
+            '/team/$databaseId/season/${season.id}/players/${player.id}',
+            extra: {
+              'player': player,
+              'season': season,
+            },
+          );
+        }
+      },
     );
   }
 

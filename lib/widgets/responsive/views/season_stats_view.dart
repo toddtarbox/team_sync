@@ -1,4 +1,5 @@
 import 'package:change_case/change_case.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
@@ -402,7 +403,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                       ),
                       child: InkWell(
                         onTap: () {
-                          if (!SubscriptionService.instance.isSubscribed) {
+                          if (!kIsWeb &&
+                              !SubscriptionService.instance.isSubscribed) {
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
@@ -448,6 +450,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                             ResponsivePlayerAvatar(
                               player: player,
                               avatarSize: 48,
+                              useLatestImages: true,
+                              season: widget.season,
                             ),
                             const SizedBox(width: 12),
                             Expanded(

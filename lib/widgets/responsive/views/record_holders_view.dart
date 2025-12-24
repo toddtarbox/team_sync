@@ -428,7 +428,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.player, avatarSize: 48),
+                    player: topEntry.player,
+                    avatarSize: 48,
+                    season: topEntry.season,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -610,7 +613,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 }
                               },
                               child: ResponsivePlayerAvatar(
-                                  player: entry.player, avatarSize: 40),
+                                  player: entry.player,
+                                  avatarSize: 40,
+                                  season: entry.season,
+                                  useLatestImages: true),
                             ),
                             title: Text(
                               entry.player.displayName,
@@ -741,7 +747,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: bestStat.player, avatarSize: 48),
+                    player: bestStat.player,
+                    avatarSize: 48,
+                    season: bestStat.season,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -925,7 +934,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 }
                               },
                               child: ResponsivePlayerAvatar(
-                                  player: entry.player, avatarSize: 40),
+                                  player: entry.player,
+                                  avatarSize: 40,
+                                  season: entry.season,
+                                  useLatestImages: true),
                             ),
                             title: Text(
                               entry.player.displayName,
@@ -1144,7 +1156,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.key, avatarSize: 48),
+                    player: topEntry.key,
+                    avatarSize: 48,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -1201,61 +1215,100 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       context: context,
       categoryName: category.name.toSentenceCase().toTitleCase(),
       playerStats: playerStatsMap,
-      showPlayerNumber: false,
-
+      showPlayerNumber: true,
+      onPlayerTap: (player) => _showPlayerDetailsDialog(player, null),
+      season: null,
       maxPlayers: 25, // Show top 25
-      onPlayerTap: (player) async {
-        // Close the dialog first
-        Navigator.pop(context);
-
-        // Show loading indicator
-        showDialog(
-          context: context,
-          builder: (context) {
-            return const Center(child: CircularProgressIndicator());
-          },
-        );
-
-        // Load the season for this player
-        final seasonResults = await DatabaseService.instance.query(
-          'Seasons',
-          orderByChild: 'id',
-          equalTo: player.seasonId,
-        );
-
-        if (!mounted) return;
-        Navigator.pop(context);
-
-        if (seasonResults.isNotEmpty) {
-          final season = Season.fromMap(seasonResults.first);
-          await season.load();
-
-          if (!mounted) return;
-
-          final currentUri = GoRouterState.of(context).uri;
-          String? databaseId;
-          final pathSegments = currentUri.pathSegments;
-          if (pathSegments.isNotEmpty &&
-              pathSegments[0] == 'team' &&
-              pathSegments.length > 1) {
-            databaseId = pathSegments[1];
-          } else {
-            databaseId = DatabaseService.instance.publicShareId;
-          }
-
-          if (databaseId != null) {
-            NavigationHelper.navigateTo(
-              context,
-              '/team/$databaseId/player/${player.id}',
-              extra: {
-                'player': player,
-                'season': season,
-              },
-            );
-          }
-        }
-      },
     );
+  }
+
+  Future<void> _showPlayerDetailsDialog(Player player, Season? season) async {
+    // Check subscription before navigating
+    if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+      if (mounted) Navigator.pop(context); // Close the stats dialog first
+
+      final loc = AppLocalizations.of(context)!;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(loc.proFeature),
+            content: Text(loc.playerProfilesProFeature),
+            actions: [
+              TextButton(
+                child: Text(loc.cancelButton),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+              TextButton(
+                child: Text(loc.goPro),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await SubscriptionService.instance.purchaseSubscription();
+                },
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    // Close the dialog first
+    Navigator.pop(context);
+
+    Season? targetSeason = season;
+
+    if (targetSeason == null) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return const Center(child: CircularProgressIndicator());
+        },
+      );
+
+      // Load the season for this player
+      final seasonResults = await DatabaseService.instance.query(
+        'Seasons',
+        orderByChild: 'id',
+        equalTo: player.seasonId,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      if (seasonResults.isNotEmpty) {
+        targetSeason = Season.fromMap(seasonResults.first);
+        await targetSeason.load();
+      }
+    }
+
+    if (!mounted || targetSeason == null) return;
+
+    final currentUri = GoRouterState.of(context).uri;
+    String? databaseId;
+    final pathSegments = currentUri.pathSegments;
+    if (pathSegments.isNotEmpty &&
+        pathSegments[0] == 'team' &&
+        pathSegments.length > 1) {
+      databaseId = pathSegments[1];
+    } else {
+      databaseId = DatabaseService.instance.publicShareId;
+    }
+
+    if (databaseId != null) {
+      NavigationHelper.navigateTo(
+        context,
+        '/team/$databaseId/season/${targetSeason.id}/players/${player.id}',
+        extra: {
+          'player': player,
+          'season': targetSeason,
+        },
+      );
+    }
   }
 
   Future<dynamic> _loadData() async {

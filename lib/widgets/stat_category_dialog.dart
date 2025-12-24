@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/season.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 /// A reusable dialog that displays stat category leaders with player names and values
@@ -20,6 +21,7 @@ class StatCategoryDialog {
     bool showPlayerNumber = false,
     Function(Player)? onPlayerTap,
     int? maxPlayers,
+    Season? season,
   }) async {
     // Sort players by stat value (highest first)
     final sortedStats = List<MapEntry<Player, int>>.from(playerStats.entries);
@@ -43,6 +45,7 @@ class StatCategoryDialog {
           displayStats,
           showPlayerNumber,
           onPlayerTap,
+          season,
         );
       },
     );
@@ -55,6 +58,7 @@ class StatCategoryDialog {
     List<MapEntry<Player, int>> sortedStats,
     bool showPlayerNumber,
     Function(Player)? onPlayerTap,
+    Season? season,
   ) {
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -138,6 +142,8 @@ class StatCategoryDialog {
                                   player: player,
                                   avatarSize: 48,
                                   isEdit: false,
+                                  useLatestImages: true,
+                                  season: season,
                                 ),
                                 const SizedBox(width: 12),
                                 // Player name and number

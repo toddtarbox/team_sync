@@ -443,6 +443,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
                   ResponsivePlayerAvatar(
                     player: event.player!,
                     avatarSize: 32,
+                    useLatestImages: true,
                   )
                 else
                   Container(

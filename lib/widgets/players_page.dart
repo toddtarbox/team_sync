@@ -283,6 +283,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                             player: player,
                                             avatarSize: 80,
                                             season: widget.season,
+                                            useLatestImages: true,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
@@ -505,7 +506,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                     player: player,
                                     avatarSize: 56,
                                     season: widget.season,
-                                    isEdit: true),
+                                    isEdit: true,
+                                    useLatestImages: true),
                               ),
                               const SizedBox(height: 8),
                               const Text(

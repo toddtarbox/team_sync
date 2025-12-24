@@ -246,6 +246,7 @@ class _GameStatsViewState extends State<GameStatsView> {
                   categoryName: category.name.toSentenceCase().toTitleCase(),
                   playerStats: playerStats[category]!,
                   showPlayerNumber: true,
+                  season: widget.season,
                 );
               }
             },

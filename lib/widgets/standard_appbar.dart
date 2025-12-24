@@ -65,13 +65,17 @@ AppBar buildStandardAppBar({
   return AppBar(
     leading: leadingWidget,
     automaticallyImplyLeading: implicitLeading,
+    centerTitle: true,
+    elevation: 0,
     title: !showBackButton
         ? InkWell(
             onTap: launchPrivacyPolicy,
             child: title,
           )
         : title,
-    actions: combinedActions.isNotEmpty ? combinedActions : null,
+    actions: combinedActions.isNotEmpty
+        ? [...combinedActions, const SizedBox(width: 8)]
+        : null,
     bottom: bottom,
     // Set icon and title colors to white when using gradient, otherwise use theme defaults
     iconTheme: team != null ? const IconThemeData(color: Colors.white) : null,
@@ -81,7 +85,8 @@ AppBar buildStandardAppBar({
         ? const TextStyle(
             color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           )
         : null,
     flexibleSpace: team != null
