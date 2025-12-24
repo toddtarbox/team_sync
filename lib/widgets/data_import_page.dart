@@ -1249,8 +1249,46 @@ class _DataImportPageState extends State<DataImportPage> {
         ),
       );
 
-      // Query all games
-      final gamesData = await DatabaseService.instance.query('Games');
+      // Query games
+      List<Map<dynamic, dynamic>> gamesData = [];
+      Set<int> gameIdsWithEvents = {};
+      bool useTeamOptimization = widget.team != null;
+
+      if (useTeamOptimization) {
+        // Optimization: Fetch only this team's data
+        // 1. Get seasons
+        final seasons = await DatabaseService.instance.query(
+          'Seasons',
+          orderByChild: 'teamId',
+          equalTo: widget.team!.id,
+        );
+
+        // 2. Get games for these seasons
+        for (final season in seasons) {
+          final seasonGames = await DatabaseService.instance.query(
+            'Games',
+            orderByChild: 'seasonId',
+            equalTo: season['id'],
+          );
+          gamesData.addAll(seasonGames.cast<Map<dynamic, dynamic>>());
+        }
+
+        // 3. Get all events for this team to check attendance
+        final teamEvents = await DatabaseService.instance.query(
+          'Events',
+          orderByChild: 'teamId',
+          equalTo: widget.team!.id,
+        );
+        for (final event in teamEvents) {
+          if (event['gameId'] != null) {
+            gameIdsWithEvents.add(event['gameId'] as int);
+          }
+        }
+      } else {
+        // Legacy/Global: Query all games
+        final allGames = await DatabaseService.instance.query('Games');
+        gamesData = allGames.cast<Map<dynamic, dynamic>>();
+      }
 
       final gamesWithNoEvents = <Map<String, dynamic>>[];
 
@@ -1273,14 +1311,21 @@ class _DataImportPageState extends State<DataImportPage> {
           continue;
         }
 
-        // Query for events for this game
-        final events = await DatabaseService.instance.query(
-          'Events',
-          orderByChild: 'gameId',
-          equalTo: gameId,
-        );
+        // Check for events
+        bool hasEvents = false;
+        if (useTeamOptimization) {
+          hasEvents = gameIdsWithEvents.contains(gameId);
+        } else {
+          // Slow check for global mode
+          final events = await DatabaseService.instance.query(
+            'Events',
+            orderByChild: 'gameId',
+            equalTo: gameId,
+          );
+          hasEvents = events.isNotEmpty;
+        }
 
-        if (events.isEmpty) {
+        if (!hasEvents) {
           // Load season and teams data for display
           final seasonId = gameData['seasonId'] as int;
           final homeTeamId = gameData['homeTeamId'] as int;
@@ -2107,12 +2152,29 @@ class _DataImportPageState extends State<DataImportPage> {
 
       debugPrint('=== Finding Missing Player Records ===');
 
-      // Get all events
-      final allEvents = await DatabaseService.instance.query('Events');
-      debugPrint('Total events: ${allEvents.length}');
+      List<Map<dynamic, dynamic>> allEvents;
+      List<Map<dynamic, dynamic>> allPlayers;
 
-      // Get all players
-      final allPlayers = await DatabaseService.instance.query('Players');
+      // Optimization: Filter by team if available
+      if (widget.team != null) {
+        debugPrint('Fetching data for team ${widget.team!.id} only');
+        allEvents = await DatabaseService.instance.query(
+          'Events',
+          orderByChild: 'teamId',
+          equalTo: widget.team!.id,
+        );
+        allPlayers = await DatabaseService.instance.query(
+          'Players',
+          orderByChild: 'teamId',
+          equalTo: widget.team!.id,
+        );
+      } else {
+        debugPrint('Fetching ALL data (no team context - this may be slow)');
+        allEvents = await DatabaseService.instance.query('Events');
+        allPlayers = await DatabaseService.instance.query('Players');
+      }
+
+      debugPrint('Total events: ${allEvents.length}');
       debugPrint('Total player records: ${allPlayers.length}');
 
       // Build a set of existing player records (playerId + seasonId combinations)

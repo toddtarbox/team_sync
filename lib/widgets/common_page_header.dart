@@ -280,6 +280,7 @@ class CommonPageHeader extends StatelessWidget {
           {'summary': result.isEmpty ? null : result},
           key: team.id.toString(),
         );
+        Team.clearCache();
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -438,6 +439,7 @@ class CommonPageHeader extends StatelessWidget {
         {fieldName: imageUrl},
         key: team.id.toString(),
       );
+      Team.clearCache();
 
       debugPrint('Database updated successfully');
 
@@ -508,6 +510,7 @@ class CommonPageHeader extends StatelessWidget {
         {fieldName: null},
         key: team.id.toString(),
       );
+      Team.clearCache();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -546,6 +549,7 @@ class CommonPageHeader extends StatelessWidget {
         {fieldName: !currentIsSquare},
         key: team.id.toString(),
       );
+      Team.clearCache();
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

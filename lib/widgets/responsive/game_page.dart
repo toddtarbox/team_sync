@@ -367,8 +367,8 @@ class _GamePageState extends State<GamePage> {
                   _isStatsPanelOpen = true;
                 });
               },
-              child: const Icon(Icons.analytics),
               tooltip: loc.statistics,
+              child: const Icon(Icons.analytics),
             ),
           ),
       ],

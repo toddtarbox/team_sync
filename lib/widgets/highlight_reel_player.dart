@@ -37,9 +37,14 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
   late AnimationController _fadeController;
   late AnimationController _scaleController;
   late AnimationController _slideController;
+  late AnimationController _itemDurationController; // For non-video items
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
+
+  bool _areControlsVisible = true;
+  Timer? _controlsTimer;
+  bool _isMuted = false;
 
   List<dynamic> _allItems = [];
 
@@ -73,6 +78,17 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
       duration: const Duration(milliseconds: 400),
     );
 
+    _itemDurationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+
+    _itemDurationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _goToNext();
+      }
+    });
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
@@ -98,15 +114,18 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     _loadCurrentItem();
+    _startHideControlsTimer();
   }
 
   @override
   void dispose() {
     _autoPlayTimer?.cancel();
+    _controlsTimer?.cancel();
     _videoController?.dispose();
     _fadeController.dispose();
     _scaleController.dispose();
     _slideController.dispose();
+    _itemDurationController.dispose();
 
     // Restore orientation and system UI
     SystemChrome.setPreferredOrientations([
@@ -129,16 +148,29 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
       _isLoading = true;
     });
 
+    final oldController = _videoController;
+
+    setState(() {
+      _isLoading = true;
+      _videoController = null;
+      _isVideoPlaying = false;
+    });
+
     // Stop previous video if any
-    await _videoController?.pause();
-    await _videoController?.dispose();
-    _videoController = null;
-    _isVideoPlaying = false;
+    try {
+      await oldController?.pause();
+      await oldController?.dispose();
+    } catch (e) {
+      debugPrint('Error disposing old controller: $e');
+    }
+
+    if (!mounted) return;
 
     // Play entry animations
     _fadeController.forward(from: 0);
     _scaleController.forward(from: 0);
     _slideController.forward(from: 0);
+    _itemDurationController.reset();
 
     if (item is PlayerHighlight && item.videoUrl.isNotEmpty) {
       debugPrint('PlayerHighlight video URL: ${item.videoUrl}');
@@ -160,7 +192,9 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
         setState(() {
           _isLoading = false;
         });
-        _startAutoPlayTimer();
+        if (!_isPaused) {
+          _itemDurationController.forward();
+        }
       } else {
         // Try to load and play video directly (for direct video URLs)
         debugPrint('Attempting to load direct video');
@@ -171,6 +205,8 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
 
           await _videoController!.initialize();
 
+          if (!mounted) return;
+
           setState(() {
             _isVideoPlaying = true;
             _isLoading = false;
@@ -178,20 +214,31 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
 
           _videoController!.play();
           _videoController!.setLooping(false);
+          _videoController!.setVolume(_isMuted ? 0.0 : 1.0);
 
           // Listen for video completion
           _videoController!.addListener(() {
-            if (_videoController!.value.position >=
-                _videoController!.value.duration) {
+            if (!mounted) return;
+            // Check if controller is valid and initialized
+            if (_videoController != null &&
+                _videoController!.value.isInitialized &&
+                _videoController!.value.position >=
+                    _videoController!.value.duration) {
               _goToNext();
             }
           });
         } catch (e) {
           debugPrint('Error loading video: $e');
-          setState(() {
-            _isLoading = false;
-          });
-          _startAutoPlayTimer();
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _isVideoPlaying = false;
+              _videoController = null;
+            });
+            if (!_isPaused) {
+              _itemDurationController.forward();
+            }
+          }
         }
       }
     } else if (item is PlayerAward) {
@@ -200,27 +247,56 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
       setState(() {
         _isLoading = false;
       });
-      _startAutoPlayTimer();
+      if (!_isPaused) {
+        _itemDurationController.forward();
+      }
     } else {
       debugPrint('Unknown item type or empty video URL');
       // Unknown type or empty URL
       setState(() {
         _isLoading = false;
       });
-      _startAutoPlayTimer();
+      if (!_isPaused) {
+        _itemDurationController.forward();
+      }
     }
   }
 
-  void _startAutoPlayTimer() {
-    _autoPlayTimer?.cancel();
+  void _startHideControlsTimer() {
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          _areControlsVisible = false;
+        });
+      }
+    });
+  }
 
-    if (!_isPaused) {
-      _autoPlayTimer = Timer(const Duration(seconds: 5), () {
-        if (mounted) {
-          _goToNext();
-        }
-      });
+  void _showControls() {
+    setState(() {
+      _areControlsVisible = true;
+    });
+    _startHideControlsTimer();
+  }
+
+  void _toggleControls() {
+    setState(() {
+      _areControlsVisible = !_areControlsVisible;
+    });
+    if (_areControlsVisible) {
+      _startHideControlsTimer();
+    } else {
+      _controlsTimer?.cancel();
     }
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _videoController?.setVolume(_isMuted ? 0.0 : 1.0);
+    _showControls();
   }
 
   void _goToNext() {
@@ -251,19 +327,45 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
     if (_isPaused) {
       _autoPlayTimer?.cancel();
       _videoController?.pause();
+      if (_itemDurationController.isAnimating) {
+        _itemDurationController.stop();
+      }
     } else {
       if (_isVideoPlaying) {
         _videoController?.play();
       } else {
-        _startAutoPlayTimer();
+        _itemDurationController.forward();
       }
     }
+    _showControls();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_allItems.isEmpty) {
-      return const SizedBox.shrink();
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Center(
+                child: Text(
+                  'No highlights to show',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: Colors.white),
+                label:
+                    const Text('Close', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final currentItem = _allItems[_currentIndex];
@@ -271,7 +373,7 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTap: _togglePause,
+        onTap: _toggleControls,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -347,122 +449,171 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
             ),
 
             // Top info bar
+            // Top info bar
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.playerName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${_currentIndex + 1} / ${_allItems.length}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+              child: Material(
+                type: MaterialType.transparency,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        // Close button - ALWAYS VISIBLE
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 16),
+
+                        // Player info - FADE IN/OUT
+                        Expanded(
+                          child: AnimatedOpacity(
+                            opacity: _areControlsVisible ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  widget.playerName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_currentIndex + 1} / ${_allItems.length}',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
 
             // Bottom controls
+            // Bottom controls
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title and description
-                      Text(
-                        _getItemTitle(currentItem),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (_getItemDescription(currentItem) != null) ...[
-                        const SizedBox(height: 8),
+              child: Material(
+                type: MaterialType.transparency,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title and description - ALWAYS VISIBLE
                         Text(
-                          _getItemDescription(currentItem)!,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 16,
+                          _getItemTitle(currentItem),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (_getItemDescription(currentItem) != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _getItemDescription(currentItem)!,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 16,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+
+                        // Progress bar and Controls - FADE IN/OUT
+                        IgnorePointer(
+                          ignoring: !_areControlsVisible,
+                          child: AnimatedOpacity(
+                            opacity: _areControlsVisible ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Progress bar
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildProgressBar(),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Control buttons
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.skip_previous,
+                                          color: Colors.white, size: 36),
+                                      onPressed: () {
+                                        _showControls();
+                                        _goToPrevious();
+                                      },
+                                    ),
+                                    const SizedBox(width: 24),
+                                    IconButton(
+                                      icon: Icon(
+                                        _isPaused
+                                            ? Icons.play_arrow
+                                            : Icons.pause,
+                                        color: Colors.white,
+                                        size: 48,
+                                      ),
+                                      onPressed: _togglePause,
+                                    ),
+                                    const SizedBox(width: 24),
+                                    IconButton(
+                                      icon: const Icon(Icons.skip_next,
+                                          color: Colors.white, size: 36),
+                                      onPressed: () {
+                                        _showControls();
+                                        _goToNext();
+                                      },
+                                    ),
+                                    if (_isVideoPlaying) ...[
+                                      const SizedBox(width: 24),
+                                      IconButton(
+                                        icon: Icon(
+                                          _isMuted
+                                              ? Icons.volume_off
+                                              : Icons.volume_up,
+                                          color: Colors.white,
+                                          size: 32,
+                                        ),
+                                        onPressed: _toggleMute,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
-                      const SizedBox(height: 16),
-
-                      // Progress bar
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildProgressBar(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Control buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.skip_previous,
-                                color: Colors.white, size: 36),
-                            onPressed: _goToPrevious,
-                          ),
-                          const SizedBox(width: 32),
-                          IconButton(
-                            icon: Icon(
-                              _isPaused ? Icons.play_arrow : Icons.pause,
-                              color: Colors.white,
-                              size: 48,
-                            ),
-                            onPressed: _togglePause,
-                          ),
-                          const SizedBox(width: 32),
-                          IconButton(
-                            icon: const Icon(Icons.skip_next,
-                                color: Colors.white, size: 36),
-                            onPressed: _goToNext,
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -610,13 +761,16 @@ class _HighlightReelPlayerState extends State<HighlightReelPlayer>
         ),
       );
     } else {
-      // Simple progress bar for images
-      return LinearProgressIndicator(
-        value: _isPaused
-            ? null
-            : (_currentIndex + 1) / _allItems.length.toDouble(),
-        backgroundColor: Colors.white.withValues(alpha: 0.1),
-        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+      // Animated progress bar for images/external videos
+      return AnimatedBuilder(
+        animation: _itemDurationController,
+        builder: (context, child) {
+          return LinearProgressIndicator(
+            value: _itemDurationController.value,
+            backgroundColor: Colors.white.withValues(alpha: 0.1),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          );
+        },
       );
     }
   }

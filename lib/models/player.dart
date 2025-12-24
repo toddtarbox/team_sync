@@ -18,22 +18,28 @@ class Player {
     return '$firstName $lastName';
   }
 
+  String? get _headshot => (headshot?.isEmpty ?? true) ? null : headshot;
+  String? get _profileImage =>
+      (profileImage?.isEmpty ?? true) ? null : profileImage;
+  String? get _actionPhoto =>
+      (actionPhoto?.isEmpty ?? true) ? null : actionPhoto;
+
   /// Returns the best available image URL for displaying in stats and lineups
   /// Priority: headshot > profileImage > actionPhoto
   String? get displayImageForStats {
-    return headshot ?? profileImage ?? actionPhoto;
+    return _headshot ?? _profileImage ?? _actionPhoto;
   }
 
   /// Returns the best available image URL for general profile display
   /// Priority: profileImage > headshot > actionPhoto
   String? get displayImageForProfile {
-    return profileImage ?? headshot ?? actionPhoto;
+    return _profileImage ?? _headshot ?? _actionPhoto;
   }
 
   /// Returns the best available image URL for player cards
   /// Priority: actionPhoto > profileImage > headshot
   String? get displayImageForCard {
-    return actionPhoto ?? profileImage ?? headshot;
+    return _actionPhoto ?? _profileImage ?? _headshot;
   }
 
   /// Returns the best available image URL with custom priority
@@ -43,12 +49,12 @@ class Player {
     bool preferActionPhoto = false,
   }) {
     if (preferHeadshot) {
-      return headshot ?? profileImage ?? actionPhoto;
+      return _headshot ?? _profileImage ?? _actionPhoto;
     } else if (preferActionPhoto) {
-      return actionPhoto ?? profileImage ?? headshot;
+      return _actionPhoto ?? _profileImage ?? _headshot;
     } else {
       // Default: prefer profile image
-      return profileImage ?? headshot ?? actionPhoto;
+      return _profileImage ?? _headshot ?? _actionPhoto;
     }
   }
 
@@ -64,7 +70,7 @@ class Player {
       this.headshot,
       this.editPin});
 
-  static initial({required int teamId, required int seasonId}) {
+  static Player initial({required int teamId, required int seasonId}) {
     return Player(
         id: -1,
         teamId: teamId,
@@ -122,7 +128,10 @@ class Player {
       final results = await DatabaseService.instance
           .query('Players', orderByChild: 'id', equalTo: id);
       if (results.isNotEmpty) {
-        return Player.fromMap(results.first);
+        // Parse all and sort by seasonId to get the latest
+        final players = results.map((m) => Player.fromMap(m)).toList();
+        players.sort((a, b) => b.seasonId.compareTo(a.seasonId));
+        return players.first;
       } else {
         return null;
       }
@@ -130,17 +139,6 @@ class Player {
       debugPrint('Error loading player with id=$id: $e');
       return null;
     }
-  }
-
-  static Future<Map<int, Player>> fromIds(List<int> ids) async {
-    if (ids.isEmpty) {
-      return {};
-    }
-    // 'IN' not supported by RTDB native queries; fallback to client-side filter.
-    final results = await DatabaseService.instance.query('Players');
-    final players =
-        results.map((p) => Player.fromMap(p)).toList(growable: false);
-    return {for (var p in players) p.id: p};
   }
 
   static Future<Map<int, Player>> allFromTeamId(int teamId) async {
@@ -153,14 +151,16 @@ class Player {
 
   static Future<List<Player>> listFromTeamIdSeasonId(
       int teamId, int seasonId) async {
-    // Use native RTDB query for teamId then filter seasonId locally to reduce bandwidth
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'teamId', equalTo: teamId);
-    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
+    // Optimized query using compound key
+    final results = await DatabaseService.instance.query(
+      'Players',
+      orderByChild: 'teamId_seasonId',
+      equalTo: '${teamId}_$seasonId',
+    );
 
     // Map with error handling to skip corrupt records
     final players = <Player>[];
-    for (var playerMap in filtered) {
+    for (var playerMap in results) {
       try {
         players.add(Player.fromMap(playerMap));
       } catch (e) {
@@ -175,14 +175,26 @@ class Player {
 
   static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
     try {
-      final results = await DatabaseService.instance
-          .query('Players', orderByChild: 'id', equalTo: id);
-      final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
-      if (filtered.isEmpty) {
-        return null;
+      final results = await DatabaseService.instance.query('Players',
+          orderByChild: 'id_seasonId', equalTo: '${id}_$seasonId');
+
+      if (results.isEmpty) {
+        // Fallback: Query by ID and filter by seasonId
+        // This handles cases where data hasn't been migrated to include id_seasonId
+        final idResults = await DatabaseService.instance
+            .query('Players', orderByChild: 'id', equalTo: id);
+
+        final match = idResults.firstWhere((p) => p['seasonId'] == seasonId,
+            orElse: () => <String, dynamic>{});
+
+        if (match.isNotEmpty) {
+          return Player.fromMap(Map<String, dynamic>.from(match));
+        } else {
+          return null;
+        }
       }
 
-      return Player.fromMap(filtered.first);
+      return Player.fromMap(results.first);
     } catch (e) {
       debugPrint('Error loading player with id=$id, seasonId=$seasonId: $e');
       return null;
@@ -201,11 +213,16 @@ class Player {
     return false;
   }
 
+  String get teamIdSeasonId => '${teamId}_$seasonId';
+  String get idSeasonId => '${id}_$seasonId';
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'teamId': teamId,
       'seasonId': seasonId,
+      'teamId_seasonId': teamIdSeasonId,
+      'id_seasonId': idSeasonId,
       'firstName': firstName,
       'lastName': lastName,
       'number': number,

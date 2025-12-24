@@ -341,8 +341,9 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
 
           switch (category) {
             case LeaderCategory.goals:
-              if (event.eventType == 'Shot' && event.eventData == 0)
+              if (event.eventType == 'Shot' && event.eventData == 0) {
                 opponentTotal++;
+              }
               break;
             case LeaderCategory.assists:
               if (event.eventType == 'Assist') opponentTotal++;
@@ -352,8 +353,9 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
               break;
             case LeaderCategory.shotsOnGoal:
               if (event.eventType == 'Shot' &&
-                  (event.eventData == 0 || event.eventData == 1))
+                  (event.eventData == 0 || event.eventData == 1)) {
                 opponentTotal++;
+              }
               break;
             case LeaderCategory.corners:
               if (event.eventType == 'Corner') opponentTotal++;
@@ -362,16 +364,19 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
               if (event.eventType == 'Foul') opponentTotal++;
               break;
             case LeaderCategory.yellows:
-              if (event.eventType == 'Card' && event.eventData == 0)
+              if (event.eventType == 'Card' && event.eventData == 0) {
                 opponentTotal++;
+              }
               break;
             case LeaderCategory.reds:
-              if (event.eventType == 'Card' && event.eventData == 2)
+              if (event.eventType == 'Card' && event.eventData == 2) {
                 opponentTotal++;
+              }
               break;
             case LeaderCategory.secondYellowReds:
-              if (event.eventType == 'Card' && event.eventData == 1)
+              if (event.eventType == 'Card' && event.eventData == 1) {
                 opponentTotal++;
+              }
               break;
             default:
               break;

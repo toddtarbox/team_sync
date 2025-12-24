@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 /// A common component that wraps images and makes them tappable to show full-screen view
 ///
@@ -105,18 +106,10 @@ class TappableImage extends StatelessWidget {
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return placeholder ??
-            Container(
-              width: width,
-              height: height,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
+            SkeletonContainer.rectangular(
+              width: width ?? double.infinity,
+              height: height ?? double.infinity,
+              borderRadius: borderRadius ?? BorderRadius.zero,
             );
       },
     );

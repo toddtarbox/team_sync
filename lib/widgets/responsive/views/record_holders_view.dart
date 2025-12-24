@@ -18,6 +18,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 enum StatType {
   career,
@@ -106,36 +107,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   void _showActionMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.refresh),
-                title: const Text('Invalidate Best Game Cache'),
-                subtitle: const Text('Clear cached best game statistics'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _invalidateBestGameCache();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.clear_all),
-                title: const Text('Clear All Caches'),
-                subtitle: const Text('Clear all cached statistics'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _clearCache();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All caches cleared'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.refresh),
+                  title: const Text('Invalidate Best Game Cache'),
+                  subtitle: const Text('Clear cached best game statistics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _invalidateBestGameCache();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.clear_all),
+                  title: const Text('Clear All Caches'),
+                  subtitle: const Text('Clear all cached statistics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _clearCache();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('All caches cleared'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -250,15 +254,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             ),
           );
         } else {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(AppLocalizations.of(context)!.calculating),
-              ],
-            ),
+          // Show skeleton while calculating/loading
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: 8,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    SkeletonContainer.circular(size: 40),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonContainer.rectangular(
+                            width: double.infinity,
+                            height: 16,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 8),
+                          SkeletonContainer.rectangular(
+                            width: 100,
+                            height: 14,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           );
         }
       },
@@ -949,7 +977,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         showDialog(
             context: context,
             builder: (context) {
-              return const Center(child: CircularProgressIndicator());
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: 8,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      children: [
+                        SkeletonContainer.circular(size: 40),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SkeletonContainer.rectangular(
+                                width: double.infinity,
+                                height: 16,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              const SizedBox(height: 8),
+                              SkeletonContainer.rectangular(
+                                width: 100,
+                                height: 14,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
             });
         final categoryStats =
             await widget.team.getCareerStatsForCategory(category);
@@ -999,7 +1059,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 showDialog(
                   context: context,
                   builder: (context) {
-                    return const Center(child: CircularProgressIndicator());
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 8,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              SkeletonContainer.circular(size: 40),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SkeletonContainer.rectangular(
+                                      width: double.infinity,
+                                      height: 16,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SkeletonContainer.rectangular(
+                                      width: 100,
+                                      height: 14,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
                   },
                 );
 
@@ -1110,7 +1202,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
       categoryName: category.name.toSentenceCase().toTitleCase(),
       playerStats: playerStatsMap,
       showPlayerNumber: false,
-      useModernStyle: true,
+
       maxPlayers: 25, // Show top 25
       onPlayerTap: (player) async {
         // Close the dialog first

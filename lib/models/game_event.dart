@@ -432,6 +432,8 @@ class GameEvent {
   int eventData;
   String? eventUrls;
 
+  String get teamIdSeasonId => '${team.id}_$seasonId';
+
   String get display {
     return eventType;
   }
@@ -548,9 +550,6 @@ class GameEvent {
     }
 
     final team = await Team.fromId(teamId);
-    if (team == null) {
-      return null;
-    }
 
     final playerId = map['playerId'] as int?;
     if (playerId == null) {
@@ -750,6 +749,33 @@ class GameEvent {
 
       // Allow garbage collection between batches
       await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    return events;
+  }
+
+  static Future<List<GameEvent>> listFromTeamIdSeasonId(
+      int teamId, int seasonId) async {
+    final results = await DatabaseService.instance.query('Events',
+        orderByChild: 'teamId_seasonId', equalTo: '${teamId}_$seasonId');
+
+    // Process events in batches to avoid OOM from too many concurrent operations
+    const batchSize = 100;
+    final events = <GameEvent>[];
+
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchEvents = await Future.wait(batch
+          .map((g) async => await GameEvent.fromMap(g))
+          .toList(growable: false));
+
+      events.addAll(batchEvents.whereType<GameEvent>());
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 5));
     }
 
     return events;

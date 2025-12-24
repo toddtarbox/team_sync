@@ -463,8 +463,9 @@ class FirebaseDBProvider implements DatabaseProvider {
             if (av == null && bv == null) return 0;
             if (av == null) return desc ? 1 : -1;
             if (bv == null) return desc ? -1 : 1;
-            if (av is num && bv is num)
+            if (av is num && bv is num) {
               return desc ? bv.compareTo(av) : av.compareTo(bv);
+            }
             final as = av.toString();
             final bs = bv.toString();
             return desc ? bs.compareTo(as) : as.compareTo(bs);
@@ -552,8 +553,9 @@ class FirebaseDBProvider implements DatabaseProvider {
         if (av == null && bv == null) return 0;
         if (av == null) return desc ? 1 : -1;
         if (bv == null) return desc ? -1 : 1;
-        if (av is num && bv is num)
+        if (av is num && bv is num) {
           return desc ? bv.compareTo(av) : av.compareTo(bv);
+        }
         final as = av.toString();
         final bs = bv.toString();
         return desc ? bs.compareTo(as) : as.compareTo(bs);

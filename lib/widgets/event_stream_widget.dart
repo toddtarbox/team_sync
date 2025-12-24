@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 class EventStreamWidget extends StatefulWidget {
@@ -11,10 +12,10 @@ class EventStreamWidget extends StatefulWidget {
   final int? teamId;
 
   const EventStreamWidget({
-    Key? key,
+    super.key,
     required this.game,
     this.teamId,
-  }) : super(key: key);
+  });
 
   @override
   State<EventStreamWidget> createState() => _EventStreamWidgetState();
@@ -394,77 +395,130 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
         ),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Time badge - only show for goals and assists
-          if (isGoalOrAssist)
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: _getEventColor(event.eventType).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "${event.eventMinute}'",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _getEventColor(event.eventType),
+          // Time badge column - consistent width for alignment
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: isGoalOrAssist
+                ? Container(
+                    decoration: BoxDecoration(
+                      color: _getEventColor(event.eventType).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          if (isGoalOrAssist) const SizedBox(width: 12),
-          // Event details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _getEventIcon(event.eventType),
-                      size: 16,
-                      color: _getEventColor(event.eventType),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
+                    child: Center(
                       child: Text(
-                        _getEventTitle(event),
+                        "${event.eventMinute}'",
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          color: _getEventColor(event.eventType),
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                if (event.player != null)
-                  Text(
-                    event.player!.displayName,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withOpacity(0.7),
+                  )
+                : Center(
+                    child: Text(
+                      "${event.eventMinute}'",
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.5),
+                      ),
                     ),
                   ),
-                Text(
-                  event.team.shortName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.5),
+          ),
+          const SizedBox(width: 12),
+          // Event details
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Leading: Player Avatar OR Event Icon
+                if (event.player?.displayImageForStats != null)
+                  ResponsivePlayerAvatar(
+                    player: event.player!,
+                    avatarSize: 32,
+                  )
+                else
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: _getEventColor(event.eventType).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _getEventIcon(event.eventType),
+                      size: 18,
+                      color: _getEventColor(event.eventType),
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                // Text Content: Event Title - Player Name
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: _getEventTitle(event),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        if (event.player != null) ...[
+                          TextSpan(
+                            text: ' - ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                          TextSpan(
+                            text: event.player!.displayName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                        ] else ...[
+                          TextSpan(
+                            text: ' - ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.5),
+                            ),
+                          ),
+                          TextSpan(
+                            text: event.team.shortName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.5),
+                            ),
+                          ),
+                        ]
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -878,7 +932,6 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
       context: context,
       categoryName: label,
       playerStats: playerStats,
-      useModernStyle: false, // Use simple style to match existing behavior
     );
   }
 

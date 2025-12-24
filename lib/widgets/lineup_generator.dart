@@ -79,10 +79,9 @@ class _LineupProTeaserDialog extends StatelessWidget {
   final List<Player> players;
 
   const _LineupProTeaserDialog({
-    Key? key,
     required this.team,
     required this.players,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -305,11 +304,11 @@ class LineupDialog extends StatefulWidget {
   final Game? game;
 
   const LineupDialog({
-    Key? key,
+    super.key,
     required this.team,
     required this.players,
     this.game,
-  }) : super(key: key);
+  });
 
   @override
   State<LineupDialog> createState() => _LineupDialogState();
@@ -1028,7 +1027,7 @@ class _LineupDialogState extends State<LineupDialog> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (player) {
                       setState(() {
@@ -1215,12 +1214,11 @@ class _LineupPreviewDialog extends StatefulWidget {
   final LineupStyle style;
 
   const _LineupPreviewDialog({
-    Key? key,
     required this.lineupWidget,
     required this.team,
     required this.formation,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   State<_LineupPreviewDialog> createState() => _LineupPreviewDialogState();
@@ -1664,7 +1662,7 @@ class LineupWidget extends StatelessWidget {
   final LineupStyle style;
 
   const LineupWidget({
-    Key? key,
+    super.key,
     required this.team,
     required this.players,
     required this.formation,
@@ -1673,7 +1671,7 @@ class LineupWidget extends StatelessWidget {
     this.matchDateTime,
     this.motivationalMessage,
     this.style = LineupStyle.classic,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

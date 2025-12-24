@@ -74,10 +74,9 @@ class _PlayerCardProTeaserDialog extends StatelessWidget {
   final Player player;
 
   const _PlayerCardProTeaserDialog({
-    Key? key,
     required this.team,
     required this.player,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -173,11 +172,10 @@ class _PlayerCardDialog extends StatefulWidget {
   final String? eventContext;
 
   const _PlayerCardDialog({
-    Key? key,
     required this.team,
     required this.player,
     this.eventContext,
-  }) : super(key: key);
+  });
 
   @override
   State<_PlayerCardDialog> createState() => _PlayerCardDialogState();
@@ -726,12 +724,11 @@ class _PlayerCardWidget extends StatelessWidget {
   final String? eventContext;
 
   const _PlayerCardWidget({
-    Key? key,
     required this.team,
     required this.player,
     required this.style,
     this.eventContext,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1030,11 +1027,10 @@ class _PlayerCardBackWidget extends StatefulWidget {
   final PlayerCardStyle style;
 
   const _PlayerCardBackWidget({
-    Key? key,
     required this.team,
     required this.player,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   State<_PlayerCardBackWidget> createState() => _PlayerCardBackWidgetState();

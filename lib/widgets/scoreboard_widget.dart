@@ -19,14 +19,14 @@ class ScoreboardWidget extends StatefulWidget {
   final EdgeInsets? padding;
 
   const ScoreboardWidget({
-    Key? key,
+    super.key,
     required this.game,
     required this.season,
     required this.teamId,
     this.compact = false,
     this.margin,
     this.padding,
-  }) : super(key: key);
+  });
 
   @override
   State<ScoreboardWidget> createState() => _ScoreboardWidgetState();

@@ -319,7 +319,6 @@ class GameStatsDisplay extends StatelessWidget {
       categoryName: category.name.toSentenceCase().toTitleCase(),
       playerStats: playerStats,
       showPlayerNumber: true,
-      useModernStyle: true, // Use modern style for this widget
     );
   }
 

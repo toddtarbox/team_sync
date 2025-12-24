@@ -7,6 +7,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -36,9 +37,47 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
           } else if (snapshot.hasError) {
             return Center(child: Text(loc.errorLoadingStats));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeletonView(context);
           }
         });
+  }
+
+  Widget _buildSkeletonView(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Skeleton
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 80,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          const SizedBox(height: 24),
+
+          // Title Skeleton
+          SkeletonContainer.rectangular(
+            width: 120,
+            height: 16,
+          ),
+          const SizedBox(height: 16),
+
+          // Stat Rows Skeletons
+          ...List.generate(
+            5,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SkeletonContainer.rectangular(
+                width: double.infinity,
+                height: 72,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<SeasonStats?> _loadSeasonStats() async {
@@ -48,6 +87,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   Widget _buildModernStatsView(AppLocalizations loc, SeasonStats stats) {
     final teamColor = widget.season.team.color1;
     final teamName = widget.season.team.shortName;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -90,7 +130,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -98,7 +138,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -108,7 +148,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
+                      color: colorScheme.onSurface,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -124,7 +164,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: colorScheme.secondary,
               letterSpacing: 1.2,
             ),
           ),
@@ -175,19 +215,22 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }) {
     final total = teamValue + opponentValue;
     final teamPercentage = total > 0 ? teamValue / total : 0.5;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
-      onTap: teamValue > 0 && category.name != 'corners'
+      onTap: teamValue > 0 &&
+              category.name != 'corners' &&
+              category != LeaderCategory.ownGoalsEarned
           ? () => _showPlayerDetailsDialog(category, stats)
           : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.grey[300]!,
+            color: colorScheme.outlineVariant,
           ),
           boxShadow: [
             BoxShadow(
@@ -215,7 +258,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     label,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[700],
+                      color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
                     ),
                     textAlign: TextAlign.center,
@@ -226,7 +269,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -256,20 +299,22 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                       flex: ((1 - teamPercentage) * 100).round().clamp(1, 100),
                       child: Container(
                         height: 8,
-                        color: Colors.grey[400],
+                        color: colorScheme.surfaceContainerHighest,
                       ),
                     ),
                 ],
               ),
             ),
-            if (teamValue > 0 && category.name != 'corners')
+            if (teamValue > 0 &&
+                category.name != 'corners' &&
+                category != LeaderCategory.ownGoalsEarned)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Tap to see player details',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey[500],
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -304,8 +349,10 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
         return Container(
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
@@ -319,7 +366,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: colorScheme.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -349,9 +396,9 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: colorScheme.surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(color: colorScheme.outlineVariant),
                       ),
                       child: InkWell(
                         onTap: () {
@@ -418,7 +465,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                     '#${player.number}',
                                     style: TextStyle(
                                       fontSize: 14,
-                                      color: Colors.grey[600],
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],

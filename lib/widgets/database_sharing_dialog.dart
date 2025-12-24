@@ -198,7 +198,7 @@ class _DatabaseSharingDialogState extends State<DatabaseSharingDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _accessLevel,
+              initialValue: _accessLevel,
               decoration: const InputDecoration(
                 labelText: 'Access Level',
                 border: OutlineInputBorder(),

@@ -18,7 +18,6 @@ class StatCategoryDialog {
     required String categoryName,
     required Map<Player, int> playerStats,
     bool showPlayerNumber = false,
-    bool useModernStyle = true,
     Function(Player)? onPlayerTap,
     int? maxPlayers,
   }) async {
@@ -35,32 +34,22 @@ class StatCategoryDialog {
 
     return showModalBottomSheet(
       context: context,
-      backgroundColor: useModernStyle ? Colors.transparent : null,
-      isScrollControlled: useModernStyle,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) {
-        if (useModernStyle) {
-          return _buildModernDialog(
-            context,
-            categoryName,
-            displayStats,
-            showPlayerNumber,
-            onPlayerTap,
-          );
-        } else {
-          return _buildSimpleDialog(
-            context,
-            categoryName,
-            displayStats,
-            showPlayerNumber,
-            onPlayerTap,
-          );
-        }
+        return _buildDialog(
+          context,
+          categoryName,
+          displayStats,
+          showPlayerNumber,
+          onPlayerTap,
+        );
       },
     );
   }
 
-  /// Builds a modern-style dialog with rounded corners and colored badges
-  static Widget _buildModernDialog(
+  /// Builds the dialog with rounded corners and colored badges
+  static Widget _buildDialog(
     BuildContext context,
     String categoryName,
     List<MapEntry<Player, int>> sortedStats,
@@ -144,12 +133,11 @@ class StatCategoryDialog {
                             ),
                             child: Row(
                               children: [
-                                // Player avatar - disable its built-in navigation
+                                // Player avatar
                                 ResponsivePlayerAvatar(
                                   player: player,
                                   avatarSize: 48,
-                                  isEdit:
-                                      true, // Disable avatar's built-in tap to let tile handle it
+                                  isEdit: false,
                                 ),
                                 const SizedBox(width: 12),
                                 // Player name and number
@@ -221,75 +209,6 @@ class StatCategoryDialog {
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  /// Builds a simple dialog with basic list tiles
-  static Widget _buildSimpleDialog(
-    BuildContext context,
-    String categoryName,
-    List<MapEntry<Player, int>> sortedStats,
-    bool showPlayerNumber,
-    Function(Player)? onPlayerTap,
-  ) {
-    return ListView.builder(
-      itemCount: sortedStats.length + 1,
-      itemBuilder: (context, index) {
-        // Header
-        if (index == 0) {
-          return ListTile(
-            title: Center(
-              child: Text(
-                categoryName,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Player item
-        final player = sortedStats[index - 1].key;
-        final count = sortedStats[index - 1].value;
-
-        return ListTile(
-          leading: ResponsivePlayerAvatar(
-            player: player,
-            avatarSize: 40,
-            isEdit:
-                true, // Disable avatar's built-in tap to let ListTile handle it
-          ),
-          title: Text(
-            player.displayName,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          subtitle: showPlayerNumber ? Text('#${player.number}') : null,
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-          onTap: onPlayerTap != null ? () => onPlayerTap(player) : null,
         );
       },
     );

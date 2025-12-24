@@ -64,7 +64,7 @@ class SeasonStats implements StatLeaders {
   int _opponentShotsOffPost = 0;
   int _opponentSaves = 0;
   int _opponentGoals = 0;
-  int _opponentOwnGoalsEarned = 0;
+  final int _opponentOwnGoalsEarned = 0;
   int _opponentPenaltyKickGoals = 0;
   int _opponentPenaltyKickTaken = 0;
   int _opponentAssists = 0;

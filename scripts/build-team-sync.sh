@@ -27,10 +27,9 @@ PLATFORM=${1:-"all"}
 case $PLATFORM in
   web)
     echo "📦 Building for Web..."
-    echo "🧹 Cleaning previous build..."
     cd "$PROJECT_ROOT"
-    flutter clean
-    flutter pub get
+    # flutter clean # optimization: skip clean to allow incremental builds
+    # flutter pub get # optimization: skip pub get, build command checks it
     echo "🔨 Building web release..."
     flutter build web \
       --target=lib/main.dart \

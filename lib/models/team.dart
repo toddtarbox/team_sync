@@ -83,10 +83,21 @@ class Team extends Equatable {
     return false;
   }
 
+  static final Map<int, Team> _teamCache = {};
+
+  static void clearCache() {
+    _teamCache.clear();
+  }
+
   static Future<Team> fromId(int id) async {
+    if (_teamCache.containsKey(id)) {
+      return _teamCache[id]!;
+    }
     final results = await DatabaseService.instance
         .query('Teams', orderByChild: 'id', equalTo: id);
-    return Team.fromMap(results.first);
+    final team = Team.fromMap(results.first);
+    _teamCache[id] = team;
+    return team;
   }
 
   static Future<List<Team>> all() async {

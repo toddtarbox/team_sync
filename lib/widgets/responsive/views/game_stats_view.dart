@@ -9,6 +9,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/widgets/game_stats_display.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -61,9 +62,47 @@ class _GameStatsViewState extends State<GameStatsView> {
           } else if (snapshot.hasError) {
             return Center(child: Text(loc.errorLoadingStats));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeletonView(context);
           }
         });
+  }
+
+  Widget _buildSkeletonView(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Skeleton
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          const SizedBox(height: 24),
+
+          // Title Skeleton
+          SkeletonContainer.rectangular(
+            width: 150,
+            height: 20,
+          ),
+          const SizedBox(height: 16),
+
+          // Stat Rows Skeletons
+          ...List.generate(
+            6,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SkeletonContainer.rectangular(
+                width: double.infinity,
+                height: 80,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<GameStats> _loadStats() async {
@@ -207,8 +246,6 @@ class _GameStatsViewState extends State<GameStatsView> {
                   categoryName: category.name.toSentenceCase().toTitleCase(),
                   playerStats: playerStats[category]!,
                   showPlayerNumber: true,
-                  useModernStyle:
-                      false, // Use simple style to match existing behavior
                 );
               }
             },

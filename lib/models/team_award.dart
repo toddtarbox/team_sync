@@ -11,6 +11,7 @@ class TeamAward {
   final String? description;
   final String? imageUrl;
   final String? url;
+  final bool isPromoted;
 
   TeamAward({
     required this.id,
@@ -20,6 +21,7 @@ class TeamAward {
     this.description,
     this.imageUrl,
     this.url,
+    this.isPromoted = false,
   });
 
   factory TeamAward.fromMap(Map<String, dynamic> map) {
@@ -31,6 +33,7 @@ class TeamAward {
       description: map['description'],
       imageUrl: map['imageUrl'],
       url: map['url'],
+      isPromoted: map['isPromoted'] ?? false,
     );
   }
 
@@ -43,7 +46,30 @@ class TeamAward {
       'description': description,
       'imageUrl': imageUrl,
       'url': url,
+      'isPromoted': isPromoted,
     };
+  }
+
+  TeamAward copyWith({
+    int? id,
+    int? teamId,
+    int? seasonId,
+    String? title,
+    String? description,
+    String? imageUrl,
+    String? url,
+    bool? isPromoted,
+  }) {
+    return TeamAward(
+      id: id ?? this.id,
+      teamId: teamId ?? this.teamId,
+      seasonId: seasonId ?? this.seasonId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      url: url ?? this.url,
+      isPromoted: isPromoted ?? this.isPromoted,
+    );
   }
 
   static Future<List<TeamAward>> listFromSeasonId(int seasonId) async {
@@ -122,7 +148,7 @@ class TeamAward {
       teamId: teamId,
       title: title,
       description: description != null && description!.isNotEmpty
-          ? '$description (${seasonName})'
+          ? '$description ($seasonName)'
           : seasonName,
       imageUrl: imageUrl,
       url: url,

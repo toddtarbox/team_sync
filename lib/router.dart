@@ -16,6 +16,7 @@ import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
 import 'package:team_sync/widgets/team_sync/team_home_page.dart';
+import 'package:team_sync/widgets/common/page_skeleton.dart';
 
 /// Router for TeamSync app with distinct URLs for each page
 ///
@@ -85,9 +86,7 @@ final router = GoRouter(
                         child: Text('Error loading season: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
@@ -132,9 +131,7 @@ final router = GoRouter(
                                 'Error loading season: ${snapshot.error}')),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
+                    return PageSkeleton.grid();
                   },
                 );
               },
@@ -180,9 +177,7 @@ final router = GoRouter(
                                 'Error loading season: ${snapshot.error}')),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
+                    return PageSkeleton.grid();
                   },
                 );
               },
@@ -213,9 +208,7 @@ final router = GoRouter(
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Scaffold(
-                            body: Center(child: CircularProgressIndicator()),
-                          );
+                          return PageSkeleton.details(hasAppBar: false);
                         }
 
                         if (snapshot.hasError) {
@@ -327,18 +320,7 @@ final router = GoRouter(
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       debugPrint('Router: Waiting for game to load');
-                      return const Scaffold(
-                        body: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 16),
-                              Text('Loading game...'),
-                            ],
-                          ),
-                        ),
-                      );
+                      return PageSkeleton.details();
                     }
 
                     if (snapshot.hasError) {
@@ -404,9 +386,7 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
@@ -436,9 +416,7 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
@@ -468,9 +446,7 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
@@ -489,9 +465,7 @@ final router = GoRouter(
               future: _loadPlayerGlobal(playerId, databaseId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
+                  return PageSkeleton.details();
                 }
 
                 if (snapshot.hasError) {

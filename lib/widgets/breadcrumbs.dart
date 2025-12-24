@@ -37,75 +37,73 @@ class Breadcrumbs extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHighest
-            .withOpacity(0.3),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context).dividerColor.withOpacity(0.5),
+            color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
             width: 1,
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.home,
-            size: 16,
-            color:
-                Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
-          ),
-          const SizedBox(width: 8),
-          for (int i = 0; i < items.length; i++) ...[
-            if (i > 0)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.color
-                      ?.withOpacity(0.7),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              Icons.home_rounded,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            for (int i = 0; i < items.length; i++) ...[
+              if (i > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
                 ),
-              ),
-            _buildBreadcrumbItem(context, items[i],
-                isLast: i == items.length - 1),
+              _buildBreadcrumbItem(context, items[i],
+                  isLast: i == items.length - 1),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildBreadcrumbItem(BuildContext context, BreadcrumbItem item,
       {required bool isLast}) {
-    final baseColor =
-        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-    final linkColor = Colors.blue; // Standard blue link color
-
-    final textStyle = TextStyle(
-      fontSize: 14,
-      color: isLast ? baseColor : linkColor,
-      fontWeight: isLast ? FontWeight.w600 : FontWeight.normal,
-    );
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (isLast || item.route == null) {
       // Last item or no route - not clickable
-      return Text(
-        item.label,
-        style: textStyle,
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Text(
+          item.label,
+          style: TextStyle(
+            fontSize: 14,
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       );
     }
 
     // Clickable breadcrumb
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
         onTap: () {
           if (item.route != null) {
             NavigationHelper.navigateTo(
@@ -116,12 +114,13 @@ class Breadcrumbs extends StatelessWidget {
           }
         },
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Text(
             item.label,
-            style: textStyle.copyWith(
-              decoration: TextDecoration.underline,
-              decorationColor: linkColor,
+            style: TextStyle(
+              fontSize: 14,
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -156,9 +155,18 @@ List<BreadcrumbItem> buildTeamBreadcrumbs({
   }
 
   if (playerName != null) {
+    String? playerRoute;
+    if (playerId != null) {
+      if (seasonId != null) {
+        playerRoute = '/team/$databaseId/season/$seasonId/players/$playerId';
+      } else {
+        playerRoute = '/team/$databaseId/player/$playerId';
+      }
+    }
+
     breadcrumbs.add(BreadcrumbItem(
       label: playerName,
-      route: playerId != null ? '/team/$databaseId/player/$playerId' : null,
+      route: playerRoute,
     ));
   }
 

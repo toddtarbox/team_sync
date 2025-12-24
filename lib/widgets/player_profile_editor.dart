@@ -851,7 +851,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
                 const SizedBox(height: 16),
                 // Season selector
                 DropdownButtonFormField<Season>(
-                  value: selectedSeason,
+                  initialValue: selectedSeason,
                   decoration: InputDecoration(
                     labelText: loc.season,
                     border: const OutlineInputBorder(),

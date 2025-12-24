@@ -4,6 +4,7 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class CareerStatsView extends StatefulWidget {
   final Team team;
@@ -46,6 +47,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                         if (stat.isNotEmpty) {
                           showModalBottomSheet(
                               context: context,
+                              isScrollControlled: true,
                               builder: (context) {
                                 return Column(
                                   children: [
@@ -103,7 +105,30 @@ class _CareerStatsViewState extends State<CareerStatsView> {
             return Center(
                 child: Text(AppLocalizations.of(context)!.errorLoadingStats));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.separated(
+              itemCount: 8,
+              padding: const EdgeInsets.all(16),
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SkeletonContainer.rectangular(
+                          width: double.infinity,
+                          height: 20,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 40),
+                      Icon(Icons.chevron_right,
+                          color: Colors.grey.withOpacity(0.3)),
+                    ],
+                  ),
+                );
+              },
+            );
           }
         });
   }

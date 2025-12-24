@@ -12,6 +12,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
@@ -87,7 +88,7 @@ class _PlayersPageState extends State<PlayersPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(AppLocalizations.of(context)!.players)),
-        body: const Center(child: CircularProgressIndicator()),
+        body: _buildSkeletonGrid(context),
       );
     }
 
@@ -137,22 +138,16 @@ class _PlayersPageState extends State<PlayersPage> {
               ),
             ),
             Expanded(
-              child: FutureBuilder(
-                // Query by teamId using RTDB native query to reduce bandwidth, then
-                // filter by seasonId and sort locally by firstName to keep original behavior.
-                future: DatabaseService.instance.query('Players',
-                    orderByChild: 'teamId', equalTo: widget.season.teamId),
+              child: FutureBuilder<List<Player>>(
+                future: Player.listFromTeamIdSeasonId(
+                    widget.season.teamId, widget.season.id),
                 builder: (BuildContext context,
-                    AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
+                    AsyncSnapshot<List<Player>> snapshot) {
                   if (snapshot.hasData) {
-                    // Filter results to this season and sort by firstName ASC
-                    final raw = snapshot.data!;
-                    final players = raw
-                        .where((p) => p['seasonId'] == widget.season.id)
-                        .toList(growable: false);
+                    final players = snapshot.data!;
                     players.sort((a, b) {
-                      final af = (a['firstName'] ?? '').toString();
-                      final bf = (b['firstName'] ?? '').toString();
+                      final af = a.firstName;
+                      final bf = b.firstName;
                       return af.compareTo(bf);
                     });
                     return LayoutBuilder(
@@ -178,7 +173,7 @@ class _PlayersPageState extends State<PlayersPage> {
                           ),
                           itemCount: players.length,
                           itemBuilder: (context, index) {
-                            final player = Player.fromMap(players[index]);
+                            final player = players[index];
                             return Dismissible(
                               key: Key(player.id.toString()),
                               direction: DismissDirection
@@ -287,6 +282,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                           child: ResponsivePlayerAvatar(
                                             player: player,
                                             avatarSize: 80,
+                                            season: widget.season,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
@@ -341,13 +337,89 @@ class _PlayersPageState extends State<PlayersPage> {
                       },
                     );
                   } else {
-                    return const Center(child: CircularProgressIndicator());
+                    return _buildSkeletonGrid(context);
                   }
                 },
               ),
             ),
           ],
         ));
+  }
+
+  Widget _buildSkeletonGrid(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = _calculateCrossAxisCount(context);
+        final totalSpacing = (crossAxisCount - 1) * 16; // crossAxisSpacing
+        final totalPadding = 32; // 16 left + 16 right
+        final availableWidth =
+            constraints.maxWidth - totalPadding - totalSpacing;
+        final itemWidth = availableWidth / crossAxisCount;
+
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: itemWidth / (itemWidth / 0.85),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: 8, // Show 8 skeleton items
+          itemBuilder: (context, index) {
+            return Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Player avatar skeleton
+                    Flexible(
+                      flex: 3,
+                      child: SkeletonContainer.circular(
+                        size: 80,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Player name skeleton
+                    Flexible(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          children: [
+                            SkeletonContainer.rectangular(
+                              width: 100,
+                              height: 16,
+                            ),
+                            const SizedBox(height: 4),
+                            SkeletonContainer.rectangular(
+                              width: 60,
+                              height: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Player number skeleton Badge
+                    SkeletonContainer.rectangular(
+                      width: 40,
+                      height: 24,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _editPlayer(Player player) {
@@ -432,6 +504,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                 child: ResponsivePlayerAvatar(
                                     player: player,
                                     avatarSize: 56,
+                                    season: widget.season,
                                     isEdit: true),
                               ),
                               const SizedBox(height: 8),
@@ -767,18 +840,6 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: isSaving
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            AppLocalizations.of(context)!.save,
-                                            style:
-                                                const TextStyle(fontSize: 20)),
                                     onTap: isSaving
                                         ? null
                                         : () async {
@@ -926,8 +987,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                                   }
                                                 }
 
-                                                setState(() {});
-                                                Navigator.pop(context);
+                                                if (context.mounted) {
+                                                  setState(() {});
+                                                  Navigator.pop(context);
+                                                }
                                               } catch (e) {
                                                 setModalState(() {
                                                   isSaving = false;
@@ -945,7 +1008,19 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }
                                               }
                                             }
-                                          }),
+                                          },
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20))),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!
@@ -1056,18 +1131,6 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: isSaving
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            AppLocalizations.of(context)!.save,
-                                            style:
-                                                const TextStyle(fontSize: 20)),
                                     onTap: isSaving
                                         ? null
                                         : () async {
@@ -1118,6 +1181,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }).toList();
 
                                                 if (duplicates.isNotEmpty) {
+                                                  if (!context.mounted) return;
                                                   // Show confirmation dialog
                                                   final shouldContinue =
                                                       await showDialog<bool>(
@@ -1192,8 +1256,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                                   'editPin': playerPin,
                                                 });
 
-                                                setState(() {});
-                                                Navigator.pop(context);
+                                                if (context.mounted) {
+                                                  setState(() {});
+                                                  Navigator.pop(context);
+                                                }
                                               } catch (e) {
                                                 setModalState(() {
                                                   isSaving = false;
@@ -1211,7 +1277,19 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }
                                               }
                                             }
-                                          }),
+                                          },
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20))),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!

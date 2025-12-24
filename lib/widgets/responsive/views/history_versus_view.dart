@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
@@ -616,26 +617,29 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
           longestWinStreak = currentWinStreak;
         }
 
-        if (isHome)
+        if (isHome) {
           homeWins++;
-        else
+        } else {
           awayWins++;
+        }
       } else if (game.isTie) {
         ties++;
         currentWinStreak = 0;
 
-        if (isHome)
+        if (isHome) {
           homeTies++;
-        else
+        } else {
           awayTies++;
+        }
       } else {
         losses++;
         currentWinStreak = 0;
 
-        if (isHome)
+        if (isHome) {
           homeLosses++;
-        else
+        } else {
           awayLosses++;
+        }
       }
     }
 
@@ -1075,7 +1079,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                 decoration: BoxDecoration(
                                                   color: Theme.of(context)
                                                       .colorScheme
-                                                      .surfaceVariant
+                                                      .surfaceContainerHighest
                                                       .withOpacity(0.3),
                                                   borderRadius:
                                                       BorderRadius.circular(12),
@@ -1131,7 +1135,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                 decoration: BoxDecoration(
                                                   color: Theme.of(context)
                                                       .colorScheme
-                                                      .surfaceVariant
+                                                      .surfaceContainerHighest
                                                       .withOpacity(0.3),
                                                   borderRadius:
                                                       BorderRadius.circular(12),
@@ -1428,7 +1432,46 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
             return Center(
                 child: Text(AppLocalizations.of(context)!.errorLoadingHistory));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.separated(
+              itemCount: 8,
+              padding: const EdgeInsets.all(16),
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                return Card(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        SkeletonContainer.circular(size: 48),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SkeletonContainer.rectangular(
+                                width: 150,
+                                height: 16,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              const SizedBox(height: 8),
+                              SkeletonContainer.rectangular(
+                                width: 100,
+                                height: 14,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
           }
         });
   }
@@ -1600,7 +1643,35 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
         return AlertDialog(
           content: Row(
             children: [
-              const CircularProgressIndicator(),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonContainer.rectangular(
+                          width: 200,
+                          height: 24,
+                          borderRadius: BorderRadius.circular(4)), // Header
+                      const SizedBox(height: 16),
+                      // Grid of cards
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.5,
+                        children: List.generate(
+                            4,
+                            (index) => SkeletonContainer.rectangular(
+                                height: 100,
+                                borderRadius: BorderRadius.circular(12))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(width: 16),
               Text(AppLocalizations.of(context)!.loading),
             ],

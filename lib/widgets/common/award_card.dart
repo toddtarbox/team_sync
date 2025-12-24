@@ -93,6 +93,9 @@ class AwardCard extends StatelessWidget {
   /// Whether this is for web (affects some behaviors)
   final bool isWeb;
 
+  /// Whether this award has been promoted (affects promote button icon)
+  final bool isPromoted;
+
   const AwardCard({
     super.key,
     required this.title,
@@ -112,6 +115,7 @@ class AwardCard extends StatelessWidget {
     this.variant = AwardCardVariant.list,
     this.heroTag,
     this.isWeb = false,
+    this.isPromoted = false,
   });
 
   /// Get the primary image URL (first from imageUrls or single imageUrl)
@@ -442,10 +446,17 @@ class AwardCard extends StatelessWidget {
     if (onPromote != null && !isWeb) {
       actions.add(
         IconButton(
-          icon: const Icon(Icons.star_border, size: 20),
+          icon: Icon(
+            isPromoted ? Icons.star : Icons.star_border,
+            size: 20,
+            color: isPromoted ? Colors.amber : null,
+          ),
           onPressed: onPromote,
-          tooltip: 'Promote to Team Accomplishment',
-          color: Theme.of(context).colorScheme.primary,
+          tooltip: isPromoted
+              ? 'Promoted to Team Accomplishment'
+              : 'Promote to Team Accomplishment',
+          color:
+              isPromoted ? Colors.amber : Theme.of(context).colorScheme.primary,
         ),
       );
     }

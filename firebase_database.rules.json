@@ -4,7 +4,9 @@
       "$ownerId": {
         ".read": "$ownerId === auth.uid",
         ".write": "$ownerId === auth.uid",
-        ".indexOn": ["email"]
+        ".indexOn": [
+          "email"
+        ]
       }
     },
     "user_database_access": {
@@ -18,7 +20,9 @@
         ".read": "auth != null",
         ".write": "$userId === auth.uid"
       },
-      ".indexOn": ["email"]
+      ".indexOn": [
+        "email"
+      ]
     },
     "subscriptionIds": {
       "$uid": {
@@ -26,19 +30,42 @@
           ".read": "auth != null && auth.uid == $uid",
           "$db": {
             "Teams": {
-              ".indexOn": ["id"]
+              ".indexOn": [
+                "id"
+              ]
             },
             "Players": {
-              ".indexOn": ["id", "teamId", "seasonId"]
+              ".indexOn": [
+                "id",
+                "teamId",
+                "seasonId",
+                "teamId_seasonId",
+                "id_seasonId"
+              ]
             },
             "Games": {
-              ".indexOn": ["id", "seasonId", "homeTeamId", "awayTeamId"]
+              ".indexOn": [
+                "id",
+                "seasonId",
+                "homeTeamId",
+                "awayTeamId"
+              ]
             },
             "Events": {
-              ".indexOn": ["id", "gameId", "teamId", "seasonId"]
+              ".indexOn": [
+                "id",
+                "gameId",
+                "teamId",
+                "seasonId",
+                "teamId_seasonId",
+                "playerId"
+              ]
             },
             "Seasons": {
-              ".indexOn": ["id", "teamId"]
+              ".indexOn": [
+                "id",
+                "teamId"
+              ]
             },
             "_backups": {
               "$backup_ts": {
@@ -52,7 +79,6 @@
         }
       }
     },
-
     "shared_databases": {
       ".read": true,
       ".write": "auth != null",
