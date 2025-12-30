@@ -201,9 +201,6 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       SeasonStats stats, int playerId) async {
     final Map<LeaderCategory, int> playerStats = {};
 
-    debugPrint(
-        'PlayerProfile: Getting stats for player $playerId in season ${stats.seasonId}');
-
     for (final category in LeaderCategory.values) {
       if (category == LeaderCategory.ownGoalsEarned) {
         continue;
@@ -211,31 +208,15 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
       final statPlayers = await stats.getStatPlayers(category);
 
-      bool found = false;
       // Find the player in the stats
       for (final entry in statPlayers.entries) {
         if (entry.key.id == playerId) {
           playerStats[category] = entry.value;
-          debugPrint(
-              'PlayerProfile: Found stat $category: ${entry.value} for player $playerId');
-          found = true;
           break;
         }
       }
-
-      if (!found && statPlayers.isNotEmpty) {
-        // Log the first few players found to see if IDs are different
-        final firstFew = statPlayers.keys
-            .take(3)
-            .map((p) => '${p.displayName}(${p.id})')
-            .join(', ');
-        debugPrint(
-            'PlayerProfile: Player $playerId not found in $category. Available players: $firstFew');
-      }
     }
 
-    debugPrint(
-        'PlayerProfile: Finished getting stats for player $playerId. Found ${playerStats.length} non-zero stats.');
     return playerStats;
   }
 
@@ -1155,12 +1136,19 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   width: 2,
                 ),
               ),
-              child: QrImageView(
-                data: playerUrl,
-                version: QrVersions.auto,
-                size: 280,
-                backgroundColor: Colors.white,
-                errorCorrectionLevel: QrErrorCorrectLevel.H,
+              child: SizedBox(
+                width: 280,
+                height: 280,
+                child: RepaintBoundary(
+                  child: QrImageView(
+                    data: playerUrl,
+                    version: QrVersions.auto,
+                    size: 280,
+                    backgroundColor: Colors.white,
+                    errorCorrectionLevel: QrErrorCorrectLevel.H,
+                    semanticsLabel: 'QR code for ${widget.player.displayName}',
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1635,7 +1623,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
         // Carousel
         SizedBox(
-          height: 280,
+          height: 420,
           child: items.length == 1
               ? Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -1643,7 +1631,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                 )
               : CarouselSlider(
                   options: CarouselOptions(
-                    height: 280,
+                    height: 420,
                     viewportFraction: 0.90,
                     enlargeCenterPage: true,
                     enableInfiniteScroll: items.length > 1,
@@ -1687,80 +1675,89 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Award image/icon - use player image as fallback
-              if (displayImage != null)
-                TappableImage.network(
-                  imageUrl: displayImage,
-                  width: 120,
-                  height: 120,
-                  fit: BoxFit.cover,
-                  borderRadius: BorderRadius.circular(12),
-                  heroTag: 'player_award_${widget.player.id}_${award.id}',
-                  errorWidget: const Icon(Icons.emoji_events,
-                      size: 80, color: Colors.amber),
-                )
-              else
-                const Icon(Icons.emoji_events, size: 80, color: Colors.amber),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SizedBox(
+              width: 250, // Constraint width to ensure wrapping works
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Award image/icon - use player image as fallback
+                  if (displayImage != null)
+                    TappableImage.network(
+                      imageUrl: displayImage,
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                      borderRadius: BorderRadius.circular(12),
+                      heroTag: 'player_award_${widget.player.id}_${award.id}',
+                      errorWidget: const Icon(Icons.emoji_events,
+                          size: 80, color: Colors.amber),
+                    )
+                  else
+                    const Icon(Icons.emoji_events,
+                        size: 80, color: Colors.amber),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // Award title
-              Text(
-                award.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              const SizedBox(height: 8),
-
-              // Description
-              if (award.description != null && award.description!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    award.description!,
-                    style: const TextStyle(fontSize: 14),
+                  // Award title
+                  Text(
+                    award.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
-                    maxLines: 3,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
 
-              const Spacer(),
+                  const SizedBox(height: 8),
 
-              // Season info
-              FutureBuilder<String>(
-                future: award.getSeasonName(),
-                builder: (context, snapshot) {
-                  return Text(
-                    snapshot.data ?? 'Season ${award.seasonId}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+                  // Description
+                  if (award.description != null &&
+                      award.description!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Text(
+                        award.description!,
+                        style: const TextStyle(fontSize: 14),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  );
-                },
-              ),
 
-              // URL button if available
-              if (award.url != null && award.url!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: () => _launchUrl(award.url!),
-                  icon: const Icon(Icons.link, size: 16),
-                  label: const Text('Learn More'),
-                ),
-              ],
-            ],
+                  const SizedBox(
+                      height: 16), // Replaced spacer with fixed spacing
+
+                  // Season info
+                  FutureBuilder<String>(
+                    future: award.getSeasonName(),
+                    builder: (context, snapshot) {
+                      return Text(
+                        snapshot.data ?? 'Season ${award.seasonId}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      );
+                    },
+                  ),
+
+                  // URL button if available
+                  if (award.url != null && award.url!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () => _launchUrl(award.url!),
+                      icon: const Icon(Icons.link, size: 16),
+                      label: const Text('Learn More'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -1782,86 +1779,94 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       elevation: 3,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Event info
-            Row(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: 280, // Slightly wider for video
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                event.image,
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event.display,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                // Event info
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    event.image,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.display,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            event.game.displayName(event.team.id),
+                            style: const TextStyle(fontSize: 13),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        event.game.displayName(event.team.id),
-                        style: const TextStyle(fontSize: 13),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        '${event.game.date.month}/${event.game.date.day}/${event.game.date.year}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 16),
+
+                // Video thumbnail
+                if (urls.isNotEmpty) ...[
+                  // Using fixed height container for video
+                  SizedBox(
+                    height: 150,
+                    child: Center(
+                      child: VideoThumbnail(
+                        urls.first,
+                        width: 250,
+                        height: 140,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Video buttons
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: urls.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final url = entry.value;
+                      return ElevatedButton.icon(
+                        onPressed: () => _launchUrl(url),
+                        icon: const Icon(Icons.play_circle_outline, size: 18),
+                        label: Text(
+                          urls.length > 1
+                              ? '${loc.videoLabel} ${index + 1}'
+                              : loc.watchLabel,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
               ],
             ),
-
-            const SizedBox(height: 16),
-
-            // Video thumbnail
-            if (urls.isNotEmpty) ...[
-              Expanded(
-                child: Center(
-                  child: VideoThumbnail(
-                    urls.first,
-                    width: 250,
-                    height: 140,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Video buttons
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: urls.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final url = entry.value;
-                  return ElevatedButton.icon(
-                    onPressed: () => _launchUrl(url),
-                    icon: const Icon(Icons.play_circle_outline, size: 18),
-                    label: Text(
-                      urls.length > 1
-                          ? '${loc.videoLabel} ${index + 1}'
-                          : loc.watchLabel,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

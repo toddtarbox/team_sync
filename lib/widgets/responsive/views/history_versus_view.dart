@@ -485,6 +485,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     List<Widget> stats,
   ) {
     return Card(
+      key: const Key('history_versus_analytics_card'),
       elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),

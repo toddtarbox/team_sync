@@ -131,7 +131,7 @@ final router = GoRouter(
                                 'Error loading season: ${snapshot.error}')),
                       );
                     }
-                    return PageSkeleton.grid();
+                    return PageSkeleton.list();
                   },
                 );
               },

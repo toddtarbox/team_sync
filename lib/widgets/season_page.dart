@@ -198,7 +198,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
-                        icon: const Icon(Icons.paste_sharp)),
+                        icon: const Icon(Icons.analytics)),
                   ]),
               floatingActionButton: kIsWeb
                   ? null
@@ -282,7 +282,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
-                        icon: const Icon(Icons.paste_sharp)),
+                        icon: const Icon(Icons.analytics)),
                   ]),
               floatingActionButton: kIsWeb
                   ? null
@@ -730,15 +730,17 @@ class _SeasonPageState extends State<SeasonPage> {
                             )),
                           ]),
                           const SizedBox(height: 30),
-                          TextButton(
-                              onPressed: () {
-                                _createOpponent(s);
-                              },
-                              child: Text(AppLocalizations.of(context)!
-                                  .createNewOpponent)),
+                          Visibility(
+                              visible: game!.gameStatus.index == 0,
+                              child: TextButton(
+                                  onPressed: () {
+                                    _createOpponent(s);
+                                  },
+                                  child: Text(AppLocalizations.of(context)!
+                                      .createNewOpponent))),
                           const SizedBox(height: 30),
                           DropdownMenu(
-                              enabled: game!.gameStatus.index == 0,
+                              enabled: game.gameStatus.index == 0,
                               initialSelection: isHomeTeam
                                   ? game.awayTeam.id
                                   : game.homeTeam.id,

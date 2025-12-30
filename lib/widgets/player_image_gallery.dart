@@ -122,70 +122,68 @@ class _PlayerImageGalleryState extends State<PlayerImageGallery> {
       );
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            ClipOval(
-              child: SizedBox(
-                width: widget.size,
-                height: widget.size,
-                child: CarouselSlider(
-                  options: CarouselOptions(
-                    height: widget.size,
-                    viewportFraction: 1.0,
-                    enableInfiniteScroll: false,
-                    onPageChanged: (index, reason) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                  ),
-                  items: _images.map((imgUrl) {
-                    return Builder(
-                      builder: (BuildContext context) {
-                        return GestureDetector(
-                          onTap: widget.onTap,
-                          child: Image.network(
-                            imgUrl,
-                            width: widget.size,
-                            height: widget.size,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildDefaultAvatar(),
-                          ),
-                        );
-                      },
-                    );
-                  }).toList(),
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        children: [
+          ClipOval(
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: CarouselSlider(
+                options: CarouselOptions(
+                  height: widget.size,
+                  viewportFraction: 1.0,
+                  enableInfiniteScroll: false,
+                  onPageChanged: (index, reason) {
+                    setState(() {
+                      _currentIndex = index;
+                    });
+                  },
                 ),
+                items: _images.map((imgUrl) {
+                  return Builder(
+                    builder: (BuildContext context) {
+                      return GestureDetector(
+                        onTap: widget.onTap,
+                        child: Image.network(
+                          imgUrl,
+                          width: widget.size,
+                          height: widget.size,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildDefaultAvatar(),
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
               ),
             ),
-            // Dots indicator (only if multiple images)
-            if (_images.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: _images.asMap().entries.map((entry) {
-                    return Container(
-                      width: 8.0,
-                      height: 8.0,
-                      margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(
-                            _currentIndex == entry.key ? 0.9 : 0.4),
-                      ),
-                    );
-                  }).toList(),
-                ),
+          ),
+          // Dots indicator (only if multiple images)
+          if (_images.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: _images.asMap().entries.map((entry) {
+                  return Container(
+                    width: 8.0,
+                    height: 8.0,
+                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white
+                          .withOpacity(_currentIndex == entry.key ? 0.9 : 0.4),
+                    ),
+                  );
+                }).toList(),
               ),
-          ],
-        ),
-      ],
+            ),
+        ],
+      ),
     );
   }
 }

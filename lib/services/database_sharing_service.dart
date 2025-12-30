@@ -369,8 +369,13 @@ class DatabaseSharingService {
 
       debugPrint('registerUserInLookup: User registered: $email');
     } catch (e, stackTrace) {
-      debugPrint('registerUserInLookup: Error: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (e.toString().contains('permission-denied')) {
+        debugPrint(
+            'registerUserInLookup: Permission denied (expected in testing/restricted environments).');
+      } else {
+        debugPrint('registerUserInLookup: Error: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
     }
   }
 

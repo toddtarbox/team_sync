@@ -33,6 +33,7 @@ class CommonPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responsiveAvatar = ResponsiveAvatar(
+      key: const Key('team_logo'),
       backgroundColor: Colors.transparent,
       imageUrl: team.logoUrl,
       initials: team.fullName.isNotEmpty ? team.fullName[0] : '?',
@@ -42,6 +43,7 @@ class CommonPageHeader extends StatelessWidget {
     final organizationAvatar =
         team.organizationLogoUrl != null && team.organizationLogoUrl!.isNotEmpty
             ? ResponsiveAvatar(
+                key: const Key('organization_logo'),
                 backgroundColor: Colors.transparent,
                 imageUrl: team.organizationLogoUrl,
                 initials: team.fullName.isNotEmpty ? team.fullName[0] : '?',

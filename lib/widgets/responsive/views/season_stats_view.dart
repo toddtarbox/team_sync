@@ -44,16 +44,46 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }
 
   Widget _buildSkeletonView(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Skeleton
-          SkeletonContainer.rectangular(
-            width: double.infinity,
-            height: 80,
-            borderRadius: BorderRadius.circular(12),
+          // Header Skeleton (Matches Modern View Header)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              // Use a subtle color to mimic the gradient/container
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+                width: 2,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Team Name Skeleton
+                SkeletonContainer.rectangular(
+                  width: 80,
+                  height: 24,
+                ),
+                // VS Badge Skeleton
+                SkeletonContainer.rectangular(
+                  width: 50,
+                  height: 36,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                // Opponent Name Skeleton
+                SkeletonContainer.rectangular(
+                  width: 80,
+                  height: 24,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -66,13 +96,73 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
 
           // Stat Rows Skeletons
           ...List.generate(
-            5,
+            6,
             (index) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: SkeletonContainer.rectangular(
-                width: double.infinity,
-                height: 72,
-                borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: colorScheme.outlineVariant,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left Value
+                        SkeletonContainer.rectangular(
+                          width: 30,
+                          height: 20,
+                        ),
+                        // Label
+                        SkeletonContainer.rectangular(
+                          width: 100,
+                          height: 16,
+                        ),
+                        // Right Value
+                        SkeletonContainer.rectangular(
+                          width: 30,
+                          height: 20,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Bars Skeleton
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SkeletonContainer.rectangular(
+                            width: double.infinity,
+                            height: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: SkeletonContainer.rectangular(
+                            width: double.infinity,
+                            height: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // "Tap to see details" Skeleton
+                    if (index % 2 == 0) // Randomly show for some rows
+                      Align(
+                        alignment: Alignment.center,
+                        child: SkeletonContainer.rectangular(
+                          width: 140,
+                          height: 10,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -351,158 +441,172 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 8, bottom: 16),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.outline,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            final colorScheme = Theme.of(context).colorScheme;
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(20)),
               ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  category.name.toSentenceCase().toTitleCase(),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+              child: Column(
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 16),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colorScheme.outline,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              // Player list
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: sortedStats.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final player = sortedStats[index].key;
-                    final count = sortedStats[index].value;
-                    return Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colorScheme.outlineVariant),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      category.name.toSentenceCase().toTitleCase(),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
-                      child: InkWell(
-                        onTap: () {
-                          if (!kIsWeb &&
-                              !SubscriptionService.instance.isSubscribed) {
-                            showDialog(
-                              context: context,
-                              builder: (BuildContext context) {
-                                return AlertDialog(
-                                  title: Text(loc.proFeature),
-                                  content: Text(loc.playerProfilesProFeature),
-                                  actions: [
-                                    TextButton(
-                                      child: Text(loc.cancelButton),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                      },
-                                    ),
-                                    TextButton(
-                                      child: Text(loc.goPro),
-                                      onPressed: () async {
-                                        Navigator.pop(context);
-                                        await SubscriptionService.instance
-                                            .purchaseSubscription();
-                                      },
-                                    ),
-                                  ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  // Player list
+                  Expanded(
+                    child: ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: sortedStats.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final player = sortedStats[index].key;
+                        final count = sortedStats[index].value;
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainer,
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: colorScheme.outlineVariant),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              if (!kIsWeb &&
+                                  !SubscriptionService.instance.isSubscribed) {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text(loc.proFeature),
+                                      content:
+                                          Text(loc.playerProfilesProFeature),
+                                      actions: [
+                                        TextButton(
+                                          child: Text(loc.cancelButton),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                        TextButton(
+                                          child: Text(loc.goPro),
+                                          onPressed: () async {
+                                            Navigator.pop(context);
+                                            await SubscriptionService.instance
+                                                .purchaseSubscription();
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 );
-                              },
-                            );
-                            return;
-                          }
-                          final databaseId =
-                              DatabaseService.instance.publicShareId;
-                          if (databaseId != null) {
-                            NavigationHelper.navigateTo(
-                              context,
-                              '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                              extra: {
-                                'player': player,
-                                'season': widget.season
-                              },
-                            );
-                          }
-                        },
-                        child: Row(
-                          children: [
-                            ResponsivePlayerAvatar(
-                              player: player,
-                              avatarSize: 48,
-                              useLatestImages: true,
-                              season: widget.season,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    player.displayName,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '#${player.number}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: widget.season.team.color1
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                count.toString(),
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.season.team.color1,
+                                return;
+                              }
+                              final databaseId =
+                                  DatabaseService.instance.publicShareId;
+                              if (databaseId != null) {
+                                NavigationHelper.navigateTo(
+                                  context,
+                                  '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                  extra: {
+                                    'player': player,
+                                    'season': widget.season
+                                  },
+                                );
+                              }
+                            },
+                            child: Row(
+                              children: [
+                                ResponsivePlayerAvatar(
+                                  player: player,
+                                  avatarSize: 48,
+                                  useLatestImages: true,
+                                  season: widget.season,
                                 ),
-                              ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        player.displayName,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        '#${player.number}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: widget.season.team.color1
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    count.toString(),
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: widget.season.team.color1,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

@@ -246,24 +246,20 @@ class _PlayersPageState extends State<PlayersPage> {
                                 setState(() {});
                               },
                               child: GestureDetector(
-                                onTap: kIsWeb
-                                    ? () {
-                                        final databaseId = DatabaseService
-                                            .instance.publicShareId;
-                                        if (databaseId != null) {
-                                          NavigationHelper.navigateTo(
-                                            context,
-                                            '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                            extra: {
-                                              'player': player,
-                                              'season': widget.season
-                                            },
-                                          );
-                                        }
-                                      }
-                                    : () => _editPlayer(player),
-                                onLongPress:
-                                    kIsWeb ? null : () => _editPlayer(player),
+                                onTap: () {
+                                  final databaseId =
+                                      DatabaseService.instance.publicShareId ??
+                                          '0'; // Use fallback for local
+                                  NavigationHelper.navigateTo(
+                                    context,
+                                    '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                    extra: {
+                                      'player': player,
+                                      'season': widget.season
+                                    },
+                                  );
+                                },
+                                onLongPress: () => _editPlayer(player),
                                 child: Card(
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(

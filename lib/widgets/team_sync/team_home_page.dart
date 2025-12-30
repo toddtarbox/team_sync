@@ -66,7 +66,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
   List<TeamAccomplishment> _accomplishments = [];
   Game? _currentOrLastGame;
   List<Game> _lastFiveGames = []; // For carousel when no live game
-  int _currentCarouselPage = 0; // Track current page in carousel
+  int _currentRecentGamesCarouselPage = 0; // Track current page in carousel
+  int _currentAnalyticsCarouselPage = 0; // Track current page in carousel
   Season? _currentSeason;
   late bool _isSubscribed;
   bool _isSharing = false;
@@ -877,6 +878,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             : 0.0;
 
         return CustomScrollView(
+          key: const Key('team_home_scroll_view'),
           slivers: [
             SliverPadding(
               padding: EdgeInsets.only(
@@ -892,6 +894,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     Padding(
                       padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: InkWell(
+                        key: const Key('recent_games_header'),
                         onTap: () async {
                           setState(() {
                             _recentGamesExpanded = !_recentGamesExpanded;
@@ -964,7 +967,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                       itemCount: _lastFiveGames.length,
                                       onPageChanged: (index) {
                                         setState(() {
-                                          _currentCarouselPage = index;
+                                          _currentRecentGamesCarouselPage =
+                                              index;
                                         });
                                       },
                                       itemBuilder: (context, index) {
@@ -998,7 +1002,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                           height: 8,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            color: index == _currentCarouselPage
+                                            color: index ==
+                                                    _currentRecentGamesCarouselPage
                                                 ? Theme.of(context)
                                                     .colorScheme
                                                     .primary
@@ -1022,6 +1027,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     Padding(
                       padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: InkWell(
+                        key: const Key('analytics_header'),
                         onTap: () async {
                           setState(() {
                             _analyticsExpanded = !_analyticsExpanded;
@@ -1098,6 +1104,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     Padding(
                       padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: InkWell(
+                        key: const Key('accomplishments_header'),
                         onTap: () async {
                           setState(() {
                             _accomplishmentsExpanded =
@@ -2097,6 +2104,98 @@ class _TeamHomePageState extends State<TeamHomePage> {
     // Calculate overall statistics
     final stats = _calculateOverallStats(allSeasons);
 
+    // Build items list first to get count
+    final items = [
+      // Goals Analytics Card
+      if (stats.containsKey('totalGoalsScored'))
+        _buildAnalyticsCard(
+          title: loc.goalAnalytics,
+          icon: Icons.sports_soccer,
+          iconColor: Colors.green,
+          stats: [
+            _buildStatRow(loc.totalGoalsScored, '${stats['totalGoalsScored']}',
+                Icons.sports_score),
+            _buildStatRow(loc.totalGoalsConceded,
+                '${stats['totalGoalsConceded']}', Icons.shield),
+            _buildStatRow(
+                loc.avgGoalsPerGame,
+                stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                Icons.trending_up),
+            _buildStatRow(
+                loc.goalDifferential,
+                stats['goalDifferential']! >= 0
+                    ? '+${stats['goalDifferential']}'
+                    : '${stats['goalDifferential']}',
+                Icons.compare_arrows),
+          ],
+        ),
+      // Win Streaks Card
+      if (stats.containsKey('longestWinStreak'))
+        _buildAnalyticsCard(
+          title: loc.streaksRecords,
+          icon: Icons.emoji_events,
+          iconColor: Colors.amber,
+          stats: [
+            _buildStatRow(loc.longestWinStreak,
+                '${stats['longestWinStreak']} ${loc.games}', Icons.trending_up),
+            _buildStatRow(
+                loc.longestUnbeatenStreak,
+                '${stats['longestUnbeatenStreak']} ${loc.games}',
+                Icons.shield_outlined),
+            _buildStatRow(loc.mostGoalsInGame, '${stats['mostGoalsInGame']}',
+                Icons.sports_score),
+            _buildStatRow(loc.biggestVictory, '+${stats['biggestVictory']}',
+                Icons.celebration),
+          ],
+        ),
+      // Home vs Away Card
+      if (stats.containsKey('homeWins'))
+        _buildAnalyticsCard(
+          title: loc.homeAwayAnalysis,
+          icon: Icons.home,
+          iconColor: Colors.blue,
+          stats: [
+            _buildStatRow(
+                loc.homeRecord,
+                '${stats['homeWins']}-${stats['homeDraws']}-${stats['homeLosses']}',
+                Icons.home),
+            _buildStatRow(
+                loc.awayRecord,
+                '${stats['awayWins']}-${stats['awayDraws']}-${stats['awayLosses']}',
+                Icons.flight_takeoff),
+            _buildStatRow(
+                loc.homeWinPercentage,
+                '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+            _buildStatRow(
+                loc.awayWinPercentage,
+                '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+          ],
+        ),
+      // Clean Sheets & Defense Card
+      if (stats.containsKey('cleanSheets'))
+        _buildAnalyticsCard(
+          title: loc.defensiveStats,
+          icon: Icons.shield,
+          iconColor: Colors.indigo,
+          stats: [
+            _buildStatRow(
+                loc.cleanSheets, '${stats['cleanSheets']}', Icons.block),
+            _buildStatRow(
+                loc.cleanSheetPercentage,
+                '${(stats['cleanSheetPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+            _buildStatRow(
+                loc.avgGoalsConceded,
+                stats['avgGoalsConceded']!.toStringAsFixed(2),
+                Icons.shield_outlined),
+            _buildStatRow(loc.shutoutsRecorded, '${stats['shutouts']}',
+                Icons.verified_user),
+          ],
+        ),
+    ];
+
     return Column(
       children: [
         // Analytics cards carousel
@@ -2108,120 +2207,34 @@ class _TeamHomePageState extends State<TeamHomePage> {
             enableInfiniteScroll: stats.isNotEmpty,
             autoPlay: stats.length > 1,
             autoPlayInterval: const Duration(seconds: 5),
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentAnalyticsCarouselPage = index;
+              });
+            },
           ),
-          items: [
-            // Goals Analytics Card
-            if (stats.containsKey('totalGoalsScored'))
-              _buildAnalyticsCard(
-                title: loc.goalAnalytics,
-                icon: Icons.sports_soccer,
-                iconColor: Colors.green,
-                stats: [
-                  _buildStatRow(loc.totalGoalsScored,
-                      '${stats['totalGoalsScored']}', Icons.sports_score),
-                  _buildStatRow(loc.totalGoalsConceded,
-                      '${stats['totalGoalsConceded']}', Icons.shield),
-                  _buildStatRow(
-                      loc.avgGoalsPerGame,
-                      stats['avgGoalsPerGame']!.toStringAsFixed(2),
-                      Icons.trending_up),
-                  _buildStatRow(
-                      loc.goalDifferential,
-                      stats['goalDifferential']! >= 0
-                          ? '+${stats['goalDifferential']}'
-                          : '${stats['goalDifferential']}',
-                      Icons.compare_arrows),
-                ],
-              ),
-            // Win Streaks Card
-            if (stats.containsKey('longestWinStreak'))
-              _buildAnalyticsCard(
-                title: loc.streaksRecords,
-                icon: Icons.emoji_events,
-                iconColor: Colors.amber,
-                stats: [
-                  _buildStatRow(
-                      loc.longestWinStreak,
-                      '${stats['longestWinStreak']} ${loc.games}',
-                      Icons.trending_up),
-                  _buildStatRow(
-                      loc.longestUnbeatenStreak,
-                      '${stats['longestUnbeatenStreak']} ${loc.games}',
-                      Icons.shield_outlined),
-                  _buildStatRow(loc.mostGoalsInGame,
-                      '${stats['mostGoalsInGame']}', Icons.sports_score),
-                  _buildStatRow(loc.biggestVictory,
-                      '+${stats['biggestVictory']}', Icons.celebration),
-                ],
-              ),
-            // Home vs Away Card
-            if (stats.containsKey('homeWins'))
-              _buildAnalyticsCard(
-                title: loc.homeAwayAnalysis,
-                icon: Icons.home,
-                iconColor: Colors.blue,
-                stats: [
-                  _buildStatRow(
-                      loc.homeRecord,
-                      '${stats['homeWins']}-${stats['homeDraws']}-${stats['homeLosses']}',
-                      Icons.home),
-                  _buildStatRow(
-                      loc.awayRecord,
-                      '${stats['awayWins']}-${stats['awayDraws']}-${stats['awayLosses']}',
-                      Icons.flight_takeoff),
-                  _buildStatRow(
-                      loc.homeWinPercentage,
-                      '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
-                      Icons.percent),
-                  _buildStatRow(
-                      loc.awayWinPercentage,
-                      '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
-                      Icons.percent),
-                ],
-              ),
-            // Clean Sheets & Defense Card
-            if (stats.containsKey('cleanSheets'))
-              _buildAnalyticsCard(
-                title: loc.defensiveStats,
-                icon: Icons.shield,
-                iconColor: Colors.indigo,
-                stats: [
-                  _buildStatRow(
-                      loc.cleanSheets, '${stats['cleanSheets']}', Icons.block),
-                  _buildStatRow(
-                      loc.cleanSheetPercentage,
-                      '${(stats['cleanSheetPct']! * 100).toStringAsFixed(0)}%',
-                      Icons.percent),
-                  _buildStatRow(
-                      loc.avgGoalsConceded,
-                      stats['avgGoalsConceded']!.toStringAsFixed(2),
-                      Icons.shield_outlined),
-                  _buildStatRow(loc.shutoutsRecorded, '${stats['shutouts']}',
-                      Icons.verified_user),
-                ],
-              ),
-          ],
+          items: items,
         ),
         const SizedBox(height: 8),
         // Page indicators
-        if (stats.isNotEmpty)
+
+        if (items.length > 1)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              4,
-              (index) => Container(
+            children: items.asMap().entries.map((entry) {
+              return Container(
                 width: 8,
                 height: 8,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.3),
+                  color: Theme.of(context).colorScheme.primary.withValues(
+                      alpha: _currentAnalyticsCarouselPage == entry.key
+                          ? 0.9
+                          : 0.3),
                 ),
-              ),
-            ),
+              );
+            }).toList(),
           ),
       ],
     );
@@ -2306,6 +2319,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
       },
       borderRadius: BorderRadius.circular(16),
       child: Card(
+        key: const Key('analytics_card'),
         elevation: 4,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -2587,7 +2601,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
         _currentOrLastGame = liveGames.first;
         // Clear carousel when there's a live game
         _lastFiveGames = [];
-        _currentCarouselPage = 0;
+        _currentRecentGamesCarouselPage = 0;
       } else {
         _currentOrLastGame = startedOrCompletedGames.first;
         // Get last 5 completed games for carousel (only completed games, status 9+)
@@ -2595,7 +2609,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             .where((game) => game.gameStatus.index >= 9)
             .take(5)
             .toList();
-        _currentCarouselPage = 0; // Reset to first page
+        _currentRecentGamesCarouselPage = 0; // Reset to first page
         // Load game events for each of the last 5 games
         for (final game in _lastFiveGames) {
           await game.loadGameEvents();
@@ -3305,6 +3319,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
       final databaseName = DatabaseService.instance.path;
 
       if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
         await showDialog(
           context: context,
           builder: (context) => _DatabaseSharingDialog(
@@ -3315,6 +3332,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
         final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(loc.errorDuringShare),
@@ -3322,9 +3342,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
       debugPrint(e.toString());
     }
-    setState(() {
-      _isSharing = false;
-    });
   }
 
   Future<void> _editLiveLink({Game? game}) async {
