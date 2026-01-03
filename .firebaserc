@@ -7,6 +7,9 @@
       "hosting": {
         "team-sync-soccer": [
           "team-sync-soccer"
+        ],
+        "landing": [
+          "team-sync-soccer-web"
         ]
       }
     }
