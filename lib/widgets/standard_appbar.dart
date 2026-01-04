@@ -23,8 +23,8 @@ AppBar buildStandardAppBar({
   // On web, don't show back button - use browser navigation instead
   final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
-  Future<void> launchPrivacyPolicy() async {
-    final uri = Uri.parse('https://sites.google.com/view/team-sync/home');
+  Future<void> launchAppHomePage() async {
+    final uri = Uri.parse('https://team-sync-soccer-web.web.app/');
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
@@ -39,7 +39,7 @@ AppBar buildStandardAppBar({
   if (!automaticallyImplyLeading) {
     // Custom icon without auto back button
     leadingWidget = InkWell(
-      onTap: launchPrivacyPolicy,
+      onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -53,7 +53,7 @@ AppBar buildStandardAppBar({
   } else {
     // Custom icon when no back button is needed
     leadingWidget = InkWell(
-      onTap: launchPrivacyPolicy,
+      onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -69,7 +69,7 @@ AppBar buildStandardAppBar({
     elevation: 0,
     title: !showBackButton
         ? InkWell(
-            onTap: launchPrivacyPolicy,
+            onTap: launchAppHomePage,
             child: title,
           )
         : title,

@@ -102,7 +102,8 @@ final router = GoRouter(
               name: 'season-stats',
               builder: (context, state) {
                 final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
+                final season =
+                    (state.extra is Season) ? state.extra as Season : null;
 
                 if (season != null) {
                   return SeasonStatsPage(season: season);
@@ -148,7 +149,8 @@ final router = GoRouter(
               name: 'season-players',
               builder: (context, state) {
                 final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
+                final season =
+                    (state.extra is Season) ? state.extra as Season : null;
 
                 if (season != null) {
                   return PlayersPage(season: season);
@@ -197,8 +199,26 @@ final router = GoRouter(
                     final playerId =
                         int.parse(state.pathParameters['playerId']!);
                     final extras = state.extra as Map<String, dynamic>?;
-                    final player = extras?['player'] as Player?;
-                    final season = extras?['season'] as Season?;
+
+                    Player? player;
+                    if (extras?['player'] is Player) {
+                      player = extras?['player'] as Player;
+                    } else if (extras?['player'] is Map) {
+                      // Handle Map from web navigation - force reload from DB
+                      debugPrint(
+                          'Router: Player came as Map, invalidating to force DB reload');
+                      player = null;
+                    }
+
+                    Season? season;
+                    if (extras?['season'] is Season) {
+                      season = extras?['season'] as Season;
+                    } else if (extras?['season'] is Map) {
+                      // Handle Map from web navigation - force reload from DB
+                      debugPrint(
+                          'Router: Season came as Map, invalidating to force DB reload');
+                      season = null;
+                    }
 
                     if (player != null && season != null) {
                       return PlayerProfilePage(
