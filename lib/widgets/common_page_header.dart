@@ -16,19 +16,16 @@ class CommonPageHeader extends StatelessWidget {
   final Team team;
   final double? height;
   final EdgeInsets? padding;
-  final String? summaryMessage;
-  final bool showSummary;
-  final VoidCallback? onSummaryChanged;
 
   const CommonPageHeader({
     super.key,
     required this.team,
     this.height,
     this.padding,
-    this.summaryMessage,
-    this.showSummary = true,
-    this.onSummaryChanged,
+    this.onTeamUpdated,
   });
+
+  final VoidCallback? onTeamUpdated;
 
   @override
   Widget build(BuildContext context) {
@@ -135,174 +132,8 @@ class CommonPageHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (showSummary && summaryMessage != null)
-          InkWell(
-            onTap: !kIsWeb &&
-                    team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid)
-                ? () => _showEditSummaryDialog(context)
-                : null,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    team.color1.withValues(alpha: 0.1),
-                    team.color2.withValues(alpha: 0.1),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: team.color1.withValues(alpha: 0.2),
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    color: team.color1,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      summaryMessage!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.8),
-                        height: 1.4,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  if (!kIsWeb &&
-                      team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid))
-                    Icon(
-                      Icons.edit,
-                      color: team.color1,
-                      size: 18,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        // Show empty state with add button for admins when no summary exists
-        if (!showSummary &&
-            !kIsWeb &&
-            team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid))
-          InkWell(
-            onTap: () => _showEditSummaryDialog(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    team.color1.withValues(alpha: 0.05),
-                    team.color2.withValues(alpha: 0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                border: Border(
-                  bottom: BorderSide(
-                    color: team.color1.withValues(alpha: 0.2),
-                    width: 1,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.add_circle_outline,
-                    color: team.color1,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppLocalizations.of(context)!.editTeamSummary,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontStyle: FontStyle.italic,
-                      color: team.color1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
-  }
-
-  Future<void> _showEditSummaryDialog(BuildContext context) async {
-    final loc = AppLocalizations.of(context)!;
-    final textController = TextEditingController(text: summaryMessage ?? '');
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.editTeamSummary),
-        content: TextField(
-          controller: textController,
-          decoration: InputDecoration(
-            hintText: loc.teamSummaryHint,
-            border: const OutlineInputBorder(),
-          ),
-          maxLines: 3,
-          maxLength: 200,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, textController.text),
-            child: Text(loc.save),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && context.mounted) {
-      // Save to database
-      try {
-        await DatabaseService.instance.update(
-          'Teams',
-          {'summary': result.isEmpty ? null : result},
-          key: team.id.toString(),
-        );
-        Team.clearCache();
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.teamSummarySaved)),
-          );
-
-          // Trigger callback to refresh parent widget
-          onSummaryChanged?.call();
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(loc.errorSaving(e.toString())),
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-          );
-        }
-      }
-    }
   }
 
   Future<void> _showLogoOptions(BuildContext context,
@@ -456,7 +287,7 @@ class CommonPageHeader extends StatelessWidget {
       debugPrint('Calling onSummaryChanged callback');
 
       // Trigger callback to refresh parent widget
-      onSummaryChanged?.call();
+      onTeamUpdated?.call();
     } catch (e, stackTrace) {
       debugPrint('Error uploading logo: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -520,7 +351,7 @@ class CommonPageHeader extends StatelessWidget {
         );
 
         // Trigger callback to refresh parent widget
-        onSummaryChanged?.call();
+        onTeamUpdated?.call();
       }
     } catch (e) {
       if (context.mounted) {
@@ -563,7 +394,7 @@ class CommonPageHeader extends StatelessWidget {
         );
 
         // Trigger callback to refresh parent widget
-        onSummaryChanged?.call();
+        onTeamUpdated?.call();
       }
     } catch (e) {
       if (context.mounted) {

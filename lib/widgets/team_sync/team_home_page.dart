@@ -33,6 +33,7 @@ import 'package:team_sync/widgets/common/award_card.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
+import 'package:team_sync/widgets/team_summary_section.dart';
 import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
@@ -58,7 +59,8 @@ class TeamHomePage extends StatefulWidget {
   State<TeamHomePage> createState() => _TeamHomePageState();
 }
 
-class _TeamHomePageState extends State<TeamHomePage> {
+class _TeamHomePageState extends State<TeamHomePage>
+    with SingleTickerProviderStateMixin {
   Team? _team;
   Game? _nextUpcomingGame;
   List<Season> _seasons = [];
@@ -85,6 +87,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
       false; // Track if all seasons (regular + imported) are fully loaded
   final _teamIdController = TextEditingController();
   final PageController _accomplishmentsPageController = PageController();
+  final ScrollController _scrollController =
+      ScrollController(); // Track scroll for hiding header elements
+  late AnimationController _hideController;
+  late Animation<double> _hideAnimation;
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
@@ -138,6 +144,36 @@ class _TeamHomePageState extends State<TeamHomePage> {
     }
 
     _loadExpansionStates();
+
+    // Initialize scroll hide controller
+    _hideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+      value: 1.0, // Initially shown
+    );
+    _hideAnimation = CurvedAnimation(
+      parent: _hideController,
+      curve: Curves.easeInOut,
+    );
+
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final isScrolled = _scrollController.offset > 50;
+
+      // Drive animation controller based on scroll state
+      if (isScrolled &&
+          _hideController.status != AnimationStatus.reverse &&
+          _hideController.status != AnimationStatus.dismissed) {
+        _hideController.reverse();
+      } else if (!isScrolled &&
+          _hideController.status != AnimationStatus.forward &&
+          _hideController.status != AnimationStatus.completed) {
+        _hideController.forward();
+      }
+    }
   }
 
   void _setupShowcase() {
@@ -300,6 +336,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
     _subscriptionListener?.cancel();
     _liveGameUpdateTimer?.cancel();
     _accomplishmentsPageController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _hideController.dispose();
+    _teamIdController.dispose();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
     }
@@ -364,19 +404,44 @@ class _TeamHomePageState extends State<TeamHomePage> {
           if (_team != null)
             CommonPageHeader(
               team: _team!,
-              showSummary: _team!.summary != null && _team!.summary!.isNotEmpty,
-              summaryMessage: _team!.summary,
+              onTeamUpdated: () {
+                setState(() {
+                  _loadFuture = _load();
+                });
+              },
+            ),
+          _buildAnimatedVisibility(
+            child: TeamSummarySection(
+              team: _team!,
               onSummaryChanged: () {
                 setState(() {
                   _loadFuture = _load();
                 });
               },
             ),
-          _buildLiveBanner(),
+          ),
+          _buildAnimatedVisibility(
+            child: _buildLiveBanner(),
+          ),
           // Recent highlights (web only)
-          if (kIsWeb) _buildRecentHighlights(),
+          if (kIsWeb)
+            _buildAnimatedVisibility(
+              child: _buildRecentHighlights(),
+            ),
           Expanded(child: _buildBody()),
         ],
+      ),
+    );
+  }
+
+  // Replaces implicit animation with robust explicit animation
+  Widget _buildAnimatedVisibility({required Widget child}) {
+    return SizeTransition(
+      sizeFactor: _hideAnimation,
+      axisAlignment: -1.0, // Slide up/down from top
+      child: FadeTransition(
+        opacity: _hideAnimation,
+        child: child,
       ),
     );
   }
@@ -879,6 +944,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
         return CustomScrollView(
           key: const Key('team_home_scroll_view'),
+          controller: _scrollController,
           slivers: [
             SliverPadding(
               padding: EdgeInsets.only(
