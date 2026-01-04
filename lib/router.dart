@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
@@ -8,18 +8,16 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/data_import_page.dart';
-import 'package:team_sync/widgets/debug_migration_page.dart';
 import 'package:team_sync/widgets/history_versus_page.dart';
 import 'package:team_sync/widgets/player_profile_page.dart';
 import 'package:team_sync/widgets/players_page.dart';
 import 'package:team_sync/widgets/record_holders_page.dart';
-import 'package:team_sync/widgets/responsive/mobile/mobile_game_page.dart';
-import 'package:team_sync/widgets/responsive/tablet/tablet_game_page.dart';
+import 'package:team_sync/widgets/responsive/game_page.dart';
 import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/season_stats_page.dart';
 import 'package:team_sync/widgets/settings_page.dart';
-import 'package:team_sync/widgets/sign_in_page.dart';
 import 'package:team_sync/widgets/team_sync/team_home_page.dart';
+import 'package:team_sync/widgets/common/page_skeleton.dart';
 
 /// Router for TeamSync app with distinct URLs for each page
 ///
@@ -32,14 +30,14 @@ final router = GoRouter(
     // ==================== TEAM ROUTES ====================
 
     // Root - Team home (default team or selection)
-    GoRoute(
+    TransitionGoRoute(
       path: '/',
       name: 'home',
       builder: (context, state) => const TeamHomePage(),
     ),
 
     // Specific team by database ID (shared public ID)
-    GoRoute(
+    TransitionGoRoute(
       path: '/team/:databaseId',
       name: 'team',
       builder: (context, state) {
@@ -50,12 +48,16 @@ final router = GoRouter(
         // ==================== SEASON ROUTES (nested under team) ====================
 
         // Season page
-        GoRoute(
+        TransitionGoRoute(
           path: 'season/:seasonId',
           name: 'season',
           builder: (context, state) {
             final seasonId = int.parse(state.pathParameters['seasonId']!);
-            final season = state.extra as Season?;
+            // Check if extra is explicitly a Season object.
+            // When navigating to child routes (like game) with a different extra object (like a Map),
+            // this check prevents a TypeError.
+            final season =
+                (state.extra is Season) ? state.extra as Season : null;
 
             if (season != null) {
               return SeasonPage(season: season);
@@ -89,20 +91,19 @@ final router = GoRouter(
                         child: Text('Error loading season: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
           routes: [
             // Season stats page
-            GoRoute(
+            TransitionGoRoute(
               path: 'stats',
               name: 'season-stats',
               builder: (context, state) {
                 final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
+                final season =
+                    (state.extra is Season) ? state.extra as Season : null;
 
                 if (season != null) {
                   return SeasonStatsPage(season: season);
@@ -136,21 +137,20 @@ final router = GoRouter(
                                 'Error loading season: ${snapshot.error}')),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
+                    return PageSkeleton.list();
                   },
                 );
               },
             ),
 
             // Players page
-            GoRoute(
+            TransitionGoRoute(
               path: 'players',
               name: 'season-players',
               builder: (context, state) {
                 final seasonId = int.parse(state.pathParameters['seasonId']!);
-                final season = state.extra as Season?;
+                final season =
+                    (state.extra is Season) ? state.extra as Season : null;
 
                 if (season != null) {
                   return PlayersPage(season: season);
@@ -184,15 +184,13 @@ final router = GoRouter(
                                 'Error loading season: ${snapshot.error}')),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
-                    );
+                    return PageSkeleton.grid();
                   },
                 );
               },
               routes: [
                 // Player profile page
-                GoRoute(
+                TransitionGoRoute(
                   path: ':playerId',
                   name: 'player-profile',
                   builder: (context, state) {
@@ -201,8 +199,26 @@ final router = GoRouter(
                     final playerId =
                         int.parse(state.pathParameters['playerId']!);
                     final extras = state.extra as Map<String, dynamic>?;
-                    final player = extras?['player'] as Player?;
-                    final season = extras?['season'] as Season?;
+
+                    Player? player;
+                    if (extras?['player'] is Player) {
+                      player = extras?['player'] as Player;
+                    } else if (extras?['player'] is Map) {
+                      // Handle Map from web navigation - force reload from DB
+                      debugPrint(
+                          'Router: Player came as Map, invalidating to force DB reload');
+                      player = null;
+                    }
+
+                    Season? season;
+                    if (extras?['season'] is Season) {
+                      season = extras?['season'] as Season;
+                    } else if (extras?['season'] is Map) {
+                      // Handle Map from web navigation - force reload from DB
+                      debugPrint(
+                          'Router: Season came as Map, invalidating to force DB reload');
+                      season = null;
+                    }
 
                     if (player != null && season != null) {
                       return PlayerProfilePage(
@@ -217,9 +233,7 @@ final router = GoRouter(
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return const Scaffold(
-                            body: Center(child: CircularProgressIndicator()),
-                          );
+                          return PageSkeleton.details(hasAppBar: false);
                         }
 
                         if (snapshot.hasError) {
@@ -282,62 +296,110 @@ final router = GoRouter(
             ),
 
             // Game page
-            GoRoute(
+            TransitionGoRoute(
               path: 'game/:gameId',
               name: 'game',
               builder: (context, state) {
-                final seasonId = int.parse(state.pathParameters['seasonId']!);
                 final gameId = int.parse(state.pathParameters['gameId']!);
                 final extras = state.extra as Map<String, dynamic>?;
-                final season = extras?['season'] as Season?;
-                final game = extras?['game'] as Game?;
 
-                if (season != null && game != null) {
-                  if (ResponsiveBreakpoints.of(context).largerThan(MOBILE)) {
-                    return TabletGamePage(season: season, game: game);
-                  } else {
-                    return MobileGamePage(season: season, game: game);
+                Season? season;
+                if (extras?['season'] is Season) {
+                  season = extras?['season'] as Season;
+                } else if (extras?['season'] is Map) {
+                  // Handle Map (e.g. JsLinkedHashMap on web)
+                  try {
+                    season = Season.fromMap(extras!['season'] as Map);
+                  } catch (e) {
+                    debugPrint('Router: Failed to parse season from map: $e');
                   }
                 }
 
-                final databaseId = state.pathParameters['databaseId'];
-                final future = () async {
-                  if (databaseId != null) {
-                    try {
-                      await DatabaseService.instance
-                          .openFromId(databaseId)
-                          .timeout(const Duration(seconds: 10));
-                    } catch (e) {
-                      debugPrint('Router: failed to open DB $databaseId: $e');
-                    }
-                  }
-                  return await _loadSeasonAndGame(seasonId, gameId);
-                }();
+                Game? game;
+                if (extras?['game'] is Game) {
+                  game = extras?['game'] as Game;
+                } else if (extras?['game'] is Map) {
+                  // If we receive a Map (on Web), we can't synchronously convert to Game because it requires async parsing.
+                  // So we intentionally set game to null to force the deep-link loading logic below.
+                  debugPrint(
+                      'Router: Game came as Map (Web serialization), letting GamePage load it via ID/DB');
+                  game = null;
+                  // Force season to null as well so we do a full clean load
+                  season = null;
+                }
 
-                return FutureBuilder<Map<String, dynamic>?>(
-                  future: future,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData && snapshot.data != null) {
-                      final loadedSeason = snapshot.data!['season'] as Season;
-                      final loadedGame = snapshot.data!['game'] as Game;
-                      if (ResponsiveBreakpoints.of(context)
-                          .largerThan(MOBILE)) {
-                        return TabletGamePage(
-                            season: loadedSeason, game: loadedGame);
-                      } else {
-                        return MobileGamePage(
-                            season: loadedSeason, game: loadedGame);
+                // If we have both season and game from navigation extras (verified objects), use them
+                if (season != null && game != null) {
+                  debugPrint('Router: Using season and game from extras');
+                  return GamePage(season: season, game: game);
+                }
+
+                // For deep links, load the game and pass season: null to let GamePage handle season loading
+                debugPrint(
+                    'Router: Deep link detected - loading game for GamePage');
+
+                return FutureBuilder<Game?>(
+                  future: () async {
+                    final databaseId = state.pathParameters['databaseId'];
+                    if (databaseId != null) {
+                      debugPrint('Router: Opening database $databaseId');
+                      try {
+                        await DatabaseService.instance
+                            .openFromId(databaseId)
+                            .timeout(const Duration(seconds: 10));
+                      } catch (e) {
+                        debugPrint('Router: failed to open DB $databaseId: $e');
                       }
-                    } else if (snapshot.hasError) {
+                    }
+
+                    debugPrint('Router: Querying for game $gameId');
+                    final results = await DatabaseService.instance
+                        .query('Games', orderByChild: 'id', equalTo: gameId);
+
+                    if (results.isEmpty) {
+                      debugPrint('Router: Game not found');
+                      return null;
+                    }
+
+                    final loadedGame = await Game.fromMap(results.first);
+                    debugPrint('Router: Game loaded successfully');
+                    return loadedGame;
+                  }(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      debugPrint('Router: Waiting for game to load');
+                      return PageSkeleton.details();
+                    }
+
+                    if (snapshot.hasError) {
+                      debugPrint(
+                          'Router: Error loading game: ${snapshot.error}');
                       return Scaffold(
                         appBar: AppBar(title: const Text('Error')),
                         body: Center(
-                            child:
-                                Text('Error loading game: ${snapshot.error}')),
+                          child: Text('Error loading game: ${snapshot.error}'),
+                        ),
                       );
                     }
-                    return const Scaffold(
-                      body: Center(child: CircularProgressIndicator()),
+
+                    if (!snapshot.hasData || snapshot.data == null) {
+                      debugPrint('Router: Game not found in database');
+                      return Scaffold(
+                        appBar: AppBar(title: const Text('Not Found')),
+                        body: const Center(
+                          child: Text('Game not found'),
+                        ),
+                      );
+                    }
+
+                    debugPrint(
+                        'Router: Passing game to GamePage with season: null');
+                    // Pass the loaded game with season: null and databaseId so GamePage loads the season
+                    final databaseId = state.pathParameters['databaseId'];
+                    return GamePage(
+                      season: null,
+                      game: snapshot.data!,
+                      databaseId: databaseId,
                     );
                   },
                 );
@@ -349,7 +411,7 @@ final router = GoRouter(
         // ==================== TEAM STATS ROUTES ====================
 
         // History versus page
-        GoRoute(
+        TransitionGoRoute(
           path: 'history',
           name: 'history-versus',
           builder: (context, state) {
@@ -372,16 +434,14 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
         ),
 
         // Record holders page
-        GoRoute(
+        TransitionGoRoute(
           path: 'records',
           name: 'record-holders',
           builder: (context, state) {
@@ -404,23 +464,21 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                return PageSkeleton.list();
               },
             );
           },
         ),
 
         // Team settings page
-        GoRoute(
+        TransitionGoRoute(
           path: 'settings',
           name: 'team-settings',
           builder: (context, state) {
             final team = state.extra as Team?;
 
             if (team != null) {
-              return SettingsPage(team: team, club: null);
+              return SettingsPage(team: team);
             }
 
             return FutureBuilder<Team?>(
@@ -428,7 +486,7 @@ final router = GoRouter(
                   _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
-                  return SettingsPage(team: snapshot.data!, club: null);
+                  return SettingsPage(team: snapshot.data!);
                 } else if (snapshot.hasError) {
                   return Scaffold(
                     appBar: AppBar(title: const Text('Error')),
@@ -436,8 +494,72 @@ final router = GoRouter(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                return PageSkeleton.list();
+              },
+            );
+          },
+        ),
+
+        // ==================== GLOBAL PLAYER ROUTE ====================
+        // Player profile without requiring season in URL
+        TransitionGoRoute(
+          path: 'player/:playerId',
+          name: 'player-profile-global',
+          builder: (context, state) {
+            final playerId = int.parse(state.pathParameters['playerId']!);
+            final databaseId = state.pathParameters['databaseId'];
+
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: _loadPlayerGlobal(playerId, databaseId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return PageSkeleton.details();
+                }
+
+                if (snapshot.hasError) {
+                  return Scaffold(
+                    appBar: AppBar(title: const Text('Error')),
+                    body: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error loading player',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final data = snapshot.data;
+                if (data != null &&
+                    data['player'] != null &&
+                    data['season'] != null) {
+                  return PlayerProfilePage(
+                    player: data['player'] as Player,
+                    currentSeason: data['season'] as Season,
+                  );
+                }
+
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: const Center(
+                    child: Text('Player or season data not available'),
+                  ),
                 );
               },
             );
@@ -448,35 +570,23 @@ final router = GoRouter(
 
     // ==================== AUTH & UTILITY ROUTES ====================
 
-    GoRoute(
-      path: '/signin',
-      name: 'signin',
-      builder: (context, state) => const SignInPage(),
-    ),
-
-    GoRoute(
+    TransitionGoRoute(
       path: '/settings',
       name: 'settings',
-      builder: (context, state) => SettingsPage(team: null, club: null),
+      builder: (context, state) => SettingsPage(team: null),
     ),
 
-    GoRoute(
+    TransitionGoRoute(
       path: '/import',
       name: 'import',
       builder: (context, state) => const DataImportPage(),
-    ),
-
-    GoRoute(
-      path: '/debug-migration',
-      name: 'debug-migration',
-      builder: (context, state) => const DebugMigrationPage(),
     ),
 
     // ==================== LEGACY URL REDIRECT ====================
 
     // Redirect old URL format (/:databaseId) to new format (/team/:databaseId)
     // This is placed last to act as a catch-all for old shared URLs
-    GoRoute(
+    TransitionGoRoute(
       path: '/:databaseId',
       redirect: (context, state) {
         final databaseId = state.pathParameters['databaseId'];
@@ -493,6 +603,46 @@ final router = GoRouter(
   ],
 );
 
+// Helper classes for transitions
+class TransitionGoRoute extends GoRoute {
+  TransitionGoRoute({
+    required super.path,
+    super.name,
+    Widget Function(BuildContext, GoRouterState)? builder,
+    super.routes = const <RouteBase>[],
+    super.redirect,
+  }) : super(
+          pageBuilder: builder == null
+              ? null
+              : (context, state) => _buildPageWithTransition(
+                    context: context,
+                    state: state,
+                    child: builder(context, state),
+                  ),
+        );
+}
+
+Page<dynamic> _buildPageWithTransition({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  if (kIsWeb) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 500),
+    );
+  }
+  return MaterialPage<void>(
+    key: state.pageKey,
+    child: child,
+  );
+}
+
 // Helper function to load season by ID
 Future<Season?> _loadSeasonById(int seasonId) async {
   try {
@@ -502,20 +652,6 @@ Future<Season?> _loadSeasonById(int seasonId) async {
     final season = Season.fromMap(results.first);
     await season.load();
     return season;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Helper function to load both season and game
-Future<Map<String, dynamic>?> _loadSeasonAndGame(
-    int seasonId, int gameId) async {
-  try {
-    final season = await _loadSeasonById(seasonId);
-    if (season == null) return null;
-
-    final game = season.games.firstWhere((g) => g.id == gameId);
-    return {'season': season, 'game': game};
   } catch (e) {
     return null;
   }
@@ -595,5 +731,54 @@ Future<Map<String, dynamic>?> _loadPlayerAndSeason(
   } catch (e) {
     debugPrint('Error loading player and season: $e');
     rethrow; // Re-throw so FutureBuilder can catch it as an error
+  }
+}
+
+/// Load a player by ID and find their most recent season (global route)
+Future<Map<String, dynamic>?> _loadPlayerGlobal(
+    int playerId, String? databaseId) async {
+  try {
+    // Open the database if databaseId is provided
+    if (databaseId != null) {
+      final opened = await DatabaseService.instance.openFromId(databaseId);
+      if (!opened) {
+        throw Exception('Failed to open database: $databaseId');
+      }
+    }
+
+    // Load all player records with this ID (across all seasons)
+    final playerResults = await DatabaseService.instance
+        .query('Players', orderByChild: 'id', equalTo: playerId);
+
+    if (playerResults.isEmpty) {
+      throw Exception('Player not found: $playerId');
+    }
+
+    // Find the player record with the highest seasonId (most recent season)
+    Player? mostRecentPlayer;
+    int highestSeasonId = 0;
+
+    for (var result in playerResults) {
+      final player = Player.fromMap(result);
+      if (player.seasonId > highestSeasonId) {
+        highestSeasonId = player.seasonId;
+        mostRecentPlayer = player;
+      }
+    }
+
+    if (mostRecentPlayer == null) {
+      throw Exception('Could not determine most recent season for player');
+    }
+
+    // Load the season for this player
+    final season = await _loadSeasonById(mostRecentPlayer.seasonId);
+    if (season == null) {
+      throw Exception('Season not found: ${mostRecentPlayer.seasonId}');
+    }
+
+    return {'season': season, 'player': mostRecentPlayer};
+  } catch (e) {
+    debugPrint('Error loading player globally: $e');
+    rethrow;
   }
 }

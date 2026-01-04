@@ -12,6 +12,7 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart' as generic_avatar;
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
@@ -28,6 +29,7 @@ class PlayersPage extends StatefulWidget {
 class _PlayersPageState extends State<PlayersPage> {
   File? _imageFile;
   File? _actionPhotoFile; // For action photos (baseball card style)
+  File? _headshotFile; // For headshot photos (stats and lineups)
   bool _isLoading = true;
   bool _loadError = false;
 
@@ -86,7 +88,7 @@ class _PlayersPageState extends State<PlayersPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(title: Text(AppLocalizations.of(context)!.players)),
-        body: const Center(child: CircularProgressIndicator()),
+        body: _buildSkeletonGrid(context),
       );
     }
 
@@ -136,22 +138,16 @@ class _PlayersPageState extends State<PlayersPage> {
               ),
             ),
             Expanded(
-              child: FutureBuilder(
-                // Query by teamId using RTDB native query to reduce bandwidth, then
-                // filter by seasonId and sort locally by firstName to keep original behavior.
-                future: DatabaseService.instance.query('Players',
-                    orderByChild: 'teamId', equalTo: widget.season.teamId),
+              child: FutureBuilder<List<Player>>(
+                future: Player.listFromTeamIdSeasonId(
+                    widget.season.teamId, widget.season.id),
                 builder: (BuildContext context,
-                    AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
+                    AsyncSnapshot<List<Player>> snapshot) {
                   if (snapshot.hasData) {
-                    // Filter results to this season and sort by firstName ASC
-                    final raw = snapshot.data!;
-                    final players = raw
-                        .where((p) => p['seasonId'] == widget.season.id)
-                        .toList(growable: false);
+                    final players = snapshot.data!;
                     players.sort((a, b) {
-                      final af = (a['firstName'] ?? '').toString();
-                      final bf = (b['firstName'] ?? '').toString();
+                      final af = a.firstName;
+                      final bf = b.firstName;
                       return af.compareTo(bf);
                     });
                     return LayoutBuilder(
@@ -177,7 +173,7 @@ class _PlayersPageState extends State<PlayersPage> {
                           ),
                           itemCount: players.length,
                           itemBuilder: (context, index) {
-                            final player = Player.fromMap(players[index]);
+                            final player = players[index];
                             return Dismissible(
                               key: Key(player.id.toString()),
                               direction: DismissDirection
@@ -250,24 +246,20 @@ class _PlayersPageState extends State<PlayersPage> {
                                 setState(() {});
                               },
                               child: GestureDetector(
-                                onTap: kIsWeb
-                                    ? () {
-                                        final databaseId = DatabaseService
-                                            .instance.publicShareId;
-                                        if (databaseId != null) {
-                                          NavigationHelper.navigateTo(
-                                            context,
-                                            '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
-                                            extra: {
-                                              'player': player,
-                                              'season': widget.season
-                                            },
-                                          );
-                                        }
-                                      }
-                                    : () => _editPlayer(player),
-                                onLongPress:
-                                    kIsWeb ? null : () => _editPlayer(player),
+                                onTap: () {
+                                  final databaseId =
+                                      DatabaseService.instance.publicShareId ??
+                                          '0'; // Use fallback for local
+                                  NavigationHelper.navigateTo(
+                                    context,
+                                    '/team/$databaseId/season/${widget.season.id}/players/${player.id}',
+                                    extra: {
+                                      'player': player,
+                                      'season': widget.season
+                                    },
+                                  );
+                                },
+                                onLongPress: () => _editPlayer(player),
                                 child: Card(
                                   elevation: 2,
                                   shape: RoundedRectangleBorder(
@@ -286,6 +278,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                           child: ResponsivePlayerAvatar(
                                             player: player,
                                             avatarSize: 80,
+                                            season: widget.season,
+                                            useLatestImages: true,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
@@ -340,7 +334,7 @@ class _PlayersPageState extends State<PlayersPage> {
                       },
                     );
                   } else {
-                    return const Center(child: CircularProgressIndicator());
+                    return _buildSkeletonGrid(context);
                   }
                 },
               ),
@@ -349,11 +343,88 @@ class _PlayersPageState extends State<PlayersPage> {
         ));
   }
 
+  Widget _buildSkeletonGrid(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = _calculateCrossAxisCount(context);
+        final totalSpacing = (crossAxisCount - 1) * 16; // crossAxisSpacing
+        final totalPadding = 32; // 16 left + 16 right
+        final availableWidth =
+            constraints.maxWidth - totalPadding - totalSpacing;
+        final itemWidth = availableWidth / crossAxisCount;
+
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: itemWidth / (itemWidth / 0.85),
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+          ),
+          itemCount: 8, // Show 8 skeleton items
+          itemBuilder: (context, index) {
+            return Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Player avatar skeleton
+                    Flexible(
+                      flex: 3,
+                      child: SkeletonContainer.circular(
+                        size: 80,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Player name skeleton
+                    Flexible(
+                      flex: 2,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Column(
+                          children: [
+                            SkeletonContainer.rectangular(
+                              width: 100,
+                              height: 16,
+                            ),
+                            const SizedBox(height: 4),
+                            SkeletonContainer.rectangular(
+                              width: 60,
+                              height: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Player number skeleton Badge
+                    SkeletonContainer.rectangular(
+                      width: 40,
+                      height: 24,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _editPlayer(Player player) {
     late String playerName = player.displayName;
     late int playerNumber = player.number;
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
+    _headshotFile = null; // Reset headshot file
     bool isSaving = false; // Local saving state for this dialog
 
     showModalBottomSheet(
@@ -367,7 +438,7 @@ class _PlayersPageState extends State<PlayersPage> {
                     child: Column(children: [
                       Text(AppLocalizations.of(context)!.editPlayer),
                       const SizedBox(height: 16),
-                      // Profile and Action Photo Row
+                      // Profile, Action Photo, and Headshot Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
@@ -430,7 +501,9 @@ class _PlayersPageState extends State<PlayersPage> {
                                 child: ResponsivePlayerAvatar(
                                     player: player,
                                     avatarSize: 56,
-                                    isEdit: true),
+                                    season: widget.season,
+                                    isEdit: true,
+                                    useLatestImages: true),
                               ),
                               const SizedBox(height: 8),
                               const Text(
@@ -565,6 +638,130 @@ class _PlayersPageState extends State<PlayersPage> {
                               ),
                             ],
                           ),
+                          // Headshot Photo
+                          Column(
+                            children: [
+                              InkWell(
+                                onTap: kIsWeb
+                                    ? null
+                                    : () async {
+                                        if (!SubscriptionService
+                                            .instance.isSubscribed) {
+                                          showDialog(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return AlertDialog(
+                                                title: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .proFeature),
+                                                content: const Text(
+                                                    'Headshots for stats and lineups are a Pro feature!'),
+                                                actions: [
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .cancelButton),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                  TextButton(
+                                                    child: Text(
+                                                        AppLocalizations.of(
+                                                                context)!
+                                                            .goPro),
+                                                    onPressed: () async {
+                                                      Navigator.pop(context);
+                                                      await SubscriptionService
+                                                          .instance
+                                                          .purchaseSubscription();
+                                                    },
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                          return;
+                                        }
+                                        final pickedFile = await ImagePicker()
+                                            .pickImage(
+                                                source: ImageSource.gallery);
+                                        if (pickedFile != null) {
+                                          setModalState(() {
+                                            _headshotFile =
+                                                File(pickedFile.path);
+                                          });
+                                        }
+                                      },
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: widget.season.team.color1,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: _headshotFile != null
+                                      ? ClipOval(
+                                          child: Image.file(
+                                            _headshotFile!,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        )
+                                      : player.headshot != null &&
+                                              player.headshot!.isNotEmpty
+                                          ? player.headshot!.startsWith('http')
+                                              ? ClipOval(
+                                                  child: TappableImage.network(
+                                                    imageUrl: player.headshot!,
+                                                    fit: BoxFit.cover,
+                                                    heroTag:
+                                                        'player_headshot_${player.id}',
+                                                    errorWidget: const Icon(
+                                                      Icons.account_circle,
+                                                      size: 28,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                )
+                                              : ClipOval(
+                                                  child: Image.file(
+                                                    File(player.headshot!),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context,
+                                                        error, stackTrace) {
+                                                      return const Icon(
+                                                        Icons.account_circle,
+                                                        size: 28,
+                                                        color: Colors.grey,
+                                                      );
+                                                    },
+                                                  ),
+                                                )
+                                          : const Icon(
+                                              Icons.account_circle,
+                                              size: 28,
+                                              color: Colors.grey,
+                                            ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Headshot',
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                              const Text(
+                                '(for stats/lineups)',
+                                style:
+                                    TextStyle(fontSize: 10, color: Colors.grey),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -641,18 +838,6 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: isSaving
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            AppLocalizations.of(context)!.save,
-                                            style:
-                                                const TextStyle(fontSize: 20)),
                                     onTap: isSaving
                                         ? null
                                         : () async {
@@ -667,6 +852,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                     player.profileImage;
                                                 String? actionPhotoUrl =
                                                     player.actionPhoto;
+                                                String? headshotUrl =
+                                                    player.headshot;
 
                                                 // Handle profile image upload
                                                 if (_imageFile != null) {
@@ -724,6 +911,33 @@ class _PlayersPageState extends State<PlayersPage> {
                                                           .getDownloadURL();
                                                 }
 
+                                                // Handle headshot upload
+                                                if (_headshotFile != null) {
+                                                  if (player.headshot != null &&
+                                                      player.headshot!
+                                                          .isNotEmpty) {
+                                                    try {
+                                                      await FirebaseStorage
+                                                          .instance
+                                                          .refFromURL(
+                                                              player.headshot!)
+                                                          .delete();
+                                                    } catch (e) {
+                                                      // Image may not exist, so we can ignore.
+                                                    }
+                                                  }
+                                                  final headshotStorageRef =
+                                                      FirebaseStorage.instance
+                                                          .ref()
+                                                          .child(
+                                                              'player_headshots/${DateTime.now().toIso8601String()}');
+                                                  await headshotStorageRef
+                                                      .putFile(_headshotFile!);
+                                                  headshotUrl =
+                                                      await headshotStorageRef
+                                                          .getDownloadURL();
+                                                }
+
                                                 final nameParts =
                                                     playerName.split(' ');
                                                 final firstName =
@@ -761,6 +975,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                                     imageUrl,
                                                                 'actionPhoto':
                                                                     actionPhotoUrl,
+                                                                'headshot':
+                                                                    headshotUrl,
                                                                 'editPin': player
                                                                     .editPin,
                                                               },
@@ -769,8 +985,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                                   }
                                                 }
 
-                                                setState(() {});
-                                                Navigator.pop(context);
+                                                if (context.mounted) {
+                                                  setState(() {});
+                                                  Navigator.pop(context);
+                                                }
                                               } catch (e) {
                                                 setModalState(() {
                                                   isSaving = false;
@@ -788,7 +1006,19 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }
                                               }
                                             }
-                                          }),
+                                          },
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20))),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!
@@ -899,18 +1129,6 @@ class _PlayersPageState extends State<PlayersPage> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 GestureDetector(
-                                    child: isSaving
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : Text(
-                                            AppLocalizations.of(context)!.save,
-                                            style:
-                                                const TextStyle(fontSize: 20)),
                                     onTap: isSaving
                                         ? null
                                         : () async {
@@ -961,6 +1179,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }).toList();
 
                                                 if (duplicates.isNotEmpty) {
+                                                  if (!context.mounted) return;
                                                   // Show confirmation dialog
                                                   final shouldContinue =
                                                       await showDialog<bool>(
@@ -1035,8 +1254,10 @@ class _PlayersPageState extends State<PlayersPage> {
                                                   'editPin': playerPin,
                                                 });
 
-                                                setState(() {});
-                                                Navigator.pop(context);
+                                                if (context.mounted) {
+                                                  setState(() {});
+                                                  Navigator.pop(context);
+                                                }
                                               } catch (e) {
                                                 setModalState(() {
                                                   isSaving = false;
@@ -1054,7 +1275,19 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 }
                                               }
                                             }
-                                          }),
+                                          },
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : Text(
+                                            AppLocalizations.of(context)!.save,
+                                            style:
+                                                const TextStyle(fontSize: 20))),
                                 GestureDetector(
                                     child: Text(
                                         AppLocalizations.of(context)!

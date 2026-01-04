@@ -45,8 +45,8 @@
       ]
     },
     {
-      "target": "team-sync-club-soccer",
-      "public": "build/web",
+      "target": "landing",
+      "public": "landing_page",
       "ignore": [
         "firebase.json",
         "**/.*",

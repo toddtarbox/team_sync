@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// Use `imageUrl` for a network avatar, or `backgroundImage` for any ImageProvider.
 /// If neither is provided, `initials` will be shown as text. You can also
 /// provide a fixed `size` (radius) to override the responsive calculation.
+/// Set `isSquare` to true for a square avatar, false (default) for circular.
 class ResponsiveAvatar extends StatelessWidget {
   final String? imageUrl;
   final ImageProvider? backgroundImage;
@@ -12,6 +13,7 @@ class ResponsiveAvatar extends StatelessWidget {
   final double? size; // radius
   final Color? backgroundColor;
   final Widget? fallbackIcon;
+  final bool isSquare; // true for square, false for circle
 
   const ResponsiveAvatar({
     super.key,
@@ -21,6 +23,7 @@ class ResponsiveAvatar extends StatelessWidget {
     this.size,
     this.backgroundColor,
     this.fallbackIcon,
+    this.isSquare = false,
   });
 
   Size preferredSize(BuildContext context) {
@@ -65,14 +68,55 @@ class ResponsiveAvatar extends StatelessWidget {
           )
         : (fallbackIcon ?? const Icon(Icons.person));
 
-    Widget avatar = CircleAvatar(
-      radius: radius,
-      backgroundColor: backgroundColor ??
-          Theme.of(context).colorScheme.surfaceContainerHighest,
-      backgroundImage: provider,
-      child: provider == null ? childWidget : null,
-    );
-
-    return avatar;
+    if (isSquare) {
+      // Square avatar with optional image
+      return Container(
+        width: radius * 2,
+        height: radius * 2,
+        decoration: BoxDecoration(
+          color: backgroundColor ??
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+          image: provider != null
+              ? DecorationImage(
+                  image: provider,
+                  fit: BoxFit.contain, // Fit entire image inside the area
+                )
+              : null,
+        ),
+        child: provider == null ? Center(child: childWidget) : null,
+      );
+    } else {
+      // Circular avatar (default)
+      // For circle, we need to wrap in a container to control fit
+      if (provider != null) {
+        return Container(
+          width: radius * 2,
+          height: radius * 2,
+          decoration: BoxDecoration(
+            color: backgroundColor ??
+                Theme.of(context).colorScheme.surfaceContainerHighest,
+            shape: BoxShape.circle,
+          ),
+          child: ClipOval(
+            child: Image(
+              image: provider,
+              fit: BoxFit.contain, // Fit entire image inside the circle
+              errorBuilder: (context, error, stackTrace) {
+                return Center(child: childWidget);
+              },
+            ),
+          ),
+        );
+      } else {
+        // No image provider, use CircleAvatar with child
+        return CircleAvatar(
+          radius: radius,
+          backgroundColor: backgroundColor ??
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: childWidget,
+        );
+      }
+    }
   }
 }

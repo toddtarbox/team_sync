@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 
 class ScoringSummary extends StatefulWidget {
@@ -30,7 +31,7 @@ class _ScoringSummaryState extends State<ScoringSummary> {
         future: widget.game.loadGameEvents(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeleton();
           }
           if (snapshot.hasError) {
             debugPrint(snapshot.error.toString());
@@ -47,6 +48,8 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                   top: 5, left: 16, right: 16, bottom: 10),
               child: ListView.separated(
                   shrinkWrap: true,
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Prevent nested scrolling issues
                   itemCount: widget.game.scoringEvents.length,
                   itemBuilder: (context, index) {
                     final event = widget.game.scoringEvents[index];
@@ -72,7 +75,11 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                                   if (event.player != null &&
                                       event.player!.id != -2) ...[
                                     ResponsivePlayerAvatar(
-                                        player: event.player!, avatarSize: 18),
+                                        player: event.player!,
+                                        avatarSize: 18,
+                                        preferProfileImage: false,
+                                        useLatestImages: true,
+                                        season: widget.season),
                                     const SizedBox(width: 8),
                                   ],
                                   Expanded(
@@ -91,7 +98,10 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                                   AutoSizeText('Assisted by ', minFontSize: 14),
                                   ResponsivePlayerAvatar(
                                       player: assistEvent.player!,
-                                      avatarSize: 18),
+                                      avatarSize: 18,
+                                      preferProfileImage: false,
+                                      useLatestImages: true,
+                                      season: widget.season),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: AutoSizeText(
@@ -112,7 +122,6 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                                         : '',
                                 minFontSize: 14),
                         trailing: Text(
-                            maxLines: 1,
                             widget.game.getScore(widget.season.teamId,
                                 minute: event.eventMinute),
                             style: const TextStyle(
@@ -122,5 +131,41 @@ class _ScoringSummaryState extends State<ScoringSummary> {
                     return const Divider(height: 1);
                   }));
         });
+  }
+
+  Widget _buildSkeleton() {
+    return Container(
+      padding: const EdgeInsets.only(top: 5, left: 16, right: 16, bottom: 10),
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 3, // Show 3 dummy rows
+        separatorBuilder: (context, index) => const Divider(height: 1),
+        itemBuilder: (context, index) {
+          return ListTile(
+            leading: SkeletonContainer.rectangular(
+              width: 20,
+              height: 14,
+            ),
+            title: Row(
+              children: [
+                SkeletonContainer.circular(
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                SkeletonContainer.rectangular(
+                  width: 120,
+                  height: 14,
+                ),
+              ],
+            ),
+            trailing: SkeletonContainer.rectangular(
+              width: 30,
+              height: 14,
+            ),
+          );
+        },
+      ),
+    );
   }
 }

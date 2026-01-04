@@ -54,12 +54,6 @@ android {
             manifestPlaceholders = [appName: "TeamSync"]
             resValue "string", "app_name", "TeamSync"
         }
-        clubSync {
-            dimension "app"
-            applicationId "com.tsquared.clubsync.soccer"
-            manifestPlaceholders = [appName: "ClubSync"]
-            resValue "string", "app_name", "ClubSync"
-        }
     }
 
     buildTypes {

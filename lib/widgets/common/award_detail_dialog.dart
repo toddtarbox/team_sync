@@ -344,19 +344,12 @@ class AwardDetailDialog extends StatelessWidget {
     final loc = AppLocalizations.of(context)!;
     try {
       final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.unableToOpenLink)),
-          );
-        }
-      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
+      debugPrint('Could not launch URL: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.errorOpeningLink(e.toString()))),
+          SnackBar(content: Text(loc.unableToOpenLink)),
         );
       }
     }

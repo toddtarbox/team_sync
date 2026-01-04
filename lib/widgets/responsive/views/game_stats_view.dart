@@ -7,8 +7,9 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
-import 'package:team_sync/widgets/responsive_player_avatar.dart';
-import 'package:team_sync/widgets/scoring_summary.dart';
+import 'package:team_sync/widgets/game_stats_display.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class GameStatsView extends StatefulWidget {
   final Season season;
@@ -53,37 +54,55 @@ class _GameStatsViewState extends State<GameStatsView> {
         future: _loadStats(),
         builder: (BuildContext context, AsyncSnapshot<GameStats> snapshot) {
           if (snapshot.hasData) {
-            return ListView.separated(
-                itemCount: 3 + _statCategoryTiles.length,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return ListTile(
-                        title: Center(
-                            child: Text(loc.scoringSummary,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold))));
-                  } else if (index == 1) {
-                    return ScoringSummary(
-                        widget.season, widget.season.team, _game);
-                  } else if (index == 2) {
-                    return ListTile(
-                        title: Center(
-                            child: Text(loc.gameStats,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold))));
-                  } else {
-                    return _statCategoryTiles[index - 3];
-                  }
-                },
-                separatorBuilder: (context, index) {
-                  return const Divider(height: 1);
-                });
+            return GameStatsDisplay(
+              season: widget.season,
+              game: _game,
+              statCategoryTiles: _statCategoryTiles,
+            );
           } else if (snapshot.hasError) {
             return Center(child: Text(loc.errorLoadingStats));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeletonView(context);
           }
         });
+  }
+
+  Widget _buildSkeletonView(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Skeleton
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          const SizedBox(height: 24),
+
+          // Title Skeleton
+          SkeletonContainer.rectangular(
+            width: 150,
+            height: 20,
+          ),
+          const SizedBox(height: 16),
+
+          // Stat Rows Skeletons
+          ...List.generate(
+            6,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SkeletonContainer.rectangular(
+                width: double.infinity,
+                height: 80,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<GameStats> _loadStats() async {
@@ -219,45 +238,16 @@ class _GameStatsViewState extends State<GameStatsView> {
         leading: InkWell(
             onTap: () async {
               if (teamTotalForCategory != 0) {
-                final sortedStats = List.from(playerStats[category]!.entries);
-                sortedStats.sort((a, b) => b.value.compareTo(a.value));
-
                 if (!mounted) return;
-                showModalBottomSheet(
-                    context: context,
-                    builder: (context) {
-                      return ListView.builder(
-                          itemCount: sortedStats.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == 0) {
-                              return ListTile(
-                                  title: Center(
-                                      child: Text(
-                                          category.name
-                                              .toSentenceCase()
-                                              .toTitleCase(),
-                                          style: const TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold))));
-                            }
 
-                            final player = sortedStats[index - 1].key;
-                            final count = sortedStats[index - 1].value;
-                            return ListTile(
-                              leading: ResponsivePlayerAvatar(
-                                  player: player, avatarSize: 40),
-                              title: Text(player.displayName,
-                                  style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold)),
-                              subtitle: Text('#${player.number}'),
-                              trailing: Text(count.toString(),
-                                  style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold)),
-                            );
-                          });
-                    });
+                // Use the common dialog component
+                await StatCategoryDialog.show(
+                  context: context,
+                  categoryName: category.name.toSentenceCase().toTitleCase(),
+                  playerStats: playerStats[category]!,
+                  showPlayerNumber: true,
+                  season: widget.season,
+                );
               }
             },
             child: Text(teamTotalForCategory.toString(),

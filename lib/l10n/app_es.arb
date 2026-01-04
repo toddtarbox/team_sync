@@ -1,169 +1,6 @@
 {
-  "@accessGrantedTo": {
-    "placeholders": {
-      "email": {}
-    }
-  },
-  "@addHighlight": {
-    "description": "Tooltip/título para agregar un destacado"
-  },
-  "@couldNotOpenUrl": {
-    "description": "Texto de snackbar cuando no se puede abrir una URL",
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "@deleteHighlightConfirm": {
-    "placeholders": {
-      "title": {}
-    }
-  },
-  "@durationSeconds": {
-    "placeholders": {
-      "seconds": {}
-    }
-  },
-  "@errorDeletingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorDeletingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorGeneratingLineup": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAccessList": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingAwards": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingCredentials": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingDuplicates": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingHighlights": {
-    "description": "Error al cargar destacados",
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoadingPlayerStats": {
-    "description": "Mensaje de error al fallar la carga de stats del jugador",
-    "placeholders": {
-      "error": {},
-      "stack": {}
-    }
-  },
-  "@errorLoadingSharedDatabases": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorLoggingOut": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorMessage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorOpeningLink": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSaving": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingAward": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingHighlight": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSavingSettings": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingImage": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorSharingToTwitter": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUpdatingProfile": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@errorUploadingImages": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "@hideHighlights": {
-    "description": "Tooltip para ocultar el panel de destacados"
-  },
-  "@highlights": {
-    "description": "Encabezado para la sección de destacados"
-  },
-  "@openedDatabase": {
-    "placeholders": {
-      "name": {}
-    }
-  },
-  "@recentHighlights": {
-    "description": "Encabezado para los destacados recientes en la página de inicio del equipo"
-  },
-  "@rowNumber": {
-    "placeholders": {
-      "number": {}
-    }
-  },
-  "@showHighlights": {
-    "description": "Tooltip para mostrar el panel de destacados"
-  },
-  "@signedInWith": {
-    "placeholders": {
-      "provider": {}
-    }
-  },
-  "@videoLabel": {
-    "description": "Prefijo de etiqueta para botones de video numerados, p. ej. \"Video 1\""
-  },
-  "@watchLabel": {
-    "description": "Etiqueta para un botón de ver/reproducir"
-  },
+  "email": "Correo electrónico",
+  "description": "Descripción",
   "accessGrantedTo": "Acceso otorgado a {email}",
   "accomplishmentDeleted": "Logro eliminado",
   "accomplishmentsReordered": "Logros reordenados",
@@ -211,10 +48,6 @@
   "clearLogs": "Limpiar registros",
   "close": "Cerrar",
   "closeSidebar": "Cerrar barra lateral",
-  "clubDescription": "Descripción (Opcional)",
-  "clubDescriptionHint": "Breve descripción de tu club",
-  "clubName": "Nombre del club",
-  "clubSyncAvailable": "ClubSync disponible",
   "composeTweet": "Redactar tweet",
   "confirmDelete": "Confirmar eliminación",
   "connectToTwitter": "Conectar a Twitter",
@@ -222,13 +55,11 @@
   "continueText": "Continuar",
   "continueWithoutSigningIn": "Continuar sin iniciar sesión",
   "convertToCloud": "Convertir a una base de datos en la nube",
-  "corners": "Córners",
+  "corners": "Corners",
   "couldNotOpenUrl": "No se pudo abrir la URL: {url}",
   "create": "Crear",
   "createAnyway": "Crear de todos modos",
-  "createClub": "Crear club",
   "createNewCloudDatabase": "Crear nueva base de datos en la nube",
-  "createNewClub": "Crear nuevo club",
   "createNewDatabase": "Crear nueva base de datos",
   "createNewGameToStart": "Crea un nuevo partido para empezar",
   "createNewOpponent": "Crear nuevo oponente",
@@ -253,7 +84,6 @@
   "deleteAwardTitle": "Eliminar premio",
   "deleteHighlightConfirm": "¿Estás seguro de que deseas eliminar \"{title}\"?",
   "deleteHighlightTitle": "Eliminar destacado",
-  "description": "Descripción",
   "displayOrder": "Orden de visualización",
   "downloadErrorReport": "Descargar informe de errores",
   "downloadTemplate": "Descargar plantilla",
@@ -265,7 +95,6 @@
   "editHighlight": "Editar destacado",
   "editPlayer": "Editar jugador",
   "editProfile": "Editar perfil",
-  "email": "Correo electrónico",
   "endGame": "Finalizar juego",
   "endOfGame": "Fin del juego",
   "endOfRegulation": "Fin del tiempo regular",
@@ -340,8 +169,8 @@
   "hintDescriptionOptional": "Descripción opcional",
   "hintTitleExample": "p. ej., Gol ganador",
   "hintVideoUrl": "https://...",
-  "history": "Historial",
-  "historyVersus": "Historial contra",
+  "history": "Analítica",
+  "historyVersus": "Analítica",
   "home": "LOCAL",
   "importSeason": "Importar temporada",
   "importTeamsPlayersGamesStats": "Importar equipos, jugadores, partidos y estadísticas",
@@ -398,7 +227,6 @@
   "noAdminsYet": "Aún no hay administradores",
   "noAwardsAvailable": "No hay premios disponibles",
   "noCloudDatabasesFound": "No se encontraron bases de datos en la nube",
-  "noClubDatabasesFound": "No se encontraron bases de datos en la nube",
   "noData": "Sin datos",
   "noDataAvailable": "No hay datos disponibles",
   "noDatabaseFoundMessage": "Para comenzar, necesitarás crear una nueva base de datos o abrir una existente. ¿Te gustaría configurar tu base de datos ahora?",
@@ -460,11 +288,10 @@
   "recentHighlights": "Destacados recientes",
   "recordHolders": "Poseedores de récords",
   "records": "Récords",
-  "redCards": "Tarjetas rojas",
+  "redCards": "Tarjetas Rojas",
   "remindMeLater": "Recordar más tarde",
   "remove": "Eliminar",
   "removeButton": "Eliminar",
-  "removeFromClub": "Eliminar del club",
   "removeImage": "Eliminar imagen",
   "retry": "Reintentar",
   "revokeAccess": "Revocar acceso",
@@ -479,7 +306,6 @@
   "seasons": "Temporadas",
   "secondaryColor": "Color secundario",
   "selectACloudDatabase": "Seleccionar una base de datos en la nube",
-  "selectAClub": "Seleccionar un club",
   "selectADatabase": "Seleccionar una base de datos",
   "selectEventType": "Seleccionar tipo de evento",
   "selectImageSource": "Seleccionar fuente de imagen",
@@ -519,6 +345,10 @@
   "teamName": "Nombre del equipo",
   "teamShortName": "Nombre corto del equipo",
   "teamStandings": "Clasificación de equipos",
+  "teamSummary": "Acerca del equipo",
+  "editTeamSummary": "Editar resumen del equipo",
+  "teamSummaryHint": "Ingrese una breve descripción de su equipo...",
+  "teamSummarySaved": "Resumen del equipo guardado exitosamente",
   "teamSync": "TeamSync",
   "teamSyncDatabaseViewer": "Visor de base de datos TeamSync",
   "teamSyncViewer": "Visor de TeamSync",
@@ -547,6 +377,13 @@
   "updateButton": "Actualizar",
   "upgradeToPro": "Actualizar a Pro",
   "uploadImage": "Subir imagen",
+  "uploadingImage": "Subiendo imagen...",
+  "addLogo": "Agregar logotipo",
+  "changeLogo": "Cambiar logotipo",
+  "removeLogo": "Eliminar logotipo",
+  "confirmRemoveLogo": "¿Está seguro de que desea eliminar este logotipo?",
+  "logoUpdated": "Logotipo actualizado exitosamente",
+  "logoRemoved": "Logotipo eliminado exitosamente",
   "useDeviceLanguage": "Usar idioma del dispositivo",
   "userEmail": "Correo electrónico del usuario",
   "validateOnly": "Solo validar",
@@ -556,7 +393,7 @@
   "welcomeToTeamSync": "¡Bienvenido a TeamSync!",
   "winAbbreviation": "G",
   "year": "Año",
-  "yellowCards": "Tarjetas amarillas",
+  "yellowCards": "Tarjetas Amarillas",
   "noGamesYet": "Aún no hay partidos",
   "live": "EN VIVO",
   "win": "VICTORIA",
@@ -579,11 +416,6 @@
   "notAuthorizedUploadImages": "No autorizado para subir imágenes. Inicia sesión en el móvil para agregar imágenes.",
   "games": "Partidos",
   "gameTimeSet": "Hora del partido establecida en {time}",
-  "@gameTimeSet": {
-    "placeholders": {
-      "time": {}
-    }
-  },
   "noTimeSetPrompt": "Este partido no tiene horario establecido (actualmente 00:00). ¿Quieres establecer la hora antes de tuitear?",
   "sortByTeamName": "Nombre del equipo",
   "sortByMostGames": "Más partidos",
@@ -598,5 +430,62 @@
   "unknown": "Desconocido",
   "editSeasonName": "Editar nombre de temporada",
   "seasonNameRequired": "El nombre de temporada es obligatorio",
-  "seasonNameUpdated": "Nombre de temporada actualizado correctamente"
+  "seasonNameUpdated": "Nombre de temporada actualizado correctamente",
+  "analytics": "Analítica",
+  "avgGoalsFor": "Promedio de Goles a Favor",
+  "avgGoalsAgainst": "Promedio de Goles en Contra",
+  "biggestWin": "Mayor Victoria",
+  "biggestLoss": "Mayor Derrota",
+  "currentStreak": "Racha Actual",
+  "longestWinStreak": "Racha de Victorias Más Larga",
+  "recentForm": "Forma Reciente (Últimos 5)",
+  "cleanSheets": "Portería Invicta",
+  "goalDifferential": "Diferencia de Goles",
+  "homeRecord": "Récord en Casa",
+  "awayRecord": "Récord de Visitante",
+  "pointsPerGame": "Puntos por Partido",
+  "shootingAccuracy": "Precisión de Tiro",
+  "comebackWins": "Victorias Remontadas",
+  "lateGoals": "Goles Tardíos (80+)",
+  "cardsPerGame": "Tarjetas por Partido",
+  "statistics": "Estadísticas",
+  "scoringEvents": "Eventos de Gol",
+  "noScoringEventsYet": "No hay eventos de gol aún",
+  "gameStatistics": "Estadísticas del Partido",
+  "shotsOnTarget": "Tiros a Puerta",
+  "goalAnalytics": "Análisis de Goles",
+  "totalGoalsScored": "Total de Goles Marcados",
+  "totalGoalsConceded": "Total de Goles Concedidos",
+  "avgGoalsPerGame": "Promedio Goles Por Partido",
+  "streaksRecords": "Rachas y Récords",
+  "longestUnbeatenStreak": "Racha Invicta Más Larga",
+  "mostGoalsInGame": "Más Goles en un Partido",
+  "biggestVictory": "Mayor Victoria",
+  "homeAwayAnalysis": "Local vs Visitante",
+  "homeWinPercentage": "% Victorias Local",
+  "awayWinPercentage": "% Victorias Visitante",
+  "defensiveStats": "Estadísticas Defensivas",
+  "cleanSheetPercentage": "% Portería Invicta",
+  "avgGoalsConceded": "Promedio Goles Concedidos",
+  "shutoutsRecorded": "Porterías Invictas Registradas",
+  "allTime": "Todos los Tiempos",
+  "currentSeason": "Temporada Actual",
+  "lastSeason": "Última Temporada",
+  "last3Years": "Últimas 3 Temporadas",
+  "last5Years": "Últimas 5 Temporadas",
+  "last10Years": "Últimas 10 Temporadas",
+  "overallStatistics": "Estadísticas Generales",
+  "recordSummary": "Resumen de Récords",
+  "totalGames": "Total de Partidos",
+  "wins": "Victorias",
+  "losses": "Derrotas",
+  "ties": "Empates",
+  "winPercentage": "% Victorias",
+  "playerProfileQRCode": "Código QR del Perfil del Jugador",
+  "scanQRCodeToViewProfile": "Escanea el código QR para ver el perfil de este jugador",
+  "tapToEnlarge": "Toca para ampliar",
+  "playerProfileLink": "Perfil del Jugador: {playerName}",
+  "errorSharingLink": "Error al compartir el enlace",
+  "share": "Compartir",
+  "opponents": "Oponentes"
 }

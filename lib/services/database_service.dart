@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/services/database_sharing_service.dart';
 
-/// Progress event emitted during Firestore -> RTDB import.
+/// Progress event emitted during data import operations.
 class ImportProgress {
   final String table; // table name (Teams, Players, ...)
   final int processed; // number processed so far
@@ -24,32 +22,6 @@ class ImportProgress {
     required this.stage,
     this.message,
   });
-}
-
-final StreamController<ImportProgress> _importProgressController =
-    StreamController<ImportProgress>.broadcast();
-
-Stream<ImportProgress> get importProgressStream =>
-    _importProgressController.stream;
-
-bool _importCancelled = false;
-
-/// Request cancellation of any running import.
-void cancelImport() {
-  _importCancelled = true;
-}
-
-/// Clear cancellation flag and prepare to start a new import.
-void startImport() {
-  _importCancelled = false;
-}
-
-void _emitImportProgress(ImportProgress p) {
-  try {
-    _importProgressController.add(p);
-  } catch (e) {
-    debugPrint('Failed to emit import progress: $e');
-  }
 }
 
 /// An abstract class that defines the interface for database operations.
@@ -79,7 +51,7 @@ abstract class DatabaseProvider {
       int? limitToFirst,
       int? limitToLast});
   Future<String?> insert(String table, Map<String, dynamic> data,
-      {ConflictAlgorithm? conflictAlgorithm, String? key, String? path});
+      {String? key, String? path});
 
   /// Update rows under a table or path. If [key] is provided, only that child is updated.
   /// If [orderByChild] + [equalTo] are provided, they will be used as a native RTDB query
@@ -100,166 +72,6 @@ abstract class DatabaseProvider {
       List<dynamic>? whereArgs,
       String? orderByChild,
       dynamic equalTo});
-}
-
-/// Local sqflite provider (minimal implementation used by the app).
-class LocalDatabaseProvider implements DatabaseProvider {
-  Database? _database;
-
-  @override
-  Future<List<String>> getAvailableDatabases() => Future.value([]);
-
-  @override
-  Future<bool> open(String path) async {
-    _database = await openDatabase(
-      path,
-      version: 2,
-      onCreate: (db, version) async {
-        db.execute(
-            "create table Clubs (id integer primary key autoincrement, " +
-                "name text not null, " +
-                "description text, " +
-                "color1 integer not null, " +
-                "color2 integer not null, " +
-                "logoUrl text, " +
-                "createdAt integer not null);");
-
-        db.execute(
-            "create table Seasons (id integer primary key autoincrement, " +
-                "name text not null, " +
-                "teamId integer not null);");
-
-        db.execute(
-            "create table Teams (id integer primary key autoincrement, " +
-                "fullName text not null, " +
-                "shortName text not null, " +
-                "color1 integer not null, " +
-                "color2 integer not null, " +
-                "clubId integer);");
-
-        db.execute(
-            "create table Games (id integer primary key autoincrement, " +
-                "seasonId integer not null, " +
-                "homeTeamId integer not null, " +
-                "awayTeamId integer not null, " +
-                "homeTeamScore integer not null, " +
-                "awayTeamScore integer not null, " +
-                "date text not null, " +
-                "gameStatus text not null, " +
-                "milliSecondsLeft long not null);");
-
-        db.execute("create table Players (id integer not null, " +
-            "teamId integer not null, " +
-            "seasonId integer not null, " +
-            "firstName string not null, " +
-            "lastName string not null, " +
-            "number integer not null, " +
-            "profileImage text, " +
-            "primary key(id, teamId, seasonId));");
-
-        db.execute(
-            "create table Events (id integer primary key autoincrement, " +
-                "playerId integer not null, " +
-                "teamId integer not null, " +
-                "gameId integer not null, " +
-                "seasonId integer not null, " +
-                "eventType text not null, " +
-                "eventLocation text not null, " +
-                "eventMinute integer not null, " +
-                "eventPeriod integer not null, " +
-                "eventData integer not null, " +
-                "eventTextData text);");
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          // Add profileImage column to Players table
-          try {
-            await db
-                .execute("ALTER TABLE Players ADD COLUMN profileImage text;");
-          } catch (e) {
-            debugPrint('Migration failed: $e');
-          }
-        }
-      },
-    );
-
-    return true;
-  }
-
-  @override
-  Future<bool> openFromPath(String path) async => await open(path);
-
-  @override
-  String get path => _database?.path ?? '';
-
-  @override
-  Future<void> close() async => await _database?.close();
-
-  @override
-  Future<List<Map<String, dynamic>>> query(String table,
-      {String? path,
-      String? where,
-      List<dynamic>? whereArgs,
-      String? orderBy,
-      String? orderByChild,
-      dynamic equalTo,
-      dynamic startAt,
-      dynamic endAt,
-      int? limitToFirst,
-      int? limitToLast}) async {
-    // Local provider (sqflite) doesn't support RTDB native queries.
-    // Map arguments to a normal SQL query when possible.
-    final effectiveTable = (path != null && path.isNotEmpty) ? path : table;
-    return await _database!.query(effectiveTable,
-        where: where, whereArgs: whereArgs, orderBy: orderBy);
-  }
-
-  @override
-  Future<String?> insert(String table, Map<String, dynamic> data,
-      {ConflictAlgorithm? conflictAlgorithm, String? key, String? path}) async {
-    // For local DB we just insert into the table (ignore key/path)
-    await _database!.insert(table, data,
-        conflictAlgorithm: conflictAlgorithm ?? ConflictAlgorithm.replace);
-    return null;
-  }
-
-  @override
-  Future<void> update(String table, Map<String, dynamic> data,
-      {String? path,
-      String? key,
-      String? where,
-      List<dynamic>? whereArgs,
-      String? orderByChild,
-      dynamic equalTo}) async {
-    // Map to SQL update using where/whereArgs when provided.
-    final effectiveTable = (path != null && path.isNotEmpty) ? path : table;
-    if (key != null) {
-      await _database!
-          .update(effectiveTable, data, where: 'id=?', whereArgs: [key]);
-      return;
-    }
-    await _database!
-        .update(effectiveTable, data, where: where, whereArgs: whereArgs);
-  }
-
-  @override
-  Future<void> delete(String table,
-      {String? path,
-      String? key,
-      String? where,
-      List<dynamic>? whereArgs,
-      String? orderByChild,
-      dynamic equalTo}) async {
-    final effectiveTable = (path != null && path.isNotEmpty) ? path : table;
-    if (key != null) {
-      await _database!.delete(effectiveTable, where: 'id=?', whereArgs: [key]);
-      return;
-    }
-    await _database!.delete(effectiveTable, where: where, whereArgs: whereArgs);
-  }
-
-  @override
-  Future<bool> get isImporting => Future.value(false);
 }
 
 /// Realtime Database provider using `firebase_database`.
@@ -301,13 +113,9 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   String _subscriptionId = '';
   String _path = '';
-  int? _clubTeamId; // Track the current team ID when in club mode
   DatabaseEvent? _dbEvent;
   DataSnapshot? get dbSnapshot => _dbEvent?.snapshot;
   DataSnapshot? get dbDocumentSnapshot => dbSnapshot;
-
-  /// Check if we're in club mode (loading from ClubTeams collection)
-  bool get _isClubMode => _path.startsWith('ClubTeams/');
 
   /// Validate that a path is safe for Firebase Realtime Database
   /// Firebase paths cannot contain: . $ # [ ] or have empty components
@@ -322,25 +130,9 @@ class FirebaseDBProvider implements DatabaseProvider {
     return true;
   }
 
-  /// Translate table names for club mode
+  /// Get table name (no translation needed)
   String _getTableName(String table) {
-    if (!_isClubMode) return table;
-
-    // Map TeamSync table names to ClubSync collection names
-    switch (table) {
-      case 'Teams':
-        return 'ClubTeams';
-      case 'Seasons':
-        return 'ClubSeasons';
-      case 'Games':
-        return 'ClubGames';
-      case 'Players':
-        return 'ClubPlayers';
-      case 'Events':
-        return 'ClubEvents';
-      default:
-        return table;
-    }
+    return table;
   }
 
   String? get publicShareId {
@@ -523,46 +315,10 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     final parts = path.split('/');
 
-    // For club team paths (e.g., 'ClubTeams/123'), handle specially
-    if (parts.isNotEmpty && parts[0] == 'ClubTeams') {
-      _path = path; // Store full path like 'ClubTeams/123'
-      _subscriptionId = ''; // No subscription ID for club teams
-      _clubTeamId = parts.length > 1 ? int.tryParse(parts[1]) : null;
-
-      // For club teams, we just need to verify the team exists
-      try {
-        final ref = _database.ref(path);
-        final snapshot = await ref.once();
-        _dbEvent = snapshot;
-
-        if (!snapshot.snapshot.exists) {
-          debugPrint('openFromPath: Club team not found at path: $path');
-          return false;
-        }
-
-        // Subscribe to value events for this team
-        try {
-          await _dbValueSub?.cancel();
-          _dbValueSub = ref.onValue.listen((ev) {
-            _updateController.add(DateTime.now().toUtc());
-          });
-        } catch (e) {
-          debugPrint('Failed to subscribe to team value events: $e');
-        }
-
-        return true;
-      } catch (e, stackTrace) {
-        debugPrint('openFromPath: Error opening club team path: $e');
-        debugPrint('Stack trace: $stackTrace');
-        return false;
-      }
-    }
-
     // For subscription-based databases, parse and validate the path
     // Expected format: subscriptionIds/{uid}/databases/{dbName}
     _path = parts.isNotEmpty ? parts.last : path;
     _subscriptionId = parts.length > 1 ? parts[1] : '';
-    _clubTeamId = null; // Clear club team ID
 
     // Validate subscription ID is not empty for subscription-based paths
     if (_subscriptionId.isEmpty &&
@@ -646,14 +402,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return [];
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final String nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final ref = _database.ref(nodePath);
 
     // If caller provided RTDB-style args, build a native Query
@@ -709,8 +463,9 @@ class FirebaseDBProvider implements DatabaseProvider {
             if (av == null && bv == null) return 0;
             if (av == null) return desc ? 1 : -1;
             if (bv == null) return desc ? -1 : 1;
-            if (av is num && bv is num)
+            if (av is num && bv is num) {
               return desc ? bv.compareTo(av) : av.compareTo(bv);
+            }
             final as = av.toString();
             final bs = bv.toString();
             return desc ? bs.compareTo(as) : as.compareTo(bs);
@@ -798,8 +553,9 @@ class FirebaseDBProvider implements DatabaseProvider {
         if (av == null && bv == null) return 0;
         if (av == null) return desc ? 1 : -1;
         if (bv == null) return desc ? -1 : 1;
-        if (av is num && bv is num)
+        if (av is num && bv is num) {
           return desc ? bv.compareTo(av) : av.compareTo(bv);
+        }
         final as = av.toString();
         final bs = bv.toString();
         return desc ? bs.compareTo(as) : as.compareTo(bs);
@@ -811,18 +567,16 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   @override
   Future<String?> insert(String table, Map<String, dynamic> data,
-      {ConflictAlgorithm? conflictAlgorithm, String? key, String? path}) async {
+      {String? key, String? path}) async {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
     if (key != null && key.isNotEmpty) {
       await collectionRef.child(key).set(data);
@@ -844,14 +598,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -945,14 +697,12 @@ class FirebaseDBProvider implements DatabaseProvider {
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return;
 
-    // Translate table name for club mode
+    // Get table name
     final translatedTable = _getTableName(table);
 
     final nodePath = (path != null && path.isNotEmpty)
         ? path
-        : (_isClubMode
-            ? translatedTable // In club mode, use root-level collection
-            : '${snap.ref.path}/$translatedTable'); // In subscription mode, use nested path
+        : '${snap.ref.path}/$translatedTable'; // Use nested path
     final collectionRef = _database.ref(nodePath);
 
     if (key != null && key.isNotEmpty) {
@@ -1243,7 +993,6 @@ class DatabaseService {
     _setLastSync(DateTime.now());
   }
 
-  bool get isLocalDatabase => _provider is LocalDatabaseProvider;
   String? get publicShareId {
     if (_provider is FirebaseDBProvider) {
       return (_provider as FirebaseDBProvider).publicShareId;
@@ -1252,7 +1001,7 @@ class DatabaseService {
   }
 
   DatabaseService._internal() {
-    _provider = LocalDatabaseProvider();
+    _provider = FirebaseDBProvider();
     // Load persisted last-sync timestamp (non-blocking)
     _loadLastSyncFromPrefs();
   }
@@ -1292,174 +1041,6 @@ class DatabaseService {
     setProvider(cloudProvider);
 
     debugPrint('Importing complete');
-  }
-
-  /// Import from Firestore (a document path that contains collections -> tables)
-  /// into the user's Realtime Database subscription area.
-  Future<void> importFromFirestore(String firestorePath,
-      {bool backupExisting = true}) async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) throw Exception('Not authenticated');
-
-    final firestore = fs.FirebaseFirestore.instance;
-    final docRef = firestore.doc(firestorePath);
-    final rt = FirebaseDatabase.instance;
-    final dbName = firestorePath.split('/').last;
-    final basePath =
-        'subscriptionIds/$uid/databases/$dbName'.replaceAll('.db', '');
-
-    // Mark importing so other clients know
-    await rt.ref(basePath).update({'isImporting': true});
-
-    // Known table names used by the app
-    const tablesToMigrate = ['Teams', 'Seasons', 'Players', 'Games', 'Events'];
-
-    for (final colName in tablesToMigrate) {
-      fs.QuerySnapshot? snapshot;
-      List<fs.QueryDocumentSnapshot> docs = const [];
-
-      // Try 1: subcollection under the provided document path
-      try {
-        debugPrint(
-            'importFromFirestore: trying doc subcollection $colName at $firestorePath');
-        snapshot = await docRef.collection(colName).get();
-        docs = snapshot.docs;
-        debugPrint(
-            'importFromFirestore: doc.subcollection $colName returned ${docs.length} docs');
-      } catch (e, st) {
-        debugPrint(
-            'importFromFirestore: doc subcollection read failed for $colName: $e\n$st');
-      }
-
-      // Try 2: collection at full path ($firestorePath/$colName)
-      if (docs.isEmpty) {
-        try {
-          final altPath = '$firestorePath/$colName';
-          debugPrint('importFromFirestore: trying collection path $altPath');
-          snapshot = await firestore.collection(altPath).get();
-          docs = snapshot.docs;
-          debugPrint(
-              'importFromFirestore: collection($altPath) returned ${docs.length} docs');
-        } catch (e, st) {
-          debugPrint(
-              'importFromFirestore: collection(path/col) read failed for $colName: $e\n$st');
-        }
-      }
-
-      // Try 3: top-level collection with the name
-      if (docs.isEmpty) {
-        try {
-          debugPrint(
-              'importFromFirestore: trying top-level collection $colName');
-          snapshot = await firestore.collection(colName).get();
-          docs = snapshot.docs;
-          debugPrint(
-              'importFromFirestore: top-level collection $colName returned ${docs.length} docs');
-        } catch (e, st) {
-          debugPrint(
-              'importFromFirestore: top-level collection read failed for $colName: $e\n$st');
-        }
-      }
-
-      if (docs.isEmpty) {
-        debugPrint(
-            'importFromFirestore: No documents found for $colName, skipping');
-        continue;
-      }
-
-      final List<MapEntry<String, dynamic>> rows = [];
-      for (final d in docs) {
-        try {
-          rows.add(MapEntry(d.id, _firestoreValueToJson(d.data())));
-        } catch (e, st) {
-          debugPrint(
-              'importFromFirestore: Failed to convert doc ${d.id} in $colName: $e\n$st');
-        }
-      }
-
-      final rtTableRef = rt.ref('$basePath/$colName');
-
-      // Backup existing table if requested
-      if (backupExisting) {
-        try {
-          final existingSnap = await rtTableRef.get();
-          if (existingSnap.exists && existingSnap.value != null) {
-            final backupPath =
-                '$basePath/_backups/${DateTime.now().toIso8601String()}/$colName';
-            final backupRef = rt.ref(backupPath);
-            // Write existing data as a whole backup map
-            final existingMap = existingSnap.value as dynamic;
-            await backupRef.set(existingMap);
-            debugPrint(
-                'importFromFirestore: Backed up $colName to $backupPath');
-          }
-        } catch (e, st) {
-          debugPrint(
-              'importFromFirestore: Backup failed for $colName: $e\n$st');
-        }
-      }
-
-      // Write per-document to avoid overwriting unrelated nodes accidentally
-      int processed = 0;
-      _emitImportProgress(ImportProgress(
-          table: colName, processed: 0, total: rows.length, stage: 'writing'));
-      for (final entry in rows) {
-        if (_importCancelled) break;
-        try {
-          final childRef = rtTableRef.child(entry.key);
-          await childRef.set(entry.value);
-          processed++;
-          _emitImportProgress(ImportProgress(
-              table: colName,
-              processed: processed,
-              total: rows.length,
-              stage: 'writing'));
-        } catch (e, st) {
-          _emitImportProgress(ImportProgress(
-              table: colName,
-              processed: processed,
-              total: rows.length,
-              stage: 'error',
-              message: e.toString()));
-          debugPrint(
-              'importFromFirestore: Failed to write doc ${entry.key} in $colName: $e\n$st');
-        }
-      }
-
-      // Final stage
-      if (_importCancelled) {
-        _emitImportProgress(ImportProgress(
-            table: colName,
-            processed: processed,
-            total: rows.length,
-            stage: 'cancelled'));
-        debugPrint('importFromFirestore: Import cancelled during $colName');
-      } else {
-        _emitImportProgress(ImportProgress(
-            table: colName,
-            processed: processed,
-            total: rows.length,
-            stage: 'done'));
-        debugPrint(
-            'importFromFirestore: Wrote $processed records to $basePath/$colName');
-      }
-
-      if (_importCancelled) {
-        debugPrint('importFromFirestore: Import cancelled by user');
-        break;
-      }
-    }
-
-    // Clear importing flag
-    try {
-      await rt.ref(basePath).update({'isImporting': false});
-    } catch (e) {
-      debugPrint('importFromFirestore: could not clear isImporting flag: $e');
-    }
   }
 
   Future<bool> open(String path) async => await _provider.open(path);
@@ -1520,11 +1101,10 @@ class DatabaseService {
           limitToLast: limitToLast);
 
   Future<String?> insert(String table, Map<String, dynamic> data,
-      {ConflictAlgorithm? conflictAlgorithm, String? key, String? path}) async {
+      {String? key, String? path}) async {
     _incrementPending();
     try {
-      return await _provider.insert(table, data,
-          conflictAlgorithm: conflictAlgorithm, key: key, path: path);
+      return await _provider.insert(table, data, key: key, path: path);
     } finally {
       _decrementPending();
     }
@@ -1583,38 +1163,6 @@ class DatabaseService {
     if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
     return await (_provider as FirebaseDBProvider).openFromId(id);
   }
-
-  /// Open a club team context. This sets the provider to use ClubSync collections
-  /// at the root level instead of subscription-based paths.
-  /// Returns true if the club team exists and was opened successfully.
-  Future<bool> openClubTeam(int clubId, int teamId) async {
-    if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
-
-    // Verify the team exists and belongs to the club
-    final snapshot = await FirebaseDatabase.instance
-        .ref('ClubTeams')
-        .child(teamId.toString())
-        .get();
-
-    if (!snapshot.exists || snapshot.value == null) {
-      return false;
-    }
-
-    final teamData = Map<String, dynamic>.from(snapshot.value as Map);
-    final teamClubId = teamData['clubId'] as int?;
-
-    if (teamClubId != clubId) {
-      return false;
-    }
-
-    // Set a special path to indicate we're in club mode
-    // This will be used by the provider to determine which collections to use
-    await (_provider as FirebaseDBProvider).openFromPath('ClubTeams/$teamId');
-    return true;
-  }
-
-  /// Check if the current database context is a club team
-  bool get isClubTeam => _provider.path.startsWith('ClubTeams/');
 
   /// Open a shared database by owner and database name.
   /// Returns true if the database was opened successfully and user has access.
@@ -1732,19 +1280,4 @@ class DatabaseService {
     final databases = await getAvailableDatabases();
     return databases.contains(dbName);
   }
-}
-
-// Convert Firestore values (Timestamp, GeoPoint, nested maps/lists) to JSON-friendly values.
-dynamic _firestoreValueToJson(dynamic value) {
-  if (value == null) return null;
-  if (value is Map) {
-    final out = <String, dynamic>{};
-    value.forEach((k, v) => out[k.toString()] = _firestoreValueToJson(v));
-    return out;
-  }
-  if (value is List) return value.map(_firestoreValueToJson).toList();
-  if (value is fs.Timestamp) return value.toDate().toIso8601String();
-  if (value is fs.GeoPoint)
-    return {'lat': value.latitude, 'lng': value.longitude};
-  return value;
 }

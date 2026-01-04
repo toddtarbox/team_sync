@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// A small thumbnail/preview for video links.
@@ -71,10 +72,11 @@ class VideoThumbnail extends StatelessWidget {
   }
 
   Future<void> _openUrl(BuildContext context) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
+    try {
+      final uri = Uri.parse(url);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    } catch (e) {
+      debugPrint('Could not launch URL: $e');
       if (context.mounted) {
         final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -100,17 +102,16 @@ class VideoThumbnail extends StatelessWidget {
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _buildPlaceholder(context),
             loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null)
+              if (loadingProgress == null) {
                 return Stack(children: [
                   child,
                   Positioned.fill(child: Container(color: Colors.black26))
                 ]);
-              return Container(
+              }
+              return SkeletonContainer.rectangular(
                 width: width,
                 height: height,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2)),
+                borderRadius: borderRadius ?? BorderRadius.zero,
               );
             },
           ),

@@ -4,10 +4,10 @@
 
 echo "🌍 Checking for hardcoded strings in Dart files..."
 
-# Find staged Dart files
-STAGED_DART_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.dart$')
+# Find all Dart files in lib
+DART_FILES=$(find lib -name "*.dart")
 
-if [ -z "$STAGED_DART_FILES" ]; then
+if [ -z "$DART_FILES" ]; then
     echo "✅ No Dart files to check"
     exit 0
 fi
@@ -17,7 +17,7 @@ FOUND_ISSUES=0
 
 # Pattern to match hardcoded strings in common UI widgets
 # This looks for Text('...') or similar patterns that should use localization
-for FILE in $STAGED_DART_FILES; do
+for FILE in $DART_FILES; do
     # Skip generated files and test files
     if [[ "$FILE" == *".g.dart" ]] || [[ "$FILE" == *"_test.dart" ]] || [[ "$FILE" == *"/l10n/"* ]]; then
         continue

@@ -20,10 +20,15 @@ class Team extends Equatable {
   final Color color1;
   final Color color2;
   final String? logoUrl;
-  final int? clubId;
   final String? createdBy; // User ID of team creator (team admin)
   final List<String>? adminIds; // List of team admin user IDs
   final String? liveUrl;
+  final String? summary; // Team summary/description
+  final String? organizationLogoUrl; // Organization/school logo
+  final bool?
+      isLogoSquare; // Team logo shape: true = square, false/null = circle
+  final bool?
+      isOrganizationLogoSquare; // Organization logo shape: true = square, false/null = circle
 
   const Team({
     required this.id,
@@ -32,10 +37,13 @@ class Team extends Equatable {
     this.color1 = Colors.green,
     this.color2 = Colors.green,
     this.logoUrl,
-    this.clubId,
     this.createdBy,
     this.adminIds,
     this.liveUrl,
+    this.summary,
+    this.organizationLogoUrl,
+    this.isLogoSquare,
+    this.isOrganizationLogoSquare,
   });
 
   factory Team.fromMap(Map<String, dynamic> map) {
@@ -50,11 +58,14 @@ class Team extends Equatable {
           ? Color(map['color2'])
           : Colors.green,
       logoUrl: map['logoUrl'],
-      clubId: map['clubId'],
       createdBy: map['createdBy'],
       adminIds:
           map['adminIds'] != null ? List<String>.from(map['adminIds']) : null,
       liveUrl: map['liveUrl'],
+      summary: map['summary'],
+      organizationLogoUrl: map['organizationLogoUrl'],
+      isLogoSquare: map['isLogoSquare'],
+      isOrganizationLogoSquare: map['isOrganizationLogoSquare'],
     );
   }
 
@@ -72,10 +83,21 @@ class Team extends Equatable {
     return false;
   }
 
+  static final Map<int, Team> _teamCache = {};
+
+  static void clearCache() {
+    _teamCache.clear();
+  }
+
   static Future<Team> fromId(int id) async {
+    if (_teamCache.containsKey(id)) {
+      return _teamCache[id]!;
+    }
     final results = await DatabaseService.instance
         .query('Teams', orderByChild: 'id', equalTo: id);
-    return Team.fromMap(results.first);
+    final team = Team.fromMap(results.first);
+    _teamCache[id] = team;
+    return team;
   }
 
   static Future<List<Team>> all() async {
@@ -538,6 +560,16 @@ class Team extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, color1, color2, clubId, createdBy, adminIds, liveUrl];
+  List<Object?> get props => [
+        id,
+        color1,
+        color2,
+        createdBy,
+        adminIds,
+        liveUrl,
+        summary,
+        organizationLogoUrl,
+        isLogoSquare,
+        isOrganizationLogoSquare,
+      ];
 }

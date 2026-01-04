@@ -336,20 +336,15 @@ class PlayerMergerService {
 
     debugPrint('Found ${validPlayerIds.length} valid players');
 
-    // Get all events for the team - we need to iterate through all events
-    // since Firebase doesn't support complex queries
-    final allEvents = await DatabaseService.instance.query('Events');
+    // Get all events for the team
+    final allEvents = await DatabaseService.instance
+        .query('Events', orderByChild: 'teamId', equalTo: teamId);
 
     final Map<int, OrphanedEventInfo> orphanedByPlayerId = {};
 
     for (final event in allEvents) {
       final playerId = event['playerId'] as int?;
-      final teamIdFromEvent = event['teamId'] as int?;
-
-      // Check if this event references our team
-      if (teamIdFromEvent != teamId && teamIdFromEvent != -1) {
-        continue;
-      }
+      // teamId match is guaranteed by query, except for manual verification if needed
 
       // Check if playerId exists and is not in valid players
       if (playerId != null &&

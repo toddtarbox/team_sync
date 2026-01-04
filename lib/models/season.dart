@@ -24,10 +24,21 @@ class Season {
       this.isFromImport});
 
   factory Season.fromMap(Map<dynamic, dynamic> map) {
+    // Add null safety checks for required integer fields
+    final id = map['id'];
+    final teamId = map['teamId'];
+
+    if (id == null) {
+      throw Exception('Season map missing required field: id');
+    }
+    if (teamId == null) {
+      throw Exception('Season map missing required field: teamId');
+    }
+
     return Season(
-        id: map['id'],
-        name: map['name'],
-        teamId: map['teamId'],
+        id: id is int ? id : int.parse(id.toString()),
+        name: map['name'] ?? 'Unnamed Season',
+        teamId: teamId is int ? teamId : int.parse(teamId.toString()),
         logoUrl: map['logoUrl'],
         isFromImport: map['isFromImport']);
   }
@@ -36,8 +47,8 @@ class Season {
     final results = await DatabaseService.instance
         .query('Seasons', orderByChild: 'teamId', equalTo: teamId);
     final seasons = results.map((s) => Season.fromMap(s)).toList();
-    // Sort by id in descending order (most recent first)
-    seasons.sort((a, b) => b.id.compareTo(a.id));
+    // Sort by name in descending order (most recent first)
+    seasons.sort((a, b) => b.name.compareTo(a.name));
     return seasons;
   }
 

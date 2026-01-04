@@ -1,21 +1,25 @@
-import 'package:auto_size_text/auto_size_text.dart';
+import 'dart:io';
+
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
-import 'package:team_sync/widgets/video_thumbnail.dart';
+import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class GameView extends StatefulWidget {
   final Season season;
@@ -50,17 +54,15 @@ class _GameViewState extends State<GameView> {
     });
 
     widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
-      await AdhocTweetDialog.show(context, teamId: widget.season.teamId);
+      await AdhocTweetDialog.show(context,
+          teamId: widget.season.teamId, team: widget.season.team);
     });
 
     widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
-      // Initialize with team credentials if available, fallback to local
-      final success = await TwitterService.instance
-          .initializeWithTeamCredentials(widget.season.teamId);
-      if (!success) {
-        await TwitterService.instance.initializeWithLocalCredentials();
-      }
+      // Initialize Twitter with team credentials once at startup
+      await TwitterService.instance
+          .ensureInitialized(teamId: widget.season.teamId);
     });
     widget.eventEmitter.emit('loadSettings');
 
@@ -85,6 +87,9 @@ class _GameViewState extends State<GameView> {
 
     if (_autoCreateAssist != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final assistEvent = _autoCreateAssist!;
+        final goalEventId = assistEvent.eventData; // This is the goal event ID
+
         final shouldCreateAssist = await showDialog<bool>(
           context: context,
           builder: (BuildContext context) {
@@ -111,12 +116,19 @@ class _GameViewState extends State<GameView> {
           },
         );
 
+        Player? assistPlayer;
         if (shouldCreateAssist == true) {
-          await _editEvent(event: _autoCreateAssist);
+          await _editEvent(event: assistEvent);
+          // Get the assist player after it's been assigned
+          assistPlayer = assistEvent.player;
         }
+
         setState(() {
           _autoCreateAssist = null;
         });
+
+        // Now send the goal tweet with assist information (if any)
+        await _sendGoalTweet(goalEventId, assistPlayer);
       });
     }
 
@@ -125,6 +137,14 @@ class _GameViewState extends State<GameView> {
         builder:
             (BuildContext context, AsyncSnapshot<List<GameEvent>> snapshot) {
           if (snapshot.hasData && snapshot.data != null) {
+            // Web layout: side-by-side scoring events and stats
+            // Always use web layout on web platform (shows only scoring events)
+            if (kIsWeb) {
+              return _buildWebLayout(loc);
+            }
+
+            // Mobile layout: full event list with reordering
+
             var itemCount = _game.scoringEvents.length +
                 _game.gameEvents.length +
                 _game.shootoutEvents.length +
@@ -133,8 +153,8 @@ class _GameViewState extends State<GameView> {
               itemCount += 1;
             }
 
-            bool showScoringEvents =
-                ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+            // Always show scoring events on mobile
+            bool showScoringEvents = true;
 
             // Enable reorder only on mobile
             final bool enableReorder = !kIsWeb;
@@ -284,9 +304,40 @@ class _GameViewState extends State<GameView> {
             debugPrintStack(stackTrace: snapshot.stackTrace);
             return Center(child: Text(loc.errorLoadingEvents));
           } else {
-            return const Center(child: CircularProgressIndicator());
+            return _buildSkeletonView(context);
           }
         });
+  }
+
+  Widget _buildSkeletonView(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 120,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          const SizedBox(height: 24),
+          // Tab bar placeholder
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 48,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          const SizedBox(height: 24),
+          // Content placeholder
+          SkeletonContainer.rectangular(
+            width: double.infinity,
+            height: 300,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _launchUrl(String url) async {
@@ -294,36 +345,6 @@ class _GameViewState extends State<GameView> {
   }
 
   Widget _getEventTile(GameEvent event, AppLocalizations loc) {
-    final eventMinuteWidget = SizedBox(
-        width: 48,
-        child: Center(
-            child: Text(
-                event.eventMinute > 0
-                    ? '${event.eventMinute.toString()}\''
-                    : '',
-                style: const TextStyle(fontSize: 20))));
-
-    final scoreWidget = event.eventMinute > 0 &&
-            (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
-            event.eventData == ShotResult.goal.index
-        ? SizedBox(
-            width: 50,
-            child: Center(
-                child: Text(
-                    _game.getScore(widget.season.teamId,
-                        minute: event.eventMinute),
-                    style: const TextStyle(fontSize: 20))))
-        : null;
-
-    final linkWidget = event.eventUrls?.isNotEmpty ?? false
-        ? Center(
-            child: GestureDetector(
-              onTap: () => _launchUrl(event.eventUrls!),
-              child: VideoThumbnail(event.eventUrls!, width: 40, height: 28),
-            ),
-          )
-        : Container();
-
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
@@ -342,69 +363,55 @@ class _GameViewState extends State<GameView> {
             e.eventData == event.id)
         .firstOrNull;
 
-    final eventCard = ListTile(
-        leading: eventMinuteWidget,
-        trailing: scoreWidget,
-        title: Row(children: [
-          event.image,
-          const SizedBox(width: 10),
-          Text(event.eventType == 'Shot' &&
-                  event.eventData == ShotResult.goal.index &&
-                  ((event.player == null &&
-                          event.team.id == widget.season.teamId) ||
-                      event.player?.id == -2)
-              ? event.team.id == widget.season.teamId
-                  ? 'Own goal by ${opponent.shortName}'
-                  : 'Own goal'
-              : event.display),
-          linkWidget
-        ]),
-        subtitle: Visibility(
-            visible: event.eventType != 'Period' && event.eventType != 'Assist',
-            child: event.player != null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (event.player != null &&
-                              event.player!.id != -2) ...[
-                            ResponsivePlayerAvatar(
-                                player: event.player!, avatarSize: 18),
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: AutoSizeText(event.player?.displayName ?? '',
-                                minFontSize: 14),
-                          ),
-                        ],
-                      ),
-                      if (assistEvent != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            if (assistEvent.player != null &&
-                                assistEvent.player!.id != -2) ...[
-                              AutoSizeText(loc.assistedBy, minFontSize: 14),
-                              const SizedBox(width: 8),
-                              ResponsivePlayerAvatar(
-                                  player: assistEvent.player!, avatarSize: 18),
-                              const SizedBox(width: 8),
-                            ],
-                            Expanded(
-                              child: AutoSizeText(
-                                  assistEvent.player?.displayName ?? '',
-                                  minFontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ]
-                    ],
-                  )
-                : Text(event.team.shortName)),
+    // Determine event color based on type
+    final Color eventColor = _getEventColor(event);
+    final bool isGoal = event.isGoalEvent;
+    final bool isPeriodEvent = event.eventType == 'Period';
+
+    // Responsive sizing based on screen width
+    final isLargeScreen = ResponsiveBreakpoints.of(context).largerThan(MOBILE);
+    final bool isWeb = kIsWeb;
+
+    // Use smaller, more compact layout on smaller screens
+    final bool useCompactLayout = !isLargeScreen || !isWeb;
+
+    final eventCard = Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: useCompactLayout ? 4 : 16,
+        vertical: useCompactLayout ? 4 : 8,
+      ),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isPeriodEvent
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)
+              : eventColor.withValues(alpha: 0.2),
+          width: isPeriodEvent ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
         onTap: () {
           _editEvent(event: event);
-        });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: EdgeInsets.all(useCompactLayout ? 10 : 20),
+          child: useCompactLayout
+              ? _buildCompactEventLayout(
+                  event, loc, eventColor, isGoal, opponent, assistEvent)
+              : _buildLargeEventLayout(
+                  event, loc, eventColor, isGoal, opponent, assistEvent),
+        ),
+      ),
+    );
 
     if (kIsWeb) {
       return eventCard;
@@ -412,16 +419,41 @@ class _GameViewState extends State<GameView> {
 
     return Dismissible(
         key: Key(event.id.toString()),
-        direction:
-            DismissDirection.startToEnd, // Only allow right to left swipe
+        direction: DismissDirection.endToStart,
         dismissThresholds: const {
-          DismissDirection.startToEnd: 0.5, // Require 50% swipe to trigger
+          DismissDirection.endToStart: 0.7,
         },
+        movementDuration: const Duration(milliseconds: 200),
+        resizeDuration: const Duration(milliseconds: 200),
+        crossAxisEndOffset: 0.0,
         background: Container(
-            color: Colors.red,
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 20),
-            child: const Icon(Icons.delete, color: Colors.white)),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Colors.red, Colors.redAccent],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.delete, color: Colors.white, size: 32),
+              SizedBox(height: 4),
+              Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
         confirmDismiss: (_) {
           return showDialog(
             context: context,
@@ -459,8 +491,698 @@ class _GameViewState extends State<GameView> {
         child: eventCard);
   }
 
+  // Compact layout for small screens - vertical stacking
+  Widget _buildCompactEventLayout(
+    GameEvent event,
+    AppLocalizations loc,
+    Color eventColor,
+    bool isGoal,
+    Team opponent,
+    GameEvent? assistEvent,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top row: Icon/Avatar, Title - Player, Score
+        Row(
+          children: [
+            // Leading: Player Avatar OR Event Icon
+            if (event.player?.displayImageForStats != null)
+              ResponsivePlayerAvatar(
+                player: event.player!,
+                avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true,
+              )
+            else
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: eventColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: eventColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                    child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: FittedBox(child: event.image))),
+              ),
+            const SizedBox(width: 10),
+            // Event title and player name
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: event.eventType == 'Shot' &&
+                                  event.eventData == ShotResult.goal.index &&
+                                  ((event.player == null &&
+                                          event.team.id ==
+                                              widget.season.teamId) ||
+                                      event.player?.id == -2)
+                              ? event.team.id == widget.season.teamId
+                                  ? 'Own goal by ${opponent.shortName}'
+                                  : 'Own goal'
+                              : event.display,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isGoal ? eventColor : null,
+                          ),
+                        ),
+                        if (event.player != null && event.player!.id != -2) ...[
+                          TextSpan(
+                            text: ' - ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                          TextSpan(
+                            text: event.player!.displayName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.7),
+                            ),
+                          ),
+                        ] else if (event.eventType != 'Period') ...[
+                          TextSpan(
+                            text: ' - ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.5),
+                            ),
+                          ),
+                          TextSpan(
+                            text: event.team.shortName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.5),
+                            ),
+                          ),
+                        ]
+                      ],
+                    ),
+                  ),
+                  // Minute badge
+                  if (event.eventMinute > 0) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: eventColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: eventColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        '${event.eventMinute}\'',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: eventColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Score + Video link
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (event.eventUrls?.isNotEmpty ?? false) ...[
+                  GestureDetector(
+                    onTap: () => _launchUrl(event.eventUrls!),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.play_circle_outline,
+                        size: 18,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                if (event.eventMinute > 0 &&
+                    (event.eventType == 'Shot' ||
+                        event.eventType == 'PenaltyKick') &&
+                    event.eventData == ShotResult.goal.index)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          eventColor.withValues(alpha: 0.2),
+                          eventColor.withValues(alpha: 0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: eventColor.withValues(alpha: 0.4),
+                        width: 2,
+                      ),
+                    ),
+                    child: Text(
+                      _game.getScore(widget.season.teamId,
+                          minute: event.eventMinute),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: eventColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        // Removed separate Player info container
+        // Assist info
+        if (assistEvent != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.green.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.sports_soccer,
+                  size: 14,
+                  color: Colors.green,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  loc.assistedBy,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (assistEvent.player != null &&
+                    assistEvent.player!.id != -2) ...[
+                  ResponsivePlayerAvatar(
+                    player: assistEvent.player!,
+                    avatarSize: 24,
+                    season: widget.season,
+                    useLatestImages: true,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    assistEvent.player?.displayName ?? '',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Large layout for big screens - horizontal layout
+  Widget _buildLargeEventLayout(
+    GameEvent event,
+    AppLocalizations loc,
+    Color eventColor,
+    bool isGoal,
+    Team opponent,
+    GameEvent? assistEvent,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Time and Icon/Avatar section
+        Column(
+          children: [
+            // Event icon or Avatar
+            if (event.player?.displayImageForStats != null)
+              ResponsivePlayerAvatar(
+                player: event.player!,
+                avatarSize: 72,
+                season: widget.season,
+                useLatestImages: true,
+              )
+            else
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: eventColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: eventColor.withValues(alpha: 0.3),
+                    width: 3,
+                  ),
+                ),
+                child: Center(child: event.image),
+              ),
+            // Event minute
+            if (event.eventMinute > 0) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: eventColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: eventColor.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Text(
+                  '${event.eventMinute}\'',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: eventColor,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(width: 24),
+        // Event details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Event type, team, and player name
+              Row(
+                children: [
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: event.eventType == 'Shot' &&
+                                    event.eventData == ShotResult.goal.index &&
+                                    ((event.player == null &&
+                                            event.team.id ==
+                                                widget.season.teamId) ||
+                                        event.player?.id == -2)
+                                ? event.team.id == widget.season.teamId
+                                    ? 'Own goal by ${opponent.shortName}'
+                                    : 'Own goal'
+                                : event.display,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: isGoal ? eventColor : null,
+                            ),
+                          ),
+                          if (event.player != null &&
+                              event.player!.id != -2) ...[
+                            TextSpan(
+                              text: ' - ',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.7),
+                              ),
+                            ),
+                            TextSpan(
+                              text: event.player!.displayName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.7),
+                              ),
+                            ),
+                          ] else if (event.eventType != 'Period') ...[
+                            TextSpan(
+                              text: ' - ',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.5),
+                              ),
+                            ),
+                            TextSpan(
+                              text: event.team.shortName,
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.5),
+                              ),
+                            ),
+                          ]
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Video link indicator
+                  if (event.eventUrls?.isNotEmpty ?? false)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      child: GestureDetector(
+                        onTap: () => _launchUrl(event.eventUrls!),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.play_circle_outline,
+                            size: 28,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              // Removed separate Player info container (lines 828-881)
+              // Assist information
+              if (assistEvent != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      width: 2,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.sports_soccer,
+                        size: 20,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        loc.assistedBy,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      if (assistEvent.player != null &&
+                          assistEvent.player!.id != -2) ...[
+                        ResponsivePlayerAvatar(
+                          player: assistEvent.player!,
+                          avatarSize: 40,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: Text(
+                          assistEvent.player?.displayName ?? '',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        // Score display for goals
+        if (event.eventMinute > 0 &&
+            (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
+            event.eventData == ShotResult.goal.index)
+          Container(
+            margin: const EdgeInsets.only(left: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  eventColor.withValues(alpha: 0.2),
+                  eventColor.withValues(alpha: 0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: eventColor.withValues(alpha: 0.4),
+                width: 3,
+              ),
+            ),
+            child: Text(
+              _game.getScore(widget.season.teamId, minute: event.eventMinute),
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: eventColor,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Helper method to get event color based on type
+  Color _getEventColor(GameEvent event) {
+    if (event.isGoalEvent) {
+      return Colors.green;
+    } else if (event.eventType == 'Assist') {
+      return Colors.lightGreen;
+    } else if (event.eventType == 'Save') {
+      return Colors.blue;
+    } else if (event.eventType == 'Shot') {
+      return Colors.orange;
+    } else if (event.eventType == 'Card') {
+      return event.eventData == 2 ? Colors.red : Colors.amber;
+    } else if (event.eventType == 'Foul') {
+      return Colors.deepOrange;
+    } else if (event.eventType == 'Corner') {
+      return Colors.purple;
+    } else if (event.eventType == 'Offsides') {
+      return Colors.brown;
+    } else if (event.eventType == 'Period') {
+      return Colors.grey;
+    }
+    return Colors.grey;
+  }
+
+  // Build web-specific layout with scoring events
+  Widget _buildWebLayout(AppLocalizations loc) {
+    return Container(
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: widget.season.team.color1.withValues(alpha: 0.1),
+              border: Border(
+                bottom: BorderSide(
+                  color: widget.season.team.color1.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.sports_soccer,
+                  color: widget.season.team.color1,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  loc.scoringEvents,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: widget.season.team.color1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Scoring events list
+          Expanded(
+            child: _game.scoringEvents.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.sports_soccer_outlined,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            loc.noScoringEventsYet,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: _game.scoringEvents.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final event = _game.scoringEvents[index];
+                      return _getEventTile(event, loc);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<List<GameEvent>> _loadGameEvents() async {
     return await _game.loadGameEvents();
+  }
+
+  /// Send a tweet for a goal event, including assist information if provided
+  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer) async {
+    try {
+      // Find the goal event
+      final goalEvent =
+          _game.allGameEvents.firstWhere((e) => e.id == goalEventId);
+
+      if (!goalEvent.isGoalEvent) return;
+
+      // Check if game is in progress
+      final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
+          _game.gameStatus != GameStatus.gameFinal &&
+          _game.gameStatus != GameStatus.gameFinalOT &&
+          _game.gameStatus != GameStatus.gameFinalPKs;
+
+      if (!gameInProgress && !kDebugMode) return;
+
+      // Generate tweet text with assist information
+      String tweetText;
+      if (goalEvent.player != null) {
+        tweetText =
+            '(${goalEvent.eventMinute}\') Goal by ${goalEvent.player!.displayName}';
+        if (assistPlayer != null) {
+          tweetText += '\nAssist: ${assistPlayer.displayName}';
+        }
+      } else {
+        tweetText =
+            '(${goalEvent.eventMinute}\') Goal by ${goalEvent.team.shortName}';
+      }
+
+      tweetText = '$tweetText\n\n${_game.tweetStatus()}';
+
+      // Check if goal scorer has a profile image
+      File? playerImageFile;
+      if (goalEvent.player != null &&
+          goalEvent.player!.profileImage != null &&
+          goalEvent.player!.profileImage!.isNotEmpty) {
+        try {
+          final response =
+              await http.get(Uri.parse(goalEvent.player!.profileImage!));
+          if (response.statusCode == 200) {
+            final tempDir = await getTemporaryDirectory();
+            final imageFile = File(
+                '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+            await imageFile.writeAsBytes(response.bodyBytes);
+            playerImageFile = imageFile;
+          }
+        } catch (e) {
+          debugPrint('Error downloading player image for tweet: $e');
+        }
+      }
+
+      if (mounted) {
+        // Show tweet preview dialog - it handles initialization and sending internally
+        await TweetPreviewDialog.show(
+          context,
+          initialText: tweetText,
+          teamId: widget.season.teamId,
+          team: widget.season.team,
+          imageFile: playerImageFile,
+          eventContext: 'GOAL!',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sending goal tweet: $e');
+    }
   }
 
   Future<void> _editEvent({GameEvent? event}) async {
@@ -540,7 +1262,9 @@ class _GameViewState extends State<GameView> {
                     ? '1st Half Overtime'
                     : event.eventPeriod == 7
                         ? '2nd Half Overtime'
-                        : '';
+                        : event.eventPeriod == 8
+                            ? 'Penalty Kicks'
+                            : '';
 
     event.eventPeriod =
         event.eventPeriod == -1 ? _game.gameStatus.index : event.eventPeriod;
@@ -561,7 +1285,11 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            leadingIcon: ResponsivePlayerAvatar(
+                player: p,
+                avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true),
             style: ButtonStyle(
                 textStyle:
                     WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
@@ -571,7 +1299,11 @@ class _GameViewState extends State<GameView> {
         .map((p) => DropdownMenuEntry<Player>(
             value: p,
             label: p.displayName,
-            leadingIcon: ResponsivePlayerAvatar(player: p, avatarSize: 32),
+            leadingIcon: ResponsivePlayerAvatar(
+                player: p,
+                avatarSize: 32,
+                season: widget.season,
+                useLatestImages: true),
             style: ButtonStyle(
                 textStyle:
                     WidgetStateProperty.all(const TextStyle(fontSize: 24)))))
@@ -603,7 +1335,7 @@ class _GameViewState extends State<GameView> {
         // ignore: use_build_context_synchronously
         context: context,
         showDragHandle: true,
-        scrollControlDisabledMaxHeightRatio: .75,
+        isScrollControlled: true,
         builder: (context) {
           final loc = AppLocalizations.of(context)!;
           return StatefulBuilder(
@@ -611,207 +1343,212 @@ class _GameViewState extends State<GameView> {
             return Card(
                 child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: Column(children: [
-                      RadioGroup(
-                          groupValue: event!.team == _game.homeTeam ? 0 : 1,
-                          onChanged: (value) {
-                            setModalState(() {
-                              if (value == 0) {
-                                event!.team = _game.homeTeam;
-                                playerEntries = homePlayerEntries;
-                              } else {
-                                event!.team = _game.awayTeam;
-                                playerEntries = awayPlayerEntries;
-                              }
-                            });
-                          },
-                          child: Row(children: [
-                            Expanded(
-                                child: RadioListTile<int>(
-                              title: Text(_game.homeTeam.shortName),
-                              value: 0,
-                            )),
-                            Expanded(
-                                child: RadioListTile<int>(
-                              title: Text(_game.awayTeam.shortName),
-                              value: 1,
-                            )),
-                          ])),
-                      const SizedBox(height: 30),
-                      DropdownMenu(
-                          initialSelection: initialStatus,
-                          onSelected: (eventPeriod) async {
-                            int period = 1;
-
-                            if (eventPeriod == '1st Half') {
-                              period = 1;
-                            } else if (eventPeriod == '2nd Half') {
-                              period = 2;
-                            } else if (eventPeriod == '1st Half Overtime') {
-                              period = 3;
-                            } else if (eventPeriod == '2nd Half Overtime') {
-                              period = 4;
-                            } else if (eventPeriod == 'Penalty Kicks') {
-                              period = 5;
-                            }
-                            setModalState(() {
-                              event!.eventPeriod = period;
-                            });
-                          },
-                          width: double.infinity,
-                          textStyle: const TextStyle(fontSize: 18),
-                          label: Text(loc.selectPeriod,
-                              style: TextStyle(fontSize: 18)),
-                          dropdownMenuEntries: eventPeriods),
-                      const SizedBox(height: 30),
-                      DropdownMenu(
-                          initialSelection: event.eventType,
-                          onSelected: (eventType) async {
-                            String type = eventType!.replaceAll(' ', '');
-                            int data = 0;
-
-                            if (type == 'YellowCard') {
-                              type = 'Card';
-                            } else if (type == '2ndYellowCard') {
-                              type = 'Card';
-                              data = 1;
-                            } else if (type == 'RedCard') {
-                              type = 'Card';
-                              data = 2;
-                            }
-
-                            setModalState(() {
-                              event!.eventType = type;
-                              event.eventData = data;
-                            });
-                          },
-                          width: double.infinity,
-                          textStyle: const TextStyle(fontSize: 18),
-                          label: Text(loc.selectEventType,
-                              style: TextStyle(fontSize: 18)),
-                          dropdownMenuEntries: eventEntries),
-                      Visibility(
-                          visible: playerEntries.isNotEmpty,
-                          child: const SizedBox(height: 30)),
-                      Visibility(
-                          visible: playerEntries.isNotEmpty,
-                          child: DropdownMenu(
-                              enabled: (event.eventType != 'Corner' &&
-                                      playerEntries.isNotEmpty) ||
-                                  (event.eventType == 'Shot' &&
-                                      event.eventData == ShotResult.goal.index),
-                              menuHeight: 700,
-                              initialSelection: event.player,
-                              onSelected: (player) async {
-                                setModalState(() {
-                                  event!.player = player;
-                                });
-                              },
-                              width: double.infinity,
-                              textStyle: const TextStyle(fontSize: 18),
-                              label: const Text('Select Player',
-                                  style: TextStyle(fontSize: 18)),
-                              dropdownMenuEntries: playerEntries)),
-                      const SizedBox(height: 30),
-                      Visibility(
-                          visible: event.eventType == 'Shot' ||
-                              event.eventType == 'PenaltyKick',
-                          child: DropdownMenu(
-                              initialSelection: initialShotResult,
-                              onSelected: (shotResult) async {
-                                int result = -1;
-
-                                if (shotResult == 'Goal') {
-                                  result = 0;
-                                } else if (shotResult == 'Saved') {
-                                  result = 1;
-                                } else if (shotResult == 'Post') {
-                                  result = 2;
-                                } else if (shotResult == 'Off Target') {
-                                  result = 3;
-                                } else if (shotResult == 'Blocked') {
-                                  result = 4;
+                    child: SingleChildScrollView(
+                      child: Column(children: [
+                        RadioGroup(
+                            groupValue: event!.team == _game.homeTeam ? 0 : 1,
+                            onChanged: (value) {
+                              setModalState(() {
+                                if (value == 0) {
+                                  event!.team = _game.homeTeam;
+                                  playerEntries = homePlayerEntries;
+                                } else {
+                                  event!.team = _game.awayTeam;
+                                  playerEntries = awayPlayerEntries;
                                 }
+                              });
+                            },
+                            child: Row(children: [
+                              Expanded(
+                                  child: RadioListTile<int>(
+                                title: Text(_game.homeTeam.shortName),
+                                value: 0,
+                              )),
+                              Expanded(
+                                  child: RadioListTile<int>(
+                                title: Text(_game.awayTeam.shortName),
+                                value: 1,
+                              )),
+                            ])),
+                        const SizedBox(height: 30),
+                        DropdownMenu(
+                            initialSelection: initialStatus,
+                            onSelected: (eventPeriod) async {
+                              int period = 1;
 
-                                setModalState(() {
-                                  event!.eventData = result;
-                                });
-                              },
-                              width: double.infinity,
-                              textStyle: const TextStyle(fontSize: 18),
-                              label: const Text('Shot Result',
-                                  style: TextStyle(fontSize: 18)),
-                              dropdownMenuEntries: shotResultEntries)),
-                      const SizedBox(height: 20),
-                      Visibility(
-                          visible: ((event.eventType == 'Shot' ||
-                                      event.eventType == 'PenaltyKick') &&
-                                  event.eventData == ShotResult.goal.index) ||
-                              event.eventType == 'Assist',
-                          child: Row(children: [
-                            Expanded(
-                                child: TextFormField(
-                                    initialValue: event.eventMinute.toString(),
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                        labelText:
-                                            'Game Minute (Goals and Assists Only)'),
-                                    onChanged: (minute) => event!.eventMinute =
-                                        int.tryParse(minute) ?? -1)),
-                            Expanded(
-                                child: Checkbox(
-                                    value: event.player?.id == -2,
-                                    onChanged: (value) {
-                                      setModalState(() {
-                                        event!.player = value!
-                                            ? ownGoalPlayer
-                                            : event.player;
-                                      });
-                                    })),
-                            const Text('Own Goal')
-                          ])),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                          initialValue: event.eventUrls,
-                          decoration: const InputDecoration(
-                              labelText: 'Video or photo URL'),
-                          onChanged: (url) => event!.eventUrls = url),
-                      const SizedBox(height: 20),
-                      Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            TextButton(
-                                onPressed: () async {
-                                  if (mounted) {
-                                    final canSave = ((event!.eventType ==
-                                                    'Shot' ||
-                                                event.eventType ==
-                                                    'PenaltyKick') &&
-                                            (event.eventData ==
-                                                    ShotResult.goal.index &&
-                                                event.eventMinute > 0)) ||
-                                        (event.eventType != 'Shot' ||
-                                            event.eventType != 'PenaltyKick');
-                                    if (!canSave) {
-                                      return;
-                                    }
+                              if (eventPeriod == '1st Half') {
+                                period = 1;
+                              } else if (eventPeriod == '2nd Half') {
+                                period = 3;
+                              } else if (eventPeriod == '1st Half Overtime') {
+                                period = 5;
+                              } else if (eventPeriod == '2nd Half Overtime') {
+                                period = 7;
+                              } else if (eventPeriod == 'Penalty Kicks') {
+                                period = 8;
+                              }
+                              setModalState(() {
+                                event!.eventPeriod = period;
+                              });
+                            },
+                            width: double.infinity,
+                            textStyle: const TextStyle(fontSize: 18),
+                            label: Text(loc.selectPeriod,
+                                style: TextStyle(fontSize: 18)),
+                            dropdownMenuEntries: eventPeriods),
+                        const SizedBox(height: 30),
+                        DropdownMenu(
+                            initialSelection: event.eventType,
+                            onSelected: (eventType) async {
+                              String type = eventType!.replaceAll(' ', '');
+                              int data = 0;
 
-                                    Navigator.pop(context);
-                                    setState(() {});
+                              if (type == 'YellowCard') {
+                                type = 'Card';
+                              } else if (type == '2ndYellowCard') {
+                                type = 'Card';
+                                data = 1;
+                              } else if (type == 'RedCard') {
+                                type = 'Card';
+                                data = 2;
+                              }
 
-                                    await _saveEvent(event);
+                              setModalState(() {
+                                event!.eventType = type;
+                                event.eventData = data;
+                              });
+                            },
+                            width: double.infinity,
+                            textStyle: const TextStyle(fontSize: 18),
+                            label: Text(loc.selectEventType,
+                                style: TextStyle(fontSize: 18)),
+                            dropdownMenuEntries: eventEntries),
+                        Visibility(
+                            visible: playerEntries.isNotEmpty,
+                            child: const SizedBox(height: 30)),
+                        Visibility(
+                            visible: playerEntries.isNotEmpty,
+                            child: DropdownMenu(
+                                enabled: (event.eventType != 'Corner' &&
+                                        playerEntries.isNotEmpty) ||
+                                    (event.eventType == 'Shot' &&
+                                        event.eventData ==
+                                            ShotResult.goal.index),
+                                menuHeight: 700,
+                                initialSelection: event.player,
+                                onSelected: (player) async {
+                                  setModalState(() {
+                                    event!.player = player;
+                                  });
+                                },
+                                width: double.infinity,
+                                textStyle: const TextStyle(fontSize: 18),
+                                label: const Text('Select Player',
+                                    style: TextStyle(fontSize: 18)),
+                                dropdownMenuEntries: playerEntries)),
+                        const SizedBox(height: 30),
+                        Visibility(
+                            visible: event.eventType == 'Shot' ||
+                                event.eventType == 'PenaltyKick',
+                            child: DropdownMenu(
+                                initialSelection: initialShotResult,
+                                onSelected: (shotResult) async {
+                                  int result = -1;
+
+                                  if (shotResult == 'Goal') {
+                                    result = 0;
+                                  } else if (shotResult == 'Saved') {
+                                    result = 1;
+                                  } else if (shotResult == 'Post') {
+                                    result = 2;
+                                  } else if (shotResult == 'Off Target') {
+                                    result = 3;
+                                  } else if (shotResult == 'Blocked') {
+                                    result = 4;
                                   }
+
+                                  setModalState(() {
+                                    event!.eventData = result;
+                                  });
                                 },
-                                child: Text(loc.save,
-                                    style: TextStyle(fontSize: 20))),
-                            TextButton(
-                                onPressed: () async {
-                                  Navigator.pop(context);
-                                },
-                                child: Text(loc.cancel,
-                                    style: TextStyle(fontSize: 20)))
-                          ])
-                    ])));
+                                width: double.infinity,
+                                textStyle: const TextStyle(fontSize: 18),
+                                label: const Text('Shot Result',
+                                    style: TextStyle(fontSize: 18)),
+                                dropdownMenuEntries: shotResultEntries)),
+                        const SizedBox(height: 20),
+                        Visibility(
+                            visible: ((event.eventType == 'Shot' ||
+                                        event.eventType == 'PenaltyKick') &&
+                                    event.eventData == ShotResult.goal.index) ||
+                                event.eventType == 'Assist',
+                            child: Row(children: [
+                              Expanded(
+                                  child: TextFormField(
+                                      initialValue:
+                                          event.eventMinute.toString(),
+                                      keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                          labelText:
+                                              'Game Minute (Goals and Assists Only)'),
+                                      onChanged: (minute) =>
+                                          event!.eventMinute =
+                                              int.tryParse(minute) ?? -1)),
+                              Expanded(
+                                  child: Checkbox(
+                                      value: event.player?.id == -2,
+                                      onChanged: (value) {
+                                        setModalState(() {
+                                          event!.player = value!
+                                              ? ownGoalPlayer
+                                              : event.player;
+                                        });
+                                      })),
+                              const Text('Own Goal')
+                            ])),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                            initialValue: event.eventUrls,
+                            decoration: const InputDecoration(
+                                labelText: 'Video or photo URL'),
+                            onChanged: (url) => event!.eventUrls = url),
+                        const SizedBox(height: 20),
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              TextButton(
+                                  onPressed: () async {
+                                    if (mounted) {
+                                      final canSave = ((event!.eventType ==
+                                                      'Shot' ||
+                                                  event.eventType ==
+                                                      'PenaltyKick') &&
+                                              (event.eventData ==
+                                                      ShotResult.goal.index &&
+                                                  event.eventMinute > 0)) ||
+                                          (event.eventType != 'Shot' ||
+                                              event.eventType != 'PenaltyKick');
+                                      if (!canSave) {
+                                        return;
+                                      }
+
+                                      Navigator.pop(context);
+                                      setState(() {});
+
+                                      await _saveEvent(event);
+                                    }
+                                  },
+                                  child: Text(loc.save,
+                                      style: TextStyle(fontSize: 20))),
+                              TextButton(
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text(loc.cancel,
+                                      style: TextStyle(fontSize: 20)))
+                            ])
+                      ]),
+                    )));
           });
         });
   }
@@ -846,22 +1583,20 @@ class _GameViewState extends State<GameView> {
     if (event.eventPeriod >= 0) {
       if (event.id == -1) {
         final newId = DateTime.now().millisecondsSinceEpoch;
-        await DatabaseService.instance.insert(
-            'Events',
-            {
-              'id': newId,
-              'index': newId,
-              'playerId': event.player?.id ?? -1,
-              'teamId': event.team.id,
-              'gameId': event.game.id,
-              'seasonId': event.game.seasonId,
-              'eventType': event.eventType,
-              'eventMinute': event.eventMinute,
-              'eventPeriod': event.eventPeriod,
-              'eventData': event.eventData,
-              'eventUrls': event.eventUrls
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace);
+        await DatabaseService.instance.insert('Events', {
+          'id': newId,
+          'index': newId,
+          'playerId': event.player?.id ?? -1,
+          'teamId': event.team.id,
+          'gameId': event.game.id,
+          'seasonId': event.game.seasonId,
+          'teamId_seasonId': '${event.team.id}_${event.game.seasonId}',
+          'eventType': event.eventType,
+          'eventMinute': event.eventMinute,
+          'eventPeriod': event.eventPeriod,
+          'eventData': event.eventData,
+          'eventUrls': event.eventUrls
+        });
       } else {
         await DatabaseService.instance.update(
             'Events',
@@ -870,6 +1605,7 @@ class _GameViewState extends State<GameView> {
               'teamId': event.team.id,
               'gameId': event.game.id,
               'seasonId': event.game.seasonId,
+              'teamId_seasonId': '${event.team.id}_${event.game.seasonId}',
               'eventType': event.eventType,
               'eventMinute': event.eventMinute,
               'eventPeriod': event.eventPeriod,
@@ -881,34 +1617,24 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      // Only send tweets when game is in progress
+      // Only send tweets when game is in progress (but NOT for goals - those are sent after assist dialog)
       final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
           _game.gameStatus != GameStatus.gameFinal &&
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      if (event.shouldTweet && gameInProgress) {
+      // Don't tweet goals here - they'll be tweeted after assist dialog
+      if (event.shouldTweet && !event.isGoalEvent && gameInProgress) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
-          // Ensure Twitter is initialized before sending
-          bool isConfigured = await TwitterService.instance
-              .isConfigured(teamId: widget.season.teamId);
-          if (!isConfigured) {
-            // Try to initialize with team credentials
-            isConfigured = await TwitterService.instance
-                .initializeWithTeamCredentials(widget.season.teamId);
-            if (!isConfigured) {
-              // Fallback to local credentials
-              isConfigured = await TwitterService.instance
-                  .initializeWithLocalCredentials();
-            }
-          }
-
-          if (isConfigured) {
-            // Only send if configured
-            await TwitterService.instance.sendTweet(tweetText);
-          } else {
-            debugPrint('Twitter not configured - skipping tweet: $tweetText');
+          if (mounted) {
+            // Show tweet preview dialog - it handles initialization and sending internally
+            await TweetPreviewDialog.show(
+              context,
+              initialText: tweetText,
+              teamId: widget.season.teamId,
+              team: widget.season.team,
+            );
           }
         }
       }
@@ -934,8 +1660,7 @@ class _GameViewState extends State<GameView> {
         setState(() {
           _autoCreateSave = saveEvent;
         });
-      } else if (event.eventType == 'Shot' &&
-          event.eventData == ShotResult.goal.index &&
+      } else if (event.isGoalEvent &&
           event.player?.id != -2 &&
           event.team.id == widget.season.teamId) {
         // Auto-create an Assist event for goals by our team (excluding own goals)

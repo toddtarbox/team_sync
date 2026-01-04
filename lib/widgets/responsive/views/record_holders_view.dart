@@ -17,6 +17,8 @@ import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
+import 'package:team_sync/widgets/stat_category_dialog.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 enum StatType {
   career,
@@ -105,36 +107,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   void _showActionMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.refresh),
-                title: const Text('Invalidate Best Game Cache'),
-                subtitle: const Text('Clear cached best game statistics'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _invalidateBestGameCache();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.clear_all),
-                title: const Text('Clear All Caches'),
-                subtitle: const Text('Clear all cached statistics'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _clearCache();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All caches cleared'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.refresh),
+                  title: const Text('Invalidate Best Game Cache'),
+                  subtitle: const Text('Clear cached best game statistics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _invalidateBestGameCache();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.clear_all),
+                  title: const Text('Clear All Caches'),
+                  subtitle: const Text('Clear all cached statistics'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _clearCache();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('All caches cleared'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -249,15 +254,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
             ),
           );
         } else {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text(AppLocalizations.of(context)!.calculating),
-              ],
-            ),
+          // Show skeleton while calculating/loading
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: 8,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    SkeletonContainer.circular(size: 40),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SkeletonContainer.rectangular(
+                            width: double.infinity,
+                            height: 16,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 8),
+                          SkeletonContainer.rectangular(
+                            width: 100,
+                            height: 14,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           );
         }
       },
@@ -379,7 +408,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 if (databaseId != null) {
                   NavigationHelper.navigateTo(
                     context,
-                    '/team/$databaseId/season/${topEntry.season.id}/players/${topEntry.player.id}',
+                    '/team/$databaseId/player/${topEntry.player.id}',
                     extra: {
                       'player': topEntry.player,
                       'season': topEntry.season,
@@ -399,7 +428,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.player, avatarSize: 48),
+                    player: topEntry.player,
+                    avatarSize: 48,
+                    season: topEntry.season,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -572,7 +604,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 if (databaseId != null) {
                                   NavigationHelper.navigateTo(
                                     context,
-                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    '/team/$databaseId/player/${entry.player.id}',
                                     extra: {
                                       'player': entry.player,
                                       'season': entry.season,
@@ -581,7 +613,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 }
                               },
                               child: ResponsivePlayerAvatar(
-                                  player: entry.player, avatarSize: 40),
+                                  player: entry.player,
+                                  avatarSize: 40,
+                                  season: entry.season,
+                                  useLatestImages: true),
                             ),
                             title: Text(
                               entry.player.displayName,
@@ -692,7 +727,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 if (databaseId != null) {
                   NavigationHelper.navigateTo(
                     context,
-                    '/team/$databaseId/season/${bestStat.season.id}/players/${bestStat.player.id}',
+                    '/team/$databaseId/player/${bestStat.player.id}',
                     extra: {
                       'player': bestStat.player,
                       'season': bestStat.season,
@@ -712,7 +747,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: bestStat.player, avatarSize: 48),
+                    player: bestStat.player,
+                    avatarSize: 48,
+                    season: bestStat.season,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -887,7 +925,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 if (databaseId != null) {
                                   NavigationHelper.navigateTo(
                                     context,
-                                    '/team/$databaseId/season/${entry.season.id}/players/${entry.player.id}',
+                                    '/team/$databaseId/player/${entry.player.id}',
                                     extra: {
                                       'player': entry.player,
                                       'season': entry.season,
@@ -896,7 +934,10 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                                 }
                               },
                               child: ResponsivePlayerAvatar(
-                                  player: entry.player, avatarSize: 40),
+                                  player: entry.player,
+                                  avatarSize: 40,
+                                  season: entry.season,
+                                  useLatestImages: true),
                             ),
                             title: Text(
                               entry.player.displayName,
@@ -948,7 +989,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
         showDialog(
             context: context,
             builder: (context) {
-              return const Center(child: CircularProgressIndicator());
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: 8,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      children: [
+                        SkeletonContainer.circular(size: 40),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SkeletonContainer.rectangular(
+                                width: double.infinity,
+                                height: 16,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              const SizedBox(height: 8),
+                              SkeletonContainer.rectangular(
+                                width: 100,
+                                height: 14,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
             });
         final categoryStats =
             await widget.team.getCareerStatsForCategory(category);
@@ -998,7 +1071,39 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 showDialog(
                   context: context,
                   builder: (context) {
-                    return const Center(child: CircularProgressIndicator());
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: 8,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              SkeletonContainer.circular(size: 40),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SkeletonContainer.rectangular(
+                                      width: double.infinity,
+                                      height: 16,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SkeletonContainer.rectangular(
+                                      width: 100,
+                                      height: 14,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
                   },
                 );
 
@@ -1030,7 +1135,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   if (databaseId != null) {
                     NavigationHelper.navigateTo(
                       context,
-                      '/team/$databaseId/season/${season.id}/players/${topEntry.key.id}',
+                      '/team/$databaseId/player/${topEntry.key.id}',
                       extra: {
                         'player': topEntry.key,
                         'season': season,
@@ -1051,7 +1156,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.key, avatarSize: 48),
+                    player: topEntry.key,
+                    avatarSize: 48,
+                    useLatestImages: true),
               ),
             ),
             const SizedBox(width: 16),
@@ -1096,159 +1203,112 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  void _showCareerStatsModal(BuildContext context, LeaderCategory category,
-      List<MapEntry<Player, int>> categoryStats) {
-    // Sort by stat value in descending order and limit to top 25
-    final sortedStats = List<MapEntry<Player, int>>.from(categoryStats)
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top25Stats = sortedStats.take(25).toList();
+  Future<void> _showCareerStatsModal(
+      BuildContext context,
+      LeaderCategory category,
+      List<MapEntry<Player, int>> categoryStats) async {
+    // Convert list to map for StatCategoryDialog
+    final playerStatsMap = Map<Player, int>.fromEntries(categoryStats);
 
-    showModalBottomSheet(
+    // Show dialog with navigation callback
+    await StatCategoryDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          builder: (context, scrollController) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                  ),
-                  const Divider(),
-                  Expanded(
-                    child: ListView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: top25Stats.length,
-                      itemBuilder: (context, index) {
-                        final entry = top25Stats[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          elevation: 1,
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            leading: GestureDetector(
-                              onTap: () async {
-                                // Load the season for this player
-                                showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  },
-                                );
-
-                                final seasonResults = await DatabaseService
-                                    .instance
-                                    .query('Seasons',
-                                        orderByChild: 'id',
-                                        equalTo: entry.key.seasonId);
-
-                                if (!mounted) return;
-                                Navigator.pop(context);
-
-                                if (seasonResults.isNotEmpty) {
-                                  final season =
-                                      Season.fromMap(seasonResults.first);
-                                  await season.load();
-
-                                  if (!mounted) return;
-
-                                  final currentUri =
-                                      GoRouterState.of(context).uri;
-                                  String? databaseId;
-                                  final pathSegments = currentUri.pathSegments;
-                                  if (pathSegments.isNotEmpty &&
-                                      pathSegments[0] == 'team' &&
-                                      pathSegments.length > 1) {
-                                    databaseId = pathSegments[1];
-                                  } else {
-                                    databaseId =
-                                        DatabaseService.instance.publicShareId;
-                                  }
-
-                                  if (databaseId != null) {
-                                    NavigationHelper.navigateTo(
-                                      context,
-                                      '/team/$databaseId/season/${season.id}/players/${entry.key.id}',
-                                      extra: {
-                                        'player': entry.key,
-                                        'season': season,
-                                      },
-                                    );
-                                  }
-                                }
-                              },
-                              child: ResponsivePlayerAvatar(
-                                  player: entry.key, avatarSize: 40),
-                            ),
-                            title: Text(
-                              entry.key.displayName,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                entry.value.toString(),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSecondaryContainer,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      categoryName: category.name.toSentenceCase().toTitleCase(),
+      playerStats: playerStatsMap,
+      showPlayerNumber: true,
+      onPlayerTap: (player) => _showPlayerDetailsDialog(player, null),
+      season: null,
+      maxPlayers: 25, // Show top 25
     );
+  }
+
+  Future<void> _showPlayerDetailsDialog(Player player, Season? season) async {
+    // Check subscription before navigating
+    if (!kIsWeb && !SubscriptionService.instance.isSubscribed) {
+      if (mounted) Navigator.pop(context); // Close the stats dialog first
+
+      final loc = AppLocalizations.of(context)!;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(loc.proFeature),
+            content: Text(loc.playerProfilesProFeature),
+            actions: [
+              TextButton(
+                child: Text(loc.cancelButton),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+              TextButton(
+                child: Text(loc.goPro),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await SubscriptionService.instance.purchaseSubscription();
+                },
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    // Close the dialog first
+    Navigator.pop(context);
+
+    Season? targetSeason = season;
+
+    if (targetSeason == null) {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return const Center(child: CircularProgressIndicator());
+        },
+      );
+
+      // Load the season for this player
+      final seasonResults = await DatabaseService.instance.query(
+        'Seasons',
+        orderByChild: 'id',
+        equalTo: player.seasonId,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading
+
+      if (seasonResults.isNotEmpty) {
+        targetSeason = Season.fromMap(seasonResults.first);
+        await targetSeason.load();
+      }
+    }
+
+    if (!mounted || targetSeason == null) return;
+
+    final currentUri = GoRouterState.of(context).uri;
+    String? databaseId;
+    final pathSegments = currentUri.pathSegments;
+    if (pathSegments.isNotEmpty &&
+        pathSegments[0] == 'team' &&
+        pathSegments.length > 1) {
+      databaseId = pathSegments[1];
+    } else {
+      databaseId = DatabaseService.instance.publicShareId;
+    }
+
+    if (databaseId != null) {
+      NavigationHelper.navigateTo(
+        context,
+        '/team/$databaseId/season/${targetSeason.id}/players/${player.id}',
+        extra: {
+          'player': player,
+          'season': targetSeason,
+        },
+      );
+    }
   }
 
   Future<dynamic> _loadData() async {

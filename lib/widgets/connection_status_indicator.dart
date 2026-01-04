@@ -44,16 +44,32 @@ class _ConnectionStatusIndicatorState extends State<ConnectionStatusIndicator> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_pending > 0) ...[
-            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              constraints: const BoxConstraints(minWidth: 20),
+              height: 20,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               decoration: BoxDecoration(
                 color: Colors.orangeAccent,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: Text('$_pending',
-                  style: const TextStyle(fontSize: 12, color: Colors.black)),
+              alignment: Alignment.center,
+              child: Text(
+                '$_pending',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
             ),
+            const SizedBox(width: 8),
           ]
         ],
       ),

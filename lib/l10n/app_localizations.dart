@@ -106,6 +106,18 @@ abstract class AppLocalizations {
     Locale('pt')
   ];
 
+  /// No description provided for @email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get email;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
   /// No description provided for @accessGrantedTo.
   ///
   /// In en, this message translates to:
@@ -172,7 +184,7 @@ abstract class AppLocalizations {
   /// **'Add'**
   String get addButton;
 
-  /// Tooltip/title for adding a highlight
+  /// No description provided for @addHighlight.
   ///
   /// In en, this message translates to:
   /// **'Add Highlight'**
@@ -388,30 +400,6 @@ abstract class AppLocalizations {
   /// **'Close sidebar'**
   String get closeSidebar;
 
-  /// No description provided for @clubDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Description (Optional)'**
-  String get clubDescription;
-
-  /// No description provided for @clubDescriptionHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Brief description of your club'**
-  String get clubDescriptionHint;
-
-  /// No description provided for @clubName.
-  ///
-  /// In en, this message translates to:
-  /// **'Club Name'**
-  String get clubName;
-
-  /// No description provided for @clubSyncAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'ClubSync Available'**
-  String get clubSyncAvailable;
-
   /// No description provided for @composeTweet.
   ///
   /// In en, this message translates to:
@@ -460,7 +448,7 @@ abstract class AppLocalizations {
   /// **'Corners'**
   String get corners;
 
-  /// Snackbar text when a URL can't be opened
+  /// No description provided for @couldNotOpenUrl.
   ///
   /// In en, this message translates to:
   /// **'Could not open URL: {url}'**
@@ -478,23 +466,11 @@ abstract class AppLocalizations {
   /// **'Create Anyway'**
   String get createAnyway;
 
-  /// No description provided for @createClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Create Club'**
-  String get createClub;
-
   /// No description provided for @createNewCloudDatabase.
   ///
   /// In en, this message translates to:
   /// **'Create New Cloud Database'**
   String get createNewCloudDatabase;
-
-  /// No description provided for @createNewClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Create New Club'**
-  String get createNewClub;
 
   /// No description provided for @createNewDatabase.
   ///
@@ -640,12 +616,6 @@ abstract class AppLocalizations {
   /// **'Delete Highlight'**
   String get deleteHighlightTitle;
 
-  /// No description provided for @description.
-  ///
-  /// In en, this message translates to:
-  /// **'Description'**
-  String get description;
-
   /// No description provided for @displayOrder.
   ///
   /// In en, this message translates to:
@@ -711,12 +681,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Edit Profile'**
   String get editProfile;
-
-  /// No description provided for @email.
-  ///
-  /// In en, this message translates to:
-  /// **'Email'**
-  String get email;
 
   /// No description provided for @endGame.
   ///
@@ -832,7 +796,7 @@ abstract class AppLocalizations {
   /// **'Error loading events'**
   String get errorLoadingEvents;
 
-  /// Error when highlights fail to load
+  /// No description provided for @errorLoadingHighlights.
   ///
   /// In en, this message translates to:
   /// **'Error loading highlights: {error}'**
@@ -844,7 +808,7 @@ abstract class AppLocalizations {
   /// **'Error loading history'**
   String get errorLoadingHistory;
 
-  /// Error message when player stats load fails
+  /// No description provided for @errorLoadingPlayerStats.
   ///
   /// In en, this message translates to:
   /// **'Error loading player stats: {error}\n\nStack trace: {stack}'**
@@ -1114,7 +1078,7 @@ abstract class AppLocalizations {
   /// **'Got it'**
   String get gotIt;
 
-  /// Tooltip text to hide highlights panel
+  /// No description provided for @hideHighlights.
   ///
   /// In en, this message translates to:
   /// **'Hide Highlights'**
@@ -1132,7 +1096,7 @@ abstract class AppLocalizations {
   /// **'Highlight saved successfully'**
   String get highlightSaved;
 
-  /// Header for the highlights section
+  /// No description provided for @highlights.
   ///
   /// In en, this message translates to:
   /// **'Highlights'**
@@ -1165,13 +1129,13 @@ abstract class AppLocalizations {
   /// No description provided for @history.
   ///
   /// In en, this message translates to:
-  /// **'History'**
+  /// **'Analytics'**
   String get history;
 
   /// No description provided for @historyVersus.
   ///
   /// In en, this message translates to:
-  /// **'History Versus'**
+  /// **'Analytics'**
   String get historyVersus;
 
   /// No description provided for @home.
@@ -1509,12 +1473,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No cloud databases found'**
   String get noCloudDatabasesFound;
-
-  /// No description provided for @noClubDatabasesFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No cloud databases found'**
-  String get noClubDatabasesFound;
 
   /// No description provided for @noData.
   ///
@@ -1864,7 +1822,7 @@ abstract class AppLocalizations {
   /// **'Recent Games'**
   String get recentGames;
 
-  /// Header for recent highlights on the team home page
+  /// No description provided for @recentHighlights.
   ///
   /// In en, this message translates to:
   /// **'Recent highlights'**
@@ -1905,12 +1863,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove'**
   String get removeButton;
-
-  /// No description provided for @removeFromClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove from Club'**
-  String get removeFromClub;
 
   /// No description provided for @removeImage.
   ///
@@ -1995,12 +1947,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select a Cloud Database'**
   String get selectACloudDatabase;
-
-  /// No description provided for @selectAClub.
-  ///
-  /// In en, this message translates to:
-  /// **'Select a Club'**
-  String get selectAClub;
 
   /// No description provided for @selectADatabase.
   ///
@@ -2116,7 +2062,7 @@ abstract class AppLocalizations {
   /// **'Shots on Goal'**
   String get shotsOnGoal;
 
-  /// Tooltip text to show highlights panel
+  /// No description provided for @showHighlights.
   ///
   /// In en, this message translates to:
   /// **'Show Highlights'**
@@ -2235,6 +2181,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Team Standings'**
   String get teamStandings;
+
+  /// No description provided for @teamSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'About the Team'**
+  String get teamSummary;
+
+  /// No description provided for @editTeamSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Team Summary'**
+  String get editTeamSummary;
+
+  /// No description provided for @teamSummaryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a brief description of your team...'**
+  String get teamSummaryHint;
+
+  /// No description provided for @teamSummarySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Team summary saved successfully'**
+  String get teamSummarySaved;
 
   /// No description provided for @teamSync.
   ///
@@ -2404,6 +2374,48 @@ abstract class AppLocalizations {
   /// **'Upload Image'**
   String get uploadImage;
 
+  /// No description provided for @uploadingImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading image...'**
+  String get uploadingImage;
+
+  /// No description provided for @addLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Logo'**
+  String get addLogo;
+
+  /// No description provided for @changeLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Logo'**
+  String get changeLogo;
+
+  /// No description provided for @removeLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Logo'**
+  String get removeLogo;
+
+  /// No description provided for @confirmRemoveLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove this logo?'**
+  String get confirmRemoveLogo;
+
+  /// No description provided for @logoUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo updated successfully'**
+  String get logoUpdated;
+
+  /// No description provided for @logoRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo removed successfully'**
+  String get logoRemoved;
+
   /// No description provided for @useDeviceLanguage.
   ///
   /// In en, this message translates to:
@@ -2422,7 +2434,7 @@ abstract class AppLocalizations {
   /// **'Validate Only'**
   String get validateOnly;
 
-  /// Label prefix for numbered video buttons, e.g. "Video 1"
+  /// No description provided for @videoLabel.
   ///
   /// In en, this message translates to:
   /// **'Video'**
@@ -2434,7 +2446,7 @@ abstract class AppLocalizations {
   /// **'View More'**
   String get viewMore;
 
-  /// Label for a single watch/play button
+  /// No description provided for @watchLabel.
   ///
   /// In en, this message translates to:
   /// **'Watch'**
@@ -2654,7 +2666,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{count} {count, plural, =1{game} other{games}} played'**
-  String gamesPlayed(int count);
+  String gamesPlayed(num count);
 
   /// No description provided for @versus.
   ///
@@ -2685,6 +2697,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Season name updated successfully'**
   String get seasonNameUpdated;
+
+  /// No description provided for @analytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get analytics;
+
+  /// No description provided for @avgGoalsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals For'**
+  String get avgGoalsFor;
+
+  /// No description provided for @avgGoalsAgainst.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Against'**
+  String get avgGoalsAgainst;
+
+  /// No description provided for @biggestWin.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Win'**
+  String get biggestWin;
+
+  /// No description provided for @biggestLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Loss'**
+  String get biggestLoss;
+
+  /// No description provided for @currentStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Streak'**
+  String get currentStreak;
+
+  /// No description provided for @longestWinStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest Win Streak'**
+  String get longestWinStreak;
+
+  /// No description provided for @recentForm.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Form (Last 5)'**
+  String get recentForm;
+
+  /// No description provided for @cleanSheets.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean Sheets'**
+  String get cleanSheets;
+
+  /// No description provided for @goalDifferential.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal Differential'**
+  String get goalDifferential;
+
+  /// No description provided for @homeRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Record'**
+  String get homeRecord;
+
+  /// No description provided for @awayRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Away Record'**
+  String get awayRecord;
+
+  /// No description provided for @pointsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Points Per Game'**
+  String get pointsPerGame;
+
+  /// No description provided for @shootingAccuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Shooting Accuracy'**
+  String get shootingAccuracy;
+
+  /// No description provided for @comebackWins.
+  ///
+  /// In en, this message translates to:
+  /// **'Comeback Wins'**
+  String get comebackWins;
+
+  /// No description provided for @lateGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'Late Goals (80+)'**
+  String get lateGoals;
+
+  /// No description provided for @cardsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards Per Game'**
+  String get cardsPerGame;
+
+  /// No description provided for @statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get statistics;
+
+  /// No description provided for @scoringEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Scoring Events'**
+  String get scoringEvents;
+
+  /// No description provided for @noScoringEventsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No scoring events yet'**
+  String get noScoringEventsYet;
+
+  /// No description provided for @gameStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Game Statistics'**
+  String get gameStatistics;
+
+  /// No description provided for @shotsOnTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Shots on Target'**
+  String get shotsOnTarget;
+
+  /// No description provided for @goalAnalytics.
+  ///
+  /// In en, this message translates to:
+  /// **'Goal Analytics'**
+  String get goalAnalytics;
+
+  /// No description provided for @totalGoalsScored.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Goals Scored'**
+  String get totalGoalsScored;
+
+  /// No description provided for @totalGoalsConceded.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Goals Conceded'**
+  String get totalGoalsConceded;
+
+  /// No description provided for @avgGoalsPerGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Per Game'**
+  String get avgGoalsPerGame;
+
+  /// No description provided for @streaksRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaks & Records'**
+  String get streaksRecords;
+
+  /// No description provided for @longestUnbeatenStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest Unbeaten Streak'**
+  String get longestUnbeatenStreak;
+
+  /// No description provided for @mostGoalsInGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Most Goals in Game'**
+  String get mostGoalsInGame;
+
+  /// No description provided for @biggestVictory.
+  ///
+  /// In en, this message translates to:
+  /// **'Biggest Victory'**
+  String get biggestVictory;
+
+  /// No description provided for @homeAwayAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Home vs Away'**
+  String get homeAwayAnalysis;
+
+  /// No description provided for @homeWinPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Home Win %'**
+  String get homeWinPercentage;
+
+  /// No description provided for @awayWinPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Away Win %'**
+  String get awayWinPercentage;
+
+  /// No description provided for @defensiveStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Defensive Stats'**
+  String get defensiveStats;
+
+  /// No description provided for @cleanSheetPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Clean Sheet %'**
+  String get cleanSheetPercentage;
+
+  /// No description provided for @avgGoalsConceded.
+  ///
+  /// In en, this message translates to:
+  /// **'Avg Goals Conceded'**
+  String get avgGoalsConceded;
+
+  /// No description provided for @shutoutsRecorded.
+  ///
+  /// In en, this message translates to:
+  /// **'Shutouts Recorded'**
+  String get shutoutsRecorded;
+
+  /// No description provided for @allTime.
+  ///
+  /// In en, this message translates to:
+  /// **'All Time'**
+  String get allTime;
+
+  /// No description provided for @currentSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Season'**
+  String get currentSeason;
+
+  /// No description provided for @lastSeason.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Season'**
+  String get lastSeason;
+
+  /// No description provided for @last3Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 3 Seasons'**
+  String get last3Years;
+
+  /// No description provided for @last5Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 5 Seasons'**
+  String get last5Years;
+
+  /// No description provided for @last10Years.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 10 Seasons'**
+  String get last10Years;
+
+  /// No description provided for @overallStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Overall Statistics'**
+  String get overallStatistics;
+
+  /// No description provided for @recordSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Summary'**
+  String get recordSummary;
+
+  /// No description provided for @totalGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Games'**
+  String get totalGames;
+
+  /// No description provided for @wins.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get wins;
+
+  /// No description provided for @losses.
+  ///
+  /// In en, this message translates to:
+  /// **'Losses'**
+  String get losses;
+
+  /// No description provided for @ties.
+  ///
+  /// In en, this message translates to:
+  /// **'Ties'**
+  String get ties;
+
+  /// No description provided for @winPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Win %'**
+  String get winPercentage;
+
+  /// No description provided for @playerProfileQRCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Profile QR Code'**
+  String get playerProfileQRCode;
+
+  /// No description provided for @scanQRCodeToViewProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan QR code to view this player\'s profile'**
+  String get scanQRCodeToViewProfile;
+
+  /// No description provided for @tapToEnlarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to enlarge'**
+  String get tapToEnlarge;
+
+  /// No description provided for @playerProfileLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Profile: {playerName}'**
+  String playerProfileLink(Object playerName);
+
+  /// No description provided for @errorSharingLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Error sharing link'**
+  String get errorSharingLink;
+
+  /// No description provided for @share.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get share;
+
+  /// No description provided for @sending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending...'**
+  String get sending;
+
+  /// No description provided for @twitterNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Twitter is not configured. Please configure Twitter in Settings.'**
+  String get twitterNotConfigured;
+
+  /// No description provided for @opponents.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponents'**
+  String get opponents;
 }
 
 class _AppLocalizationsDelegate

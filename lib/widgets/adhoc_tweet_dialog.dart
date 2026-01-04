@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/services/twitter_service.dart';
+import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 
 /// A reusable dialog for composing and sending adhoc tweets.
@@ -13,54 +14,28 @@ import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 /// - Automatic Twitter API initialization check
 class AdhocTweetDialog extends StatefulWidget {
   final int? teamId;
+  final Team? team;
 
-  const AdhocTweetDialog({super.key, this.teamId});
+  const AdhocTweetDialog({super.key, this.teamId, this.team});
 
   /// Show the adhoc tweet dialog and handle the tweet sending.
   /// Returns true if tweet was sent successfully, false otherwise.
-  static Future<bool> show(BuildContext context, {int? teamId}) async {
-    final twitterService = TwitterService.instance;
-
-    // Initialize Twitter with appropriate credentials
-    // Try team credentials first, then fall back to local
-    bool initialized = false;
-    if (teamId != null) {
-      initialized = await twitterService.initializeWithTeamCredentials(teamId);
-      if (!initialized) {
-        // Fallback to local credentials
-        initialized = await twitterService.initializeWithLocalCredentials();
-      }
-    } else {
-      initialized = await twitterService.initializeWithLocalCredentials();
-    }
-
-    // If still not initialized, check if credentials exist at all
-    if (!initialized) {
-      final isConfigured = await twitterService.isConfigured(teamId: teamId);
-
-      if (!isConfigured) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Twitter is not configured. Please configure Twitter in Settings.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
+  static Future<bool> show(BuildContext context,
+      {int? teamId, Team? team}) async {
+    // Load team if we have teamId but no team object
+    Team? loadedTeam = team;
+    if (loadedTeam == null && teamId != null) {
+      try {
+        final results = await DatabaseService.instance.query(
+          'Teams',
+          orderByChild: 'id',
+          equalTo: teamId,
+        );
+        if (results.isNotEmpty) {
+          loadedTeam = Team.fromMap(results.first);
         }
-        return false;
-      } else {
-        // Credentials exist but initialization failed
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Failed to initialize Twitter. Please check your credentials.'),
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return false;
+      } catch (e) {
+        debugPrint('Error loading team: $e');
       }
     }
 
@@ -69,46 +44,23 @@ class AdhocTweetDialog extends StatefulWidget {
 
     final composedTweet = await showDialog<String>(
       context: context,
-      builder: (BuildContext context) => AdhocTweetDialog(teamId: teamId),
+      builder: (BuildContext context) => AdhocTweetDialog(
+        teamId: teamId,
+        team: loadedTeam,
+      ),
     );
 
     // If user composed a tweet, show preview
     if (composedTweet != null && composedTweet.isNotEmpty) {
       if (!context.mounted) return false;
 
-      // Show preview dialog using common component
-      final finalTweetText = await TweetPreviewDialog.show(
+      // Show preview dialog - it handles initialization and sending internally
+      return await TweetPreviewDialog.show(
         context,
         initialText: composedTweet,
         teamId: teamId,
+        team: loadedTeam,
       );
-
-      // If user confirmed in preview, send the tweet
-      if (finalTweetText != null && finalTweetText.isNotEmpty) {
-        final success = await twitterService.sendTweet(finalTweetText);
-
-        if (context.mounted) {
-          final loc = AppLocalizations.of(context)!;
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loc.tweetSentSuccessfully),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(loc.failedToSendTweet),
-                duration: const Duration(seconds: 3),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-
-        return success;
-      }
     }
 
     return false;

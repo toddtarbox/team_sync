@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:team_sync/models/player.dart';
+import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
@@ -16,14 +17,20 @@ class ResponsivePlayerAvatar extends StatefulWidget {
   final Color? avatarBackgroundColor;
   final Widget? avatarFallbackIcon;
   final bool isEdit;
+  final bool preferProfileImage;
+  final bool useLatestImages;
+  final Season? season; // NEW: Season context for navigation
 
   const ResponsivePlayerAvatar({
     super.key,
     required this.player,
-    this.avatarSize,
+    this.avatarSize = 40,
     this.avatarBackgroundColor,
     this.avatarFallbackIcon,
     this.isEdit = false,
+    this.preferProfileImage = false,
+    this.useLatestImages = false,
+    this.season, // NEW
   });
 
   @override
@@ -31,44 +38,53 @@ class ResponsivePlayerAvatar extends StatefulWidget {
 }
 
 class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
-  String? _profileImage;
-  String? _actionPhoto;
-  bool _isLoading = true;
+  Map<String, String?>? _latestImages;
 
   @override
   void initState() {
     super.initState();
-    _loadImages();
-  }
-
-  @override
-  void didUpdateWidget(ResponsivePlayerAvatar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Reload images if player changed
-    if (oldWidget.player.id != widget.player.id ||
-        oldWidget.player.seasonId != widget.player.seasonId) {
-      _loadImages();
+    if (widget.useLatestImages) {
+      _loadLatestImages();
     }
   }
 
-  Future<void> _loadImages() async {
-    // Find latest available images across all seasons
-    final images = await widget.player.findLatestAvailableImages();
-    if (mounted) {
-      setState(() {
-        _profileImage = images['profileImage'];
-        _actionPhoto = images['actionPhoto'];
-        _isLoading = false;
-      });
+  Future<void> _loadLatestImages() async {
+    if (widget.player.id < 0) return;
+
+    try {
+      final images = await widget.player.findLatestAvailableImages();
+      if (mounted) {
+        setState(() {
+          _latestImages = images;
+        });
+      }
+    } catch (e) {
+      // Fail silently and use default images
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Use loaded images from state (which includes fallback to previous seasons)
-    final imageUrl = (_profileImage != null && _profileImage!.isNotEmpty)
-        ? _profileImage
-        : _actionPhoto;
+    // Use the displayImageForStats helper which prioritizes:
+    // headshot > profileImage > actionPhoto
+    // Or displayImageForProfile if preferProfileImage is true
+    String? imageUrl;
+
+    if (_latestImages != null) {
+      final profile = _latestImages!['profileImage'];
+      final headshot = _latestImages!['headshot'];
+      final action = _latestImages!['actionPhoto'];
+
+      if (widget.preferProfileImage) {
+        imageUrl = profile ?? headshot ?? action;
+      } else {
+        imageUrl = headshot ?? profile ?? action;
+      }
+    } else {
+      imageUrl = widget.preferProfileImage
+          ? widget.player.displayImageForProfile
+          : widget.player.displayImageForStats;
+    }
 
     // Build a generic ResponsiveAvatar with player-derived data
     final responsiveAvatar = ResponsiveAvatar(
@@ -96,24 +112,38 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
           ? null
           : () {
               if (databaseId != null) {
-                final currentLocation =
-                    GoRouterState.of(context).uri.toString();
-                final playerProfileLocation =
-                    '/team/$databaseId/season/${widget.player.seasonId}/players/${widget.player.id}';
-                final isOnPlayerProfile =
-                    currentLocation.contains(playerProfileLocation);
+                bool isOnPlayerProfile = false;
+                try {
+                  final currentLocation =
+                      GoRouterState.of(context).uri.toString();
+                  final playerProfileLocation =
+                      '/team/$databaseId/player/${widget.player.id}';
+                  isOnPlayerProfile =
+                      currentLocation.contains(playerProfileLocation);
+                } catch (_) {
+                  // Fallback if GoRouterState is not found (e.g. in dialogs)
+                }
 
                 // If already on the player profile page, show larger view
                 if (isOnPlayerProfile &&
-                    ((_profileImage != null && _profileImage!.isNotEmpty) ||
-                        (_actionPhoto != null && _actionPhoto!.isNotEmpty))) {
+                    widget.player.displayImageForProfile != null) {
                   _showLargeProfileImage(context);
                 } else {
                   // Navigate to player profile page
-                  final location =
-                      '/team/$databaseId/season/${widget.player.seasonId}/players/${widget.player.id}';
-                  NavigationHelper.navigateTo(context, location,
-                      extra: {'player': widget.player});
+                  String location;
+                  Map<String, dynamic> extra = {'player': widget.player};
+
+                  if (widget.season != null) {
+                    // Use season-scoped route
+                    location =
+                        '/team/$databaseId/season/${widget.season!.id}/players/${widget.player.id}';
+                    extra['season'] = widget.season;
+                  } else {
+                    // use global route (defaults to latest season)
+                    location = '/team/$databaseId/player/${widget.player.id}';
+                  }
+
+                  NavigationHelper.navigateTo(context, location, extra: extra);
                 }
               }
             },
@@ -123,10 +153,9 @@ class _ResponsivePlayerAvatarState extends State<ResponsivePlayerAvatar> {
 
   /// Shows a larger view of the player's profile image in a dialog
   void _showLargeProfileImage(BuildContext context) {
-    // Use loaded images from state (which includes fallback to previous seasons)
-    final imageUrl = (_profileImage != null && _profileImage!.isNotEmpty)
-        ? _profileImage
-        : _actionPhoto;
+    // Use displayImageForProfile helper which prioritizes:
+    // profileImage > headshot > actionPhoto
+    final imageUrl = widget.player.displayImageForProfile;
 
     showDialog(
       context: context,

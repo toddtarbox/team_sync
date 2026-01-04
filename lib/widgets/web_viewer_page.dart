@@ -57,7 +57,7 @@ class WebViewerPage extends StatelessWidget {
                         e is Map ? Map<String, dynamic>.from(e) : {'value': e})
                     .toList();
               } else if (tableRaw is Map) {
-                rows = (tableRaw as Map).entries.map((entry) {
+                rows = (tableRaw).entries.map((entry) {
                   final key = entry.key.toString();
                   final val = entry.value;
                   if (val is Map) {

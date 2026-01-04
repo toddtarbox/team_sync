@@ -23,12 +23,12 @@ AppBar buildStandardAppBar({
   // On web, don't show back button - use browser navigation instead
   final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
-  Future<void> goToWebSite() async {
-    if (kIsWeb) {
-      final uri = Uri.parse('https://sites.google.com/view/team-sync/home');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+  Future<void> launchAppHomePage() async {
+    final uri = Uri.parse('https://team-sync-soccer-web.web.app/');
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('Could not launch URL: $e');
     }
   }
 
@@ -39,9 +39,7 @@ AppBar buildStandardAppBar({
   if (!automaticallyImplyLeading) {
     // Custom icon without auto back button
     leadingWidget = InkWell(
-      onTap: () {
-        goToWebSite();
-      },
+      onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -55,9 +53,7 @@ AppBar buildStandardAppBar({
   } else {
     // Custom icon when no back button is needed
     leadingWidget = InkWell(
-      onTap: () {
-        goToWebSite();
-      },
+      onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Image.asset('assets/images/pngs/icon_no_background.png',
@@ -69,15 +65,17 @@ AppBar buildStandardAppBar({
   return AppBar(
     leading: leadingWidget,
     automaticallyImplyLeading: implicitLeading,
+    centerTitle: true,
+    elevation: 0,
     title: !showBackButton
         ? InkWell(
-            onTap: () {
-              goToWebSite();
-            },
+            onTap: launchAppHomePage,
             child: title,
           )
         : title,
-    actions: combinedActions.isNotEmpty ? combinedActions : null,
+    actions: combinedActions.isNotEmpty
+        ? [...combinedActions, const SizedBox(width: 8)]
+        : null,
     bottom: bottom,
     // Set icon and title colors to white when using gradient, otherwise use theme defaults
     iconTheme: team != null ? const IconThemeData(color: Colors.white) : null,
@@ -87,7 +85,8 @@ AppBar buildStandardAppBar({
         ? const TextStyle(
             color: Colors.white,
             fontSize: 20,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           )
         : null,
     flexibleSpace: team != null

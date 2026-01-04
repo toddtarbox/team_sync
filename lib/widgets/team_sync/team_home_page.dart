@@ -30,8 +30,10 @@ import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/common/award_card.dart';
+import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
+import 'package:team_sync/widgets/team_summary_section.dart';
 import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
@@ -41,6 +43,7 @@ import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
+import 'package:team_sync/widgets/common/hover_builder.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// TeamSync-specific home page for single-team management
@@ -57,7 +60,8 @@ class TeamHomePage extends StatefulWidget {
   State<TeamHomePage> createState() => _TeamHomePageState();
 }
 
-class _TeamHomePageState extends State<TeamHomePage> {
+class _TeamHomePageState extends State<TeamHomePage>
+    with SingleTickerProviderStateMixin {
   Team? _team;
   Game? _nextUpcomingGame;
   List<Season> _seasons = [];
@@ -65,19 +69,29 @@ class _TeamHomePageState extends State<TeamHomePage> {
   List<TeamAccomplishment> _accomplishments = [];
   Game? _currentOrLastGame;
   List<Game> _lastFiveGames = []; // For carousel when no live game
-  int _currentCarouselPage = 0; // Track current page in carousel
+  int _currentRecentGamesCarouselPage = 0; // Track current page in carousel
+  int _currentAnalyticsCarouselPage = 0; // Track current page in carousel
   Season? _currentSeason;
   late bool _isSubscribed;
   bool _isSharing = false;
   bool _isDrawerOpen =
       false; // Track drawer state for web - collapsed by default
-  bool _accomplishmentsExpanded = true; // Track accomplishments section state
+  bool _accomplishmentsExpanded =
+      false; // Track accomplishments section state - collapsed by default
+  bool _recentGamesExpanded =
+      false; // Track recent games section state - collapsed by default
+  bool _analyticsExpanded =
+      false; // Track analytics section state - collapsed by default
   bool _isLoadingImportedSeasons =
       false; // Track if imported seasons are loading
   bool _allSeasonsLoaded =
       false; // Track if all seasons (regular + imported) are fully loaded
   final _teamIdController = TextEditingController();
   final PageController _accomplishmentsPageController = PageController();
+  final ScrollController _scrollController =
+      ScrollController(); // Track scroll for hiding header elements
+  late AnimationController _hideController;
+  late Animation<double> _hideAnimation;
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
@@ -128,6 +142,38 @@ class _TeamHomePageState extends State<TeamHomePage> {
           }
         });
       });
+    }
+
+    _loadExpansionStates();
+
+    // Initialize scroll hide controller
+    _hideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+      value: 1.0, // Initially shown
+    );
+    _hideAnimation = CurvedAnimation(
+      parent: _hideController,
+      curve: Curves.easeInOut,
+    );
+
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final isScrolled = _scrollController.offset > 50;
+
+      // Drive animation controller based on scroll state
+      if (isScrolled &&
+          _hideController.status != AnimationStatus.reverse &&
+          _hideController.status != AnimationStatus.dismissed) {
+        _hideController.reverse();
+      } else if (!isScrolled &&
+          _hideController.status != AnimationStatus.forward &&
+          _hideController.status != AnimationStatus.completed) {
+        _hideController.forward();
+      }
     }
   }
 
@@ -268,11 +314,33 @@ class _TeamHomePageState extends State<TeamHomePage> {
     }
   }
 
+  Future<void> _loadExpansionStates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _accomplishmentsExpanded =
+              prefs.getBool('team_accomplishments_expanded') ?? false;
+          _recentGamesExpanded =
+              prefs.getBool('team_recent_games_expanded') ?? false;
+          _analyticsExpanded =
+              prefs.getBool('team_analytics_expanded') ?? false;
+        });
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
   @override
   void dispose() {
     _subscriptionListener?.cancel();
     _liveGameUpdateTimer?.cancel();
     _accomplishmentsPageController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _hideController.dispose();
+    _teamIdController.dispose();
     if (!kIsWeb) {
       ShowcaseView.get().unregister();
     }
@@ -334,12 +402,47 @@ class _TeamHomePageState extends State<TeamHomePage> {
       floatingActionButton: _buildFloatingActionButton(),
       body: Column(
         children: [
-          if (_team != null) CommonPageHeader(team: _team!),
-          _buildLiveBanner(),
+          if (_team != null)
+            CommonPageHeader(
+              team: _team!,
+              onTeamUpdated: () {
+                setState(() {
+                  _loadFuture = _load();
+                });
+              },
+            ),
+          _buildAnimatedVisibility(
+            child: TeamSummarySection(
+              team: _team!,
+              onSummaryChanged: () {
+                setState(() {
+                  _loadFuture = _load();
+                });
+              },
+            ),
+          ),
+          _buildAnimatedVisibility(
+            child: _buildLiveBanner(),
+          ),
           // Recent highlights (web only)
-          if (kIsWeb) _buildRecentHighlights(),
+          if (kIsWeb)
+            _buildAnimatedVisibility(
+              child: _buildRecentHighlights(),
+            ),
           Expanded(child: _buildBody()),
         ],
+      ),
+    );
+  }
+
+  // Replaces implicit animation with robust explicit animation
+  Widget _buildAnimatedVisibility({required Widget child}) {
+    return SizeTransition(
+      sizeFactor: _hideAnimation,
+      axisAlignment: -1.0, // Slide up/down from top
+      child: FadeTransition(
+        opacity: _hideAnimation,
+        child: child,
       ),
     );
   }
@@ -381,7 +484,8 @@ class _TeamHomePageState extends State<TeamHomePage> {
             onSelected: (value) async {
               switch (value) {
                 case 'tweet':
-                  await AdhocTweetDialog.show(context, teamId: _team?.id);
+                  await AdhocTweetDialog.show(context,
+                      teamId: _team?.id, team: _team);
                   break;
                 case 'share':
                   await _shareDatabase();
@@ -460,7 +564,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     value: 'history',
                     child: Row(
                       children: [
-                        const Icon(Icons.manage_history_outlined),
+                        const Icon(Icons.analytics_outlined),
                         const SizedBox(width: 12),
                         Text(loc.history),
                       ],
@@ -482,75 +586,82 @@ class _TeamHomePageState extends State<TeamHomePage> {
           ),
         )
       else
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          onSelected: (value) async {
-            switch (value) {
-              case 'records':
-                final databaseId = DatabaseService.instance.publicShareId;
-                if (databaseId != null) {
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/records',
-                      extra: _team);
-                }
-                break;
-              case 'history':
-                final databaseId = DatabaseService.instance.publicShareId;
-                if (databaseId != null) {
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/history',
-                      extra: _team);
-                }
-                break;
-              case 'settings':
-                // For settings on web, use publicShareId if available, otherwise use 'local'
-                final databaseId =
-                    DatabaseService.instance.publicShareId ?? 'local';
-                NavigationHelper.navigateTo(
-                    context, '/team/$databaseId/settings',
-                    extra: _team);
-                break;
-            }
-          },
-          itemBuilder: (BuildContext context) {
-            final loc = AppLocalizations.of(context)!;
-            return [
-              // Records option - show when team exists
-              if (_team != null)
-                PopupMenuItem<String>(
-                  value: 'records',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.leaderboard),
-                      const SizedBox(width: 12),
-                      Text(loc.records),
-                    ],
-                  ),
-                ),
-              // History option - show when team exists
-              if (_team != null)
-                PopupMenuItem<String>(
-                  value: 'history',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.manage_history_outlined),
-                      const SizedBox(width: 12),
-                      Text(loc.history),
-                    ],
-                  ),
-                ),
-              // Settings option - always show
-              PopupMenuItem<String>(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    const Icon(Icons.settings),
-                    const SizedBox(width: 12),
-                    Text(loc.settings),
-                  ],
-                ),
+        HoverBuilder(
+          builder: (context, isHovered) {
+            return Transform.scale(
+              scale: kIsWeb && isHovered ? 1.1 : 1.0,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'records':
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/records',
+                            extra: _team);
+                      }
+                      break;
+                    case 'history':
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/history',
+                            extra: _team);
+                      }
+                      break;
+                    case 'settings':
+                      // For settings on web, use publicShareId if available, otherwise use 'local'
+                      final databaseId =
+                          DatabaseService.instance.publicShareId ?? 'local';
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/settings',
+                          extra: _team);
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  final loc = AppLocalizations.of(context)!;
+                  return [
+                    // Records option - show when team exists
+                    if (_team != null)
+                      PopupMenuItem<String>(
+                        value: 'records',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.leaderboard),
+                            const SizedBox(width: 12),
+                            Text(loc.records),
+                          ],
+                        ),
+                      ),
+                    // History option - show when team exists
+                    if (_team != null)
+                      PopupMenuItem<String>(
+                        value: 'history',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.analytics_outlined),
+                            const SizedBox(width: 12),
+                            Text(loc.history),
+                          ],
+                        ),
+                      ),
+                    // Settings option - always show
+                    PopupMenuItem<String>(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.settings),
+                          const SizedBox(width: 12),
+                          Text(loc.settings),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
               ),
-            ];
+            );
           },
         ),
     ];
@@ -559,14 +670,21 @@ class _TeamHomePageState extends State<TeamHomePage> {
   Widget? _buildFloatingActionButton() {
     if (kIsWeb) {
       return (!_isDrawerOpen && _team != null
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _isDrawerOpen = true;
-                });
+          ? HoverBuilder(
+              builder: (context, isHovered) {
+                return Transform.scale(
+                  scale: isHovered && kIsWeb ? 1.1 : 1.0,
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      setState(() {
+                        _isDrawerOpen = true;
+                      });
+                    },
+                    tooltip: 'Show game details',
+                    child: const Icon(Icons.event),
+                  ),
+                );
               },
-              tooltip: 'Show game details',
-              child: const Icon(Icons.event),
             )
           : null);
     }
@@ -612,12 +730,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
             // Show loading while future is not done
             if (snapshot.connectionState == ConnectionState.waiting ||
                 snapshot.connectionState == ConnectionState.active) {
-              return const Center(child: CircularProgressIndicator());
+              return _buildDashboardSkeleton();
             }
 
             // Show additional loading states
             if (_isSharing) {
-              return const Center(child: CircularProgressIndicator());
+              return _buildDashboardSkeleton();
             }
 
             // Show error if future completed with error
@@ -828,119 +946,539 @@ class _TeamHomePageState extends State<TeamHomePage> {
     return _buildSeasonsList();
   }
 
-  Widget _buildGamesCarousel() {
-    final loc = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8, bottom: 8),
-          child: Row(
-            children: [
-              Icon(
-                Icons.history,
-                size: 20,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                loc.recentGames,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 200, // Fixed height for the carousel
-          child: PageView.builder(
-            controller: PageController(viewportFraction: 0.9),
-            itemCount: _lastFiveGames.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentCarouselPage = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              final game = _lastFiveGames[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                child: ScoreboardWidget(
-                  season: _currentSeason!,
-                  game: game,
-                  teamId: _team!.id,
-                  compact: true,
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        // Page indicator
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _lastFiveGames.length,
-            (index) => Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: index == _currentCarouselPage
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSeasonsList() {
     final loc = AppLocalizations.of(context)!;
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.all(16.0),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              // Show carousel of last 5 games or single live/last game
-              if (_currentSeason != null && _currentOrLastGame != null) ...[
-                if (_lastFiveGames.isEmpty)
-                  // Show single live or last game
-                  ScoreboardWidget(
-                    season: _currentSeason!,
-                    game: _currentOrLastGame!,
-                    teamId: _team!.id,
-                  )
-                else
-                  // Show carousel of last 5 games
-                  _buildGamesCarousel(),
-              ],
-              if (_seasons.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                // Enhanced Overall Record Card - Only show when all seasons are loaded
-                if (_allSeasonsLoaded)
-                  InkWell(
-                    onTap: () {
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                          context,
-                          '/team/$databaseId/history',
-                        );
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Card(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate responsive horizontal padding
+        final screenWidth = constraints.maxWidth;
+        const maxContentWidth = 1400.0;
+        final horizontalPadding = screenWidth > maxContentWidth
+            ? (screenWidth - maxContentWidth) / 2
+            : 0.0;
+
+        return CustomScrollView(
+          key: const Key('team_home_scroll_view'),
+          controller: _scrollController,
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.only(
+                left: 16.0 + horizontalPadding,
+                right: 16.0 + horizontalPadding,
+                top: 16.0,
+                bottom: 16.0,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Recent Games Section (Collapsible)
+                  if (_currentSeason != null && _currentOrLastGame != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: InkWell(
+                        key: const Key('recent_games_header'),
+                        onTap: () async {
+                          setState(() {
+                            _recentGamesExpanded = !_recentGamesExpanded;
+                          });
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('team_recent_games_expanded',
+                                _recentGamesExpanded);
+                          } catch (e) {
+                            // Ignore errors
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _recentGamesExpanded
+                                          ? Icons.keyboard_arrow_down
+                                          : Icons.keyboard_arrow_right,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons
+                                          .sports_score, // Or another relevant icon
+                                      size: 20,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      loc.recentGames,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: _recentGamesExpanded
+                          ? Column(
+                              children: [
+                                if (_lastFiveGames.isEmpty)
+                                  // Show single live or last game
+                                  ScoreboardWidget(
+                                    season: _currentSeason!,
+                                    game: _currentOrLastGame!,
+                                    teamId: _team!.id,
+                                  )
+                                else
+                                  // Show carousel of last 5 games
+                                  SizedBox(
+                                    height:
+                                        200, // Fixed height for the carousel
+                                    child: PageView.builder(
+                                      controller:
+                                          PageController(viewportFraction: 0.9),
+                                      itemCount: _lastFiveGames.length,
+                                      onPageChanged: (index) {
+                                        setState(() {
+                                          _currentRecentGamesCarouselPage =
+                                              index;
+                                        });
+                                      },
+                                      itemBuilder: (context, index) {
+                                        final game = _lastFiveGames[index];
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4.0),
+                                          child: ScoreboardWidget(
+                                            season: _currentSeason!,
+                                            game: game,
+                                            teamId: _team!.id,
+                                            compact: true,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                // Page indicator
+                                if (_lastFiveGames.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: List.generate(
+                                        _lastFiveGames.length,
+                                        (index) => Container(
+                                          margin: const EdgeInsets.symmetric(
+                                              horizontal: 4),
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: index ==
+                                                    _currentRecentGamesCarouselPage
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                    .withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // Analytics Section (Collapsible)
+                  if (_seasons.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: InkWell(
+                        key: const Key('analytics_header'),
+                        onTap: () async {
+                          setState(() {
+                            _analyticsExpanded = !_analyticsExpanded;
+                          });
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool(
+                                'team_analytics_expanded', _analyticsExpanded);
+                          } catch (e) {
+                            // Ignore errors
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _analyticsExpanded
+                                          ? Icons.keyboard_arrow_down
+                                          : Icons.keyboard_arrow_right,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons
+                                          .analytics, // Or another relevant icon
+                                      size: 20,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      loc.analytics, // Ensure 'analytics' key exists or use 'Analytics' string if strictly needed, but reusing loc is safer if key exists. Otherwise use 'Team Performance' or similar. Assuming loc.analytics exists or I'll use existing "Team Performance" string logic. Let's use "Team Analytics" string for now to be safe or check keys.
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: _analyticsExpanded
+                          ? Column(
+                              children: [
+                                // Analytics Carousel - Show comprehensive team statistics (or skeleton)
+                                const SizedBox(height: 16),
+                                if (_allSeasonsLoaded)
+                                  _buildAnalyticsCarousel()
+                                else
+                                  _buildAnalyticsSkeleton(),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                  // Team Accomplishments Section (Collapsible)
+                  // Show if there are accomplishments OR if user is admin (to allow adding first one)
+                  if (_accomplishments.isNotEmpty ||
+                      (!kIsWeb &&
+                          _team?.isTeamAdmin(
+                                  FirebaseAuth.instance.currentUser?.uid) ==
+                              true)) ...[
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: InkWell(
+                        key: const Key('accomplishments_header'),
+                        onTap: () async {
+                          setState(() {
+                            _accomplishmentsExpanded =
+                                !_accomplishmentsExpanded;
+                          });
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('team_accomplishments_expanded',
+                                _accomplishmentsExpanded);
+                          } catch (e) {
+                            // Ignore errors
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          _accomplishmentsExpanded
+                                              ? Icons.keyboard_arrow_down
+                                              : Icons.keyboard_arrow_right,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          loc.teamAccomplishments,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (!kIsWeb &&
+                                        _team?.isTeamAdmin(FirebaseAuth
+                                                .instance.currentUser?.uid) ==
+                                            true)
+                                      IconButton(
+                                        icon: const Icon(Icons.add, size: 20),
+                                        onPressed: () =>
+                                            _showAddAccomplishmentDialog(),
+                                        tooltip: loc.addAccomplishment,
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    // Show content when expanded
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: _accomplishmentsExpanded
+                          ? Column(
+                              children: [
+                                // Show empty state if no accomplishments
+                                if (_accomplishments.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Card(
+                                      elevation: 1,
+                                      clipBehavior: Clip.antiAlias,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outlineVariant,
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.emoji_events_outlined,
+                                              size: 48,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurfaceVariant
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              'No team accomplishments yet',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Tap + to add championships, milestones, and awards',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurfaceVariant
+                                                    .withValues(alpha: 0.7),
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                // Show accomplishments - carousel on web, list on mobile
+                                if (_accomplishments.isNotEmpty)
+                                  if (kIsWeb)
+                                    // Web: Carousel view
+                                    _buildAccomplishmentsCarousel()
+                                  else if (_team?.isTeamAdmin(FirebaseAuth
+                                              .instance.currentUser?.uid) ==
+                                          true &&
+                                      _accomplishments.length > 1)
+                                    // Mobile admin: Reorderable list
+                                    ReorderableListView(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      onReorder: _onReorderAccomplishments,
+                                      children: _accomplishments
+                                          .map((accomplishment) => Padding(
+                                                key:
+                                                    ValueKey(accomplishment.id),
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 12),
+                                                child: _buildAccomplishmentCard(
+                                                    accomplishment),
+                                              ))
+                                          .toList(),
+                                    )
+                                  else
+                                    // Mobile non-admin or single item: Regular list
+                                    ..._accomplishments
+                                        .map((accomplishment) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 12),
+                                              child: _buildAccomplishmentCard(
+                                                  accomplishment),
+                                            )),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  // Enhanced Overall Record Card - Only show when all seasons are loaded
+                  if (_allSeasonsLoaded)
+                    InkWell(
+                      onTap: () {
+                        final databaseId =
+                            DatabaseService.instance.publicShareId;
+                        if (databaseId != null) {
+                          NavigationHelper.navigateTo(
+                            context,
+                            '/team/$databaseId/history',
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: HoverBuilder(
+                        builder: (context, isHovered) {
+                          return Transform.scale(
+                            scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                            child: Card(
+                              elevation: isHovered && kIsWeb ? 8 : 4,
+                              clipBehavior: Clip.antiAlias,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isHovered && kIsWeb
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer
+                                          .withValues(alpha: 0.3),
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHigh,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.emoji_events,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            _getTeamPerformanceTitle(),
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SeasonRecord(
+                                        [..._seasons, ..._importedSeasons],
+                                        singleSeason: false, isOverall: true),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  // Show loading placeholder when seasons are still loading
+                  if (!_allSeasonsLoaded)
+                    Card(
                       elevation: 4,
                       clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(
@@ -981,273 +1519,296 @@ class _TeamHomePageState extends State<TeamHomePage> {
                                   size: 24,
                                 ),
                                 const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    _getTeamPerformanceTitle(),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                    ),
-                                    textAlign: TextAlign.center,
+                                Text(
+                                  loc.teamPerformance,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(3, (index) {
+                                    return Container(
+                                      margin: EdgeInsets.only(
+                                          right: index < 2 ? 16 : 0),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surface
+                                            .withValues(alpha: 0.5),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline
+                                              .withValues(alpha: 0.1),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            width: 32,
+                                            height: 14,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.05),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  loc.loadingAllSeasons,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant
+                                        .withValues(alpha: 0.7),
+                                    fontStyle: FontStyle.italic,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 16),
-                            SeasonRecord([..._seasons, ..._importedSeasons],
-                                singleSeason: false, isOverall: true),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                // Show loading placeholder when seasons are still loading
-                if (!_allSeasonsLoaded)
-                  Card(
-                    elevation: 4,
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.3),
-                        width: 2,
-                      ),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.3),
-                            Theme.of(context).colorScheme.surfaceContainerHigh,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.emoji_events,
-                                color: Theme.of(context).colorScheme.primary,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.teamPerformance,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                loc.loadingAllSeasons,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-              // Team Accomplishments Section (Collapsible)
-              // Show if there are accomplishments OR if user is admin (to allow adding first one)
-              if (_accomplishments.isNotEmpty ||
-                  (!kIsWeb &&
-                      _team?.isTeamAdmin(
-                              FirebaseAuth.instance.currentUser?.uid) ==
-                          true)) ...[
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _accomplishmentsExpanded = !_accomplishmentsExpanded;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+
+                  const SizedBox(height: 24),
+                  // Section header for individual seasons
+                  if (_seasons.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                _accomplishmentsExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_right,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.teamAccomplishments,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (!kIsWeb &&
-                              _team?.isTeamAdmin(
-                                      FirebaseAuth.instance.currentUser?.uid) ==
-                                  true)
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 20),
-                              onPressed: () => _showAddAccomplishmentDialog(),
-                              tooltip: loc.addAccomplishment,
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
+                          Text(
+                            loc.seasons,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              letterSpacing: 0.5,
                             ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-                // Show content when expanded
-                if (_accomplishmentsExpanded) ...[
-                  // Show empty state if no accomplishments
-                  if (_accomplishments.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Card(
-                        elevation: 1,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.emoji_events_outlined,
-                                size: 48,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant
-                                    .withValues(alpha: 0.5),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No team accomplishments yet',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                ]),
+              ),
+            ),
+            SliverPadding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 16.0 + horizontalPadding),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final season = _seasons[index];
+                    final databaseId = DatabaseService.instance.publicShareId;
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (databaseId != null) {
+                          NavigationHelper.navigateTo(
+                              context, '/team/$databaseId/season/${season.id}',
+                              extra: season);
+                        }
+                      },
+                      child: HoverBuilder(
+                        builder: (context, isHovered) {
+                          return Transform.scale(
+                            scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                            child: Card(
+                              elevation: isHovered ? 6 : 3, // Elevate on hover
+                              clipBehavior: Clip.antiAlias,
+                              color: Theme.of(context).colorScheme.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isHovered
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
+                                  width: isHovered ? 2 : 1,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Tap + to add championships, milestones, and awards',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant
-                                      .withValues(alpha: 0.7),
-                                ),
-                                textAlign: TextAlign.center,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Header section with season name - MOVED TO TOP
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          season.team.color1
+                                              .withValues(alpha: 0.15),
+                                          season.team.color2
+                                              .withValues(alpha: 0.10),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        if (season.team.logoUrl != null &&
+                                            season
+                                                .team.logoUrl!.isNotEmpty) ...[
+                                          ResponsiveAvatar(
+                                            size: 24,
+                                            imageUrl: season.team.logoUrl,
+                                            initials: season.team.fullName[0],
+                                          ),
+                                          const SizedBox(width: 12),
+                                        ],
+                                        Flexible(
+                                          child: Text(
+                                            season.name,
+                                            style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        // Edit button for admins on mobile
+                                        if (!kIsWeb &&
+                                            _team?.isTeamAdmin(FirebaseAuth
+                                                    .instance
+                                                    .currentUser
+                                                    ?.uid) ==
+                                                true) ...[
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.edit,
+                                              size: 20,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                            onPressed: () =>
+                                                _showEditSeasonNameDialog(
+                                                    season),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  // Season image banner (if available)
+                                  if (season.logoUrl != null &&
+                                      season.logoUrl!.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showSeasonPhoto(
+                                            context, season.logoUrl);
+                                      },
+                                      child: Container(
+                                        height: 180,
+                                        color: Colors.transparent,
+                                        child: Image.network(
+                                          season.logoUrl!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Center(
+                                              child: Icon(
+                                                Icons.image_not_supported,
+                                                size: 48,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .outline,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  // Stats section
+                                  Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: SeasonRecord([season]),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  // Show accomplishments - carousel on web, list on mobile
-                  if (_accomplishments.isNotEmpty)
-                    if (kIsWeb)
-                      // Web: Carousel view
-                      _buildAccomplishmentsCarousel()
-                    else if (_team?.isTeamAdmin(
-                                FirebaseAuth.instance.currentUser?.uid) ==
-                            true &&
-                        _accomplishments.length > 1)
-                      // Mobile admin: Reorderable list
-                      ReorderableListView(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        onReorder: _onReorderAccomplishments,
-                        children: _accomplishments
-                            .map((accomplishment) => Padding(
-                                  key: ValueKey(accomplishment.id),
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child:
-                                      _buildAccomplishmentCard(accomplishment),
-                                ))
-                            .toList(),
-                      )
-                    else
-                      // Mobile non-admin or single item: Regular list
-                      ..._accomplishments
-                          .map((accomplishment) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildAccomplishmentCard(accomplishment),
-                              ))
-                          .toList(),
-                ],
-              ],
-              const SizedBox(height: 24),
-              // Section header for individual seasons
-              if (_seasons.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 8),
+                    );
+                  },
+                  childCount: _seasons.length,
+                ),
+              ),
+            ),
+            // Imported Seasons Section
+            if (_importedSeasons.isNotEmpty || _isLoadingImportedSeasons) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20 + horizontalPadding,
+                    right: 20 + horizontalPadding,
+                    top: 32,
+                    bottom: 8,
+                  ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Icon(
+                        Icons.cloud_download,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
                       Text(
-                        loc.seasons,
+                        'Imported Seasons',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1255,308 +1816,185 @@ class _TeamHomePageState extends State<TeamHomePage> {
                           letterSpacing: 0.5,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      if (_isLoadingImportedSeasons) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Loading...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                      Expanded(
+                        child: Divider(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-            ]),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final season = _seasons[index];
-                final databaseId = DatabaseService.instance.publicShareId;
-
-                return GestureDetector(
-                  onTap: () {
-                    if (databaseId != null) {
-                      NavigationHelper.navigateTo(
-                          context, '/team/$databaseId/season/${season.id}',
-                          extra: season);
-                    }
-                  },
-                  child: Card(
-                    elevation: 3,
-                    clipBehavior: Clip.antiAlias,
-                    color: Theme.of(context).colorScheme.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Season image banner (if available)
-                        if (season.logoUrl != null &&
-                            season.logoUrl!.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _showSeasonPhoto(context, season.logoUrl);
-                            },
-                            child: Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: NetworkImage(season.logoUrl!),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                        // Header section with gradient background
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                season.team.color1.withValues(alpha: 0.15),
-                                season.team.color2.withValues(alpha: 0.10),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (season.team.logoUrl != null &&
-                                  season.team.logoUrl!.isNotEmpty) ...[
-                                ResponsiveAvatar(
-                                  size: 24,
-                                  imageUrl: season.team.logoUrl,
-                                  initials: season.team.fullName[0],
-                                ),
-                                const SizedBox(width: 12),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  season.name,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              // Edit button for admins on mobile
-                              if (!kIsWeb &&
-                                  _team?.isTeamAdmin(FirebaseAuth
-                                          .instance.currentUser?.uid) ==
-                                      true) ...[
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.edit,
-                                    size: 20,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                  onPressed: () =>
-                                      _showEditSeasonNameDialog(season),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        // Stats section
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: SeasonRecord([season]),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              childCount: _seasons.length,
-            ),
-          ),
-        ),
-        // Imported Seasons Section
-        if (_importedSeasons.isNotEmpty || _isLoadingImportedSeasons) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(
-                  left: 20, right: 20, top: 32, bottom: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.cloud_download,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Imported Seasons',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (_isLoadingImportedSeasons) ...[
-                    const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Loading...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                  Expanded(
-                    child: Divider(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final season = _importedSeasons[index];
-                  final databaseId = DatabaseService.instance.publicShareId;
+              SliverPadding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: 16.0 + horizontalPadding),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final season = _importedSeasons[index];
+                      final databaseId = DatabaseService.instance.publicShareId;
 
-                  return GestureDetector(
-                    onTap: () {
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/season/${season.id}',
-                            extra: season);
-                      }
-                    },
-                    child: Card(
-                      elevation: 3,
-                      clipBehavior: Clip.antiAlias,
-                      color: Theme.of(context).colorScheme.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.3),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Season image banner (if available)
-                          if (season.logoUrl != null &&
-                              season.logoUrl!.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _showSeasonPhoto(context, season.logoUrl);
-                              },
-                              child: Container(
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: NetworkImage(season.logoUrl!),
-                                    fit: BoxFit.cover,
+                      return GestureDetector(
+                        onTap: () {
+                          if (databaseId != null) {
+                            NavigationHelper.navigateTo(context,
+                                '/team/$databaseId/season/${season.id}',
+                                extra: season);
+                          }
+                        },
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.scale(
+                              scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                              child: Card(
+                                elevation:
+                                    isHovered ? 6 : 3, // Elevate on hover
+                                clipBehavior: Clip.antiAlias,
+                                color: Theme.of(context).colorScheme.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isHovered
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.3),
+                                    width: isHovered ? 2.5 : 1.5,
                                   ),
                                 ),
-                              ),
-                            ),
-                          // Header section with gradient background
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withValues(alpha: 0.08),
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .secondary
-                                      .withValues(alpha: 0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.cloud_download,
-                                  size: 18,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                if (season.team.logoUrl != null &&
-                                    season.team.logoUrl!.isNotEmpty) ...[
-                                  ResponsiveAvatar(
-                                    size: 24,
-                                    imageUrl: season.team.logoUrl,
-                                    initials: season.team.fullName[0],
-                                  ),
-                                  const SizedBox(width: 12),
-                                ],
-                                Flexible(
-                                  child: Text(
-                                    season.name,
-                                    style: TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Header section with season name - MOVED TO TOP
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 16,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.08),
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary
+                                                .withValues(alpha: 0.05),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.cloud_download,
+                                            size: 18,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (season.team.logoUrl != null &&
+                                              season.team.logoUrl!
+                                                  .isNotEmpty) ...[
+                                            ResponsiveAvatar(
+                                              size: 24,
+                                              imageUrl: season.team.logoUrl,
+                                              initials: season.team.fullName[0],
+                                            ),
+                                            const SizedBox(width: 12),
+                                          ],
+                                          Flexible(
+                                            child: Text(
+                                              season.name,
+                                              style: TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    // Season image banner (if available)
+                                    if (season.logoUrl != null &&
+                                        season.logoUrl!.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () {
+                                          _showSeasonPhoto(
+                                              context, season.logoUrl);
+                                        },
+                                        child: Container(
+                                          height: 180,
+                                          color: Colors.transparent,
+                                          child: Image.network(
+                                            season.logoUrl!,
+                                            fit: BoxFit.contain,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Center(
+                                                child: Icon(
+                                                  Icons.image_not_supported,
+                                                  size: 48,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .outline,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    // Stats section
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: SeasonRecord([season]),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
-                          // Stats section
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: SeasonRecord([season]),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                childCount: _importedSeasons.length,
+                              ), // Card
+                            ); // Transform return
+                          },
+                        ), // HoverBuilder
+                      ); // GestureDetector
+                    },
+                    childCount: _importedSeasons.length,
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
-      ],
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -1821,6 +2259,472 @@ class _TeamHomePageState extends State<TeamHomePage> {
     return loc.teamPerformance;
   }
 
+  /// Build analytics carousel with multiple cards showing overall statistics
+  Widget _buildAnalyticsCarousel() {
+    final loc = AppLocalizations.of(context)!;
+    final allSeasons = [..._seasons, ..._importedSeasons];
+
+    // Calculate overall statistics
+    final stats = _calculateOverallStats(allSeasons);
+
+    // Build items list first to get count
+    final items = [
+      // Goals Analytics Card
+      if (stats.containsKey('totalGoalsScored'))
+        _buildAnalyticsCard(
+          title: loc.goalAnalytics,
+          icon: Icons.sports_soccer,
+          iconColor: Colors.green,
+          stats: [
+            _buildStatRow(loc.totalGoalsScored, '${stats['totalGoalsScored']}',
+                Icons.sports_score),
+            _buildStatRow(loc.totalGoalsConceded,
+                '${stats['totalGoalsConceded']}', Icons.shield),
+            _buildStatRow(
+                loc.avgGoalsPerGame,
+                stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                Icons.trending_up),
+            _buildStatRow(
+                loc.goalDifferential,
+                stats['goalDifferential']! >= 0
+                    ? '+${stats['goalDifferential']}'
+                    : '${stats['goalDifferential']}',
+                Icons.compare_arrows),
+          ],
+        ),
+      // Win Streaks Card
+      if (stats.containsKey('longestWinStreak'))
+        _buildAnalyticsCard(
+          title: loc.streaksRecords,
+          icon: Icons.emoji_events,
+          iconColor: Colors.amber,
+          stats: [
+            _buildStatRow(loc.longestWinStreak,
+                '${stats['longestWinStreak']} ${loc.games}', Icons.trending_up),
+            _buildStatRow(
+                loc.longestUnbeatenStreak,
+                '${stats['longestUnbeatenStreak']} ${loc.games}',
+                Icons.shield_outlined),
+            _buildStatRow(loc.mostGoalsInGame, '${stats['mostGoalsInGame']}',
+                Icons.sports_score),
+            _buildStatRow(loc.biggestVictory, '+${stats['biggestVictory']}',
+                Icons.celebration),
+          ],
+        ),
+      // Home vs Away Card
+      if (stats.containsKey('homeWins'))
+        _buildAnalyticsCard(
+          title: loc.homeAwayAnalysis,
+          icon: Icons.home,
+          iconColor: Colors.blue,
+          stats: [
+            _buildStatRow(
+                loc.homeRecord,
+                '${stats['homeWins']}-${stats['homeDraws']}-${stats['homeLosses']}',
+                Icons.home),
+            _buildStatRow(
+                loc.awayRecord,
+                '${stats['awayWins']}-${stats['awayDraws']}-${stats['awayLosses']}',
+                Icons.flight_takeoff),
+            _buildStatRow(
+                loc.homeWinPercentage,
+                '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+            _buildStatRow(
+                loc.awayWinPercentage,
+                '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+          ],
+        ),
+      // Clean Sheets & Defense Card
+      if (stats.containsKey('cleanSheets'))
+        _buildAnalyticsCard(
+          title: loc.defensiveStats,
+          icon: Icons.shield,
+          iconColor: Colors.indigo,
+          stats: [
+            _buildStatRow(
+                loc.cleanSheets, '${stats['cleanSheets']}', Icons.block),
+            _buildStatRow(
+                loc.cleanSheetPercentage,
+                '${(stats['cleanSheetPct']! * 100).toStringAsFixed(0)}%',
+                Icons.percent),
+            _buildStatRow(
+                loc.avgGoalsConceded,
+                stats['avgGoalsConceded']!.toStringAsFixed(2),
+                Icons.shield_outlined),
+            _buildStatRow(loc.shutoutsRecorded, '${stats['shutouts']}',
+                Icons.verified_user),
+          ],
+        ),
+    ];
+
+    return Column(
+      children: [
+        // Analytics cards carousel
+        CarouselSlider(
+          options: CarouselOptions(
+            height: 200,
+            viewportFraction: 0.85,
+            enlargeCenterPage: true,
+            enableInfiniteScroll: stats.isNotEmpty,
+            autoPlay: stats.length > 1,
+            autoPlayInterval: const Duration(seconds: 5),
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentAnalyticsCarouselPage = index;
+              });
+            },
+          ),
+          items: items,
+        ),
+        const SizedBox(height: 8),
+        // Page indicators
+
+        if (items.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: items.asMap().entries.map((entry) {
+              return Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.primary.withValues(
+                      alpha: _currentAnalyticsCarouselPage == entry.key
+                          ? 0.9
+                          : 0.3),
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAnalyticsSkeleton() {
+    return SizedBox(
+      height: 200,
+      child: Card(
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(
+            horizontal: 32), // Match viewportFraction roughly
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+            width: 2,
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            children: [
+              // Header skeleton
+              Row(
+                children: [
+                  SkeletonContainer.rectangular(width: 24, height: 24),
+                  const SizedBox(width: 12),
+                  SkeletonContainer.rectangular(width: 120, height: 16),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Divider(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outline
+                      .withValues(alpha: 0.1)),
+              const SizedBox(height: 12),
+              // Stats rows skeleton
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(4, (index) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SkeletonContainer.rectangular(width: 80, height: 12),
+                        SkeletonContainer.rectangular(width: 40, height: 12),
+                      ],
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build individual analytics card
+  Widget _buildAnalyticsCard({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<Widget> stats,
+  }) {
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && kIsWeb ? 1.02 : 1.0,
+          child: InkWell(
+            onTap: () {
+              // Navigate to Analytics (History Versus) page
+              final databaseId = DatabaseService.instance.publicShareId;
+              if (databaseId != null) {
+                NavigationHelper.navigateTo(
+                  context,
+                  '/team/$databaseId/history',
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Card(
+              key: const Key('analytics_card'),
+              elevation: isHovered && kIsWeb ? 8 : 4,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isHovered && kIsWeb
+                      ? iconColor
+                      : iconColor.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      iconColor.withValues(alpha: 0.1),
+                      Theme.of(context).colorScheme.surface,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Card header
+                    Row(
+                      children: [
+                        Icon(icon, color: iconColor, size: 24),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        // Add tap indicator icon
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: iconColor.withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    // Stats rows
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: stats,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Build individual stat row
+  Widget _buildStatRow(String label, String value, IconData icon) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.6),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Calculate overall statistics from all seasons
+  /// Only includes completed games from the past
+  Map<String, num> _calculateOverallStats(List<Season> seasons) {
+    final stats = <String, num>{};
+
+    if (seasons.isEmpty) return stats;
+
+    final now = DateTime.now();
+    int totalGoalsScored = 0;
+    int totalGoalsConceded = 0;
+    int totalGames = 0;
+    int homeWins = 0, homeDraws = 0, homeLosses = 0;
+    int awayWins = 0, awayDraws = 0, awayLosses = 0;
+    int cleanSheets = 0;
+    int shutouts = 0;
+    int longestWinStreak = 0;
+    int longestUnbeatenStreak = 0;
+    int mostGoalsInGame = 0;
+    int biggestVictory = 0;
+
+    int currentWinStreak = 0;
+    int currentUnbeatenStreak = 0;
+
+    for (final season in seasons) {
+      // Process games for detailed stats
+      for (final game in season.games) {
+        // Only include completed games from the past
+        // GameStatus index 9+ means completed/final
+        final isCompleted = game.gameStatus.index >= 9;
+        final isInPast = game.date.isBefore(now);
+
+        // Skip if game is not completed or is in the future
+        if (!isCompleted || !isInPast) {
+          continue;
+        }
+
+        final isHome = game.isHomeTeam(season.teamId);
+        final goalsFor = isHome ? game.homeTeamScore : game.awayTeamScore;
+        final goalsAgainst = isHome ? game.awayTeamScore : game.homeTeamScore;
+        final goalDiff = goalsFor - goalsAgainst;
+
+        totalGoalsScored += goalsFor;
+        totalGoalsConceded += goalsAgainst;
+        totalGames++;
+
+        // Track biggest victory
+        if (goalDiff > biggestVictory) {
+          biggestVictory = goalDiff;
+        }
+
+        // Track most goals in a game
+        if (goalsFor > mostGoalsInGame) {
+          mostGoalsInGame = goalsFor;
+        }
+
+        // Track clean sheets (no goals conceded)
+        if (goalsAgainst == 0) {
+          cleanSheets++;
+          if (goalsFor > 0) shutouts++;
+        }
+
+        // Track home/away records
+        if (isHome) {
+          if (goalDiff > 0) {
+            homeWins++;
+          } else if (goalDiff == 0)
+            homeDraws++;
+          else
+            homeLosses++;
+        } else {
+          if (goalDiff > 0) {
+            awayWins++;
+          } else if (goalDiff == 0)
+            awayDraws++;
+          else
+            awayLosses++;
+        }
+
+        // Track streaks
+        if (goalDiff > 0) {
+          currentWinStreak++;
+          currentUnbeatenStreak++;
+          if (currentWinStreak > longestWinStreak) {
+            longestWinStreak = currentWinStreak;
+          }
+          if (currentUnbeatenStreak > longestUnbeatenStreak) {
+            longestUnbeatenStreak = currentUnbeatenStreak;
+          }
+        } else if (goalDiff == 0) {
+          currentWinStreak = 0;
+          currentUnbeatenStreak++;
+          if (currentUnbeatenStreak > longestUnbeatenStreak) {
+            longestUnbeatenStreak = currentUnbeatenStreak;
+          }
+        } else {
+          currentWinStreak = 0;
+          currentUnbeatenStreak = 0;
+        }
+      }
+    }
+
+    // Calculate derived stats
+    final homeGames = homeWins + homeDraws + homeLosses;
+    final awayGames = awayWins + awayDraws + awayLosses;
+
+    stats['totalGoalsScored'] = totalGoalsScored;
+    stats['totalGoalsConceded'] = totalGoalsConceded;
+    stats['avgGoalsPerGame'] =
+        totalGames > 0 ? totalGoalsScored / totalGames : 0;
+    stats['avgGoalsConceded'] =
+        totalGames > 0 ? totalGoalsConceded / totalGames : 0;
+    stats['goalDifferential'] = totalGoalsScored - totalGoalsConceded;
+
+    stats['homeWins'] = homeWins;
+    stats['homeDraws'] = homeDraws;
+    stats['homeLosses'] = homeLosses;
+    stats['homeWinPct'] = homeGames > 0 ? homeWins / homeGames : 0;
+
+    stats['awayWins'] = awayWins;
+    stats['awayDraws'] = awayDraws;
+    stats['awayLosses'] = awayLosses;
+    stats['awayWinPct'] = awayGames > 0 ? awayWins / awayGames : 0;
+
+    stats['cleanSheets'] = cleanSheets;
+    stats['shutouts'] = shutouts;
+    stats['cleanSheetPct'] = totalGames > 0 ? cleanSheets / totalGames : 0;
+
+    stats['longestWinStreak'] = longestWinStreak;
+    stats['longestUnbeatenStreak'] = longestUnbeatenStreak;
+    stats['mostGoalsInGame'] = mostGoalsInGame;
+    stats['biggestVictory'] = biggestVictory;
+
+    return stats;
+  }
+
   Future<void> _loadCurrentOrLastGame() async {
     if (_team == null) return;
 
@@ -1845,11 +2749,10 @@ class _TeamHomePageState extends State<TeamHomePage> {
       // Filter to only games that have started or completed
       final startedOrCompletedGames = games.where((game) {
         final isStarted = game.gameStatus.index > 0;
-        final isNotInFuture = game.date.isBefore(now) ||
+        return isStarted ||
             (game.date.year == now.year &&
                 game.date.month == now.month &&
                 game.date.day == now.day);
-        return isStarted || (game.gameStatus.index == 0 && isNotInFuture);
       }).toList();
 
       if (startedOrCompletedGames.isEmpty) {
@@ -1870,7 +2773,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
         _currentOrLastGame = liveGames.first;
         // Clear carousel when there's a live game
         _lastFiveGames = [];
-        _currentCarouselPage = 0;
+        _currentRecentGamesCarouselPage = 0;
       } else {
         _currentOrLastGame = startedOrCompletedGames.first;
         // Get last 5 completed games for carousel (only completed games, status 9+)
@@ -1878,7 +2781,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
             .where((game) => game.gameStatus.index >= 9)
             .take(5)
             .toList();
-        _currentCarouselPage = 0; // Reset to first page
+        _currentRecentGamesCarouselPage = 0; // Reset to first page
         // Load game events for each of the last 5 games
         for (final game in _lastFiveGames) {
           await game.loadGameEvents();
@@ -1961,12 +2864,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   onPressed: () async {
                     try {
                       await AuthService.instance.signInWithGoogle();
-                      if (mounted) {
+                      if (context.mounted) {
                         Navigator.of(context).pop(true);
                       }
                     } catch (e) {
                       debugPrint('Google sign-in error: $e');
-                      if (mounted) {
+                      if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(loc.signInFailed(e.toString())),
@@ -1996,12 +2899,12 @@ class _TeamHomePageState extends State<TeamHomePage> {
                     onPressed: () async {
                       try {
                         await AuthService.instance.signInWithApple();
-                        if (mounted) {
+                        if (context.mounted) {
                           Navigator.of(context).pop(true);
                         }
                       } catch (e) {
                         debugPrint('Apple sign-in error: $e');
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Sign-in failed: ${e.toString()}'),
@@ -2025,103 +2928,137 @@ class _TeamHomePageState extends State<TeamHomePage> {
     return result == true;
   }
 
+  Widget _buildHoverableOption({
+    required Widget leading,
+    required Widget title,
+    required VoidCallback onTap,
+    Widget? subtitle,
+  }) {
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && kIsWeb ? 1.02 : 1.0,
+          child: ListTile(
+            leading: leading,
+            title: title,
+            subtitle: subtitle,
+            onTap: onTap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            tileColor: isHovered && kIsWeb
+                ? Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.3)
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _showCreateOptions(BuildContext context) async {
     final loc = AppLocalizations.of(context)!;
     await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext builderContext) {
-        return Wrap(
-          children: [
-            ListTile(
-              leading: Icon(Icons.cloud_sync_rounded,
-                  color: Theme.of(context).colorScheme.secondary),
-              title:
-                  Text(AppLocalizations.of(context)!.openExistingCloudDatabase),
-              onTap: () {
-                Navigator.of(builderContext).pop();
-                _handleSelection(context, 'existingCloudDatabase');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.cloud_rounded,
-                  color: Theme.of(context).colorScheme.secondary),
-              title: Text(AppLocalizations.of(context)!.createNewCloudDatabase),
-              onTap: () async {
-                Navigator.of(builderContext).pop();
-                await _handleSelection(context, 'newCloudDatabase');
-              },
-            ),
-            if (_team != null) ...[
-              ListTile(
-                leading: Icon(Icons.calendar_today,
+        return SingleChildScrollView(
+          child: Wrap(
+            children: [
+              _buildHoverableOption(
+                leading: Icon(Icons.cloud_sync_rounded,
                     color: Theme.of(context).colorScheme.secondary),
-                title: Text(AppLocalizations.of(context)!.createNewSeason),
+                title: Text(
+                    AppLocalizations.of(context)!.openExistingCloudDatabase),
                 onTap: () {
                   Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'season');
+                  _handleSelection(context, 'existingCloudDatabase');
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.palette,
+              _buildHoverableOption(
+                leading: Icon(Icons.cloud_rounded,
                     color: Theme.of(context).colorScheme.secondary),
-                title: Text(loc.changeTeamColors),
-                onTap: () {
+                title:
+                    Text(AppLocalizations.of(context)!.createNewCloudDatabase),
+                onTap: () async {
                   Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'teamColors');
+                  await _handleSelection(context, 'newCloudDatabase');
                 },
               ),
-              ListTile(
-                leading: Icon(Icons.videocam,
-                    color: Theme.of(context).colorScheme.secondary),
-                title: Text(AppLocalizations.of(context)!.setLiveLink),
-                onTap: () {
-                  Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'setLiveLink');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.sports_soccer,
-                    color: Theme.of(context).colorScheme.secondary),
-                title: Text(loc.generateLineupImage),
-                onTap: () {
-                  Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'generateLineup');
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.cloud_upload,
-                    color: Theme.of(context).colorScheme.secondary),
-                title: Text(loc.importSeason),
-                subtitle: Text(loc.importTeamsPlayersGamesStats),
-                onTap: () {
-                  Navigator.of(builderContext).pop();
-                  if (_team != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DataImportPage(team: _team),
-                      ),
-                    );
-                  } else {
-                    context.go('/import');
-                  }
-                },
-              ),
+              if (_team != null) ...[
+                _buildHoverableOption(
+                  leading: Icon(Icons.calendar_today,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(AppLocalizations.of(context)!.createNewSeason),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    _handleSelection(context, 'season');
+                  },
+                ),
+                _buildHoverableOption(
+                  leading: Icon(Icons.palette,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(loc.changeTeamColors),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    _handleSelection(context, 'teamColors');
+                  },
+                ),
+                _buildHoverableOption(
+                  leading: Icon(Icons.videocam,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(AppLocalizations.of(context)!.setLiveLink),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    _handleSelection(context, 'setLiveLink');
+                  },
+                ),
+                _buildHoverableOption(
+                  leading: Icon(Icons.sports_soccer,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(loc.generateLineupImage),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    _handleSelection(context, 'generateLineup');
+                  },
+                ),
+                _buildHoverableOption(
+                  leading: Icon(Icons.cloud_upload,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(loc.importSeason),
+                  subtitle: Text(loc.importTeamsPlayersGamesStats),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    if (_team != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DataImportPage(team: _team),
+                        ),
+                      );
+                    } else {
+                      context.go('/import');
+                    }
+                  },
+                ),
+              ],
+              if (DatabaseService.instance.path.isNotEmpty && _team == null)
+                _buildHoverableOption(
+                  leading: Icon(Icons.group,
+                      color: Theme.of(context).colorScheme.secondary),
+                  title: Text(loc.createNewTeam),
+                  onTap: () {
+                    Navigator.of(builderContext).pop();
+                    _handleSelection(context, 'team');
+                  },
+                ),
             ],
-            if (DatabaseService.instance.path.isNotEmpty && _team == null)
-              ListTile(
-                leading: Icon(Icons.group,
-                    color: Theme.of(context).colorScheme.secondary),
-                title: Text(loc.createNewTeam),
-                onTap: () {
-                  Navigator.of(builderContext).pop();
-                  _handleSelection(context, 'team');
-                },
-              ),
-          ],
+          ),
         );
       },
     );
@@ -2169,45 +3106,51 @@ class _TeamHomePageState extends State<TeamHomePage> {
     if (!await _ensureUserSignedIn()) {
       return;
     }
+    if (!mounted) return;
 
     String databaseName = '';
     await showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.newDatabase),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.databaseName),
-                        onChanged: (name) => databaseName = name),
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton(
-                              child: Text(AppLocalizations.of(context)!.save,
-                                  style: const TextStyle(fontSize: 20)),
-                              onPressed: () async {
-                                if (databaseName.isNotEmpty) {
-                                  await _openCloudDatabase(databaseName);
+            child: Padding(
+              padding: const EdgeInsets.all(50),
+              child: SingleChildScrollView(
+                child: Column(children: [
+                  Text(AppLocalizations.of(context)!.newDatabase),
+                  TextField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(context)!.databaseName),
+                      onChanged: (name) => databaseName = name),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton(
+                            child: Text(AppLocalizations.of(context)!.save,
+                                style: const TextStyle(fontSize: 20)),
+                            onPressed: () async {
+                              if (databaseName.isNotEmpty) {
+                                await _openCloudDatabase(databaseName);
 
-                                  setState(() {});
-                                  Navigator.pop(context);
-                                }
-                              }),
-                          TextButton(
-                              child: Text(
-                                  AppLocalizations.of(context)!.cancelButton,
-                                  style: const TextStyle(fontSize: 20)),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              })
-                        ])
-                  ])));
+                                if (mounted) setState(() {});
+                                if (context.mounted) Navigator.pop(context);
+                              }
+                            }),
+                        TextButton(
+                            child: Text(
+                                AppLocalizations.of(context)!.cancelButton,
+                                style: const TextStyle(fontSize: 20)),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            })
+                      ])
+                ]),
+              ),
+            ),
+          );
         });
   }
 
@@ -2284,11 +3227,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
       return null;
     }
 
-    if (DatabaseService.instance.isLocalDatabase) {
-      await DatabaseService.instance.close();
-      DatabaseService.instance.setProvider(FirebaseDBProvider());
-    }
-
     final entries = await DatabaseService.instance.getAvailableDatabases();
     if (entries.isEmpty) {
       showDialog(
@@ -2305,20 +3243,25 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     return await showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (BuildContext context) {
           return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.selectACloudDatabase),
-                    DropdownMenu(
-                        onSelected: (value) async {
-                          Navigator.pop(context, value);
-                        },
-                        dropdownMenuEntries: entries
-                            .map((e) => DropdownMenuEntry(value: e, label: e))
-                            .toList())
-                  ])));
+            child: Padding(
+              padding: const EdgeInsets.all(50),
+              child: SingleChildScrollView(
+                child: Column(children: [
+                  Text(AppLocalizations.of(context)!.selectACloudDatabase),
+                  DropdownMenu(
+                      onSelected: (value) async {
+                        Navigator.pop(context, value);
+                      },
+                      dropdownMenuEntries: entries
+                          .map((e) => DropdownMenuEntry(value: e, label: e))
+                          .toList())
+                ]),
+              ),
+            ),
+          );
         });
   }
 
@@ -2359,71 +3302,74 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     await showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
-                child: Padding(
-                    padding: const EdgeInsets.all(50),
-                    child: Column(children: [
-                      Text(AppLocalizations.of(context)!.newTeam),
-                      if (!kIsWeb)
-                        GestureDetector(
-                          onTap: SubscriptionService.instance.isSubscribed
-                              ? () async {
-                                  final pickedFile = await ImagePicker()
-                                      .pickImage(source: ImageSource.gallery);
-                                  if (pickedFile != null) {
-                                    setModalState(() {
-                                      imageFile = File(pickedFile.path);
-                                    });
-                                  }
+              child: Padding(
+                padding: const EdgeInsets.all(50),
+                child: SingleChildScrollView(
+                  child: Column(children: [
+                    Text(AppLocalizations.of(context)!.newTeam),
+                    if (!kIsWeb)
+                      GestureDetector(
+                        onTap: SubscriptionService.instance.isSubscribed
+                            ? () async {
+                                final pickedFile = await ImagePicker()
+                                    .pickImage(source: ImageSource.gallery);
+                                if (pickedFile != null) {
+                                  setModalState(() {
+                                    imageFile = File(pickedFile.path);
+                                  });
                                 }
-                              : null,
-                          child: ResponsiveAvatar(
-                            backgroundImage: imageFile != null
-                                ? FileImage(imageFile!)
-                                : null,
-                            initials: '',
-                            fallbackIcon: const Icon(Icons.add_a_photo),
-                          ),
+                              }
+                            : null,
+                        child: ResponsiveAvatar(
+                          backgroundImage:
+                              imageFile != null ? FileImage(imageFile!) : null,
+                          initials: '',
+                          fallbackIcon: const Icon(Icons.add_a_photo),
                         ),
-                      TextField(
-                          autofocus: true,
-                          decoration: InputDecoration(
-                              labelText:
-                                  AppLocalizations.of(context)!.teamName),
-                          onChanged: (name) => teamName = name),
-                      TextField(
-                          decoration: InputDecoration(
-                              labelText:
-                                  AppLocalizations.of(context)!.teamShortName),
-                          onChanged: (name) => teamShortName = name),
-                      const Spacer(),
-                      Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            TextButton(
-                                child: Text(AppLocalizations.of(context)!.save,
-                                    style: const TextStyle(fontSize: 20)),
-                                onPressed: () async {
-                                  if (teamName.isNotEmpty &&
-                                      teamShortName.isNotEmpty) {
-                                    await _saveTeam(teamName, teamShortName,
-                                        logoUrl: imageFile?.path);
-                                    setState(() {});
-                                    Navigator.pop(context);
-                                  }
-                                }),
-                            TextButton(
-                                child: Text(
-                                    AppLocalizations.of(context)!.cancelButton,
-                                    style: const TextStyle(fontSize: 20)),
-                                onPressed: () {
+                      ),
+                    TextField(
+                        autofocus: true,
+                        decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.teamName),
+                        onChanged: (name) => teamName = name),
+                    TextField(
+                        decoration: InputDecoration(
+                            labelText:
+                                AppLocalizations.of(context)!.teamShortName),
+                        onChanged: (name) => teamShortName = name),
+                    const SizedBox(height: 20),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          TextButton(
+                              child: Text(AppLocalizations.of(context)!.save,
+                                  style: const TextStyle(fontSize: 20)),
+                              onPressed: () async {
+                                if (teamName.isNotEmpty &&
+                                    teamShortName.isNotEmpty) {
+                                  await _saveTeam(teamName, teamShortName,
+                                      logoUrl: imageFile?.path);
+                                  setState(() {});
                                   Navigator.pop(context);
-                                })
-                          ])
-                    ])));
+                                }
+                              }),
+                          TextButton(
+                              child: Text(
+                                  AppLocalizations.of(context)!.cancelButton,
+                                  style: const TextStyle(fontSize: 20)),
+                              onPressed: () {
+                                Navigator.pop(context);
+                              })
+                        ])
+                  ]),
+                ),
+              ),
+            );
           });
         });
   }
@@ -2448,7 +3394,7 @@ class _TeamHomePageState extends State<TeamHomePage> {
     if (teamResult.isNotEmpty) {
       _team = Team.fromMap(teamResult.first);
       await _loadSeasons();
-      setState(() {});
+      if (mounted) setState(() {});
     }
   }
 
@@ -2457,49 +3403,51 @@ class _TeamHomePageState extends State<TeamHomePage> {
 
     await showModalBottomSheet(
         context: context,
+        isScrollControlled: true,
         builder: (context) {
           return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.newSeason),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.seasonName),
-                        onChanged: (name) => seasonName = name),
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton(
-                              child: Text(AppLocalizations.of(context)!.save,
-                                  style: const TextStyle(fontSize: 20)),
-                              onPressed: () async {
-                                if (seasonName.isNotEmpty) {
-                                  await DatabaseService.instance
-                                      .insert('Seasons', {
-                                    'id': DateTime.now().millisecondsSinceEpoch,
-                                    'name': seasonName,
-                                    'teamId': _team!.id
-                                  });
-                                  await _loadSeasons();
+            child: Padding(
+              padding: const EdgeInsets.all(50),
+              child: SingleChildScrollView(
+                child: Column(children: [
+                  Text(AppLocalizations.of(context)!.newSeason),
+                  TextField(
+                      autofocus: true,
+                      decoration: InputDecoration(
+                          labelText: AppLocalizations.of(context)!.seasonName),
+                      onChanged: (name) => seasonName = name),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton(
+                            child: Text(AppLocalizations.of(context)!.save,
+                                style: const TextStyle(fontSize: 20)),
+                            onPressed: () async {
+                              if (seasonName.isNotEmpty) {
+                                await DatabaseService.instance
+                                    .insert('Seasons', {
+                                  'id': DateTime.now().millisecondsSinceEpoch,
+                                  'name': seasonName,
+                                  'teamId': _team!.id
+                                });
+                                await _loadSeasons();
 
-                                  setState(() {});
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                  }
-                                }
-                              }),
-                          TextButton(
-                              child: Text(
-                                  AppLocalizations.of(context)!.cancelButton,
-                                  style: const TextStyle(fontSize: 20)),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              })
-                        ])
-                  ])));
+                                if (mounted) setState(() {});
+                                if (context.mounted) Navigator.pop(context);
+                              }
+                            }),
+                        TextButton(
+                            child: Text(
+                                AppLocalizations.of(context)!.cancelButton,
+                                style: const TextStyle(fontSize: 20)),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            })
+                      ])
+                ]),
+              ),
+            ),
+          );
         });
   }
 
@@ -2542,12 +3490,15 @@ class _TeamHomePageState extends State<TeamHomePage> {
                   },
                   key: _team!.id.toString(),
                 );
+                Team.clearCache();
                 final teamResult = await DatabaseService.instance
                     .query('Teams', orderByChild: 'id', equalTo: _team!.id);
                 if (teamResult.isNotEmpty) {
-                  setState(() {
-                    _team = Team.fromMap(teamResult.first);
-                  });
+                  if (mounted) {
+                    setState(() {
+                      _team = Team.fromMap(teamResult.first);
+                    });
+                  }
                 }
                 if (mounted) {
                   Navigator.of(context).pop();
@@ -2570,6 +3521,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
       final databaseName = DatabaseService.instance.path;
 
       if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
         await showDialog(
           context: context,
           builder: (context) => _DatabaseSharingDialog(
@@ -2580,6 +3534,9 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
         final loc = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(loc.errorDuringShare),
@@ -2587,9 +3544,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
       }
       debugPrint(e.toString());
     }
-    setState(() {
-      _isSharing = false;
-    });
   }
 
   Future<void> _editLiveLink({Game? game}) async {
@@ -2628,113 +3582,116 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 right: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                // Show which game this link is for
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: _team!.color1.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _team!.color1.withValues(alpha: 0.3),
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  // Show which game this link is for
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: _team!.color1.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _team!.color1.withValues(alpha: 0.3),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.sports_soccer, color: _team!.color1, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          targetGame.displayName(_team!.id),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                    child: Row(
+                      children: [
+                        Icon(Icons.sports_soccer,
+                            color: _team!.color1, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            targetGame.displayName(_team!.id),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(AppLocalizations.of(context)!.setLiveLink,
-                    style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 8),
-                TextField(
-                  decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.liveUrlLabel),
-                  controller: TextEditingController(text: liveLink),
-                  onChanged: (v) => liveLink = v,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      TextButton(
-                          onPressed: () async {
-                            // Save to game
-                            await DatabaseService.instance.update(
-                              'Games',
-                              {'gameLinks': liveLink},
-                              key: targetGame.id.toString(),
-                            );
-
-                            // Update local game object
-                            targetGame.gameLinks = liveLink;
-
-                            // Refresh state
-                            setState(() {});
-
-                            if (mounted) Navigator.pop(context);
-
-                            // After saving, offer to tweet if link is not empty
-                            if (liveLink.isNotEmpty && mounted) {
-                              _promptTweetGameDay(liveLink, targetGame);
-                            }
-                          },
-                          child: Text(AppLocalizations.of(context)!.save)),
-                      TextButton(
-                          onPressed: () async {
-                            // Remove from game
-                            await DatabaseService.instance.update(
-                              'Games',
-                              {'gameLinks': ''},
-                              key: targetGame.id.toString(),
-                            );
-
-                            // Update local game object
-                            targetGame.gameLinks = '';
-
-                            // Refresh state
-                            setState(() {});
-
-                            if (mounted) Navigator.pop(context);
-                          },
-                          child:
-                              Text(AppLocalizations.of(context)!.removeButton)),
-                    ]),
-                // Show "Tweet Game Day" button if link already exists
-                if (hasLiveLink) ...[
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _promptTweetGameDay(liveLink, targetGame);
-                      },
-                      icon: const Icon(Icons.send, size: 18),
-                      label: Text(loc.tweetGameDay),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DA1F2),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ]),
+                  Text(AppLocalizations.of(context)!.setLiveLink,
+                      style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.liveUrlLabel),
+                    controller: TextEditingController(text: liveLink),
+                    onChanged: (v) => liveLink = v,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton(
+                            onPressed: () async {
+                              // Save to game
+                              await DatabaseService.instance.update(
+                                'Games',
+                                {'gameLinks': liveLink},
+                                key: targetGame.id.toString(),
+                              );
+
+                              // Update local game object
+                              targetGame.gameLinks = liveLink;
+
+                              // Refresh state
+                              setState(() {});
+
+                              if (mounted) Navigator.pop(context);
+
+                              // After saving, offer to tweet if link is not empty
+                              if (liveLink.isNotEmpty && mounted) {
+                                _promptTweetGameDay(liveLink, targetGame);
+                              }
+                            },
+                            child: Text(AppLocalizations.of(context)!.save)),
+                        TextButton(
+                            onPressed: () async {
+                              // Remove from game
+                              await DatabaseService.instance.update(
+                                'Games',
+                                {'gameLinks': ''},
+                                key: targetGame.id.toString(),
+                              );
+
+                              // Update local game object
+                              targetGame.gameLinks = '';
+
+                              // Refresh state
+                              setState(() {});
+
+                              if (mounted) Navigator.pop(context);
+                            },
+                            child: Text(
+                                AppLocalizations.of(context)!.removeButton)),
+                      ]),
+                  // Show "Tweet Game Day" button if link already exists
+                  if (hasLiveLink) ...[
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _promptTweetGameDay(liveLink, targetGame);
+                        },
+                        icon: const Icon(Icons.send, size: 18),
+                        label: Text(loc.tweetGameDay),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1DA1F2),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ]),
+              ),
             );
           });
         });
@@ -2919,7 +3876,6 @@ class _TeamHomePageState extends State<TeamHomePage> {
                 ),
               );
             }
-            return;
           }
         } else {
           // User cancelled time picker
@@ -2936,62 +3892,14 @@ class _TeamHomePageState extends State<TeamHomePage> {
     // Generate tweet text
     String tweetText = _generateGameDayTweet(game, liveLink);
 
-    // Show preview dialog using common component
-    final finalTweetText = await TweetPreviewDialog.show(
+    // Show preview dialog - it handles initialization, sending, and feedback internally
+    await TweetPreviewDialog.show(
       context,
       initialText: tweetText,
+      teamId: _team!.id,
       team: _team!,
     );
-
-    // If user confirmed, send the tweet
-    if (finalTweetText != null && finalTweetText.isNotEmpty) {
-      try {
-        // Initialize Twitter with team credentials
-        final initialized = await TwitterService.instance
-            .initializeWithTeamCredentials(_team!.id);
-
-        if (!initialized) {
-          // Try local credentials as fallback
-          final localInit =
-              await TwitterService.instance.initializeWithLocalCredentials();
-          if (!localInit) {
-            throw Exception('Failed to initialize Twitter');
-          }
-        }
-
-        // Send the tweet
-        final success = await TwitterService.instance.sendTweet(finalTweetText);
-
-        if (success && mounted) {
-          final loc = AppLocalizations.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                  const SizedBox(width: 12),
-                  Text(loc.gameDayTweetSentSuccessfully),
-                ],
-              ),
-              backgroundColor: const Color(0xFF1DA1F2),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (!success && mounted) {
-          throw Exception('Failed to send tweet');
-        }
-      } catch (e) {
-        if (mounted) {
-          final loc = AppLocalizations.of(context)!;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(loc.errorSendingTweet(e.toString())),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    }
+    // Dialog handles all success/error feedback
   }
 
   String _generateGameDayTweet(Game? game, String liveLink) {
@@ -3161,50 +4069,58 @@ $liveLink
 
       final loc = AppLocalizations.of(context)!;
 
-      return GestureDetector(
-        onTap: () async {
-          try {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(loc.unableToOpenLiveLink)));
-              }
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.unableToOpenLiveLink)));
-            }
-          }
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [_team!.color1, _team!.color2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.videocam, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  loc.liveBannerTapToWatch,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+      return HoverBuilder(
+        builder: (context, isHovered) {
+          return Transform.scale(
+            scale: isHovered && kIsWeb ? 1.02 : 1.0,
+            child: GestureDetector(
+              onTap: () async {
+                try {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                  }
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_team!.color1, _team!.color2],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.videocam, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loc.liveBannerTapToWatch,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new, color: Colors.white),
+                  ],
                 ),
               ),
-              const Icon(Icons.open_in_new, color: Colors.white),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
 
@@ -3244,78 +4160,88 @@ $liveLink
         whenText = '$dateStr at $hour:$minute $period';
       }
 
-      return GestureDetector(
-        // Make banner tappable if live link exists
-        onTap: hasLiveLink
-            ? () async {
-                final url = _nextUpcomingGame!.gameLinks!;
-                try {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+      return HoverBuilder(
+        builder: (context, isHovered) {
+          return Transform.scale(
+            scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
+            child: GestureDetector(
+              // Make banner tappable if live link exists
+              onTap: hasLiveLink
+                  ? () async {
+                      final url = _nextUpcomingGame!.gameLinks!;
+                      try {
+                        final uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(loc.unableToOpenLiveLink)));
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(loc.unableToOpenLiveLink)));
+                        }
+                      }
                     }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
-                  }
-                }
-              }
-            : null,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [_team!.color1, _team!.color2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                hasLiveLink ? Icons.videocam : Icons.schedule,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  : null,
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_team!.color1, _team!.color2],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      '${loc.nextGamePrefix} $opponent',
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                    Icon(
+                      hasLiveLink ? Icons.videocam : Icons.schedule,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hasLiveLink
-                          ? '$whenText — Tap to watch live! 📺'
-                          : '$whenText — ${loc.nextGameStayTuned}',
-                      style: const TextStyle(color: Colors.white70),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${loc.nextGamePrefix} $opponent',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasLiveLink
+                                ? '$whenText — Tap to watch live! 📺'
+                                : '$whenText — ${loc.nextGameStayTuned}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
                     ),
+                    // Tweet button - show on mobile to promote upcoming game
+                    if (!kIsWeb)
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        tooltip: 'Promote game on Twitter',
+                        onPressed: () => _tweetUpcomingGame(),
+                      ),
+                    // Show external link icon if live link exists
+                    if (hasLiveLink)
+                      const Icon(Icons.open_in_new, color: Colors.white),
                   ],
                 ),
               ),
-              // Tweet button - show on mobile to promote upcoming game
-              if (!kIsWeb)
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.white),
-                  tooltip: 'Promote game on Twitter',
-                  onPressed: () => _tweetUpcomingGame(),
-                ),
-              // Show external link icon if live link exists
-              if (hasLiveLink)
-                const Icon(Icons.open_in_new, color: Colors.white),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
 
@@ -3326,8 +4252,9 @@ $liveLink
   /// currently selected game. Visible on web only. Limits to 6 most recent
   /// events and shows buttons for each available URL on an event.
   Widget _buildRecentHighlights() {
-    if (_currentOrLastGame == null || _team == null)
+    if (_currentOrLastGame == null || _team == null) {
       return const SizedBox.shrink();
+    }
 
     return FutureBuilder<List<GameEvent>>(
       future: _currentOrLastGame!
@@ -3337,8 +4264,9 @@ $liveLink
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox.shrink();
         }
-        if (snapshot.hasError || snapshot.data == null)
+        if (snapshot.hasError || snapshot.data == null) {
           return const SizedBox.shrink();
+        }
 
         final events = snapshot.data!;
         final loc = AppLocalizations.of(context)!;
@@ -3969,7 +4897,7 @@ $liveLink
                                                   .instance
                                                   .ref()
                                                   .child(
-                                                      'accomplishment_images/${DateTime.now().millisecondsSinceEpoch}_${uploadedCount}.jpg');
+                                                      'accomplishment_images/${DateTime.now().millisecondsSinceEpoch}_$uploadedCount.jpg');
                                               await storageRef.putFile(
                                                   File(pickedFile.path));
                                               final downloadUrl =
@@ -4251,8 +5179,8 @@ $liveLink
               ],
             ), // Close AlertDialog
           ), // Close PopScope
-        ); // Close StatefulBuilder builder
-      }, // Close builder function
+        ); // Close StatefulBuilder
+      },
     ); // Close showDialog
   }
 
@@ -4295,19 +5223,19 @@ $liveLink
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () => Navigator.pop(context, false),
               child: Text(loc.cancelButton),
             ),
             ElevatedButton(
               onPressed: () {
                 final newName = nameController.text.trim();
                 if (newName.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(loc.seasonNameRequired)),
                   );
                   return;
                 }
-                Navigator.of(dialogContext).pop(true);
+                Navigator.of(context).pop(true);
               },
               child: Text(loc.save),
             ),
@@ -4364,6 +5292,52 @@ $liveLink
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nameController.dispose();
     });
+  }
+
+  Widget _buildDashboardSkeleton() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Recent Games header
+          Row(
+            children: [
+              SkeletonContainer.rectangular(width: 24, height: 24),
+              const SizedBox(width: 8),
+              SkeletonContainer.rectangular(width: 120, height: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Game Card Skeleton
+          SkeletonContainer.rectangular(
+            height: 140,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          const SizedBox(height: 24),
+          // Team Performance Card
+          SkeletonContainer.rectangular(
+            height: 280,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          const SizedBox(height: 24),
+          // Seasons Header
+          SkeletonContainer.rectangular(width: 100, height: 16),
+          const SizedBox(height: 16),
+          // Season Items
+          ...List.generate(
+            3,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: SkeletonContainer.rectangular(
+                height: 80,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

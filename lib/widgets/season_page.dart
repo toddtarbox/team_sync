@@ -26,9 +26,9 @@ import 'package:team_sync/widgets/game_result.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
-import 'package:team_sync/widgets/season_with_logo.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
@@ -53,7 +53,7 @@ class _SeasonPageState extends State<SeasonPage> {
       CarouselSliderController();
   final CarouselSliderController _playerAwardsController =
       CarouselSliderController();
-  bool _awardsExpanded = true; // Default to expanded
+  bool _awardsExpanded = false; // Default to collapsed
   int _teamCurrentPage = 0;
   int _playerCurrentPage = 0;
   // Cache the awards future to prevent rebuilding on setState
@@ -85,7 +85,8 @@ class _SeasonPageState extends State<SeasonPage> {
   Future<void> _loadAwardsExpansionState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final expanded = prefs.getBool('awards_expanded') ?? true; // Default true
+      final expanded =
+          prefs.getBool('awards_expanded') ?? false; // Default false
       if (mounted) {
         setState(() {
           _awardsExpanded = expanded;
@@ -197,7 +198,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
-                        icon: const Icon(Icons.paste_sharp)),
+                        icon: const Icon(Icons.analytics)),
                   ]),
               floatingActionButton: kIsWeb
                   ? null
@@ -219,15 +220,15 @@ class _SeasonPageState extends State<SeasonPage> {
                           })),
               body: Column(
                 children: [
-                  Breadcrumbs(
+                  Center(
+                      child: Breadcrumbs(
                     items: buildTeamBreadcrumbs(
                       databaseId: DatabaseService.instance.publicShareId ?? '',
                       teamName: season.team.fullName,
                       seasonName: season.name,
                       seasonId: season.id,
                     ),
-                  ),
-                  SeasonWithLogo(season: season),
+                  )),
                   Expanded(
                     child: Center(
                         child: Column(
@@ -281,7 +282,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           NavigationHelper.navigateTo(context,
                               '/team/$databaseId/season/${season.id}/stats');
                         },
-                        icon: const Icon(Icons.paste_sharp)),
+                        icon: const Icon(Icons.analytics)),
                   ]),
               floatingActionButton: kIsWeb
                   ? null
@@ -301,9 +302,10 @@ class _SeasonPageState extends State<SeasonPage> {
                           onPressed: () {
                             _showGame(season: season);
                           })),
-              body: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
+              body: Column(
+                children: [
+                  // Fixed header section - image, and record
+                  Center(
                     child: Column(
                       children: [
                         Breadcrumbs(
@@ -315,10 +317,9 @@ class _SeasonPageState extends State<SeasonPage> {
                             seasonId: season.id,
                           ),
                         ),
-                        SeasonWithLogo(season: season),
                         Container(
-                          decoration: BoxDecoration(
-                            borderRadius: const BorderRadius.only(
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
                               bottomLeft: Radius.circular(25),
                               bottomRight: Radius.circular(25),
                             ),
@@ -331,143 +332,166 @@ class _SeasonPageState extends State<SeasonPage> {
                             ),
                           ),
                         ),
-                        // Awards Section
-                        _buildAwardsSection(season),
                       ],
                     ),
                   ),
-                  SliverPadding(
-                    padding: const EdgeInsets.all(10),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final game = games[index];
-
-                          final linkWidget = game.gameLinks?.isNotEmpty ?? false
-                              ? GestureDetector(
-                                  onTap: () async {
-                                    await _launchUrl(game.gameLinks!);
-                                  },
-                                  child: VideoThumbnail(game.gameLinks!,
-                                      width: 40, height: 28),
-                                )
-                              : const SizedBox(width: 24);
-
-                          final gameCard = Container(
-                            padding: const EdgeInsets.all(5),
-                            child: Stack(
+                  // Scrollable content section
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(10),
+                      children: [
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1400),
+                            child: Column(
                               children: [
-                                Card(
-                                  child: Column(
-                                    children: [
-                                      ListTile(
-                                        title: Text(
-                                            game.displayName(season.teamId),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold)),
-                                        subtitle:
-                                            Text(format.format(game.date)),
-                                        leading: linkWidget,
-                                        trailing: Container(
-                                          margin:
-                                              const EdgeInsets.only(top: 20),
-                                          child: IconButton(
-                                            icon: Icon(
-                                                game.id == _expandedGameId
-                                                    ? Icons.expand_less
-                                                    : Icons.expand_more),
-                                            onPressed: () async {
-                                              setState(() {
-                                                _expandedGameId =
-                                                    game.id == _expandedGameId
-                                                        ? 0
-                                                        : game.id;
-                                              });
-                                            },
+                                // Awards Section
+                                _buildAwardsSection(season),
+                                // Games list
+                                ...games.map((game) {
+                                  final linkWidget = game
+                                              .gameLinks?.isNotEmpty ??
+                                          false
+                                      ? GestureDetector(
+                                          onTap: () async {
+                                            await _launchUrl(game.gameLinks!);
+                                          },
+                                          child: VideoThumbnail(game.gameLinks!,
+                                              width: 40, height: 28),
+                                        )
+                                      : const SizedBox(width: 24);
+
+                                  final gameCard = Container(
+                                    padding: const EdgeInsets.all(5),
+                                    child: Stack(
+                                      children: [
+                                        Card(
+                                          child: Column(
+                                            children: [
+                                              ListTile(
+                                                title: Text(
+                                                    game.displayName(
+                                                        season.teamId),
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                                subtitle: Text(
+                                                  game.date.hour == 0 &&
+                                                          game.date.minute == 0
+                                                      ? format.format(game.date)
+                                                      : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
+                                                ),
+                                                leading: linkWidget,
+                                                trailing: Container(
+                                                  margin: const EdgeInsets.only(
+                                                      top: 20),
+                                                  child: IconButton(
+                                                    icon: Icon(game.id ==
+                                                            _expandedGameId
+                                                        ? Icons.expand_less
+                                                        : Icons.expand_more),
+                                                    onPressed: () async {
+                                                      setState(() {
+                                                        _expandedGameId = game
+                                                                    .id ==
+                                                                _expandedGameId
+                                                            ? 0
+                                                            : game.id;
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                                onTap: () {
+                                                  if (!kIsWeb) {
+                                                    _showGame(
+                                                        game: game,
+                                                        season: season);
+                                                  } else {
+                                                    _goToGame(game, season);
+                                                  }
+                                                },
+                                              ),
+                                              if (game.id == _expandedGameId)
+                                                ScoringSummary(
+                                                    season, season.team, game),
+                                            ],
                                           ),
                                         ),
-                                        onTap: () {
-                                          if (!kIsWeb) {
-                                            _showGame(
-                                                game: game, season: season);
-                                          } else {
-                                            _goToGame(game, season);
-                                          }
+                                        Positioned(
+                                          top: 0,
+                                          right: 0,
+                                          child:
+                                              GameResult(game, season.teamId),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (kIsWeb) return gameCard;
+
+                                  return Dismissible(
+                                    key: Key(game.id.toString()),
+                                    direction: DismissDirection.startToEnd,
+                                    dismissThresholds: const {
+                                      DismissDirection.startToEnd: 0.5,
+                                    },
+                                    background: Container(color: Colors.red),
+                                    confirmDismiss: (_) {
+                                      return showDialog<bool>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return AlertDialog(
+                                            title: Text(
+                                                AppLocalizations.of(context)!
+                                                    .confirmDelete),
+                                            content: Text(AppLocalizations.of(
+                                                    context)!
+                                                .areYouSureYouWantToDeleteThisGame),
+                                            actions: [
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .continueButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context, true);
+                                                },
+                                              ),
+                                              TextButton(
+                                                child: Text(AppLocalizations.of(
+                                                        context)!
+                                                    .cancelButton),
+                                                onPressed: () {
+                                                  Navigator.pop(context, false);
+                                                },
+                                              ),
+                                            ],
+                                          );
                                         },
-                                      ),
-                                      if (game.id == _expandedGameId)
-                                        ScoringSummary(
-                                            season, season.team, game),
-                                    ],
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: GameResult(game, season.teamId),
-                                ),
+                                      );
+                                    },
+                                    onDismissed: (direction) async {
+                                      final candidates = await DatabaseService
+                                          .instance
+                                          .query('Games',
+                                              orderByChild: 'id',
+                                              equalTo: game.id);
+                                      for (final c in candidates) {
+                                        final k = c['_key']?.toString();
+                                        if (k != null) {
+                                          await DatabaseService.instance
+                                              .delete('Games', key: k);
+                                        }
+                                      }
+                                      setState(() {});
+                                    },
+                                    child: gameCard,
+                                  );
+                                }),
                               ],
                             ),
-                          );
-
-                          if (kIsWeb) return gameCard;
-
-                          return Dismissible(
-                            key: Key(game.id.toString()),
-                            direction: DismissDirection.startToEnd,
-                            dismissThresholds: const {
-                              DismissDirection.startToEnd: 0.5,
-                            },
-                            background: Container(color: Colors.red),
-                            confirmDismiss: (_) {
-                              return showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(AppLocalizations.of(context)!
-                                        .confirmDelete),
-                                    content: Text(AppLocalizations.of(context)!
-                                        .areYouSureYouWantToDeleteThisGame),
-                                    actions: [
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .continueButton),
-                                        onPressed: () {
-                                          Navigator.pop(context, true);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: Text(
-                                            AppLocalizations.of(context)!
-                                                .cancelButton),
-                                        onPressed: () {
-                                          Navigator.pop(context, false);
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                            onDismissed: (direction) async {
-                              final candidates = await DatabaseService.instance
-                                  .query('Games',
-                                      orderByChild: 'id', equalTo: game.id);
-                              for (final c in candidates) {
-                                final k = c['_key']?.toString();
-                                if (k != null) {
-                                  await DatabaseService.instance
-                                      .delete('Games', key: k);
-                                }
-                              }
-                              setState(() {});
-                            },
-                            child: gameCard,
-                          );
-                        },
-                        childCount: games.length,
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -516,7 +540,7 @@ class _SeasonPageState extends State<SeasonPage> {
               ],
             ));
           }
-          return const Center(child: CircularProgressIndicator());
+          return _buildSeasonSkeleton(context);
         }
       },
     );
@@ -623,11 +647,19 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
-  void _showGame({Game? game, Season? season}) {
+  void _showGame({Game? game, Season? season}) async {
     final s = season ?? widget.season!;
-    final entries = s.teams
+
+    // Load all teams from database to show as available opponents
+    final allTeams = await Team.all();
+
+    // Filter out the current team and sort alphabetically by full name
+    final availableTeams = allTeams.where((t) => t.id != s.teamId).toList()
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+
+    // Create dropdown entries
+    final entries = availableTeams
         .map((t) => DropdownMenuEntry<int>(value: t.id, label: t.fullName))
-        .where((e) => e.value != s.teamId)
         .toList(growable: false);
 
     final isHomeTeam = game == null || game.isHomeTeam(s.teamId);
@@ -650,170 +682,223 @@ class _SeasonPageState extends State<SeasonPage> {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
-                child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(children: [
-                      Text(
-                        AppLocalizations.of(context)!.editGame,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Container(height: 20),
-                      Row(children: [
-                        Expanded(
-                            child: RadioListTile(
-                          title: Text(AppLocalizations.of(context)!.home,
-                              style: const TextStyle(fontSize: 20)),
-                          value: 0,
-                          groupValue: location,
-                          onChanged: (i) {
-                            if (game!.gameStatus.index == 0) {
-                              final tempTeam = game.homeTeam;
-                              game.homeTeam = game.awayTeam;
-                              game.awayTeam = tempTeam;
+                child: SingleChildScrollView(
+                    child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(children: [
+                          Text(
+                            AppLocalizations.of(context)!.editGame,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Container(height: 20),
+                          Row(children: [
+                            Expanded(
+                                child: RadioListTile(
+                              title: Text(AppLocalizations.of(context)!.home,
+                                  style: const TextStyle(fontSize: 20)),
+                              value: 0,
+                              groupValue: location,
+                              onChanged: (i) {
+                                if (game!.gameStatus.index == 0) {
+                                  final tempTeam = game.homeTeam;
+                                  game.homeTeam = game.awayTeam;
+                                  game.awayTeam = tempTeam;
 
-                              setModalState(() {
-                                location = i;
-                              });
-                            }
-                          },
-                        )),
-                        Expanded(
-                            child: RadioListTile(
-                          title: Text(AppLocalizations.of(context)!.away,
-                              style: const TextStyle(fontSize: 20)),
-                          value: 1,
-                          groupValue: location,
-                          onChanged: (i) {
-                            if (game!.gameStatus.index == 0) {
-                              final tempTeam = game.homeTeam;
-                              game.homeTeam = game.awayTeam;
-                              game.awayTeam = tempTeam;
-
-                              setModalState(() {
-                                location = i;
-                              });
-                            }
-                          },
-                        )),
-                      ]),
-                      const SizedBox(height: 30),
-                      TextButton(
-                          onPressed: () {
-                            _createOpponent(s);
-                          },
-                          child: Text(
-                              AppLocalizations.of(context)!.createNewOpponent)),
-                      const SizedBox(height: 30),
-                      DropdownMenu(
-                          enabled: game!.gameStatus.index == 0,
-                          initialSelection:
-                              isHomeTeam ? game.awayTeam.id : game.homeTeam.id,
-                          onSelected: (teamId) async {
-                            if (location == 0) {
-                              game!.awayTeam = await Team.fromId(teamId!);
-                            } else {
-                              game!.homeTeam = await Team.fromId(teamId!);
-                            }
-
-                            setModalState(() {
-                              canSave = true;
-                            });
-                          },
-                          width: double.infinity,
-                          label: Text(
-                              AppLocalizations.of(context)!.selectOpponent),
-                          dropdownMenuEntries: entries),
-                      const SizedBox(height: 30),
-                      ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue),
-                          onPressed: game.gameStatus.index == 0
-                              ? () async {
-                                  final date = await showDatePicker(
-                                      context: context,
-                                      initialDate: game!.date,
-                                      firstDate: DateTime.now()
-                                          .subtract(const Duration(days: 365)),
-                                      lastDate: DateTime.now()
-                                          .add(const Duration(days: 365)));
-                                  if (date != null) {
-                                    setModalState(() {
-                                      game!.date = date;
-                                    });
-                                  }
+                                  setModalState(() {
+                                    location = i;
+                                  });
                                 }
-                              : null,
-                          child: SizedBox(
-                              width: 200,
-                              child: Center(
-                                  child: Text(format.format(game.date),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20))))),
-                      const SizedBox(height: 30),
-                      const Divider(),
-                      TextFormField(
-                          initialValue: game.description,
-                          decoration: InputDecoration(
-                              labelText: 'Description (optional)'),
-                          onChanged: (name) => game!.description = name),
-                      const SizedBox(height: 30),
-                      TextFormField(
-                          initialValue: game.gameLinks,
-                          decoration:
-                              InputDecoration(labelText: 'Links (optional)'),
-                          onChanged: (links) => game!.gameLinks = links),
-                      const SizedBox(height: 30),
-                      const Divider(),
-                      ScoreboardWidget(
-                          compact: true,
-                          game: game,
-                          season: season,
-                          teamId: season!.team.id),
-                      const Divider(),
-                      const SizedBox(height: 30),
-                      game.id != -1
-                          ? ElevatedButton(
+                              },
+                            )),
+                            Expanded(
+                                child: RadioListTile(
+                              title: Text(AppLocalizations.of(context)!.away,
+                                  style: const TextStyle(fontSize: 20)),
+                              value: 1,
+                              groupValue: location,
+                              onChanged: (i) {
+                                if (game!.gameStatus.index == 0) {
+                                  final tempTeam = game.homeTeam;
+                                  game.homeTeam = game.awayTeam;
+                                  game.awayTeam = tempTeam;
+
+                                  setModalState(() {
+                                    location = i;
+                                  });
+                                }
+                              },
+                            )),
+                          ]),
+                          const SizedBox(height: 30),
+                          Visibility(
+                              visible: game!.gameStatus.index == 0,
+                              child: TextButton(
+                                  onPressed: () {
+                                    _createOpponent(s);
+                                  },
+                                  child: Text(AppLocalizations.of(context)!
+                                      .createNewOpponent))),
+                          const SizedBox(height: 30),
+                          DropdownMenu(
+                              enabled: game.gameStatus.index == 0,
+                              initialSelection: isHomeTeam
+                                  ? game.awayTeam.id
+                                  : game.homeTeam.id,
+                              onSelected: (teamId) async {
+                                if (location == 0) {
+                                  game!.awayTeam = await Team.fromId(teamId!);
+                                } else {
+                                  game!.homeTeam = await Team.fromId(teamId!);
+                                }
+
+                                setModalState(() {
+                                  canSave = true;
+                                });
+                              },
+                              width: double.infinity,
+                              label: Text(
+                                  AppLocalizations.of(context)!.selectOpponent),
+                              dropdownMenuEntries: entries),
+                          const SizedBox(height: 30),
+                          // Date picker button
+                          ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue),
+                              onPressed: game.gameStatus.index == 0
+                                  ? () async {
+                                      final date = await showDatePicker(
+                                          context: context,
+                                          initialDate: game!.date,
+                                          firstDate: DateTime.now().subtract(
+                                              const Duration(days: 365)),
+                                          lastDate: DateTime.now()
+                                              .add(const Duration(days: 365)));
+                                      if (date != null) {
+                                        setModalState(() {
+                                          // Preserve the time when updating date
+                                          game!.date = DateTime(
+                                            date.year,
+                                            date.month,
+                                            date.day,
+                                            game.date.hour,
+                                            game.date.minute,
+                                          );
+                                        });
+                                      }
+                                    }
+                                  : null,
+                              child: SizedBox(
+                                  width: 200,
+                                  child: Center(
+                                      child: Text(format.format(game.date),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20))))),
+                          const SizedBox(height: 15),
+                          // Time picker button
+                          ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green),
-                              child: Text(
-                                  AppLocalizations.of(context)!.goToGame,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20)),
-                              onPressed: () async {
-                                Navigator.of(context).pop();
-                                await _goToGame(game!, s);
-                                await _loadSeason(context);
-                              })
-                          : Container(),
-                      const SizedBox(height: 30),
-                      Row(
-                          mainAxisAlignment: canSave
-                              ? MainAxisAlignment.spaceEvenly
-                              : MainAxisAlignment.center,
-                          children: [
-                            GestureDetector(
-                                onTap: () async {
-                                  await game!.saveGame();
+                              onPressed: game.gameStatus.index == 0
+                                  ? () async {
+                                      final time = await showTimePicker(
+                                        context: context,
+                                        initialTime:
+                                            TimeOfDay.fromDateTime(game!.date),
+                                      );
+                                      if (time != null) {
+                                        setModalState(() {
+                                          // Update time while preserving date
+                                          game!.date = DateTime(
+                                            game.date.year,
+                                            game.date.month,
+                                            game.date.day,
+                                            time.hour,
+                                            time.minute,
+                                          );
+                                        });
+                                      }
+                                    }
+                                  : null,
+                              child: SizedBox(
+                                  width: 200,
+                                  child: Center(
+                                      child: Text(
+                                          game.date.hour == 0 &&
+                                                  game.date.minute == 0
+                                              ? 'Set Time (optional)'
+                                              : _formatTime12Hour(game.date),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 20))))),
+                          const SizedBox(height: 30),
+                          const Divider(),
+                          TextFormField(
+                              initialValue: game.description,
+                              decoration: InputDecoration(
+                                  labelText: 'Description (optional)'),
+                              onChanged: (name) => game!.description = name),
+                          const SizedBox(height: 30),
+                          TextFormField(
+                              initialValue: game.gameLinks,
+                              decoration: InputDecoration(
+                                  labelText: 'Links (optional)'),
+                              onChanged: (links) => game!.gameLinks = links),
+                          const SizedBox(height: 30),
+                          const Divider(),
+                          ScoreboardWidget(
+                              compact: true,
+                              game: game,
+                              season: season,
+                              teamId: season!.team.id),
+                          const Divider(),
+                          const SizedBox(height: 30),
+                          game.id != -1
+                              ? ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green),
+                                  child: Text(
+                                      AppLocalizations.of(context)!.goToGame,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20)),
+                                  onPressed: () async {
+                                    Navigator.of(context).pop();
+                                    await _goToGame(game!, s);
+                                    await _loadSeason(context);
+                                  })
+                              : Container(),
+                          const SizedBox(height: 30),
+                          Row(
+                              mainAxisAlignment: canSave
+                                  ? MainAxisAlignment.spaceEvenly
+                                  : MainAxisAlignment.center,
+                              children: [
+                                GestureDetector(
+                                    onTap: () async {
+                                      await game!.saveGame();
 
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                    setState(() {});
-                                  }
-                                },
-                                child: Text(AppLocalizations.of(context)!.save,
-                                    style: const TextStyle(fontSize: 20))),
-                            const SizedBox(width: 30),
-                            GestureDetector(
-                                onTap: () {
-                                  Navigator.pop(context);
-                                },
-                                child: Text(
-                                    AppLocalizations.of(context)!.cancelButton,
-                                    style: const TextStyle(fontSize: 20)))
-                          ])
-                    ])));
+                                      if (mounted) {
+                                        Navigator.pop(context);
+                                        // Reload season data to refresh games list
+                                        await _loadSeason(context);
+                                        setState(() {});
+                                      }
+                                    },
+                                    child: Text(
+                                        AppLocalizations.of(context)!.save,
+                                        style: const TextStyle(fontSize: 20))),
+                                const SizedBox(width: 30),
+                                GestureDetector(
+                                    onTap: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: Text(
+                                        AppLocalizations.of(context)!
+                                            .cancelButton,
+                                        style: const TextStyle(fontSize: 20)))
+                              ])
+                        ]))));
           });
         });
   }
@@ -822,12 +907,36 @@ class _SeasonPageState extends State<SeasonPage> {
     final databaseId = DatabaseService.instance.publicShareId;
     if (databaseId == null) return;
 
+    try {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season loaded? Team: ${season.team.fullName}');
+    } catch (e) {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season NOT loaded! Error: $e');
+    }
+
     // Use NavigationHelper for platform-appropriate navigation
     NavigationHelper.navigateTo(
       context,
       '/team/$databaseId/season/${season.id}/game/${game.id}',
       extra: {'season': season, 'game': game},
     );
+  }
+
+  /// Format time in 12-hour format with AM/PM
+  String _formatTime12Hour(DateTime dateTime) {
+    int hour = dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12; // Midnight
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    return '$hour:$minute $period';
   }
 
   void _createOpponent(Season season) {
@@ -911,12 +1020,7 @@ class _SeasonPageState extends State<SeasonPage> {
       future: _awardsFutureCache[season.id],
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return _buildAwardsSectionSkeleton();
         }
 
         if (snapshot.hasError) {
@@ -983,6 +1087,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                   fontWeight: FontWeight.bold,
                                 ),
                           ),
+
                           const Spacer(),
                           // Add button (mobile only)
                           if (!kIsWeb) ...[
@@ -1044,8 +1149,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: Colors.blue
-                                                          .withValues(
-                                                              alpha: 0.3),
+                                                          .withOpacity(0.3),
                                                       blurRadius: 12,
                                                       spreadRadius: 2,
                                                     ),
@@ -1162,8 +1266,7 @@ class _SeasonPageState extends State<SeasonPage> {
                                                   boxShadow: [
                                                     BoxShadow(
                                                       color: Colors.blue
-                                                          .withValues(
-                                                              alpha: 0.3),
+                                                          .withOpacity(0.3),
                                                       blurRadius: 12,
                                                       spreadRadius: 2,
                                                     ),
@@ -1217,6 +1320,56 @@ class _SeasonPageState extends State<SeasonPage> {
     );
   }
 
+  Widget _buildAwardsSectionSkeleton() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      elevation: 4, // Match the actual card elevation
+      child: Container(
+        height: 56, // Approximate height of ExpansionTile header
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            // Icon Skeleton
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 16), // Match ExpansionTile leading spacing
+            // Title Skeleton
+            Container(
+              width: 100,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const Spacer(),
+            // Expand Icon Skeleton (optional, but good for realism)
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> _loadPlayerAwards(int seasonId) async {
     try {
       // Get all player awards for this season
@@ -1267,6 +1420,7 @@ class _SeasonPageState extends State<SeasonPage> {
       variant: AwardCardVariant.list,
       iconColor: Colors.amber,
       isWeb: kIsWeb,
+      isPromoted: award.isPromoted,
       onTap: () => _showTeamAwardDetailsDialog(award),
       onEdit:
           !kIsWeb ? () => _showAddTeamAwardDialog(season, award: award) : null,
@@ -1311,6 +1465,11 @@ class _SeasonPageState extends State<SeasonPage> {
           );
         }
       },
+      onEdit: !kIsWeb
+          ? () =>
+              _showAddPlayerAwardDialog(season, award: award, player: player)
+          : null,
+      onDelete: !kIsWeb ? () => _deletePlayerAward(award, season) : null,
     );
   }
 
@@ -1583,7 +1742,9 @@ class _SeasonPageState extends State<SeasonPage> {
   }
 
   Future<void> _promoteAwardToAccomplishment(TeamAward award) async {
-    final displayOrderController = TextEditingController(text: '0');
+    // If already promoted, just show a message or confirm strictly?
+    // For now allow re-promoting but maybe warn?
+    // Actually, distinct icon should prevent accidental re-promotion.
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1596,18 +1757,8 @@ class _SeasonPageState extends State<SeasonPage> {
             Text('Promote "${award.title}" to a team-wide accomplishment?'),
             const SizedBox(height: 16),
             const Text(
-              'This will create a new accomplishment on the team home page.',
-              style: TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: displayOrderController,
-              decoration: const InputDecoration(
-                labelText: 'Display Order',
-                hintText: '0 = show first',
-                helperText: 'Lower numbers appear first',
-              ),
-              keyboardType: TextInputType.number,
+              'This will display this award on the main Team Dashboard for all visitors to see.',
+              style: TextStyle(fontSize: 14),
             ),
           ],
         ),
@@ -1626,10 +1777,21 @@ class _SeasonPageState extends State<SeasonPage> {
 
     if (confirmed == true && mounted) {
       try {
-        final displayOrder = int.tryParse(displayOrderController.text) ?? 0;
-        await award.promoteToAccomplishment(displayOrder: displayOrder);
+        // Promote with default display order (0 usually shows first/last depending on sort)
+        // or we could append to end if we knew the count.
+        // For simple UX, just promote.
+        await award.promoteToAccomplishment(displayOrder: 999);
+
+        // Update local award state to promoted
+        final updatedAward = award.copyWith(isPromoted: true);
+        await updatedAward.save();
 
         if (mounted) {
+          setState(() {
+            // Force reload
+            _awardsFutureCache.remove(award.seasonId);
+          });
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Promoted to team accomplishment!'),
@@ -1659,8 +1821,6 @@ class _SeasonPageState extends State<SeasonPage> {
         }
       }
     }
-
-    displayOrderController.dispose();
   }
 
   Future<void> _deleteTeamAward(TeamAward award) async {
@@ -1704,6 +1864,53 @@ class _SeasonPageState extends State<SeasonPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text('Error deleting team award: ${e.toString()}')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deletePlayerAward(PlayerAward award, Season season) async {
+    final loc = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Player Award'),
+        content: Text('Delete "${award.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: Text(loc.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await award.delete();
+
+        if (mounted) {
+          setState(() {
+            // Clear cache to force reload of awards
+            _awardsFutureCache.remove(season.id);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Player award deleted')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error deleting player award: ${e.toString()}')),
           );
         }
       }
@@ -1793,15 +2000,18 @@ class _SeasonPageState extends State<SeasonPage> {
     );
   }
 
-  void _showAddPlayerAwardDialog(Season season) {
+  void _showAddPlayerAwardDialog(Season season,
+      {PlayerAward? award, Player? player}) {
     // Only supported on mobile
     if (kIsWeb) return;
 
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
+    final isEdit = award != null;
+    final titleController = TextEditingController(text: award?.title ?? '');
+    final descriptionController =
+        TextEditingController(text: award?.description ?? '');
     Player? selectedPlayer =
-        season.players.isNotEmpty ? season.players.first : null;
-    String? imageUrl;
+        player ?? (season.players.isNotEmpty ? season.players.first : null);
+    String? imageUrl = award?.imageUrl;
     File? imageFile;
     bool isUploadingImage = false;
 
@@ -1809,7 +2019,7 @@ class _SeasonPageState extends State<SeasonPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add Player Award'),
+          title: Text(isEdit ? 'Edit Player Award' : 'Add Player Award'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1951,8 +2161,15 @@ class _SeasonPageState extends State<SeasonPage> {
                           finalImageUrl = await storageRef.getDownloadURL();
                         }
 
+                        final awardId = isEdit
+                            ? award.id
+                            : DateTime.now().millisecondsSinceEpoch;
+
+                        debugPrint(
+                            'Saving player award: isEdit=$isEdit, id=$awardId, title=$title');
+
                         final a = PlayerAward(
-                          id: DateTime.now().millisecondsSinceEpoch,
+                          id: awardId,
                           playerId: selectedPlayer!.id,
                           seasonId: season.id,
                           title: title,
@@ -1965,14 +2182,17 @@ class _SeasonPageState extends State<SeasonPage> {
                         await a.save();
 
                         if (mounted) {
-                          Navigator.pop(context);
+                          // Clear cache before closing dialog to force immediate refresh
                           setState(() {
-                            // Clear cache to force reload of awards
                             _awardsFutureCache.remove(season.id);
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Player award saved')));
+
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(isEdit
+                                  ? 'Player award updated'
+                                  : 'Player award saved')));
                         }
                       } catch (e) {
                         if (mounted) {
@@ -2074,5 +2294,200 @@ class _SeasonPageState extends State<SeasonPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nameController.dispose();
     });
+  }
+
+  Widget _buildSeasonSkeleton(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Container(
+          width: 120,
+          height: 24,
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+      body: Column(
+        children: [
+          // Header Section Skeleton
+          Center(
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                // Breadcrumbs skeleton
+                Container(
+                  width: 200,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Season Record Skeleton (Badge style)
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSkeletonStatBadge(context),
+                      const SizedBox(width: 8),
+                      _buildSkeletonStatBadge(context),
+                      const SizedBox(width: 8),
+                      _buildSkeletonStatBadge(context),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Scrollable Content Skeleton
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Awards Section Skeleton
+                Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Container(
+                    height: 56, // Height of collapsed ExpansionTile
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Game List Skeleton
+                ...List.generate(5, (index) => _buildGameCardSkeleton(context)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonStatBadge(BuildContext context) {
+    return Container(
+      width: 60,
+      height: 70,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  Widget _buildGameCardSkeleton(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      height: 80,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              // Thumbnail/Link placeholder
+              Container(
+                width: 40,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Title
+                    Container(
+                      width: 150,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Subtitle
+                    Container(
+                      width: 100,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Expand Icon placeholder
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

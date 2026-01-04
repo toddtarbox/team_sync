@@ -95,8 +95,7 @@ class _MockFirebasePlatform extends FirebasePlatform {
 
 /// Mock Firebase App Platform implementation
 class _MockFirebaseAppPlatform extends FirebaseAppPlatform {
-  _MockFirebaseAppPlatform(String name, FirebaseOptions options)
-      : super(name, options);
+  _MockFirebaseAppPlatform(super.name, super.options);
 
   @override
   Future<void> delete() async {}

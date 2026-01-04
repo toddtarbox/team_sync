@@ -6,6 +6,7 @@ import 'package:team_sync/models/import_models.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/entity_matcher_service.dart';
 import 'package:team_sync/services/import_validator_service.dart';
+import 'package:team_sync/models/team.dart';
 
 class DataImporterService {
   final ImportValidatorService _validator = ImportValidatorService();
@@ -263,6 +264,10 @@ class DataImporterService {
         orderByChild: 'id',
         equalTo: match.existingId,
       );
+
+      if (entityType == 'Team') {
+        Team.clearCache();
+      }
     } else if (isPlayerInDifferentSeason) {
       // Player exists in another season - reuse player ID but create new season record
       // This ensures the same person has the same player ID across seasons

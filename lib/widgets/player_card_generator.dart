@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/player.dart';
@@ -73,10 +74,9 @@ class _PlayerCardProTeaserDialog extends StatelessWidget {
   final Player player;
 
   const _PlayerCardProTeaserDialog({
-    Key? key,
     required this.team,
     required this.player,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -172,11 +172,10 @@ class _PlayerCardDialog extends StatefulWidget {
   final String? eventContext;
 
   const _PlayerCardDialog({
-    Key? key,
     required this.team,
     required this.player,
     this.eventContext,
-  }) : super(key: key);
+  });
 
   @override
   State<_PlayerCardDialog> createState() => _PlayerCardDialogState();
@@ -347,45 +346,85 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Animated flip card
-                        AnimatedBuilder(
-                          animation: _flipAnimation,
-                          builder: (context, child) {
-                            final angle =
-                                _flipAnimation.value * 3.14159; // π radians
-                            final transform = Matrix4.identity()
-                              ..setEntry(3, 2, 0.001) // perspective
-                              ..rotateY(angle);
+                        // Add zoom hint for back card
+                        if (_showingBack)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              'Pinch to zoom • Drag to pan',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        // Animated flip card with zoom for back, scaled to fit for both
+                        _showingBack
+                            ? InteractiveViewer(
+                                panEnabled: true,
+                                boundaryMargin: const EdgeInsets.all(20),
+                                minScale: 0.5,
+                                maxScale: 4.0,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: AnimatedBuilder(
+                                    animation: _flipAnimation,
+                                    builder: (context, child) {
+                                      final angle = _flipAnimation.value *
+                                          3.14159; // π radians
+                                      final transform = Matrix4.identity()
+                                        ..setEntry(3, 2, 0.001) // perspective
+                                        ..rotateY(angle);
 
-                            return Transform(
-                              transform: transform,
-                              alignment: Alignment.center,
-                              child: angle < 3.14159 / 2
-                                  ? RepaintBoundary(
-                                      key: _cardKey,
-                                      child: _PlayerCardWidget(
-                                        team: widget.team,
-                                        player: widget.player,
-                                        style: _selectedStyle,
-                                        eventContext: widget.eventContext,
-                                      ),
-                                    )
-                                  : Transform(
-                                      transform: Matrix4.identity()
-                                        ..rotateY(3.14159),
+                                      return Transform(
+                                        transform: transform,
+                                        alignment: Alignment.center,
+                                        child: Transform(
+                                          transform: Matrix4.identity()
+                                            ..rotateY(3.14159),
+                                          alignment: Alignment.center,
+                                          child: RepaintBoundary(
+                                            key: _cardKey,
+                                            child: _PlayerCardBackWidget(
+                                              team: widget.team,
+                                              player: widget.player,
+                                              style: _selectedStyle,
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              )
+                            : FittedBox(
+                                fit: BoxFit.contain,
+                                child: AnimatedBuilder(
+                                  animation: _flipAnimation,
+                                  builder: (context, child) {
+                                    final angle = _flipAnimation.value *
+                                        3.14159; // π radians
+                                    final transform = Matrix4.identity()
+                                      ..setEntry(3, 2, 0.001) // perspective
+                                      ..rotateY(angle);
+
+                                    return Transform(
+                                      transform: transform,
                                       alignment: Alignment.center,
                                       child: RepaintBoundary(
                                         key: _cardKey,
-                                        child: _PlayerCardBackWidget(
+                                        child: _PlayerCardWidget(
                                           team: widget.team,
                                           player: widget.player,
                                           style: _selectedStyle,
+                                          eventContext: widget.eventContext,
                                         ),
                                       ),
-                                    ),
-                            );
-                          },
-                        ),
+                                    );
+                                  },
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -685,20 +724,20 @@ class _PlayerCardWidget extends StatelessWidget {
   final String? eventContext;
 
   const _PlayerCardWidget({
-    Key? key,
     required this.team,
     required this.player,
     required this.style,
     this.eventContext,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final config = _getStyleConfig(style);
 
+    // Standard baseball card size: 2.5" x 3.5" at 300 DPI = 750px x 1050px
     return Container(
-      width: 300,
-      height: 450,
+      width: 750,
+      height: 1050,
       decoration: BoxDecoration(
         color: config.backgroundColor,
         borderRadius: BorderRadius.circular(16),
@@ -717,7 +756,7 @@ class _PlayerCardWidget extends StatelessWidget {
           // Header with event context
           if (eventContext != null)
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 24),
               decoration: BoxDecoration(
                 color: config.accentColor,
                 borderRadius:
@@ -728,9 +767,9 @@ class _PlayerCardWidget extends StatelessWidget {
                   eventContext!,
                   style: TextStyle(
                     color: config.textColor,
-                    fontSize: 24,
+                    fontSize: 56,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
+                    letterSpacing: 3,
                   ),
                 ),
               ),
@@ -810,7 +849,7 @@ class _PlayerCardWidget extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: config.infoBackgroundColor,
                 borderRadius:
@@ -825,41 +864,41 @@ class _PlayerCardWidget extends StatelessWidget {
                     '#${player.number}',
                     style: TextStyle(
                       color: config.accentColor,
-                      fontSize: 44,
+                      fontSize: 110,
                       fontWeight: FontWeight.bold,
                       height: 1,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 16),
                   // Player name
                   Text(
                     player.displayName.toUpperCase(),
                     style: TextStyle(
                       color: config.textColor,
-                      fontSize: 18,
+                      fontSize: 42,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                      letterSpacing: 2,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 20),
                   // Team name
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 12),
                     decoration: BoxDecoration(
                       color: config.accentColor,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
                       team.fullName.toUpperCase(),
                       style: TextStyle(
                         color: config.backgroundColor,
-                        fontSize: 13,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
+                        letterSpacing: 2,
                       ),
                     ),
                   ),
@@ -890,8 +929,8 @@ class _PlayerCardWidget extends StatelessWidget {
           children: [
             // Background circle
             Container(
-              width: 180,
-              height: 180,
+              width: 360,
+              height: 360,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: config.accentColor.withValues(alpha: 0.1),
@@ -900,7 +939,7 @@ class _PlayerCardWidget extends StatelessWidget {
             // Soccer player in action icon
             Icon(
               Icons.sports_soccer,
-              size: 120,
+              size: 240,
               color: config.accentColor.withValues(alpha: 0.3),
             ),
           ],
@@ -988,11 +1027,10 @@ class _PlayerCardBackWidget extends StatefulWidget {
   final PlayerCardStyle style;
 
   const _PlayerCardBackWidget({
-    Key? key,
     required this.team,
     required this.player,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   State<_PlayerCardBackWidget> createState() => _PlayerCardBackWidgetState();
@@ -1004,6 +1042,8 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   int _saves = 0;
   List<PlayerAward> _awards = [];
   bool _isLoading = true;
+
+  bool get hasStats => _goals > 0 || _assists > 0 || _saves > 0;
 
   @override
   void initState() {
@@ -1017,7 +1057,8 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
       final awards = await PlayerAward.listFromPlayerId(widget.player.id);
       if (mounted) {
         setState(() {
-          _awards = awards.take(3).toList(); // Show max 3 awards on card
+          // Load all career awards (no season filter, no limit)
+          _awards = awards;
         });
       }
     } catch (e) {
@@ -1034,7 +1075,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
         equalTo: widget.player.id,
       );
 
-      // Calculate stats
+      // Calculate career stats (all seasons)
       int goals = 0;
       int assists = 0;
       int saves = 0;
@@ -1090,25 +1131,21 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
     final config = _getStyleConfig(widget.style);
 
     // Calculate dynamic height based on content
-    // Base height: 250 (header + player info + footer + padding)
-    // Stats: ~40px each
-    // Awards: ~70px each (when rendered as list)
-    final statsCount =
-        (_goals > 0 ? 1 : 0) + (_assists > 0 ? 1 : 0) + (_saves > 0 ? 1 : 0);
-    final hasStats = statsCount > 0;
-    final baseHeight = 250.0;
-    final statsHeight = statsCount * 45.0;
-    final awardsHeight = _awards.isNotEmpty
-        ? (hasStats ? 40.0 : 20.0) + (_awards.length * 70.0)
-        : 0.0;
-    final emptyStateHeight = (!hasStats && _awards.isEmpty) ? 60.0 : 0.0;
-    final dynamicHeight =
-        baseHeight + statsHeight + awardsHeight + emptyStateHeight;
-    final cardHeight = dynamicHeight.clamp(450.0, 1200.0); // Min 450, max 1200
+    // Base height: 1050px (same as front card)
+    // For awards:
+    //   - 5 or fewer: ~70px per award (full card)
+    //   - More than 5: compact grid layout, ~40px per row (2 columns)
+    final baseHeight = 1050.0;
+    final awardsHeight = _awards.length <= 5
+        ? _awards.length * 70.0
+        : (_awards.length / 2).ceil() * 40.0; // Grid with 2 columns
+    final dynamicHeight = baseHeight + awardsHeight;
 
+    // Standard baseball card width: 750px
+    // Height expands based on content
     return Container(
-      width: 300,
-      height: cardHeight,
+      width: 750,
+      height: dynamicHeight,
       decoration: BoxDecoration(
         color: config.backgroundColor,
         borderRadius: BorderRadius.circular(16),
@@ -1123,11 +1160,10 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 28),
             decoration: BoxDecoration(
               color: config.accentColor,
               borderRadius:
@@ -1138,9 +1174,9 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                 'CAREER STATS',
                 style: TextStyle(
                   color: config.backgroundColor,
-                  fontSize: 20,
+                  fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
+                  letterSpacing: 3,
                 ),
               ),
             ),
@@ -1148,13 +1184,13 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
 
           // Player info
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(32),
             child: Row(
               children: [
                 // Player number circle
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 110,
+                  height: 110,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: config.accentColor,
@@ -1164,13 +1200,13 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                       '#${widget.player.number}',
                       style: TextStyle(
                         color: config.backgroundColor,
-                        fontSize: 24,
+                        fontSize: 48,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 24),
                 // Player name
                 Expanded(
                   child: Column(
@@ -1180,19 +1216,20 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                         widget.player.displayName.toUpperCase(),
                         style: TextStyle(
                           color: config.textColor,
-                          fontSize: 16,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
+                          letterSpacing: 1.5,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 6),
                       Text(
                         widget.team.fullName.toUpperCase(),
                         style: TextStyle(
                           color: config.textColor.withValues(alpha: 0.7),
-                          fontSize: 12,
-                          letterSpacing: 1,
+                          fontSize: 22,
+                          letterSpacing: 1.5,
                         ),
                       ),
                     ],
@@ -1202,117 +1239,141 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
             ),
           ),
 
-          const Divider(height: 1),
+          Divider(height: 1, thickness: 2),
 
-          // Stats section - no longer Expanded, sized to content
-          _isLoading
-              ? Container(
-                  height: 100,
-                  child: Center(
+          // Stats and content section - no scrolling, just content
+          Expanded(
+            child: _isLoading
+                ? Center(
                     child: CircularProgressIndicator(
                       color: config.accentColor,
                     ),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Stats section
-                      if (hasStats) ...[
-                        if (_goals > 0)
-                          _StatRow(
-                            label: 'GOALS',
-                            value: _goals.toString(),
-                            icon: Icons.sports_soccer,
-                            config: config,
-                          ),
-                        if (_assists > 0)
-                          _StatRow(
-                            label: 'ASSISTS',
-                            value: _assists.toString(),
-                            icon: Icons.people,
-                            config: config,
-                          ),
-                        if (_saves > 0)
-                          _StatRow(
-                            label: 'SAVES',
-                            value: _saves.toString(),
-                            icon: Icons.back_hand,
-                            config: config,
-                          ),
-                      ],
+                  )
+                : Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats section
+                        if (hasStats) ...[
+                          if (_goals > 0)
+                            _StatRow(
+                              label: 'GOALS',
+                              value: _goals.toString(),
+                              icon: Icons.sports_soccer,
+                              config: config,
+                            ),
+                          if (_assists > 0)
+                            _StatRow(
+                              label: 'ASSISTS',
+                              value: _assists.toString(),
+                              icon: Icons.people,
+                              config: config,
+                            ),
+                          if (_saves > 0)
+                            _StatRow(
+                              label: 'SAVES',
+                              value: _saves.toString(),
+                              icon: Icons.back_hand,
+                              config: config,
+                            ),
+                        ],
 
-                      // Awards section - render as list for image capture
-                      if (_awards.isNotEmpty) ...[
-                        if (hasStats)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Divider(
-                              color: config.textColor.withValues(alpha: 0.3),
-                              thickness: 1,
+                        // Awards section - use compact layout for many awards
+                        if (_awards.isNotEmpty) ...[
+                          if (hasStats)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(
+                                color: config.textColor.withValues(alpha: 0.3),
+                                thickness: 2,
+                              ),
+                            ),
+                          Text(
+                            'CAREER AWARDS',
+                            style: TextStyle(
+                              color: config.accentColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
                             ),
                           ),
-                        Text(
-                          'AWARDS',
-                          style: TextStyle(
-                            color: config.accentColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
+                          const SizedBox(height: 12),
+
+                          // Use compact grid layout if more than 5 awards
+                          if (_awards.length > 5)
+                            _buildCompactAwardsGrid(config)
+                          else
+                            // Use full card layout for 5 or fewer awards
+                            ..._awards
+                                .map((award) => _buildAwardCard(award, config)),
+                        ],
+
+                        // QR code section - always show
+                        if (hasStats || _awards.isNotEmpty) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(
+                              color: config.textColor.withValues(alpha: 0.3),
+                              thickness: 2,
+                            ),
+                          ),
+                        ],
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                'SCAN FOR PROFILE',
+                                style: TextStyle(
+                                  color: config.accentColor,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: config.accentColor
+                                        .withValues(alpha: 0.3),
+                                    width: 3,
+                                  ),
+                                ),
+                                child: QrImageView(
+                                  data: _getPlayerWebUrl(),
+                                  version: QrVersions.auto,
+                                  size: 130,
+                                  backgroundColor: Colors.white,
+                                  errorCorrectionLevel: QrErrorCorrectLevel.M,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 8),
 
-                        // Render awards as list (not carousel) for proper image capture
-                        ..._awards
-                            .map((award) => _buildAwardCard(award, config)),
-                      ],
-
-                      // Show message if no stats and no awards
-                      if (!hasStats && _awards.isEmpty)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Text(
-                              'No stats or awards yet',
-                              style: TextStyle(
-                                color: config.textColor.withValues(alpha: 0.5),
-                                fontSize: 16,
-                                fontStyle: FontStyle.italic,
+                        // Show message if no stats and no awards
+                        if (!hasStats && _awards.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Text(
+                                'No stats or awards yet',
+                                style: TextStyle(
+                                  color:
+                                      config.textColor.withValues(alpha: 0.5),
+                                  fontSize: 28,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-
-          // Spacer to push footer to bottom
-          const Spacer(),
-
-          // Footer
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: config.accentColor.withValues(alpha: 0.1),
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(13)),
-            ),
-            child: Center(
-              child: Text(
-                widget.team.fullName.toUpperCase(),
-                style: TextStyle(
-                  color: config.textColor.withValues(alpha: 0.8),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
           ),
         ],
       ),
@@ -1320,62 +1381,40 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   }
 
   /// Build individual award card for list rendering
+  /// Simplified for image capture - no async season name loading
   Widget _buildAwardCard(PlayerAward award, _StyleConfig config) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         decoration: BoxDecoration(
-          color: config.accentColor.withValues(alpha: 0.1),
+          color: config.accentColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: config.accentColor.withValues(alpha: 0.3),
-            width: 1,
+            color: config.accentColor.withValues(alpha: 0.4),
+            width: 2,
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
               Icon(
                 Icons.emoji_events,
-                size: 22,
+                size: 36,
                 color: config.accentColor,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 16),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      award.title.toUpperCase(),
-                      style: TextStyle(
-                        color: config.textColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    FutureBuilder<String>(
-                      future: award.getSeasonName(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const SizedBox.shrink();
-                        }
-                        return Text(
-                          snapshot.data!,
-                          style: TextStyle(
-                            color: config.textColor.withValues(alpha: 0.7),
-                            fontSize: 9,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      },
-                    ),
-                  ],
+                child: Text(
+                  award.title.toUpperCase(),
+                  style: TextStyle(
+                    color: config.textColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -1383,6 +1422,63 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
         ),
       ),
     );
+  }
+
+  /// Build compact awards grid for many awards (2 columns)
+  /// Used when there are more than 5 awards to save space
+  Widget _buildCompactAwardsGrid(_StyleConfig config) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _awards.map((award) {
+        return Container(
+          width: 330, // Fits 2 per row in 750px width with spacing
+          decoration: BoxDecoration(
+            color: config.accentColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: config.accentColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.emoji_events,
+                  size: 18,
+                  color: config.accentColor,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    award.title.toUpperCase(),
+                    style: TextStyle(
+                      color: config.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Generate the web URL for this player
+  String _getPlayerWebUrl() {
+    final databaseId = DatabaseService.instance.publicShareId ?? '';
+    final baseUrl = 'https://team-sync-soccer.web.app';
+    // Use global player route (not season-specific)
+    return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }
 
   _StyleConfig _getStyleConfig(PlayerCardStyle style) {
@@ -1453,44 +1549,48 @@ class _StatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 20,
-          color: config.accentColor,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: config.textColor.withValues(alpha: 0.8),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.5,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 40,
+            color: config.accentColor,
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: config.textColor.withValues(alpha: 0.8),
+                fontSize: 26,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1,
+              ),
             ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: config.accentColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: config.accentColor.withValues(alpha: 0.3),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            decoration: BoxDecoration(
+              color: config.accentColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: config.accentColor.withValues(alpha: 0.3),
+                width: 2,
+              ),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                color: config.textColor,
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-          child: Text(
-            value,
-            style: TextStyle(
-              color: config.textColor,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

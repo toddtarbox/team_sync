@@ -9,6 +9,12 @@ class AppLocalizationsIt extends AppLocalizations {
   AppLocalizationsIt([String locale = 'it']) : super(locale);
 
   @override
+  String get email => 'Email';
+
+  @override
+  String get description => 'Descrizione';
+
+  @override
   String accessGrantedTo(Object email) {
     return 'Accesso concesso a $email';
   }
@@ -158,18 +164,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get closeSidebar => 'Chiudi barra laterale';
 
   @override
-  String get clubDescription => 'Descrizione (opzionale)';
-
-  @override
-  String get clubDescriptionHint => 'Breve descrizione del tuo club';
-
-  @override
-  String get clubName => 'Nome club';
-
-  @override
-  String get clubSyncAvailable => 'ClubSync disponibile';
-
-  @override
   String get composeTweet => 'Componi tweet';
 
   @override
@@ -191,7 +185,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get convertToCloud => 'Converti in database cloud';
 
   @override
-  String get corners => 'Calci d\'angolo';
+  String get corners => 'Calci d\'Angolo';
 
   @override
   String couldNotOpenUrl(Object url) {
@@ -205,13 +199,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get createAnyway => 'Crea comunque';
 
   @override
-  String get createClub => 'Crea club';
-
-  @override
   String get createNewCloudDatabase => 'Crea nuovo database cloud';
-
-  @override
-  String get createNewClub => 'Crea nuovo club';
 
   @override
   String get createNewDatabase => 'Crea nuovo database';
@@ -294,9 +282,6 @@ class AppLocalizationsIt extends AppLocalizations {
   String get deleteHighlightTitle => 'Elimina highlight';
 
   @override
-  String get description => 'Descrizione';
-
-  @override
   String get displayOrder => 'Ordine di visualizzazione';
 
   @override
@@ -330,9 +315,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get editProfile => 'Modifica profilo';
-
-  @override
-  String get email => 'Email';
 
   @override
   String get endGame => 'Termina partita';
@@ -611,10 +593,10 @@ class AppLocalizationsIt extends AppLocalizations {
   String get hintVideoUrl => 'https://...';
 
   @override
-  String get history => 'Cronologia';
+  String get history => 'Analitica';
 
   @override
-  String get historyVersus => 'Storico contro';
+  String get historyVersus => 'Analitica';
 
   @override
   String get home => 'CASA';
@@ -788,9 +770,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get noCloudDatabasesFound => 'Nessun database cloud trovato';
-
-  @override
-  String get noClubDatabasesFound => 'Nessun database cloud trovato';
 
   @override
   String get noData => 'Nessun dato';
@@ -984,7 +963,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get records => 'Record';
 
   @override
-  String get redCards => 'Cartellini rossi';
+  String get redCards => 'Cartellini Rossi';
 
   @override
   String get remindMeLater => 'Ricordamelo più tardi';
@@ -994,9 +973,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get removeButton => 'Rimuovi';
-
-  @override
-  String get removeFromClub => 'Rimuovi dal club';
 
   @override
   String get removeImage => 'Rimuovi immagine';
@@ -1041,9 +1017,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get selectACloudDatabase => 'Seleziona un database cloud';
-
-  @override
-  String get selectAClub => 'Seleziona un club';
 
   @override
   String get selectADatabase => 'Seleziona un database';
@@ -1168,6 +1141,19 @@ class AppLocalizationsIt extends AppLocalizations {
   String get teamStandings => 'Classifica squadre';
 
   @override
+  String get teamSummary => 'Informazioni sulla squadra';
+
+  @override
+  String get editTeamSummary => 'Modifica riepilogo squadra';
+
+  @override
+  String get teamSummaryHint =>
+      'Inserisci una breve descrizione della tua squadra...';
+
+  @override
+  String get teamSummarySaved => 'Riepilogo squadra salvato con successo';
+
+  @override
   String get teamSync => 'TeamSync';
 
   @override
@@ -1254,6 +1240,27 @@ class AppLocalizationsIt extends AppLocalizations {
   String get uploadImage => 'Carica immagine';
 
   @override
+  String get uploadingImage => 'Caricamento immagine...';
+
+  @override
+  String get addLogo => 'Aggiungi logo';
+
+  @override
+  String get changeLogo => 'Cambia logo';
+
+  @override
+  String get removeLogo => 'Rimuovi logo';
+
+  @override
+  String get confirmRemoveLogo => 'Sei sicuro di voler rimuovere questo logo?';
+
+  @override
+  String get logoUpdated => 'Logo aggiornato con successo';
+
+  @override
+  String get logoRemoved => 'Logo rimosso con successo';
+
+  @override
   String get useDeviceLanguage => 'Usa lingua del dispositivo';
 
   @override
@@ -1281,7 +1288,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get year => 'Anno';
 
   @override
-  String get yellowCards => 'Cartellini gialli';
+  String get yellowCards => 'Cartellini Gialli';
 
   @override
   String get noGamesYet => 'Nessuna partita ancora';
@@ -1384,7 +1391,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get gamesPlural => 'partite';
 
   @override
-  String gamesPlayed(int count) {
+  String gamesPlayed(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
@@ -1408,4 +1415,185 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get seasonNameUpdated => 'Nome della stagione aggiornato con successo';
+
+  @override
+  String get analytics => 'Analitica';
+
+  @override
+  String get avgGoalsFor => 'Media Gol Fatti';
+
+  @override
+  String get avgGoalsAgainst => 'Media Gol Subiti';
+
+  @override
+  String get biggestWin => 'Vittoria Più Grande';
+
+  @override
+  String get biggestLoss => 'Sconfitta Più Grande';
+
+  @override
+  String get currentStreak => 'Serie Attuale';
+
+  @override
+  String get longestWinStreak => 'Serie di Vittorie Più Lunga';
+
+  @override
+  String get recentForm => 'Forma Recente (Ultime 5)';
+
+  @override
+  String get cleanSheets => 'Porta Inviolata';
+
+  @override
+  String get goalDifferential => 'Differenza Reti';
+
+  @override
+  String get homeRecord => 'Record in Casa';
+
+  @override
+  String get awayRecord => 'Record in Trasferta';
+
+  @override
+  String get pointsPerGame => 'Punti per Partita';
+
+  @override
+  String get shootingAccuracy => 'Precisione di Tiro';
+
+  @override
+  String get comebackWins => 'Vittorie in Rimonta';
+
+  @override
+  String get lateGoals => 'Gol Tardivi (80+)';
+
+  @override
+  String get cardsPerGame => 'Cartellini per Partita';
+
+  @override
+  String get statistics => 'Statistiche';
+
+  @override
+  String get scoringEvents => 'Eventi di Gol';
+
+  @override
+  String get noScoringEventsYet => 'Nessun evento di gol ancora';
+
+  @override
+  String get gameStatistics => 'Statistiche della Partita';
+
+  @override
+  String get shotsOnTarget => 'Tiri in Porta';
+
+  @override
+  String get goalAnalytics => 'Analisi Gol';
+
+  @override
+  String get totalGoalsScored => 'Totale Gol Segnati';
+
+  @override
+  String get totalGoalsConceded => 'Totale Gol Subiti';
+
+  @override
+  String get avgGoalsPerGame => 'Media Gol Per Partita';
+
+  @override
+  String get streaksRecords => 'Serie e Record';
+
+  @override
+  String get longestUnbeatenStreak => 'Più Lunga Serie Imbattuto';
+
+  @override
+  String get mostGoalsInGame => 'Più Gol in una Partita';
+
+  @override
+  String get biggestVictory => 'Vittoria Più Grande';
+
+  @override
+  String get homeAwayAnalysis => 'Casa vs Trasferta';
+
+  @override
+  String get homeWinPercentage => '% Vittorie Casa';
+
+  @override
+  String get awayWinPercentage => '% Vittorie Trasferta';
+
+  @override
+  String get defensiveStats => 'Statistiche Difensive';
+
+  @override
+  String get cleanSheetPercentage => '% Porta Inviolata';
+
+  @override
+  String get avgGoalsConceded => 'Media Gol Subiti';
+
+  @override
+  String get shutoutsRecorded => 'Porte Inviolate Registrate';
+
+  @override
+  String get allTime => 'Tutti i Tempi';
+
+  @override
+  String get currentSeason => 'Stagione Corrente';
+
+  @override
+  String get lastSeason => 'Ultima Stagione';
+
+  @override
+  String get last3Years => 'Ultime 3 Stagioni';
+
+  @override
+  String get last5Years => 'Ultime 5 Stagioni';
+
+  @override
+  String get last10Years => 'Ultime 10 Stagioni';
+
+  @override
+  String get overallStatistics => 'Statistiche Generali';
+
+  @override
+  String get recordSummary => 'Riepilogo Record';
+
+  @override
+  String get totalGames => 'Totale Partite';
+
+  @override
+  String get wins => 'Vittorie';
+
+  @override
+  String get losses => 'Sconfitte';
+
+  @override
+  String get ties => 'Pareggi';
+
+  @override
+  String get winPercentage => '% Vittorie';
+
+  @override
+  String get playerProfileQRCode => 'Codice QR del Profilo Giocatore';
+
+  @override
+  String get scanQRCodeToViewProfile =>
+      'Scansiona il codice QR per visualizzare il profilo di questo giocatore';
+
+  @override
+  String get tapToEnlarge => 'Tocca per ingrandire';
+
+  @override
+  String playerProfileLink(Object playerName) {
+    return 'Profilo Giocatore: $playerName';
+  }
+
+  @override
+  String get errorSharingLink => 'Errore nella condivisione del link';
+
+  @override
+  String get share => 'Condividi';
+
+  @override
+  String get sending => 'Sending...';
+
+  @override
+  String get twitterNotConfigured =>
+      'Twitter is not configured. Please configure Twitter in Settings.';
+
+  @override
+  String get opponents => 'Avversari';
 }

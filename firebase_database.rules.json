@@ -4,7 +4,9 @@
       "$ownerId": {
         ".read": "$ownerId === auth.uid",
         ".write": "$ownerId === auth.uid",
-        ".indexOn": ["email"]
+        ".indexOn": [
+          "email"
+        ]
       }
     },
     "user_database_access": {
@@ -18,7 +20,9 @@
         ".read": "auth != null",
         ".write": "$userId === auth.uid"
       },
-      ".indexOn": ["email"]
+      ".indexOn": [
+        "email"
+      ]
     },
     "subscriptionIds": {
       "$uid": {
@@ -26,19 +30,42 @@
           ".read": "auth != null && auth.uid == $uid",
           "$db": {
             "Teams": {
-              ".indexOn": ["id"]
+              ".indexOn": [
+                "id"
+              ]
             },
             "Players": {
-              ".indexOn": ["id", "teamId", "seasonId"]
+              ".indexOn": [
+                "id",
+                "teamId",
+                "seasonId",
+                "teamId_seasonId",
+                "id_seasonId"
+              ]
             },
             "Games": {
-              ".indexOn": ["id", "seasonId", "homeTeamId", "awayTeamId"]
+              ".indexOn": [
+                "id",
+                "seasonId",
+                "homeTeamId",
+                "awayTeamId"
+              ]
             },
             "Events": {
-              ".indexOn": ["id", "gameId", "teamId", "seasonId"]
+              ".indexOn": [
+                "id",
+                "gameId",
+                "teamId",
+                "seasonId",
+                "teamId_seasonId",
+                "playerId"
+              ]
             },
             "Seasons": {
-              ".indexOn": ["id", "teamId"]
+              ".indexOn": [
+                "id",
+                "teamId"
+              ]
             },
             "_backups": {
               "$backup_ts": {
@@ -52,47 +79,12 @@
         }
       }
     },
-
     "shared_databases": {
       ".read": true,
       ".write": "auth != null",
       "$publicId": {
         ".validate": "newData.hasChildren(['databasePath']) && newData.child('databasePath').isString()"
       }
-    },
-
-    "Clubs": {
-      ".read": true,
-      ".write": "auth != null && auth.token.email == 'ttarbox0603@gmail.com'",
-      ".indexOn": ["id"],
-      "$clubId": {
-        ".validate": "newData.hasChildren(['id', 'name', 'createdAt'])"
-      }
-    },
-    "ClubTeams": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "id"]
-    },
-    "ClubSeasons": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "teamId"]
-    },
-    "ClubGames": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "seasonId"]
-    },
-    "ClubPlayers": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "teamId"]
-    },
-    "ClubEvents": {
-      ".read": true,
-      ".write": "auth != null",
-      ".indexOn": ["clubId", "gameId"]
     }
   }
 }

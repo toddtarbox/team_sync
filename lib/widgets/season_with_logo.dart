@@ -75,6 +75,40 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Season name header with team logo - MOVED TO TOP
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.season.team.logoUrl != null &&
+                  widget.season.team.logoUrl!.isNotEmpty) ...[
+                ResponsiveAvatar(
+                  size: 20,
+                  imageUrl: widget.season.team.logoUrl,
+                  initials: widget.season.team.fullName[0],
+                ),
+                const SizedBox(width: 10),
+              ],
+              Text(
+                widget.season.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              // Add image button if no logo exists (mobile only)
+              if (!kIsWeb && (logoUrl == null || logoUrl.isEmpty)) ...[
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.add_photo_alternate, size: 20),
+                  onPressed: _pickSeasonPhoto,
+                  tooltip: 'Add season image',
+                ),
+              ],
+            ],
+          ),
+        ),
         // Season image banner (if available)
         if (logoUrl != null && logoUrl.isNotEmpty)
           GestureDetector(
@@ -88,31 +122,23 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
             },
             child: Container(
               height: 200,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(logoUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
+              color: Colors.transparent,
               child: Stack(
                 children: [
-                  // Gradient overlay at bottom for better text readability
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 80,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                        ),
-                      ),
+                  // Image with contain fit
+                  Positioned.fill(
+                    child: Image.network(
+                      logoUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   // Double-tap hint for mobile (only on mobile)
@@ -153,40 +179,6 @@ class _SeasonWithLogoState extends State<SeasonWithLogo> {
               ),
             ),
           ),
-        // Season name header with team logo
-        Container(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (widget.season.team.logoUrl != null &&
-                  widget.season.team.logoUrl!.isNotEmpty) ...[
-                ResponsiveAvatar(
-                  size: 20,
-                  imageUrl: widget.season.team.logoUrl,
-                  initials: widget.season.team.fullName[0],
-                ),
-                const SizedBox(width: 10),
-              ],
-              Text(
-                widget.season.name,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              // Add image button if no logo exists (mobile only)
-              if (!kIsWeb && (logoUrl == null || logoUrl.isEmpty)) ...[
-                const SizedBox(width: 10),
-                IconButton(
-                  icon: const Icon(Icons.add_photo_alternate, size: 20),
-                  onPressed: _pickSeasonPhoto,
-                  tooltip: 'Add season image',
-                ),
-              ],
-            ],
-          ),
-        ),
       ],
     );
   }

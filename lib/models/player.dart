@@ -1,5 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:team_sync/services/database_service.dart';
 
 class Player {
@@ -11,10 +11,51 @@ class Player {
   int number;
   String? profileImage;
   String? actionPhoto; // Action photo for baseball-style player cards
+  String? headshot; // Headshot photo for stats and lineups
   String? editPin; // 4-digit PIN for player self-editing on web
 
   String get displayName {
     return '$firstName $lastName';
+  }
+
+  String? get _headshot => (headshot?.isEmpty ?? true) ? null : headshot;
+  String? get _profileImage =>
+      (profileImage?.isEmpty ?? true) ? null : profileImage;
+  String? get _actionPhoto =>
+      (actionPhoto?.isEmpty ?? true) ? null : actionPhoto;
+
+  /// Returns the best available image URL for displaying in stats and lineups
+  /// Priority: headshot > profileImage > actionPhoto
+  String? get displayImageForStats {
+    return _headshot ?? _profileImage ?? _actionPhoto;
+  }
+
+  /// Returns the best available image URL for general profile display
+  /// Priority: profileImage > headshot > actionPhoto
+  String? get displayImageForProfile {
+    return _profileImage ?? _headshot ?? _actionPhoto;
+  }
+
+  /// Returns the best available image URL for player cards
+  /// Priority: actionPhoto > profileImage > headshot
+  String? get displayImageForCard {
+    return _actionPhoto ?? _profileImage ?? _headshot;
+  }
+
+  /// Returns the best available image URL with custom priority
+  /// Use this when you want to specify exactly which image to prioritize
+  String? getDisplayImage({
+    bool preferHeadshot = false,
+    bool preferActionPhoto = false,
+  }) {
+    if (preferHeadshot) {
+      return _headshot ?? _profileImage ?? _actionPhoto;
+    } else if (preferActionPhoto) {
+      return _actionPhoto ?? _profileImage ?? _headshot;
+    } else {
+      // Default: prefer profile image
+      return _profileImage ?? _headshot ?? _actionPhoto;
+    }
   }
 
   Player(
@@ -26,9 +67,10 @@ class Player {
       required this.number,
       this.profileImage,
       this.actionPhoto,
+      this.headshot,
       this.editPin});
 
-  static initial({required int teamId, required int seasonId}) {
+  static Player initial({required int teamId, required int seasonId}) {
     return Player(
         id: -1,
         teamId: teamId,
@@ -39,17 +81,36 @@ class Player {
   }
 
   factory Player.fromMap(Map<String, dynamic> map) {
+    // Add null safety checks for required integer fields
+    final id = map['id'];
+    final teamId = map['teamId'];
+    final seasonId = map['seasonId'];
+    final number = map['number'];
+
+    if (id == null) {
+      throw Exception('Player map missing required field: id');
+    }
+    if (teamId == null) {
+      throw Exception('Player map missing required field: teamId');
+    }
+    if (seasonId == null) {
+      throw Exception('Player map missing required field: seasonId');
+    }
+
     return Player(
-        id: map['id'],
-        teamId: map['teamId'],
-        seasonId: map['seasonId'],
-        firstName: map['firstName'],
-        lastName: map['lastName'],
-        number: map['number'],
+        id: id is int ? id : int.parse(id.toString()),
+        teamId: teamId is int ? teamId : int.parse(teamId.toString()),
+        seasonId: seasonId is int ? seasonId : int.parse(seasonId.toString()),
+        firstName: map['firstName'] ?? '',
+        lastName: map['lastName'] ?? '',
+        number: number != null
+            ? (number is int ? number : int.parse(number.toString()))
+            : 0,
         profileImage: map['profileImage'],
         actionPhoto: map['actionPhoto'],
+        headshot: map['headshot'],
         editPin:
-            null); // Never load PIN from database - validation is server-side only
+            map['editPin']); // Load PIN from database so coaches can see it
   }
 
   static Future<Player?> fromId(int id) async {
@@ -63,24 +124,21 @@ class Player {
           number: -1);
     }
 
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'id', equalTo: id);
-    if (results.isNotEmpty) {
-      return Player.fromMap(results.first);
-    } else {
+    try {
+      final results = await DatabaseService.instance
+          .query('Players', orderByChild: 'id', equalTo: id);
+      if (results.isNotEmpty) {
+        // Parse all and sort by seasonId to get the latest
+        final players = results.map((m) => Player.fromMap(m)).toList();
+        players.sort((a, b) => b.seasonId.compareTo(a.seasonId));
+        return players.first;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error loading player with id=$id: $e');
       return null;
     }
-  }
-
-  static Future<Map<int, Player>> fromIds(List<int> ids) async {
-    if (ids.isEmpty) {
-      return {};
-    }
-    // 'IN' not supported by RTDB native queries; fallback to client-side filter.
-    final results = await DatabaseService.instance.query('Players');
-    final players =
-        results.map((p) => Player.fromMap(p)).toList(growable: false);
-    return {for (var p in players) p.id: p};
   }
 
   static Future<Map<int, Player>> allFromTeamId(int teamId) async {
@@ -93,27 +151,54 @@ class Player {
 
   static Future<List<Player>> listFromTeamIdSeasonId(
       int teamId, int seasonId) async {
-    // Use native RTDB query for teamId then filter seasonId locally to reduce bandwidth
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'teamId', equalTo: teamId);
-    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
+    // Optimized query using compound key
+    final results = await DatabaseService.instance.query(
+      'Players',
+      orderByChild: 'teamId_seasonId',
+      equalTo: '${teamId}_$seasonId',
+    );
 
-    final players =
-        filtered.map((p) => Player.fromMap(p)).toList(growable: false);
+    // Map with error handling to skip corrupt records
+    final players = <Player>[];
+    for (var playerMap in results) {
+      try {
+        players.add(Player.fromMap(playerMap));
+      } catch (e) {
+        debugPrint('Skipping corrupt player record in season $seasonId: $e');
+        // Continue to next player instead of crashing
+      }
+    }
+
     players.sort((a, b) => a.displayName.compareTo(b.displayName));
-
     return players;
   }
 
   static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
-    final results = await DatabaseService.instance
-        .query('Players', orderByChild: 'id', equalTo: id);
-    final filtered = results.where((r) => r['seasonId'] == seasonId).toList();
-    if (filtered.isEmpty) {
+    try {
+      final results = await DatabaseService.instance.query('Players',
+          orderByChild: 'id_seasonId', equalTo: '${id}_$seasonId');
+
+      if (results.isEmpty) {
+        // Fallback: Query by ID and filter by seasonId
+        // This handles cases where data hasn't been migrated to include id_seasonId
+        final idResults = await DatabaseService.instance
+            .query('Players', orderByChild: 'id', equalTo: id);
+
+        final match = idResults.firstWhere((p) => p['seasonId'] == seasonId,
+            orElse: () => <String, dynamic>{});
+
+        if (match.isNotEmpty) {
+          return Player.fromMap(Map<String, dynamic>.from(match));
+        } else {
+          return null;
+        }
+      }
+
+      return Player.fromMap(results.first);
+    } catch (e) {
+      debugPrint('Error loading player with id=$id, seasonId=$seasonId: $e');
       return null;
     }
-
-    return Player.fromMap(filtered.first);
   }
 
   @override
@@ -128,16 +213,22 @@ class Player {
     return false;
   }
 
+  String get teamIdSeasonId => '${teamId}_$seasonId';
+  String get idSeasonId => '${id}_$seasonId';
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'teamId': teamId,
       'seasonId': seasonId,
+      'teamId_seasonId': teamIdSeasonId,
+      'id_seasonId': idSeasonId,
       'firstName': firstName,
       'lastName': lastName,
       'number': number,
       'profileImage': profileImage,
       'actionPhoto': actionPhoto,
+      'headshot': headshot,
       'editPin': editPin,
     };
   }
@@ -189,6 +280,7 @@ class Player {
         'updates': {
           'profileImage': profileImage,
           'actionPhoto': actionPhoto,
+          'headshot': headshot,
           'firstName': firstName,
           'lastName': lastName,
           'number': number,
@@ -241,16 +333,18 @@ class Player {
     }
   }
 
-  /// Find the latest available profile or action photo for this player across all seasons
-  /// Returns a map with 'profileImage' and 'actionPhoto' keys
+  /// Find the latest available images for this player across all seasons
+  /// Returns a map with 'profileImage', 'actionPhoto', and 'headshot' keys
   /// Uses images from most recent season where they exist
   Future<Map<String, String?>> findLatestAvailableImages() async {
-    // If current player has images, return them
-    if ((profileImage != null && profileImage!.isNotEmpty) ||
-        (actionPhoto != null && actionPhoto!.isNotEmpty)) {
+    // If current player has all images, return them
+    if ((profileImage != null && profileImage!.isNotEmpty) &&
+        (actionPhoto != null && actionPhoto!.isNotEmpty) &&
+        (headshot != null && headshot!.isNotEmpty)) {
       return {
         'profileImage': profileImage,
         'actionPhoto': actionPhoto,
+        'headshot': headshot,
       };
     }
 
@@ -268,8 +362,9 @@ class Player {
     allPlayerInstances.sort((a, b) => b.seasonId.compareTo(a.seasonId));
 
     // Find the most recent images
-    String? latestProfileImage;
-    String? latestActionPhoto;
+    String? latestProfileImage = profileImage;
+    String? latestActionPhoto = actionPhoto;
+    String? latestHeadshot = headshot;
 
     for (final playerInstance in allPlayerInstances) {
       // Get profile image from most recent season that has it
@@ -286,8 +381,17 @@ class Player {
         latestActionPhoto = playerInstance.actionPhoto;
       }
 
-      // If we found both, we can stop
-      if (latestProfileImage != null && latestActionPhoto != null) {
+      // Get headshot from most recent season that has it
+      if (latestHeadshot == null &&
+          playerInstance.headshot != null &&
+          playerInstance.headshot!.isNotEmpty) {
+        latestHeadshot = playerInstance.headshot;
+      }
+
+      // If we found all three, we can stop
+      if (latestProfileImage != null &&
+          latestActionPhoto != null &&
+          latestHeadshot != null) {
         break;
       }
     }
@@ -295,6 +399,7 @@ class Player {
     return {
       'profileImage': latestProfileImage,
       'actionPhoto': latestActionPhoto,
+      'headshot': latestHeadshot,
     };
   }
 }

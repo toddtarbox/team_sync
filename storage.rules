@@ -33,10 +33,25 @@ service firebase.storage {
       allow read, write, delete: if true;
     }
 
+    // Player headshots (for stats and lineups)
+    // Path: player_headshots/{timestamp}
+    match /player_headshots/{imageId} {
+      allow read, write, delete: if true;
+    }
+
     // Team logos/images
     // Path: team_images/{imageId}
     match /team_images/{imageId} {
       allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImage();
+      allow delete: if isAuthenticated();
+    }
+
+    // Team logos and organization logos (new path structure)
+    // Path: teams/{teamId}/logo_{timestamp}.jpg
+    // Path: teams/{teamId}/organization_logo_{timestamp}.jpg
+    match /teams/{teamId}/{imageFile} {
+      allow read: if true; // Anyone can view team logos
       allow write: if isAuthenticated() && isValidImage();
       allow delete: if isAuthenticated();
     }

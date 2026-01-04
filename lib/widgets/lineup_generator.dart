@@ -79,10 +79,9 @@ class _LineupProTeaserDialog extends StatelessWidget {
   final List<Player> players;
 
   const _LineupProTeaserDialog({
-    Key? key,
     required this.team,
     required this.players,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -305,11 +304,11 @@ class LineupDialog extends StatefulWidget {
   final Game? game;
 
   const LineupDialog({
-    Key? key,
+    super.key,
     required this.team,
     required this.players,
     this.game,
-  }) : super(key: key);
+  });
 
   @override
   State<LineupDialog> createState() => _LineupDialogState();
@@ -1028,7 +1027,7 @@ class _LineupDialogState extends State<LineupDialog> {
                             ),
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (player) {
                       setState(() {
@@ -1215,12 +1214,11 @@ class _LineupPreviewDialog extends StatefulWidget {
   final LineupStyle style;
 
   const _LineupPreviewDialog({
-    Key? key,
     required this.lineupWidget,
     required this.team,
     required this.formation,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   State<_LineupPreviewDialog> createState() => _LineupPreviewDialogState();
@@ -1607,62 +1605,23 @@ class _LineupPreviewDialogState extends State<_LineupPreviewDialog> {
       // Generate initial tweet text
       final tweetText = _generateTweetText();
 
-      // Show tweet preview dialog with lineup image (don't close lineup preview yet)
+      // Show tweet preview dialog - it handles initialization, sending, and feedback internally
       if (!mounted) return;
 
-      final finalTweetText = await TweetPreviewDialog.show(
+      final success = await TweetPreviewDialog.show(
         context,
         initialText: tweetText,
+        teamId: widget.team.id,
         team: widget.team,
         imageFile: file,
         eventContext: 'Starting XI',
       );
 
-      // If user confirmed, send the tweet
-      if (finalTweetText != null && finalTweetText.isNotEmpty) {
-        // Initialize Twitter with team credentials
-        bool initialized = await TwitterService.instance
-            .initializeWithTeamCredentials(widget.team.id);
-
-        if (!initialized) {
-          // Try local credentials as fallback
-          initialized =
-              await TwitterService.instance.initializeWithLocalCredentials();
-        }
-
-        if (!initialized) {
-          throw Exception('Twitter not configured');
-        }
-
-        // Send the tweet
-        final success = await TwitterService.instance.sendTweet(finalTweetText);
-
-        if (mounted) {
-          // Close lineup preview dialog on success
-          Navigator.of(context).pop();
-
-          if (success) {
-            final loc = AppLocalizations.of(context)!;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.check_circle,
-                        color: Colors.white, size: 20),
-                    const SizedBox(width: 12),
-                    Text(loc.lineupTweetedSuccessfully),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF1DA1F2),
-                duration: const Duration(seconds: 3),
-              ),
-            );
-          } else {
-            throw Exception('Failed to send tweet');
-          }
-        }
+      // If tweet was sent successfully, close the lineup preview
+      if (success && mounted) {
+        Navigator.of(context).pop();
       }
-      // If user cancelled (finalTweetText is null), lineup preview stays open
+      // If user cancelled or failed, lineup preview stays open
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1703,7 +1662,7 @@ class LineupWidget extends StatelessWidget {
   final LineupStyle style;
 
   const LineupWidget({
-    Key? key,
+    super.key,
     required this.team,
     required this.players,
     required this.formation,
@@ -1712,7 +1671,7 @@ class LineupWidget extends StatelessWidget {
     this.matchDateTime,
     this.motivationalMessage,
     this.style = LineupStyle.classic,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1921,35 +1880,37 @@ class LineupWidget extends StatelessWidget {
   }
 
   Widget _buildPlayerCard(Player player) {
-    final hasProfileImage =
-        player.profileImage != null && player.profileImage!.isNotEmpty;
+    // Use displayImageForStats helper which prioritizes:
+    // headshot > profileImage > actionPhoto
+    final imageUrl = player.displayImageForStats;
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
     return Column(
       children: [
-        Container(
-          width: 120, // Increased from 80
-          height: 120, // Increased from 80
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border:
-                Border.all(color: team.color1, width: 5), // Increased from 4
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 10, // Increased from 6
-                offset: const Offset(0, 4), // Increased from 0, 3
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Player image circle
+            Container(
+              width: 120, // Increased from 80
+              height: 120, // Increased from 80
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: team.color1, width: 5), // Increased from 4
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    blurRadius: 10, // Increased from 6
+                    offset: const Offset(0, 4), // Increased from 0, 3
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: ClipOval(
-            child: hasProfileImage
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Player profile image
-                      Image.network(
-                        player.profileImage!,
+              child: ClipOval(
+                child: hasImage
+                    ? Image.network(
+                        imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           // Fallback to number if image fails to load
@@ -1967,44 +1928,55 @@ class LineupWidget extends StatelessWidget {
                             ),
                           );
                         },
-                      ),
-                      // Jersey number badge overlay at bottom
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 4), // Increased from 2
-                          decoration: BoxDecoration(
-                            color: team.color1.withValues(alpha: 0.95),
-                          ),
-                          child: Text(
-                            player.number.toString(),
-                            style: const TextStyle(
-                              fontSize: 22, // Increased from 16
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
+                      )
+                    : Center(
+                        child: Text(
+                          player.number.toString(),
+                          style: TextStyle(
+                            fontSize: 48, // Increased from 32
+                            fontWeight: FontWeight.bold,
+                            color: team.color1,
                           ),
                         ),
                       ),
-                    ],
-                  )
-                : Center(
-                    child: Text(
-                      player.number.toString(),
-                      style: TextStyle(
-                        fontSize: 48, // Increased from 32
-                        fontWeight: FontWeight.bold,
-                        color: team.color1,
+              ),
+            ),
+            // Jersey number badge positioned below the circle
+            Positioned(
+              bottom: -10,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: team.color1,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
+                    ],
                   ),
-          ),
+                  child: Text(
+                    player.number.toString(),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12), // Increased from 8
+        const SizedBox(height: 16), // Increased to accommodate badge below
         Container(
           padding: const EdgeInsets.symmetric(
               horizontal: 16, vertical: 8), // Increased from 12, 6

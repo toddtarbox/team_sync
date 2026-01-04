@@ -142,8 +142,8 @@ class Shot extends GameEvent {
 
 class Assist extends GameEvent {
   @override
-  String get imageAsset {
-    return 'assets/images/pngs/cleat.png';
+  Widget get image {
+    return const Icon(Icons.sports_soccer, size: 24, color: Colors.lightGreen);
   }
 
   @override
@@ -180,8 +180,8 @@ class Save extends GameEvent {
   }
 
   @override
-  String get imageAsset {
-    return 'assets/images/pngs/gloves.png';
+  Widget get image {
+    return const Icon(Icons.sports_handball, size: 24, color: Colors.blue);
   }
 
   Save(
@@ -256,8 +256,8 @@ class Corner extends GameEvent {
   }
 
   @override
-  String get imageAsset {
-    return 'assets/images/pngs/corner.png';
+  Widget get image {
+    return const Icon(Icons.flag, size: 24, color: Colors.purple);
   }
 
   Corner(
@@ -285,8 +285,8 @@ class Foul extends GameEvent {
   }
 
   @override
-  String get imageAsset {
-    return 'assets/images/pngs/foul.png';
+  Widget get image {
+    return const Icon(Icons.sports_kabaddi, size: 24, color: Colors.deepOrange);
   }
 
   Foul(
@@ -314,8 +314,8 @@ class Offsides extends GameEvent {
   }
 
   @override
-  String get imageAsset {
-    return 'assets/images/pngs/flag.png';
+  Widget get image {
+    return const Icon(Icons.assistant_photo, size: 24, color: Colors.brown);
   }
 
   Offsides(
@@ -372,7 +372,7 @@ class Period extends GameEvent {
 
   @override
   Widget get image {
-    return const Icon(Icons.timer, size: 48, color: Colors.grey);
+    return const Icon(Icons.schedule, size: 24, color: Colors.grey);
   }
 
   @override
@@ -432,6 +432,8 @@ class GameEvent {
   int eventData;
   String? eventUrls;
 
+  String get teamIdSeasonId => '${team.id}_$seasonId';
+
   String get display {
     return eventType;
   }
@@ -450,11 +452,16 @@ class GameEvent {
             eventData == ShotResult.goal.index);
   }
 
+  /// Helper to check if this event is a goal (either a Shot or PenaltyKick that resulted in a goal)
+  bool get isGoalEvent {
+    return (eventType == 'Shot' || eventType == 'PenaltyKick') &&
+        eventData == ShotResult.goal.index;
+  }
+
   String tweetText(Game game) {
     if (eventType == 'Period') {
       return (this as Period).display;
-    } else if ((eventType == 'Shot' || eventType == 'PenaltyKick') &&
-        eventData == ShotResult.goal.index) {
+    } else if (isGoalEvent) {
       String tweetText;
       if (player != null) {
         tweetText = '($eventMinute\') Goal by ${player!.displayName}';
@@ -543,9 +550,6 @@ class GameEvent {
     }
 
     final team = await Team.fromId(teamId);
-    if (team == null) {
-      return null;
-    }
 
     final playerId = map['playerId'] as int?;
     if (playerId == null) {
@@ -745,6 +749,33 @@ class GameEvent {
 
       // Allow garbage collection between batches
       await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    return events;
+  }
+
+  static Future<List<GameEvent>> listFromTeamIdSeasonId(
+      int teamId, int seasonId) async {
+    final results = await DatabaseService.instance.query('Events',
+        orderByChild: 'teamId_seasonId', equalTo: '${teamId}_$seasonId');
+
+    // Process events in batches to avoid OOM from too many concurrent operations
+    const batchSize = 100;
+    final events = <GameEvent>[];
+
+    for (int i = 0; i < results.length; i += batchSize) {
+      final end =
+          (i + batchSize < results.length) ? i + batchSize : results.length;
+      final batch = results.sublist(i, end);
+
+      final batchEvents = await Future.wait(batch
+          .map((g) async => await GameEvent.fromMap(g))
+          .toList(growable: false));
+
+      events.addAll(batchEvents.whereType<GameEvent>());
+
+      // Allow garbage collection between batches
+      await Future.delayed(const Duration(milliseconds: 5));
     }
 
     return events;
