@@ -9,6 +9,7 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
+import 'package:team_sync/widgets/common/hover_builder.dart';
 
 /// A common page header widget that displays team information with logo and name.
 /// Use this below your AppBar for consistent team branding across pages.
@@ -68,15 +69,22 @@ class CommonPageHeader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (team.logoUrl != null && team.logoUrl!.isNotEmpty)
-                GestureDetector(
-                  onTap: kIsWeb
-                      ? () => _showLargeLogoView(context, team.logoUrl!)
-                      : (team.isTeamAdmin(
-                              FirebaseAuth.instance.currentUser?.uid)
-                          ? () => _showLogoOptions(context,
-                              isOrganizationLogo: false)
-                          : null),
-                  child: responsiveAvatar,
+                HoverBuilder(
+                  builder: (context, isHovered) {
+                    return Transform.scale(
+                      scale: kIsWeb && isHovered ? 1.05 : 1.0,
+                      child: GestureDetector(
+                        onTap: kIsWeb
+                            ? () => _showLargeLogoView(context, team.logoUrl!)
+                            : (team.isTeamAdmin(
+                                    FirebaseAuth.instance.currentUser?.uid)
+                                ? () => _showLogoOptions(context,
+                                    isOrganizationLogo: false)
+                                : null),
+                        child: responsiveAvatar,
+                      ),
+                    );
+                  },
                 ),
               if (team.logoUrl != null && team.logoUrl!.isNotEmpty)
                 const SizedBox(width: 10),
@@ -93,16 +101,23 @@ class CommonPageHeader extends StatelessWidget {
               ),
               if (organizationAvatar != null) ...[
                 const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: kIsWeb
-                      ? () =>
-                          _showLargeLogoView(context, team.organizationLogoUrl!)
-                      : (team.isTeamAdmin(
-                              FirebaseAuth.instance.currentUser?.uid)
-                          ? () => _showLogoOptions(context,
-                              isOrganizationLogo: true)
-                          : null),
-                  child: organizationAvatar,
+                HoverBuilder(
+                  builder: (context, isHovered) {
+                    return Transform.scale(
+                      scale: kIsWeb && isHovered ? 1.05 : 1.0,
+                      child: GestureDetector(
+                        onTap: kIsWeb
+                            ? () => _showLargeLogoView(
+                                context, team.organizationLogoUrl!)
+                            : (team.isTeamAdmin(
+                                    FirebaseAuth.instance.currentUser?.uid)
+                                ? () => _showLogoOptions(context,
+                                    isOrganizationLogo: true)
+                                : null),
+                        child: organizationAvatar,
+                      ),
+                    );
+                  },
                 ),
               ] else if (!kIsWeb &&
                   team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid)) ...[

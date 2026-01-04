@@ -40,9 +40,27 @@ class _GamePageState extends State<GamePage> {
     _game = widget.game;
 
     if (widget.season == null) {
+      debugPrint(
+          'GamePage: No season provided, loading for game ${widget.game.id}');
       _seasonFuture = _loadSeasonForGame();
     } else {
-      _seasonFuture = Future.value(widget.season);
+      debugPrint(
+          'GamePage: Season provided: ${widget.season!.name} (ID: ${widget.season!.id})');
+      _seasonFuture = _ensureSeasonLoaded(widget.season!);
+    }
+  }
+
+  Future<Season> _ensureSeasonLoaded(Season season) async {
+    try {
+      // Check if team is initialized to verify the season object is fully loaded
+      // ignore: unnecessary_statements
+      season.team;
+      return season;
+    } catch (e) {
+      debugPrint(
+          'GamePage: Season passed via extra was not fully loaded. Loading now... Error: $e');
+      await season.load();
+      return season;
     }
   }
 
@@ -50,15 +68,19 @@ class _GamePageState extends State<GamePage> {
     try {
       // Use databaseId from widget (passed by router) instead of parsing URL
       final dbId = widget.databaseId;
+      debugPrint('GamePage: _loadSeasonForGame started. dbId: $dbId');
 
       if (dbId != null && dbId.isNotEmpty) {
         // Check if database needs to be opened
         if (DatabaseService.instance.publicShareId != dbId) {
+          debugPrint(
+              'GamePage: Opening database inside GamePage: $dbId (Current: ${DatabaseService.instance.publicShareId})');
           // Add timeout to prevent infinite waiting
           final opened =
               await DatabaseService.instance.openFromId(dbId).timeout(
             const Duration(seconds: 30),
             onTimeout: () {
+              debugPrint('GamePage: Database open timed out');
               return false;
             },
           );
@@ -70,6 +92,8 @@ class _GamePageState extends State<GamePage> {
 
           // Give database a moment to fully initialize
           await Future.delayed(const Duration(milliseconds: 500));
+        } else {
+          debugPrint('GamePage: Database already open for $dbId');
         }
       } else {
         throw Exception(
@@ -77,14 +101,18 @@ class _GamePageState extends State<GamePage> {
       }
 
       // Now query for the season with timeout
+      debugPrint('GamePage: Querying for season ${widget.game.seasonId}');
       final results = await DatabaseService.instance
           .query('Seasons', orderByChild: 'id', equalTo: widget.game.seasonId)
           .timeout(
         const Duration(seconds: 10),
         onTimeout: () {
+          debugPrint('GamePage: Season query timed out');
           return [];
         },
       );
+
+      debugPrint('GamePage: Season query results count: ${results.length}');
 
       if (results.isEmpty) {
         throw Exception(
@@ -92,18 +120,24 @@ class _GamePageState extends State<GamePage> {
       }
 
       final season = Season.fromMap(results.first);
+      debugPrint('GamePage: Season map parsed. Loading details...');
 
       // Load season data with timeout
       await season.load().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
+          debugPrint('GamePage: Season data loading timed out');
           throw Exception('Season loading timed out');
         },
       );
 
+      debugPrint(
+          'GamePage: Season fully loaded. Players: ${season.players.length}');
+
       _loadedSeason = season;
       return season;
     } catch (e) {
+      debugPrint('GamePage: Error loading season: $e');
       rethrow; // Let FutureBuilder handle the error
     }
   }

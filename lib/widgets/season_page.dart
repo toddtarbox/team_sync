@@ -907,6 +907,14 @@ class _SeasonPageState extends State<SeasonPage> {
     final databaseId = DatabaseService.instance.publicShareId;
     if (databaseId == null) return;
 
+    try {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season loaded? Team: ${season.team.fullName}');
+    } catch (e) {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season NOT loaded! Error: $e');
+    }
+
     // Use NavigationHelper for platform-appropriate navigation
     NavigationHelper.navigateTo(
       context,

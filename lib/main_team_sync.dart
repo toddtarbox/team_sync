@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_framework/responsive_framework.dart';
+import 'package:flutter_web_plugins/url_strategy.dart'; // Import for PathUrlStrategy
 import 'package:team_sync/app_config.dart';
 import 'package:team_sync/firebase_options.dart';
 import 'package:team_sync/router.dart';
@@ -18,6 +19,9 @@ import 'l10n/app_localizations.dart';
 import 'main.dart' show ThemeNotifier;
 
 void main() async {
+  // Use PathUrlStrategy to remove the hash (#) from the URL
+  usePathUrlStrategy();
+
   // Initialize as TeamSync (single-team app)
   AppConfig.initialize(AppConfig.teamSync);
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
@@ -29,14 +30,14 @@ final router = GoRouter(
     // ==================== TEAM ROUTES ====================
 
     // Root - Team home (default team or selection)
-    GoRoute(
+    TransitionGoRoute(
       path: '/',
       name: 'home',
       builder: (context, state) => const TeamHomePage(),
     ),
 
     // Specific team by database ID (shared public ID)
-    GoRoute(
+    TransitionGoRoute(
       path: '/team/:databaseId',
       name: 'team',
       builder: (context, state) {
@@ -47,12 +48,16 @@ final router = GoRouter(
         // ==================== SEASON ROUTES (nested under team) ====================
 
         // Season page
-        GoRoute(
+        TransitionGoRoute(
           path: 'season/:seasonId',
           name: 'season',
           builder: (context, state) {
             final seasonId = int.parse(state.pathParameters['seasonId']!);
-            final season = state.extra as Season?;
+            // Check if extra is explicitly a Season object.
+            // When navigating to child routes (like game) with a different extra object (like a Map),
+            // this check prevents a TypeError.
+            final season =
+                (state.extra is Season) ? state.extra as Season : null;
 
             if (season != null) {
               return SeasonPage(season: season);
@@ -92,7 +97,7 @@ final router = GoRouter(
           },
           routes: [
             // Season stats page
-            GoRoute(
+            TransitionGoRoute(
               path: 'stats',
               name: 'season-stats',
               builder: (context, state) {
@@ -138,7 +143,7 @@ final router = GoRouter(
             ),
 
             // Players page
-            GoRoute(
+            TransitionGoRoute(
               path: 'players',
               name: 'season-players',
               builder: (context, state) {
@@ -183,7 +188,7 @@ final router = GoRouter(
               },
               routes: [
                 // Player profile page
-                GoRoute(
+                TransitionGoRoute(
                   path: ':playerId',
                   name: 'player-profile',
                   builder: (context, state) {
@@ -271,16 +276,39 @@ final router = GoRouter(
             ),
 
             // Game page
-            GoRoute(
+            TransitionGoRoute(
               path: 'game/:gameId',
               name: 'game',
               builder: (context, state) {
                 final gameId = int.parse(state.pathParameters['gameId']!);
                 final extras = state.extra as Map<String, dynamic>?;
-                final season = extras?['season'] as Season?;
-                final game = extras?['game'] as Game?;
 
-                // If we have both season and game from navigation extras, use them
+                Season? season;
+                if (extras?['season'] is Season) {
+                  season = extras?['season'] as Season;
+                } else if (extras?['season'] is Map) {
+                  // Handle Map (e.g. JsLinkedHashMap on web)
+                  try {
+                    season = Season.fromMap(extras!['season'] as Map);
+                  } catch (e) {
+                    debugPrint('Router: Failed to parse season from map: $e');
+                  }
+                }
+
+                Game? game;
+                if (extras?['game'] is Game) {
+                  game = extras?['game'] as Game;
+                } else if (extras?['game'] is Map) {
+                  // If we receive a Map (on Web), we can't synchronously convert to Game because it requires async parsing.
+                  // So we intentionally set game to null to force the deep-link loading logic below.
+                  debugPrint(
+                      'Router: Game came as Map (Web serialization), letting GamePage load it via ID/DB');
+                  game = null;
+                  // Force season to null as well so we do a full clean load
+                  season = null;
+                }
+
+                // If we have both season and game from navigation extras (verified objects), use them
                 if (season != null && game != null) {
                   debugPrint('Router: Using season and game from extras');
                   return GamePage(season: season, game: game);
@@ -363,7 +391,7 @@ final router = GoRouter(
         // ==================== TEAM STATS ROUTES ====================
 
         // History versus page
-        GoRoute(
+        TransitionGoRoute(
           path: 'history',
           name: 'history-versus',
           builder: (context, state) {
@@ -393,7 +421,7 @@ final router = GoRouter(
         ),
 
         // Record holders page
-        GoRoute(
+        TransitionGoRoute(
           path: 'records',
           name: 'record-holders',
           builder: (context, state) {
@@ -423,7 +451,7 @@ final router = GoRouter(
         ),
 
         // Team settings page
-        GoRoute(
+        TransitionGoRoute(
           path: 'settings',
           name: 'team-settings',
           builder: (context, state) {
@@ -454,7 +482,7 @@ final router = GoRouter(
 
         // ==================== GLOBAL PLAYER ROUTE ====================
         // Player profile without requiring season in URL
-        GoRoute(
+        TransitionGoRoute(
           path: 'player/:playerId',
           name: 'player-profile-global',
           builder: (context, state) {
@@ -522,13 +550,13 @@ final router = GoRouter(
 
     // ==================== AUTH & UTILITY ROUTES ====================
 
-    GoRoute(
+    TransitionGoRoute(
       path: '/settings',
       name: 'settings',
       builder: (context, state) => SettingsPage(team: null),
     ),
 
-    GoRoute(
+    TransitionGoRoute(
       path: '/import',
       name: 'import',
       builder: (context, state) => const DataImportPage(),
@@ -538,7 +566,7 @@ final router = GoRouter(
 
     // Redirect old URL format (/:databaseId) to new format (/team/:databaseId)
     // This is placed last to act as a catch-all for old shared URLs
-    GoRoute(
+    TransitionGoRoute(
       path: '/:databaseId',
       redirect: (context, state) {
         final databaseId = state.pathParameters['databaseId'];
@@ -554,6 +582,46 @@ final router = GoRouter(
     ),
   ],
 );
+
+// Helper classes for transitions
+class TransitionGoRoute extends GoRoute {
+  TransitionGoRoute({
+    required super.path,
+    super.name,
+    Widget Function(BuildContext, GoRouterState)? builder,
+    super.routes = const <RouteBase>[],
+    super.redirect,
+  }) : super(
+          pageBuilder: builder == null
+              ? null
+              : (context, state) => _buildPageWithTransition(
+                    context: context,
+                    state: state,
+                    child: builder(context, state),
+                  ),
+        );
+}
+
+Page<dynamic> _buildPageWithTransition({
+  required BuildContext context,
+  required GoRouterState state,
+  required Widget child,
+}) {
+  if (kIsWeb) {
+    return CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 500),
+    );
+  }
+  return MaterialPage<void>(
+    key: state.pageKey,
+    child: child,
+  );
+}
 
 // Helper function to load season by ID
 Future<Season?> _loadSeasonById(int seasonId) async {

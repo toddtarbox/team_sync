@@ -43,6 +43,7 @@ import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
+import 'package:team_sync/widgets/common/hover_builder.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// TeamSync-specific home page for single-team management
@@ -585,75 +586,82 @@ class _TeamHomePageState extends State<TeamHomePage>
           ),
         )
       else
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert),
-          onSelected: (value) async {
-            switch (value) {
-              case 'records':
-                final databaseId = DatabaseService.instance.publicShareId;
-                if (databaseId != null) {
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/records',
-                      extra: _team);
-                }
-                break;
-              case 'history':
-                final databaseId = DatabaseService.instance.publicShareId;
-                if (databaseId != null) {
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/history',
-                      extra: _team);
-                }
-                break;
-              case 'settings':
-                // For settings on web, use publicShareId if available, otherwise use 'local'
-                final databaseId =
-                    DatabaseService.instance.publicShareId ?? 'local';
-                NavigationHelper.navigateTo(
-                    context, '/team/$databaseId/settings',
-                    extra: _team);
-                break;
-            }
-          },
-          itemBuilder: (BuildContext context) {
-            final loc = AppLocalizations.of(context)!;
-            return [
-              // Records option - show when team exists
-              if (_team != null)
-                PopupMenuItem<String>(
-                  value: 'records',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.leaderboard),
-                      const SizedBox(width: 12),
-                      Text(loc.records),
-                    ],
-                  ),
-                ),
-              // History option - show when team exists
-              if (_team != null)
-                PopupMenuItem<String>(
-                  value: 'history',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.analytics_outlined),
-                      const SizedBox(width: 12),
-                      Text(loc.history),
-                    ],
-                  ),
-                ),
-              // Settings option - always show
-              PopupMenuItem<String>(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    const Icon(Icons.settings),
-                    const SizedBox(width: 12),
-                    Text(loc.settings),
-                  ],
-                ),
+        HoverBuilder(
+          builder: (context, isHovered) {
+            return Transform.scale(
+              scale: kIsWeb && isHovered ? 1.1 : 1.0,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'records':
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/records',
+                            extra: _team);
+                      }
+                      break;
+                    case 'history':
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/history',
+                            extra: _team);
+                      }
+                      break;
+                    case 'settings':
+                      // For settings on web, use publicShareId if available, otherwise use 'local'
+                      final databaseId =
+                          DatabaseService.instance.publicShareId ?? 'local';
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/settings',
+                          extra: _team);
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  final loc = AppLocalizations.of(context)!;
+                  return [
+                    // Records option - show when team exists
+                    if (_team != null)
+                      PopupMenuItem<String>(
+                        value: 'records',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.leaderboard),
+                            const SizedBox(width: 12),
+                            Text(loc.records),
+                          ],
+                        ),
+                      ),
+                    // History option - show when team exists
+                    if (_team != null)
+                      PopupMenuItem<String>(
+                        value: 'history',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.analytics_outlined),
+                            const SizedBox(width: 12),
+                            Text(loc.history),
+                          ],
+                        ),
+                      ),
+                    // Settings option - always show
+                    PopupMenuItem<String>(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.settings),
+                          const SizedBox(width: 12),
+                          Text(loc.settings),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
               ),
-            ];
+            );
           },
         ),
     ];
@@ -662,14 +670,21 @@ class _TeamHomePageState extends State<TeamHomePage>
   Widget? _buildFloatingActionButton() {
     if (kIsWeb) {
       return (!_isDrawerOpen && _team != null
-          ? FloatingActionButton(
-              onPressed: () {
-                setState(() {
-                  _isDrawerOpen = true;
-                });
+          ? HoverBuilder(
+              builder: (context, isHovered) {
+                return Transform.scale(
+                  scale: isHovered && kIsWeb ? 1.1 : 1.0,
+                  child: FloatingActionButton(
+                    onPressed: () {
+                      setState(() {
+                        _isDrawerOpen = true;
+                      });
+                    },
+                    tooltip: 'Show game details',
+                    child: const Icon(Icons.event),
+                  ),
+                );
               },
-              tooltip: 'Show game details',
-              child: const Icon(Icons.event),
             )
           : null);
     }
@@ -974,38 +989,50 @@ class _TeamHomePageState extends State<TeamHomePage>
                           }
                         },
                         borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _recentGamesExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_right,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.sports_score, // Or another relevant icon
-                                size: 20,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.recentGames,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  letterSpacing: 0.5,
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _recentGamesExpanded
+                                          ? Icons.keyboard_arrow_down
+                                          : Icons.keyboard_arrow_right,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons
+                                          .sports_score, // Or another relevant icon
+                                      size: 20,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      loc.recentGames,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -1107,38 +1134,50 @@ class _TeamHomePageState extends State<TeamHomePage>
                           }
                         },
                         borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _analyticsExpanded
-                                    ? Icons.keyboard_arrow_down
-                                    : Icons.keyboard_arrow_right,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.analytics, // Or another relevant icon
-                                size: 20,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                loc.analytics, // Ensure 'analytics' key exists or use 'Analytics' string if strictly needed, but reusing loc is safer if key exists. Otherwise use 'Team Performance' or similar. Assuming loc.analytics exists or I'll use existing "Team Performance" string logic. Let's use "Team Analytics" string for now to be safe or check keys.
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                  letterSpacing: 0.5,
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _analyticsExpanded
+                                          ? Icons.keyboard_arrow_down
+                                          : Icons.keyboard_arrow_right,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Icon(
+                                      Icons
+                                          .analytics, // Or another relevant icon
+                                      size: 20,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      loc.analytics, // Ensure 'analytics' key exists or use 'Analytics' string if strictly needed, but reusing loc is safer if key exists. Otherwise use 'Team Performance' or similar. Assuming loc.analytics exists or I'll use existing "Team Performance" string logic. Let's use "Team Analytics" string for now to be safe or check keys.
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -1185,49 +1224,60 @@ class _TeamHomePageState extends State<TeamHomePage>
                           }
                         },
                         borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    _accomplishmentsExpanded
-                                        ? Icons.keyboard_arrow_down
-                                        : Icons.keyboard_arrow_right,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    loc.teamAccomplishments,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                      letterSpacing: 0.5,
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.translate(
+                              offset: isHovered && kIsWeb
+                                  ? const Offset(4, 0)
+                                  : Offset.zero,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          _accomplishmentsExpanded
+                                              ? Icons.keyboard_arrow_down
+                                              : Icons.keyboard_arrow_right,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          loc.teamAccomplishments,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                              if (!kIsWeb &&
-                                  _team?.isTeamAdmin(FirebaseAuth
-                                          .instance.currentUser?.uid) ==
-                                      true)
-                                IconButton(
-                                  icon: const Icon(Icons.add, size: 20),
-                                  onPressed: () =>
-                                      _showAddAccomplishmentDialog(),
-                                  tooltip: loc.addAccomplishment,
-                                  constraints: const BoxConstraints(),
-                                  padding: EdgeInsets.zero,
+                                    if (!kIsWeb &&
+                                        _team?.isTeamAdmin(FirebaseAuth
+                                                .instance.currentUser?.uid) ==
+                                            true)
+                                      IconButton(
+                                        icon: const Icon(Icons.add, size: 20),
+                                        onPressed: () =>
+                                            _showAddAccomplishmentDialog(),
+                                        tooltip: loc.addAccomplishment,
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -1349,69 +1399,81 @@ class _TeamHomePageState extends State<TeamHomePage>
                         }
                       },
                       borderRadius: BorderRadius.circular(16),
-                      child: Card(
-                        elevation: 4,
-                        clipBehavior: Clip.antiAlias,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Theme.of(context)
-                                    .colorScheme
-                                    .primaryContainer
-                                    .withValues(alpha: 0.3),
-                                Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHigh,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.emoji_events,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Text(
-                                      _getTeamPerformanceTitle(),
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ],
+                      child: HoverBuilder(
+                        builder: (context, isHovered) {
+                          return Transform.scale(
+                            scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                            child: Card(
+                              elevation: isHovered && kIsWeb ? 8 : 4,
+                              clipBehavior: Clip.antiAlias,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isHovered && kIsWeb
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .primary
+                                          .withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
                               ),
-                              const SizedBox(height: 16),
-                              SeasonRecord([..._seasons, ..._importedSeasons],
-                                  singleSeason: false, isOverall: true),
-                            ],
-                          ),
-                        ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .primaryContainer
+                                          .withValues(alpha: 0.3),
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHigh,
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.emoji_events,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            _getTeamPerformanceTitle(),
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SeasonRecord(
+                                        [..._seasons, ..._importedSeasons],
+                                        singleSeason: false, isOverall: true),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   // Show loading placeholder when seasons are still loading
@@ -1587,119 +1649,139 @@ class _TeamHomePageState extends State<TeamHomePage>
                               extra: season);
                         }
                       },
-                      child: Card(
-                        elevation: 3,
-                        clipBehavior: Clip.antiAlias,
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                            width: 1,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Header section with season name - MOVED TO TOP
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    season.team.color1.withValues(alpha: 0.15),
-                                    season.team.color2.withValues(alpha: 0.10),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
+                      child: HoverBuilder(
+                        builder: (context, isHovered) {
+                          return Transform.scale(
+                            scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                            child: Card(
+                              elevation: isHovered ? 6 : 3, // Elevate on hover
+                              clipBehavior: Clip.antiAlias,
+                              color: Theme.of(context).colorScheme.surface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isHovered
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .outlineVariant,
+                                  width: isHovered ? 2 : 1,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  if (season.team.logoUrl != null &&
-                                      season.team.logoUrl!.isNotEmpty) ...[
-                                    ResponsiveAvatar(
-                                      size: 24,
-                                      imageUrl: season.team.logoUrl,
-                                      initials: season.team.fullName[0],
+                                  // Header section with season name - MOVED TO TOP
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 16,
                                     ),
-                                    const SizedBox(width: 12),
-                                  ],
-                                  Flexible(
-                                    child: Text(
-                                      season.name,
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          season.team.color1
+                                              .withValues(alpha: 0.15),
+                                          season.team.color2
+                                              .withValues(alpha: 0.10),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
-                                      textAlign: TextAlign.center,
-                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        if (season.team.logoUrl != null &&
+                                            season
+                                                .team.logoUrl!.isNotEmpty) ...[
+                                          ResponsiveAvatar(
+                                            size: 24,
+                                            imageUrl: season.team.logoUrl,
+                                            initials: season.team.fullName[0],
+                                          ),
+                                          const SizedBox(width: 12),
+                                        ],
+                                        Flexible(
+                                          child: Text(
+                                            season.name,
+                                            style: TextStyle(
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        // Edit button for admins on mobile
+                                        if (!kIsWeb &&
+                                            _team?.isTeamAdmin(FirebaseAuth
+                                                    .instance
+                                                    .currentUser
+                                                    ?.uid) ==
+                                                true) ...[
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.edit,
+                                              size: 20,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
+                                            onPressed: () =>
+                                                _showEditSeasonNameDialog(
+                                                    season),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
-                                  // Edit button for admins on mobile
-                                  if (!kIsWeb &&
-                                      _team?.isTeamAdmin(FirebaseAuth
-                                              .instance.currentUser?.uid) ==
-                                          true) ...[
-                                    const SizedBox(width: 8),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        size: 20,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
+                                  // Season image banner (if available)
+                                  if (season.logoUrl != null &&
+                                      season.logoUrl!.isNotEmpty)
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showSeasonPhoto(
+                                            context, season.logoUrl);
+                                      },
+                                      child: Container(
+                                        height: 180,
+                                        color: Colors.transparent,
+                                        child: Image.network(
+                                          season.logoUrl!,
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Center(
+                                              child: Icon(
+                                                Icons.image_not_supported,
+                                                size: 48,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .outline,
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       ),
-                                      onPressed: () =>
-                                          _showEditSeasonNameDialog(season),
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
                                     ),
-                                  ],
+                                  // Stats section
+                                  Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: SeasonRecord([season]),
+                                  ),
                                 ],
                               ),
                             ),
-                            // Season image banner (if available)
-                            if (season.logoUrl != null &&
-                                season.logoUrl!.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  _showSeasonPhoto(context, season.logoUrl);
-                                },
-                                child: Container(
-                                  height: 180,
-                                  color: Colors.transparent,
-                                  child: Image.network(
-                                    season.logoUrl!,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                        child: Icon(
-                                          Icons.image_not_supported,
-                                          size: 48,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .outline,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                            // Stats section
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SeasonRecord([season]),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     );
                   },
@@ -1777,118 +1859,133 @@ class _TeamHomePageState extends State<TeamHomePage>
                                 extra: season);
                           }
                         },
-                        child: Card(
-                          elevation: 3,
-                          clipBehavior: Clip.antiAlias,
-                          color: Theme.of(context).colorScheme.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Header section with season name - MOVED TO TOP
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Theme.of(context)
-                                          .colorScheme
-                                          .primary
-                                          .withValues(alpha: 0.08),
-                                      Theme.of(context)
-                                          .colorScheme
-                                          .secondary
-                                          .withValues(alpha: 0.05),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                        child: HoverBuilder(
+                          builder: (context, isHovered) {
+                            return Transform.scale(
+                              scale: kIsWeb && isHovered ? 1.02 : 1.0,
+                              child: Card(
+                                elevation:
+                                    isHovered ? 6 : 3, // Elevate on hover
+                                clipBehavior: Clip.antiAlias,
+                                color: Theme.of(context).colorScheme.surface,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isHovered
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.3),
+                                    width: isHovered ? 2.5 : 1.5,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    Icon(
-                                      Icons.cloud_download,
-                                      size: 18,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    if (season.team.logoUrl != null &&
-                                        season.team.logoUrl!.isNotEmpty) ...[
-                                      ResponsiveAvatar(
-                                        size: 24,
-                                        imageUrl: season.team.logoUrl,
-                                        initials: season.team.fullName[0],
+                                    // Header section with season name - MOVED TO TOP
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                        vertical: 16,
                                       ),
-                                      const SizedBox(width: 12),
-                                    ],
-                                    Flexible(
-                                      child: Text(
-                                        season.name,
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.08),
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary
+                                                .withValues(alpha: 0.05),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
-                                        textAlign: TextAlign.center,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.cloud_download,
+                                            size: 18,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (season.team.logoUrl != null &&
+                                              season.team.logoUrl!
+                                                  .isNotEmpty) ...[
+                                            ResponsiveAvatar(
+                                              size: 24,
+                                              imageUrl: season.team.logoUrl,
+                                              initials: season.team.fullName[0],
+                                            ),
+                                            const SizedBox(width: 12),
+                                          ],
+                                          Flexible(
+                                            child: Text(
+                                              season.name,
+                                              style: TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    // Season image banner (if available)
+                                    if (season.logoUrl != null &&
+                                        season.logoUrl!.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () {
+                                          _showSeasonPhoto(
+                                              context, season.logoUrl);
+                                        },
+                                        child: Container(
+                                          height: 180,
+                                          color: Colors.transparent,
+                                          child: Image.network(
+                                            season.logoUrl!,
+                                            fit: BoxFit.contain,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return Center(
+                                                child: Icon(
+                                                  Icons.image_not_supported,
+                                                  size: 48,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .outline,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    // Stats section
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: SeasonRecord([season]),
                                     ),
                                   ],
                                 ),
-                              ),
-                              // Season image banner (if available)
-                              if (season.logoUrl != null &&
-                                  season.logoUrl!.isNotEmpty)
-                                GestureDetector(
-                                  onTap: () {
-                                    _showSeasonPhoto(context, season.logoUrl);
-                                  },
-                                  child: Container(
-                                    height: 180,
-                                    color: Colors.transparent,
-                                    child: Image.network(
-                                      season.logoUrl!,
-                                      fit: BoxFit.contain,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Center(
-                                          child: Icon(
-                                            Icons.image_not_supported,
-                                            size: 48,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .outline,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              // Stats section
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: SeasonRecord([season]),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                              ), // Card
+                            ); // Transform return
+                          },
+                        ), // HoverBuilder
+                      ); // GestureDetector
                     },
                     childCount: _importedSeasons.length,
                   ),
@@ -2372,81 +2469,90 @@ class _TeamHomePageState extends State<TeamHomePage>
     required Color iconColor,
     required List<Widget> stats,
   }) {
-    return InkWell(
-      onTap: () {
-        // Navigate to Analytics (History Versus) page
-        final databaseId = DatabaseService.instance.publicShareId;
-        if (databaseId != null) {
-          NavigationHelper.navigateTo(
-            context,
-            '/team/$databaseId/history',
-          );
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        key: const Key('analytics_card'),
-        elevation: 4,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: iconColor.withValues(alpha: 0.3),
-            width: 2,
-          ),
-        ),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                iconColor.withValues(alpha: 0.1),
-                Theme.of(context).colorScheme.surface,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Card header
-              Row(
-                children: [
-                  Icon(icon, color: iconColor, size: 24),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                  ),
-                  // Add tap indicator icon
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: iconColor.withValues(alpha: 0.5),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-              // Stats rows
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: stats,
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && kIsWeb ? 1.02 : 1.0,
+          child: InkWell(
+            onTap: () {
+              // Navigate to Analytics (History Versus) page
+              final databaseId = DatabaseService.instance.publicShareId;
+              if (databaseId != null) {
+                NavigationHelper.navigateTo(
+                  context,
+                  '/team/$databaseId/history',
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Card(
+              key: const Key('analytics_card'),
+              elevation: isHovered && kIsWeb ? 8 : 4,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isHovered && kIsWeb
+                      ? iconColor
+                      : iconColor.withValues(alpha: 0.3),
+                  width: 2,
                 ),
               ),
-            ],
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      iconColor.withValues(alpha: 0.1),
+                      Theme.of(context).colorScheme.surface,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Card header
+                    Row(
+                      children: [
+                        Icon(icon, color: iconColor, size: 24),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        // Add tap indicator icon
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: iconColor.withValues(alpha: 0.5),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    // Stats rows
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: stats,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -2822,6 +2928,36 @@ class _TeamHomePageState extends State<TeamHomePage>
     return result == true;
   }
 
+  Widget _buildHoverableOption({
+    required Widget leading,
+    required Widget title,
+    required VoidCallback onTap,
+    Widget? subtitle,
+  }) {
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && kIsWeb ? 1.02 : 1.0,
+          child: ListTile(
+            leading: leading,
+            title: title,
+            subtitle: subtitle,
+            onTap: onTap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            tileColor: isHovered && kIsWeb
+                ? Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.3)
+                : null,
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _showCreateOptions(BuildContext context) async {
     final loc = AppLocalizations.of(context)!;
     await showModalBottomSheet(
@@ -2834,7 +2970,7 @@ class _TeamHomePageState extends State<TeamHomePage>
         return SingleChildScrollView(
           child: Wrap(
             children: [
-              ListTile(
+              _buildHoverableOption(
                 leading: Icon(Icons.cloud_sync_rounded,
                     color: Theme.of(context).colorScheme.secondary),
                 title: Text(
@@ -2844,7 +2980,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                   _handleSelection(context, 'existingCloudDatabase');
                 },
               ),
-              ListTile(
+              _buildHoverableOption(
                 leading: Icon(Icons.cloud_rounded,
                     color: Theme.of(context).colorScheme.secondary),
                 title:
@@ -2855,7 +2991,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                 },
               ),
               if (_team != null) ...[
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.calendar_today,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(AppLocalizations.of(context)!.createNewSeason),
@@ -2864,7 +3000,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     _handleSelection(context, 'season');
                   },
                 ),
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.palette,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(loc.changeTeamColors),
@@ -2873,7 +3009,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     _handleSelection(context, 'teamColors');
                   },
                 ),
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.videocam,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(AppLocalizations.of(context)!.setLiveLink),
@@ -2882,7 +3018,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     _handleSelection(context, 'setLiveLink');
                   },
                 ),
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.sports_soccer,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(loc.generateLineupImage),
@@ -2891,7 +3027,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     _handleSelection(context, 'generateLineup');
                   },
                 ),
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.cloud_upload,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(loc.importSeason),
@@ -2912,7 +3048,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                 ),
               ],
               if (DatabaseService.instance.path.isNotEmpty && _team == null)
-                ListTile(
+                _buildHoverableOption(
                   leading: Icon(Icons.group,
                       color: Theme.of(context).colorScheme.secondary),
                   title: Text(loc.createNewTeam),
@@ -3933,50 +4069,58 @@ $liveLink
 
       final loc = AppLocalizations.of(context)!;
 
-      return GestureDetector(
-        onTap: () async {
-          try {
-            final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(loc.unableToOpenLiveLink)));
-              }
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.unableToOpenLiveLink)));
-            }
-          }
-        },
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [_team!.color1, _team!.color2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.videocam, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  loc.liveBannerTapToWatch,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+      return HoverBuilder(
+        builder: (context, isHovered) {
+          return Transform.scale(
+            scale: isHovered && kIsWeb ? 1.02 : 1.0,
+            child: GestureDetector(
+              onTap: () async {
+                try {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                  }
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_team!.color1, _team!.color2],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.videocam, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        loc.liveBannerTapToWatch,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new, color: Colors.white),
+                  ],
                 ),
               ),
-              const Icon(Icons.open_in_new, color: Colors.white),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
 
@@ -4016,78 +4160,88 @@ $liveLink
         whenText = '$dateStr at $hour:$minute $period';
       }
 
-      return GestureDetector(
-        // Make banner tappable if live link exists
-        onTap: hasLiveLink
-            ? () async {
-                final url = _nextUpcomingGame!.gameLinks!;
-                try {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+      return HoverBuilder(
+        builder: (context, isHovered) {
+          return Transform.scale(
+            scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
+            child: GestureDetector(
+              // Make banner tappable if live link exists
+              onTap: hasLiveLink
+                  ? () async {
+                      final url = _nextUpcomingGame!.gameLinks!;
+                      try {
+                        final uri = Uri.parse(url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(loc.unableToOpenLiveLink)));
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(loc.unableToOpenLiveLink)));
+                        }
+                      }
                     }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
-                  }
-                }
-              }
-            : null,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [_team!.color1, _team!.color2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                hasLiveLink ? Icons.videocam : Icons.schedule,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  : null,
+              child: Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_team!.color1, _team!.color2],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                child: Row(
                   children: [
-                    Text(
-                      '${loc.nextGamePrefix} $opponent',
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                    Icon(
+                      hasLiveLink ? Icons.videocam : Icons.schedule,
+                      color: Colors.white,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      hasLiveLink
-                          ? '$whenText — Tap to watch live! 📺'
-                          : '$whenText — ${loc.nextGameStayTuned}',
-                      style: const TextStyle(color: Colors.white70),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${loc.nextGamePrefix} $opponent',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasLiveLink
+                                ? '$whenText — Tap to watch live! 📺'
+                                : '$whenText — ${loc.nextGameStayTuned}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
                     ),
+                    // Tweet button - show on mobile to promote upcoming game
+                    if (!kIsWeb)
+                      IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white),
+                        tooltip: 'Promote game on Twitter',
+                        onPressed: () => _tweetUpcomingGame(),
+                      ),
+                    // Show external link icon if live link exists
+                    if (hasLiveLink)
+                      const Icon(Icons.open_in_new, color: Colors.white),
                   ],
                 ),
               ),
-              // Tweet button - show on mobile to promote upcoming game
-              if (!kIsWeb)
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.white),
-                  tooltip: 'Promote game on Twitter',
-                  onPressed: () => _tweetUpcomingGame(),
-                ),
-              // Show external link icon if live link exists
-              if (hasLiveLink)
-                const Icon(Icons.open_in_new, color: Colors.white),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
 

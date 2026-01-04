@@ -1,6 +1,7 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
+import 'package:team_sync/widgets/common/hover_builder.dart';
 
 /// Variant determines the visual layout of the award card
 enum AwardCardVariant {
@@ -143,108 +144,32 @@ class AwardCard extends StatelessWidget {
 
   /// Build grid layout card (image on top, text below)
   Widget _buildGridCard(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Image section
-          Expanded(
-            flex: 5,
-            child: _buildImageSection(context, fit: BoxFit.cover),
-          ),
-          // Text section
-          Expanded(
-            flex: 2,
-            child: InkWell(
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AutoSizeText(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (description != null && description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Expanded(
-                        child: Text(
-                          description!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && isWeb ? 1.02 : 1.0,
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            elevation: isHovered && isWeb ? 8 : 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Image section
+                Expanded(
+                  flex: 5,
+                  child: _buildImageSection(context, fit: BoxFit.cover),
                 ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build list layout card (avatar on left, text on right)
-  Widget _buildListCard(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        // Leading: avatar with optional badge
-        leading: _buildAvatarWithBadge(context),
-
-        // Title with year badge
-        title: _buildTitleWithBadge(context),
-
-        // Subtitle (description)
-        subtitle: description != null && description!.isNotEmpty
-            ? Text(description!)
-            : null,
-
-        // Trailing: action buttons or reorder handle
-        trailing: _buildTrailingActions(context),
-
-        // Tap handler
-        onTap: onTap,
-      ),
-    );
-  }
-
-  /// Build carousel layout card (optimized for horizontal scrolling)
-  Widget _buildCarouselCard(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 4,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: 280, // Fixed width for carousel
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Image section (larger for carousel)
-              SizedBox(
-                height: 180,
-                child: _buildImageSection(context, fit: BoxFit.cover),
-              ),
-              // Text section
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
+                // Text section
+                Expanded(
+                  flex: 2,
+                  child: InkWell(
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          AutoSizeText(
                             title,
                             style: Theme.of(context)
                                 .textTheme
@@ -255,26 +180,129 @@ class AwardCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        if (year != null) _buildYearBadge(context),
-                      ],
-                    ),
-                    if (description != null && description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        description!,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                          if (description != null &&
+                              description!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Expanded(
+                              child: Text(
+                                description!,
+                                style: Theme.of(context).textTheme.bodySmall,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Build list layout card (avatar on left, text on right)
+  Widget _buildListCard(BuildContext context) {
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && isWeb ? 1.02 : 1.0,
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            elevation: isHovered && isWeb ? 4 : 1,
+            child: ListTile(
+              // Leading: avatar with optional badge
+              leading: _buildAvatarWithBadge(context),
+
+              // Title with year badge
+              title: _buildTitleWithBadge(context),
+
+              // Subtitle (description)
+              subtitle: description != null && description!.isNotEmpty
+                  ? Text(description!)
+                  : null,
+
+              // Trailing: action buttons or reorder handle
+              trailing: _buildTrailingActions(context),
+
+              // Tap handler
+              onTap: onTap,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Build carousel layout card (optimized for horizontal scrolling)
+  Widget _buildCarouselCard(BuildContext context) {
+    return HoverBuilder(
+      builder: (context, isHovered) {
+        return Transform.scale(
+          scale: isHovered && isWeb ? 1.02 : 1.0,
+          child: Card(
+            clipBehavior: Clip.antiAlias,
+            elevation: isHovered && isWeb ? 8 : 4,
+            child: InkWell(
+              onTap: onTap,
+              child: SizedBox(
+                width: 280, // Fixed width for carousel
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Image section (larger for carousel)
+                    SizedBox(
+                      height: 180,
+                      child: _buildImageSection(context, fit: BoxFit.cover),
+                    ),
+                    // Text section
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (year != null) _buildYearBadge(context),
+                            ],
+                          ),
+                          if (description != null &&
+                              description!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              description!,
+                              style: Theme.of(context).textTheme.bodySmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
