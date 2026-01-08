@@ -14,7 +14,7 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/team.dart';
+
 import 'package:team_sync/models/team_award.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
@@ -23,11 +23,12 @@ import 'package:team_sync/widgets/common/award_card.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/game_result.dart';
-import 'package:team_sync/widgets/scoreboard_widget.dart';
+
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
+import 'package:team_sync/widgets/game_editor.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -647,363 +648,32 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
-  void _showGame({Game? game, Season? season}) async {
-    final s = season ?? widget.season!;
-
-    // Load all teams from database to show as available opponents
-    final allTeams = await Team.all();
-
-    // Filter out the current team and sort alphabetically by full name
-    final availableTeams = allTeams.where((t) => t.id != s.teamId).toList()
-      ..sort((a, b) => a.fullName.compareTo(b.fullName));
-
-    // Create dropdown entries
-    final entries = availableTeams
-        .map((t) => DropdownMenuEntry<int>(value: t.id, label: t.fullName))
-        .toList(growable: false);
-
-    final isHomeTeam = game == null || game.isHomeTeam(s.teamId);
-
-    final team = s.team;
-
-    final homeTeam = game != null ? game.homeTeam : team;
-    final awayTeam = game != null ? game.awayTeam : team;
-    game ??=
-        Game.initial(seasonId: s.id, homeTeam: homeTeam, awayTeam: awayTeam);
-
-    int? location = isHomeTeam ? 0 : 1;
-    bool canSave = game.gameStatus.index == 0;
-
-    showModalBottomSheet(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (context) {
-          return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-            return Card(
-                child: SingleChildScrollView(
-                    child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Column(children: [
-                          Text(
-                            AppLocalizations.of(context)!.editGame,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Container(height: 20),
-                          Row(children: [
-                            Expanded(
-                                child: RadioListTile(
-                              title: Text(AppLocalizations.of(context)!.home,
-                                  style: const TextStyle(fontSize: 20)),
-                              value: 0,
-                              groupValue: location,
-                              onChanged: (i) {
-                                if (game!.gameStatus.index == 0) {
-                                  final tempTeam = game.homeTeam;
-                                  game.homeTeam = game.awayTeam;
-                                  game.awayTeam = tempTeam;
-
-                                  setModalState(() {
-                                    location = i;
-                                  });
-                                }
-                              },
-                            )),
-                            Expanded(
-                                child: RadioListTile(
-                              title: Text(AppLocalizations.of(context)!.away,
-                                  style: const TextStyle(fontSize: 20)),
-                              value: 1,
-                              groupValue: location,
-                              onChanged: (i) {
-                                if (game!.gameStatus.index == 0) {
-                                  final tempTeam = game.homeTeam;
-                                  game.homeTeam = game.awayTeam;
-                                  game.awayTeam = tempTeam;
-
-                                  setModalState(() {
-                                    location = i;
-                                  });
-                                }
-                              },
-                            )),
-                          ]),
-                          const SizedBox(height: 30),
-                          Visibility(
-                              visible: game!.gameStatus.index == 0,
-                              child: TextButton(
-                                  onPressed: () {
-                                    _createOpponent(s);
-                                  },
-                                  child: Text(AppLocalizations.of(context)!
-                                      .createNewOpponent))),
-                          const SizedBox(height: 30),
-                          DropdownMenu(
-                              enabled: game.gameStatus.index == 0,
-                              initialSelection: isHomeTeam
-                                  ? game.awayTeam.id
-                                  : game.homeTeam.id,
-                              onSelected: (teamId) async {
-                                if (location == 0) {
-                                  game!.awayTeam = await Team.fromId(teamId!);
-                                } else {
-                                  game!.homeTeam = await Team.fromId(teamId!);
-                                }
-
-                                setModalState(() {
-                                  canSave = true;
-                                });
-                              },
-                              width: double.infinity,
-                              label: Text(
-                                  AppLocalizations.of(context)!.selectOpponent),
-                              dropdownMenuEntries: entries),
-                          const SizedBox(height: 30),
-                          // Date picker button
-                          ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue),
-                              onPressed: game.gameStatus.index == 0
-                                  ? () async {
-                                      final date = await showDatePicker(
-                                          context: context,
-                                          initialDate: game!.date,
-                                          firstDate: DateTime.now().subtract(
-                                              const Duration(days: 365)),
-                                          lastDate: DateTime.now()
-                                              .add(const Duration(days: 365)));
-                                      if (date != null) {
-                                        setModalState(() {
-                                          // Preserve the time when updating date
-                                          game!.date = DateTime(
-                                            date.year,
-                                            date.month,
-                                            date.day,
-                                            game.date.hour,
-                                            game.date.minute,
-                                          );
-                                        });
-                                      }
-                                    }
-                                  : null,
-                              child: SizedBox(
-                                  width: 200,
-                                  child: Center(
-                                      child: Text(format.format(game.date),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20))))),
-                          const SizedBox(height: 15),
-                          // Time picker button
-                          ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green),
-                              onPressed: game.gameStatus.index == 0
-                                  ? () async {
-                                      final time = await showTimePicker(
-                                        context: context,
-                                        initialTime:
-                                            TimeOfDay.fromDateTime(game!.date),
-                                      );
-                                      if (time != null) {
-                                        setModalState(() {
-                                          // Update time while preserving date
-                                          game!.date = DateTime(
-                                            game.date.year,
-                                            game.date.month,
-                                            game.date.day,
-                                            time.hour,
-                                            time.minute,
-                                          );
-                                        });
-                                      }
-                                    }
-                                  : null,
-                              child: SizedBox(
-                                  width: 200,
-                                  child: Center(
-                                      child: Text(
-                                          game.date.hour == 0 &&
-                                                  game.date.minute == 0
-                                              ? 'Set Time (optional)'
-                                              : _formatTime12Hour(game.date),
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20))))),
-                          const SizedBox(height: 30),
-                          const Divider(),
-                          TextFormField(
-                              initialValue: game.description,
-                              decoration: InputDecoration(
-                                  labelText: 'Description (optional)'),
-                              onChanged: (name) => game!.description = name),
-                          const SizedBox(height: 30),
-                          TextFormField(
-                              initialValue: game.gameLinks,
-                              decoration: InputDecoration(
-                                  labelText: 'Links (optional)'),
-                              onChanged: (links) => game!.gameLinks = links),
-                          const SizedBox(height: 30),
-                          const Divider(),
-                          ScoreboardWidget(
-                              compact: true,
-                              game: game,
-                              season: season,
-                              teamId: season!.team.id),
-                          const Divider(),
-                          const SizedBox(height: 30),
-                          game.id != -1
-                              ? ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green),
-                                  child: Text(
-                                      AppLocalizations.of(context)!.goToGame,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20)),
-                                  onPressed: () async {
-                                    Navigator.of(context).pop();
-                                    await _goToGame(game!, s);
-                                    await _loadSeason(context);
-                                  })
-                              : Container(),
-                          const SizedBox(height: 30),
-                          Row(
-                              mainAxisAlignment: canSave
-                                  ? MainAxisAlignment.spaceEvenly
-                                  : MainAxisAlignment.center,
-                              children: [
-                                GestureDetector(
-                                    onTap: () async {
-                                      await game!.saveGame();
-
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                        // Reload season data to refresh games list
-                                        await _loadSeason(context);
-                                        setState(() {});
-                                      }
-                                    },
-                                    child: Text(
-                                        AppLocalizations.of(context)!.save,
-                                        style: const TextStyle(fontSize: 20))),
-                                const SizedBox(width: 30),
-                                GestureDetector(
-                                    onTap: () {
-                                      Navigator.pop(context);
-                                    },
-                                    child: Text(
-                                        AppLocalizations.of(context)!
-                                            .cancelButton,
-                                        style: const TextStyle(fontSize: 20)))
-                              ])
-                        ]))));
-          });
-        });
-  }
-
-  Future<void> _goToGame(Game game, Season season) async {
-    final databaseId = DatabaseService.instance.publicShareId;
-    if (databaseId == null) return;
-
-    try {
-      debugPrint(
-          'SeasonPage: Navigating to game. Season loaded? Team: ${season.team.fullName}');
-    } catch (e) {
-      debugPrint(
-          'SeasonPage: Navigating to game. Season NOT loaded! Error: $e');
-    }
-
-    // Use NavigationHelper for platform-appropriate navigation
-    NavigationHelper.navigateTo(
-      context,
-      '/team/$databaseId/season/${season.id}/game/${game.id}',
-      extra: {'season': season, 'game': game},
-    );
-  }
-
-  /// Format time in 12-hour format with AM/PM
-  String _formatTime12Hour(DateTime dateTime) {
-    int hour = dateTime.hour;
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-
-    // Convert to 12-hour format
-    if (hour == 0) {
-      hour = 12; // Midnight
-    } else if (hour > 12) {
-      hour = hour - 12;
-    }
-
-    return '$hour:$minute $period';
-  }
-
-  void _createOpponent(Season season) {
-    late String teamName;
-    late String teamShortName;
-
-    showModalBottomSheet(
-        context: context,
-        builder: (context) {
-          return Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(50),
-                  child: Column(children: [
-                    Text(AppLocalizations.of(context)!.newTeam),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText: AppLocalizations.of(context)!.teamName),
-                        onChanged: (name) => teamName = name),
-                    TextField(
-                        autofocus: true,
-                        decoration: InputDecoration(
-                            labelText:
-                                AppLocalizations.of(context)!.teamShortName),
-                        onChanged: (name) => teamShortName = name),
-                    const Spacer(),
-                    TextButton(
-                        onPressed: () {},
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!.save,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () async {
-                                    if (teamName.isNotEmpty &&
-                                        teamShortName.isNotEmpty) {
-                                      Navigator.pop(context);
-                                      await _saveTeam(teamName, teamShortName);
-                                      await _loadSeason(context);
-                                      Navigator.pop(context);
-                                      _showGame(season: season);
-                                    }
-                                  }),
-                              GestureDetector(
-                                  child: Text(
-                                      AppLocalizations.of(context)!
-                                          .cancelButton,
-                                      style: const TextStyle(fontSize: 20)),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                  })
-                            ]))
-                  ])));
-        });
-  }
-
-  Future<void> _saveTeam(String teamName, String teamShortName,
-      {Color color1 = Colors.transparent,
-      Color color2 = Colors.transparent}) async {
-    await DatabaseService.instance.insert('Teams', {
-      'id': DateTime.now().millisecondsSinceEpoch,
-      'fullName': teamName,
-      'shortName': teamShortName,
-      'color1': color1.toARGB32(),
-      'color2': color2.toARGB32()
+  void _showGame({Game? game, Season? season}) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          surfaceTintColor: Theme.of(context).colorScheme.surface,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: GameEditor(
+            season: season ?? widget.season!,
+            game: game,
+            onGoToGame: (g, s) async {
+              await _goToGame(g, s);
+              if (mounted) {
+                await _loadSeason(context);
+                setState(() {});
+              }
+            },
+          ),
+        );
+      },
+    ).then((_) async {
+      // Reload to ensure we see any updates/additions
+      await _loadSeason(context);
+      if (mounted) setState(() {});
     });
   }
 
@@ -2489,5 +2159,41 @@ class _SeasonPageState extends State<SeasonPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _goToGame(Game game, Season season) async {
+    final databaseId = DatabaseService.instance.publicShareId;
+    if (databaseId == null) return;
+
+    try {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season loaded? Team: ${season.team.fullName}');
+    } catch (e) {
+      debugPrint(
+          'SeasonPage: Navigating to game. Season NOT loaded! Error: $e');
+    }
+
+    // Use NavigationHelper for platform-appropriate navigation
+    NavigationHelper.navigateTo(
+      context,
+      '/team/$databaseId/season/${season.id}/game/${game.id}',
+      extra: {'season': season, 'game': game},
+    );
+  }
+
+  /// Format time in 12-hour format with AM/PM
+  String _formatTime12Hour(DateTime dateTime) {
+    int hour = dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12; // Midnight
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+
+    return '$hour:$minute $period';
   }
 }

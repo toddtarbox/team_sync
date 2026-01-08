@@ -835,6 +835,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get openDatabase => 'Apri database';
 
   @override
+  String get openExistingDatabase => 'Open Existing Database';
+
+  @override
   String get openExistingCloudDatabase => 'Apri database cloud esistente';
 
   @override
@@ -1596,4 +1599,16 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get opponents => 'Avversari';
+
+  @override
+  String get addGame => 'Add Game';
+
+  @override
+  String get opponent => 'Opponent';
+
+  @override
+  String get date => 'Date';
+
+  @override
+  String get timeOptional => 'Time (optional)';
 }

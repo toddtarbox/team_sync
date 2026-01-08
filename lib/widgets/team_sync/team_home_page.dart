@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -18,7 +18,7 @@ import 'package:showcaseview/showcaseview.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
-import 'package:team_sync/models/player.dart';
+
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/models/team_accomplishment.dart';
@@ -34,9 +34,9 @@ import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common_page_header.dart';
 import 'package:team_sync/widgets/team_summary_section.dart';
-import 'package:team_sync/widgets/data_import_page.dart';
+
 import 'package:team_sync/widgets/event_stream_widget.dart';
-import 'package:team_sync/widgets/lineup_generator.dart';
+
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
@@ -97,7 +97,6 @@ class _TeamHomePageState extends State<TeamHomePage>
   StreamSubscription<bool>? _subscriptionListener;
 
   final _welcomeKey = GlobalKey();
-  final _fabKey = GlobalKey();
   final _fabKeyOnly = GlobalKey();
   final _goProKey = GlobalKey();
   final _settingsKey = GlobalKey();
@@ -266,7 +265,7 @@ class _TeamHomePageState extends State<TeamHomePage>
         }
 
         ShowcaseView.get().startShowCase(
-          [_welcomeKey, _fabKey, _goProKey, _settingsKey],
+          [_welcomeKey, _goProKey, _settingsKey],
         );
       });
     } else if (!hasSeenNoDatabasePrompt) {
@@ -411,21 +410,23 @@ class _TeamHomePageState extends State<TeamHomePage>
                 });
               },
             ),
-          _buildAnimatedVisibility(
-            child: TeamSummarySection(
-              team: _team!,
-              onSummaryChanged: () {
-                setState(() {
-                  _loadFuture = _load();
-                });
-              },
+          if (_team != null)
+            _buildAnimatedVisibility(
+              child: TeamSummarySection(
+                team: _team!,
+                onSummaryChanged: () {
+                  setState(() {
+                    _loadFuture = _load();
+                  });
+                },
+              ),
             ),
-          ),
-          _buildAnimatedVisibility(
-            child: _buildLiveBanner(),
-          ),
+          if (_team != null)
+            _buildAnimatedVisibility(
+              child: _buildLiveBanner(),
+            ),
           // Recent highlights (web only)
-          if (kIsWeb)
+          if (kIsWeb && _team != null)
             _buildAnimatedVisibility(
               child: _buildRecentHighlights(),
             ),
@@ -689,15 +690,12 @@ class _TeamHomePageState extends State<TeamHomePage>
           : null);
     }
 
-    // Mobile - use Showcase (already registered)
-    return Showcase(
-      key: DatabaseService.instance.path.isEmpty ? _fabKey : _fabKeyOnly,
-      description: DatabaseService.instance.path.isEmpty
-          ? 'Tap here to create a new database'
-          : _team == null
-              ? 'Tap here to create a new Team'
-              : 'Tap here to add a new Season or change your team colors',
-      child: Container(
+    if (_team == null) {
+      return null;
+    }
+
+    // Mobile
+    return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -716,9 +714,7 @@ class _TeamHomePageState extends State<TeamHomePage>
           onPressed: () async {
             await _showCreateOptions(context);
           },
-        ),
-      ),
-    );
+        ));
   }
 
   Widget _buildBody() {
@@ -773,14 +769,11 @@ class _TeamHomePageState extends State<TeamHomePage>
 
   Widget _buildMainContent() {
     if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
-      final welcomeChild = Center(
-          child: Text(AppLocalizations.of(context)!.pleaseCreateOrOpenADatabase,
-              style: const TextStyle(fontSize: 24)));
       return Showcase(
           key: _welcomeKey,
           description:
               'Welcome to TeamSync! Let\'s take a look around and get you started managing your team!',
-          child: welcomeChild);
+          child: _buildWelcomeView());
     }
 
     if (!kIsWeb && _team == null) {
@@ -1998,6 +1991,92 @@ class _TeamHomePageState extends State<TeamHomePage>
     );
   }
 
+  Widget _buildWelcomeView() {
+    final loc = AppLocalizations.of(context)!;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.sports_soccer_rounded,
+                size: 64,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              loc.welcomeToTeamSync,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Text(
+                'Manage your soccer team like a pro. Track games, stats, and player performance all in one place.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 48),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateOptions(context),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(
+                loc.getStarted,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: () {
+                // If they have a shared link or file, they might want to import
+                _handleSelection(context, 'existingCloudDatabase');
+              },
+              child: Text(
+                loc.openExistingDatabase,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadingOverlay() {
     return Container(
       color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.75),
@@ -2968,6 +3047,7 @@ class _TeamHomePageState extends State<TeamHomePage>
       ),
       builder: (BuildContext builderContext) {
         return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 20),
           child: Wrap(
             children: [
               _buildHoverableOption(
@@ -3018,34 +3098,6 @@ class _TeamHomePageState extends State<TeamHomePage>
                     _handleSelection(context, 'setLiveLink');
                   },
                 ),
-                _buildHoverableOption(
-                  leading: Icon(Icons.sports_soccer,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: Text(loc.generateLineupImage),
-                  onTap: () {
-                    Navigator.of(builderContext).pop();
-                    _handleSelection(context, 'generateLineup');
-                  },
-                ),
-                _buildHoverableOption(
-                  leading: Icon(Icons.cloud_upload,
-                      color: Theme.of(context).colorScheme.secondary),
-                  title: Text(loc.importSeason),
-                  subtitle: Text(loc.importTeamsPlayersGamesStats),
-                  onTap: () {
-                    Navigator.of(builderContext).pop();
-                    if (_team != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DataImportPage(team: _team),
-                        ),
-                      );
-                    } else {
-                      context.go('/import');
-                    }
-                  },
-                ),
               ],
               if (DatabaseService.instance.path.isNotEmpty && _team == null)
                 _buildHoverableOption(
@@ -3064,6 +3116,122 @@ class _TeamHomePageState extends State<TeamHomePage>
     );
   }
 
+  Future<String?> _pickCloudDatabase() async {
+    // Check if user is signed in first
+    if (!await _ensureUserSignedIn()) {
+      return null;
+    }
+
+    if (!mounted) return null;
+
+    // Show loading while fetching databases
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+
+    List<String> entries = [];
+    try {
+      entries = await DatabaseService.instance.getAvailableDatabases();
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading
+      }
+    }
+
+    if (entries.isEmpty) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(AppLocalizations.of(context)!.noCloudDatabasesFound),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+      return null;
+    }
+
+    if (!mounted) return null;
+
+    return await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.selectACloudDatabase,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    itemCount: entries.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                    itemBuilder: (context, index) {
+                      final databaseName = entries[index];
+                      return ListTile(
+                        leading: Icon(
+                          Icons.storage,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          databaseName,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pop(context, databaseName);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _handleSelection(BuildContext context, String option) async {
     // Capture the ScaffoldMessenger before the async gap
 
@@ -3071,7 +3239,47 @@ class _TeamHomePageState extends State<TeamHomePage>
       case 'existingCloudDatabase':
         final databaseName = await _pickCloudDatabase();
         if (databaseName != null) {
-          await _openCloudDatabase(databaseName);
+          // Allow the bottom sheet closing animation to finish
+          await Future.delayed(const Duration(milliseconds: 300));
+
+          if (mounted) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (BuildContext context) {
+                return const PopScope(
+                  canPop: false,
+                  child: Center(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Opening database...'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          // Small delay to ensure dialog renders
+          await Future.delayed(const Duration(milliseconds: 100));
+
+          try {
+            await _openCloudDatabase(databaseName);
+          } finally {
+            if (mounted) {
+              Navigator.of(context).pop(); // Dismiss loading indicator
+            }
+          }
+          // The page will update automatically due to setState in _openCloudDatabase
         }
         return;
       case 'newCloudDatabase':
@@ -3095,9 +3303,6 @@ class _TeamHomePageState extends State<TeamHomePage>
       case 'setLiveLink':
         await _editLiveLink();
         break;
-      case 'generateLineup':
-        await _generateLineup();
-        break;
     }
   }
 
@@ -3115,7 +3320,12 @@ class _TeamHomePageState extends State<TeamHomePage>
         builder: (context) {
           return Card(
             child: Padding(
-              padding: const EdgeInsets.all(50),
+              padding: EdgeInsets.only(
+                top: 50,
+                left: 50,
+                right: 50,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+              ),
               child: SingleChildScrollView(
                 child: Column(children: [
                   Text(AppLocalizations.of(context)!.newDatabase),
@@ -3219,50 +3429,6 @@ class _TeamHomePageState extends State<TeamHomePage>
     } catch (e) {
       debugPrint(e.toString());
     }
-  }
-
-  Future<String?> _pickCloudDatabase() async {
-    // Check if user is signed in first
-    if (!await _ensureUserSignedIn()) {
-      return null;
-    }
-
-    final entries = await DatabaseService.instance.getAvailableDatabases();
-    if (entries.isEmpty) {
-      showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text(AppLocalizations.of(context)!.noCloudDatabasesFound),
-          );
-        },
-      );
-      return null;
-    }
-
-    return await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (BuildContext context) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(50),
-              child: SingleChildScrollView(
-                child: Column(children: [
-                  Text(AppLocalizations.of(context)!.selectACloudDatabase),
-                  DropdownMenu(
-                      onSelected: (value) async {
-                        Navigator.pop(context, value);
-                      },
-                      dropdownMenuEntries: entries
-                          .map((e) => DropdownMenuEntry(value: e, label: e))
-                          .toList())
-                ]),
-              ),
-            ),
-          );
-        });
   }
 
   // Future<String?> _pickFile() async {
@@ -3973,60 +4139,6 @@ Watch $teamName in action!
 $liveLink
 
 #$teamName #LiveSoccer ⚽''';
-    }
-  }
-
-  Future<void> _generateLineup() async {
-    if (_team == null) return;
-
-    // Get current season or let user pick one
-    Season? selectedSeason = _currentSeason;
-
-    if (selectedSeason == null && _seasons.isNotEmpty) {
-      selectedSeason = _seasons.first;
-    }
-
-    if (selectedSeason == null) {
-      if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.pleaseCreateSeasonFirst),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Load players for the selected season
-    final players = await Player.listFromTeamIdSeasonId(
-      _team!.id,
-      selectedSeason.id,
-    );
-
-    if (players.isEmpty) {
-      if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.pleaseAddPlayersFirst),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Show the lineup generator dialog
-    if (mounted) {
-      // Use next upcoming game or current live game (not the last played game)
-      final gameForLineup = _nextUpcomingGame ?? _currentOrLastGame;
-
-      await LineupGenerator.showLineupDialog(
-        context,
-        team: _team!,
-        players: players,
-        game: gameForLineup,
-      );
     }
   }
 

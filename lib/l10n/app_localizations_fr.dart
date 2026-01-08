@@ -843,6 +843,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get openDatabase => 'Ouvrir une base de données';
 
   @override
+  String get openExistingDatabase => 'Open Existing Database';
+
+  @override
   String get openExistingCloudDatabase =>
       'Ouvrir une base de données cloud existante';
 
@@ -1611,4 +1614,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get opponents => 'Adversaires';
+
+  @override
+  String get addGame => 'Add Game';
+
+  @override
+  String get opponent => 'Opponent';
+
+  @override
+  String get date => 'Date';
+
+  @override
+  String get timeOptional => 'Time (optional)';
 }

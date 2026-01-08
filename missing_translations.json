@@ -1,26 +1,51 @@
 {
   "de": [
+    "openExistingDatabase",
     "sending",
-    "twitterNotConfigured"
+    "twitterNotConfigured",
+    "addGame",
+    "opponent",
+    "date",
+    "timeOptional"
   ],
 
   "es": [
+    "openExistingDatabase",
     "sending",
-    "twitterNotConfigured"
+    "twitterNotConfigured",
+    "addGame",
+    "opponent",
+    "date",
+    "timeOptional"
   ],
 
   "fr": [
+    "openExistingDatabase",
     "sending",
-    "twitterNotConfigured"
+    "twitterNotConfigured",
+    "addGame",
+    "opponent",
+    "date",
+    "timeOptional"
   ],
 
   "it": [
+    "openExistingDatabase",
     "sending",
-    "twitterNotConfigured"
+    "twitterNotConfigured",
+    "addGame",
+    "opponent",
+    "date",
+    "timeOptional"
   ],
 
   "pt": [
+    "openExistingDatabase",
     "sending",
-    "twitterNotConfigured"
+    "twitterNotConfigured",
+    "addGame",
+    "opponent",
+    "date",
+    "timeOptional"
   ]
 }
