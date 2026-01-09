@@ -1594,6 +1594,12 @@ abstract class AppLocalizations {
   /// **'Open Database'**
   String get openDatabase;
 
+  /// No description provided for @openExistingDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Existing Database'**
+  String get openExistingDatabase;
+
   /// No description provided for @openExistingCloudDatabase.
   ///
   /// In en, this message translates to:
@@ -3051,6 +3057,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Opponents'**
   String get opponents;
+
+  /// No description provided for @addGame.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Game'**
+  String get addGame;
+
+  /// No description provided for @opponent.
+  ///
+  /// In en, this message translates to:
+  /// **'Opponent'**
+  String get opponent;
+
+  /// No description provided for @date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get date;
+
+  /// No description provided for @timeOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Time (optional)'**
+  String get timeOptional;
 }
 
 class _AppLocalizationsDelegate

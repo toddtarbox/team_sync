@@ -247,6 +247,7 @@
   "notSignedIn": "Not signed in",
   "offside": "Offside",
   "openDatabase": "Open Database",
+  "openExistingDatabase": "Open Existing Database",
   "openExistingCloudDatabase": "Open Existing Cloud Database",
   "openFromBackup": "Open From Backup",
   "openedDatabase": "Opened database: {name}",
@@ -489,5 +490,9 @@
   "share": "Share",
   "sending": "Sending...",
   "twitterNotConfigured": "Twitter is not configured. Please configure Twitter in Settings.",
-  "opponents": "Opponents"
+  "opponents": "Opponents",
+  "addGame": "Add Game",
+  "opponent": "Opponent",
+  "date": "Date",
+  "timeOptional": "Time (optional)"
 }

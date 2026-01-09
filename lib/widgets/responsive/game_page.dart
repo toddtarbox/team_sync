@@ -13,6 +13,7 @@ import 'package:team_sync/widgets/match_result_card.dart';
 import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
+import 'package:team_sync/widgets/lineup_generator.dart';
 
 /// Unified responsive game page that works for mobile, tablet, and desktop
 class GamePage extends StatefulWidget {
@@ -433,6 +434,7 @@ class _GamePageState extends State<GamePage> {
             child: Icon(Icons.newspaper, size: 24),
           ),
         ),
+
         // Stats button (mobile phone only)
         if (!isTabletOrLarger)
           GestureDetector(
@@ -507,6 +509,21 @@ class _GamePageState extends State<GamePage> {
               child: Icon(Icons.analytics, size: 24),
             ),
           ),
+        // Generate Lineup button
+        GestureDetector(
+          onTap: () {
+            LineupGenerator.showLineupDialog(
+              context,
+              team: season.team,
+              players: season.players,
+              game: _game,
+            );
+          },
+          child: const Padding(
+            padding: EdgeInsets.all(5),
+            child: Icon(Icons.sports_soccer, size: 24),
+          ),
+        ),
         // Tweet button
         GestureDetector(
           onTap: () {

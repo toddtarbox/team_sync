@@ -12,6 +12,9 @@ import 'package:team_sync/services/locale_notifier.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:team_sync/services/admin_service.dart';
+import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
 
 import 'markdown_viewer.dart';
@@ -431,6 +434,26 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ),
+              if (AdminService.instance.isAdmin)
+                ListTile(
+                  leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+                  title: Text(loc.importSeason),
+                  subtitle: Text(loc.importTeamsPlayersGamesStats),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    if (widget.team != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              DataImportPage(team: widget.team),
+                        ),
+                      );
+                    } else {
+                      context.go('/import');
+                    }
+                  },
+                ),
             ],
           );
         },
