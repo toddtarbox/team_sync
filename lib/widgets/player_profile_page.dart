@@ -338,68 +338,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               widget.player.displayName,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            actions: [
-              // Edit Profile button (web only)
-              if (kIsWeb && !_isEditMode)
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: loc.editProfile,
-                  onPressed: () => _showPinDialog(),
-                ),
-              // Generate Player Card button (Pro feature)
-              if (currentSeason?.team != null)
-                IconButton(
-                  icon: const Icon(Icons.stars),
-                  tooltip: 'Generate Player Card',
-                  onPressed: () async {
-                    await PlayerCardGenerator.showPlayerCardDialog(
-                      context,
-                      team: currentSeason!.team,
-                      player: widget.player,
-                    );
-                  },
-                ),
-              // Highlight Reel Player button
-              if (!_isEditMode)
-                IconButton(
-                  icon: const Icon(Icons.movie),
-                  tooltip: 'Play Highlight Reel',
-                  onPressed: () => _launchHighlightReel(),
-                ),
-              // Toggle highlights panel button
-              if (!_isEditMode)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final screenWidth = MediaQuery.of(context).size.width;
-
-                    if (screenWidth < 900) {
-                      // Small screen - show modal dialog
-                      return IconButton(
-                        icon: const Icon(Icons.video_library),
-                        tooltip: loc.showHighlights,
-                        onPressed: () => _showHighlightsModal(),
-                      );
-                    } else {
-                      // Wide screen - toggle right panel
-                      return IconButton(
-                        icon: Icon(
-                          _showHighlights
-                              ? Icons.video_library
-                              : Icons.video_library_outlined,
-                        ),
-                        tooltip: _showHighlights
-                            ? loc.hideHighlights
-                            : loc.showHighlights,
-                        onPressed: () {
-                          setState(() {
-                            _showHighlights = !_showHighlights;
-                          });
-                        },
-                      );
-                    }
-                  },
-                ),
-            ],
+            actions: _buildAppBarActions(context, currentSeason),
           ),
           body: Column(
             children: [
@@ -2255,5 +2194,133 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
         );
       },
     );
+  }
+
+  List<Widget> _buildAppBarActions(
+      BuildContext context, Season? currentSeason) {
+    if (_isEditMode) return [];
+
+    final loc = AppLocalizations.of(context)!;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    if (isMobile) {
+      return [
+        PopupMenuButton<String>(
+          onSelected: (value) async {
+            switch (value) {
+              case 'edit':
+                _showPinDialog();
+                break;
+              case 'card':
+                if (currentSeason?.team != null) {
+                  await PlayerCardGenerator.showPlayerCardDialog(
+                    context,
+                    team: currentSeason!.team,
+                    player: widget.player,
+                  );
+                }
+                break;
+              case 'highlight_reel':
+                _launchHighlightReel();
+                break;
+              case 'show_highlights':
+                _showHighlightsModal();
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            return [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit),
+                    const SizedBox(width: 8),
+                    Text(loc.editProfile),
+                  ],
+                ),
+              ),
+              if (currentSeason?.team != null)
+                const PopupMenuItem(
+                  value: 'card',
+                  child: Row(
+                    children: [
+                      Icon(Icons.stars),
+                      SizedBox(width: 8),
+                      Text('Generate Player Card'),
+                    ],
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'highlight_reel',
+                child: Row(
+                  children: [
+                    Icon(Icons.movie),
+                    SizedBox(width: 8),
+                    Text('Play Highlight Reel'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'show_highlights',
+                child: Row(
+                  children: [
+                    const Icon(Icons.video_library),
+                    const SizedBox(width: 8),
+                    Text(loc.showHighlights),
+                  ],
+                ),
+              ),
+            ];
+          },
+        ),
+      ];
+    }
+
+    return [
+      IconButton(
+        icon: const Icon(Icons.edit),
+        tooltip: loc.editProfile,
+        onPressed: () => _showPinDialog(),
+      ),
+      if (currentSeason?.team != null)
+        IconButton(
+          icon: const Icon(Icons.stars),
+          tooltip: 'Generate Player Card',
+          onPressed: () async {
+            await PlayerCardGenerator.showPlayerCardDialog(
+              context,
+              team: currentSeason!.team,
+              player: widget.player,
+            );
+          },
+        ),
+      IconButton(
+        icon: const Icon(Icons.movie),
+        tooltip: 'Play Highlight Reel',
+        onPressed: () => _launchHighlightReel(),
+      ),
+      if (screenWidth < 900)
+        IconButton(
+          icon: const Icon(Icons.video_library),
+          tooltip: loc.showHighlights,
+          onPressed: () => _showHighlightsModal(),
+        )
+      else
+        IconButton(
+          icon: Icon(
+            _showHighlights
+                ? Icons.video_library
+                : Icons.video_library_outlined,
+          ),
+          tooltip: _showHighlights ? loc.hideHighlights : loc.showHighlights,
+          onPressed: () {
+            setState(() {
+              _showHighlights = !_showHighlights;
+            });
+          },
+        ),
+    ];
   }
 }

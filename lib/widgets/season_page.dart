@@ -29,6 +29,7 @@ import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
 import 'package:team_sync/widgets/game_editor.dart';
+import 'package:team_sync/widgets/season_calendar_view.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -57,8 +58,11 @@ class _SeasonPageState extends State<SeasonPage> {
   bool _awardsExpanded = false; // Default to collapsed
   int _teamCurrentPage = 0;
   int _playerCurrentPage = 0;
+
   // Cache the awards future to prevent rebuilding on setState
   final Map<int, Future<List<dynamic>>> _awardsFutureCache = {};
+
+  Set<SeasonViewType> _viewType = {SeasonViewType.list};
 
   // Helper to get path segments that works with hash-based routing used by go_router on web.
   List<String> _getPathSegments() {
@@ -336,165 +340,210 @@ class _SeasonPageState extends State<SeasonPage> {
                       ],
                     ),
                   ),
-                  // Scrollable content section
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(10),
-                      children: [
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1400),
-                            child: Column(
-                              children: [
-                                // Awards Section
-                                _buildAwardsSection(season),
-                                // Games list
-                                ...games.map((game) {
-                                  final linkWidget = game
-                                              .gameLinks?.isNotEmpty ??
-                                          false
-                                      ? GestureDetector(
-                                          onTap: () async {
-                                            await _launchUrl(game.gameLinks!);
-                                          },
-                                          child: VideoThumbnail(game.gameLinks!,
-                                              width: 40, height: 28),
-                                        )
-                                      : const SizedBox(width: 24);
 
-                                  final gameCard = Container(
-                                    padding: const EdgeInsets.all(5),
-                                    child: Stack(
-                                      children: [
-                                        Card(
-                                          child: Column(
-                                            children: [
-                                              ListTile(
-                                                title: Text(
-                                                    game.displayName(
-                                                        season.teamId),
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold)),
-                                                subtitle: Text(
-                                                  game.date.hour == 0 &&
-                                                          game.date.minute == 0
-                                                      ? format.format(game.date)
-                                                      : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
-                                                ),
-                                                leading: linkWidget,
-                                                trailing: Container(
-                                                  margin: const EdgeInsets.only(
-                                                      top: 20),
-                                                  child: IconButton(
-                                                    icon: Icon(game.id ==
-                                                            _expandedGameId
-                                                        ? Icons.expand_less
-                                                        : Icons.expand_more),
-                                                    onPressed: () async {
-                                                      setState(() {
-                                                        _expandedGameId = game
-                                                                    .id ==
-                                                                _expandedGameId
-                                                            ? 0
-                                                            : game.id;
-                                                      });
-                                                    },
-                                                  ),
-                                                ),
-                                                onTap: () {
-                                                  if (!kIsWeb) {
-                                                    _showGame(
-                                                        game: game,
-                                                        season: season);
-                                                  } else {
-                                                    _goToGame(game, season);
-                                                  }
-                                                },
-                                              ),
-                                              if (game.id == _expandedGameId)
-                                                ScoringSummary(
-                                                    season, season.team, game),
-                                            ],
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 0,
-                                          right: 0,
-                                          child:
-                                              GameResult(game, season.teamId),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-
-                                  if (kIsWeb) return gameCard;
-
-                                  return Dismissible(
-                                    key: Key(game.id.toString()),
-                                    direction: DismissDirection.startToEnd,
-                                    dismissThresholds: const {
-                                      DismissDirection.startToEnd: 0.5,
-                                    },
-                                    background: Container(color: Colors.red),
-                                    confirmDismiss: (_) {
-                                      return showDialog<bool>(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return AlertDialog(
-                                            title: Text(
-                                                AppLocalizations.of(context)!
-                                                    .confirmDelete),
-                                            content: Text(AppLocalizations.of(
-                                                    context)!
-                                                .areYouSureYouWantToDeleteThisGame),
-                                            actions: [
-                                              TextButton(
-                                                child: Text(AppLocalizations.of(
-                                                        context)!
-                                                    .continueButton),
-                                                onPressed: () {
-                                                  Navigator.pop(context, true);
-                                                },
-                                              ),
-                                              TextButton(
-                                                child: Text(AppLocalizations.of(
-                                                        context)!
-                                                    .cancelButton),
-                                                onPressed: () {
-                                                  Navigator.pop(context, false);
-                                                },
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                    onDismissed: (direction) async {
-                                      final candidates = await DatabaseService
-                                          .instance
-                                          .query('Games',
-                                              orderByChild: 'id',
-                                              equalTo: game.id);
-                                      for (final c in candidates) {
-                                        final k = c['_key']?.toString();
-                                        if (k != null) {
-                                          await DatabaseService.instance
-                                              .delete('Games', key: k);
-                                        }
-                                      }
-                                      setState(() {});
-                                    },
-                                    child: gameCard,
-                                  );
-                                }),
-                              ],
-                            ),
-                          ),
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: SegmentedButton<SeasonViewType>(
+                      segments: const [
+                        ButtonSegment(
+                            value: SeasonViewType.list,
+                            label: Text('List'),
+                            icon: Icon(Icons.list)),
+                        ButtonSegment(
+                            value: SeasonViewType.calendar,
+                            label: Text('Calendar'),
+                            icon: Icon(Icons.calendar_month)),
                       ],
+                      selected: _viewType,
+                      onSelectionChanged: (Set<SeasonViewType> newSelection) {
+                        setState(() {
+                          _viewType = newSelection;
+                        });
+                      },
                     ),
                   ),
+                  // Scrollable content section
+                  if (_viewType.contains(SeasonViewType.calendar))
+                    Expanded(
+                      child: SeasonCalendarView(
+                          season: season,
+                          games: games,
+                          onGameTap: (game) {
+                            if (!kIsWeb) {
+                              _showGame(game: game, season: season);
+                            } else {
+                              _goToGame(game, season);
+                            }
+                          }),
+                    )
+                  else
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.all(10),
+                        children: [
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1400),
+                              child: Column(
+                                children: [
+                                  // Awards Section
+                                  _buildAwardsSection(season),
+                                  // Games list
+                                  ...games.map((game) {
+                                    final linkWidget = game
+                                                .gameLinks?.isNotEmpty ??
+                                            false
+                                        ? GestureDetector(
+                                            onTap: () async {
+                                              await _launchUrl(game.gameLinks!);
+                                            },
+                                            child: VideoThumbnail(
+                                                game.gameLinks!,
+                                                width: 40,
+                                                height: 28),
+                                          )
+                                        : const SizedBox(width: 24);
+
+                                    final gameCard = Container(
+                                      padding: const EdgeInsets.all(5),
+                                      child: Stack(
+                                        children: [
+                                          Card(
+                                            child: Column(
+                                              children: [
+                                                ListTile(
+                                                  title: Text(
+                                                      game.displayName(
+                                                          season.teamId),
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
+                                                  subtitle: Text(
+                                                    game.date.hour == 0 &&
+                                                            game.date.minute ==
+                                                                0
+                                                        ? format
+                                                            .format(game.date)
+                                                        : '${format.format(game.date)} at ${_formatTime12Hour(game.date)}',
+                                                  ),
+                                                  leading: linkWidget,
+                                                  trailing: Container(
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                            top: 20),
+                                                    child: IconButton(
+                                                      icon: Icon(game.id ==
+                                                              _expandedGameId
+                                                          ? Icons.expand_less
+                                                          : Icons.expand_more),
+                                                      onPressed: () async {
+                                                        setState(() {
+                                                          _expandedGameId = game
+                                                                      .id ==
+                                                                  _expandedGameId
+                                                              ? 0
+                                                              : game.id;
+                                                        });
+                                                      },
+                                                    ),
+                                                  ),
+                                                  onTap: () {
+                                                    if (!kIsWeb) {
+                                                      _showGame(
+                                                          game: game,
+                                                          season: season);
+                                                    } else {
+                                                      _goToGame(game, season);
+                                                    }
+                                                  },
+                                                ),
+                                                if (game.id == _expandedGameId)
+                                                  ScoringSummary(season,
+                                                      season.team, game),
+                                              ],
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 0,
+                                            right: 0,
+                                            child:
+                                                GameResult(game, season.teamId),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (kIsWeb) return gameCard;
+
+                                    return Dismissible(
+                                      key: Key(game.id.toString()),
+                                      direction: DismissDirection.startToEnd,
+                                      dismissThresholds: const {
+                                        DismissDirection.startToEnd: 0.5,
+                                      },
+                                      background: Container(color: Colors.red),
+                                      confirmDismiss: (_) {
+                                        return showDialog<bool>(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return AlertDialog(
+                                              title: Text(
+                                                  AppLocalizations.of(context)!
+                                                      .confirmDelete),
+                                              content: Text(AppLocalizations.of(
+                                                      context)!
+                                                  .areYouSureYouWantToDeleteThisGame),
+                                              actions: [
+                                                TextButton(
+                                                  child: Text(
+                                                      AppLocalizations.of(
+                                                              context)!
+                                                          .continueButton),
+                                                  onPressed: () {
+                                                    Navigator.pop(
+                                                        context, true);
+                                                  },
+                                                ),
+                                                TextButton(
+                                                  child: Text(
+                                                      AppLocalizations.of(
+                                                              context)!
+                                                          .cancelButton),
+                                                  onPressed: () {
+                                                    Navigator.pop(
+                                                        context, false);
+                                                  },
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+                                      },
+                                      onDismissed: (direction) async {
+                                        final candidates = await DatabaseService
+                                            .instance
+                                            .query('Games',
+                                                orderByChild: 'id',
+                                                equalTo: game.id);
+                                        for (final c in candidates) {
+                                          final k = c['_key']?.toString();
+                                          if (k != null) {
+                                            await DatabaseService.instance
+                                                .delete('Games', key: k);
+                                          }
+                                        }
+                                        setState(() {});
+                                      },
+                                      child: gameCard,
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ));
         } else if (snapshot.hasError) {
@@ -1670,8 +1719,8 @@ class _SeasonPageState extends State<SeasonPage> {
     );
   }
 
-  void _showAddPlayerAwardDialog(Season season,
-      {PlayerAward? award, Player? player}) {
+  Future<void> _showAddPlayerAwardDialog(Season season,
+      {PlayerAward? award, Player? player}) async {
     // Only supported on mobile
     if (kIsWeb) return;
 
@@ -1679,11 +1728,33 @@ class _SeasonPageState extends State<SeasonPage> {
     final titleController = TextEditingController(text: award?.title ?? '');
     final descriptionController =
         TextEditingController(text: award?.description ?? '');
+
+    // Load available seasons
+    List<Season> availableSeasons = [];
+    try {
+      availableSeasons = await Season.fromTeamId(season.teamId);
+      if (!availableSeasons.any((s) => s.id == season.id)) {
+        availableSeasons.add(season);
+      }
+    } catch (e) {
+      debugPrint('Error loading seasons: $e');
+      availableSeasons = [season];
+    }
+
+    // Determine selected season
+    final initialSeasonId = award?.seasonId ?? season.id;
+    Season? selectedSeason = availableSeasons.firstWhere(
+      (s) => s.id == initialSeasonId,
+      orElse: () => season,
+    );
+
     Player? selectedPlayer =
         player ?? (season.players.isNotEmpty ? season.players.first : null);
     String? imageUrl = award?.imageUrl;
     File? imageFile;
     bool isUploadingImage = false;
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
@@ -1708,6 +1779,17 @@ class _SeasonPageState extends State<SeasonPage> {
                           value: p, child: Text(p.displayName));
                     }).toList(),
                     onChanged: (p) => setState(() => selectedPlayer = p),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<Season>(
+                    value: selectedSeason,
+                    decoration: const InputDecoration(
+                      labelText: 'Season',
+                    ),
+                    items: availableSeasons.map((s) {
+                      return DropdownMenuItem(value: s, child: Text(s.name));
+                    }).toList(),
+                    onChanged: (s) => setState(() => selectedSeason = s),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -1812,11 +1894,13 @@ class _SeasonPageState extends State<SeasonPage> {
                   ? null
                   : () async {
                       final title = titleController.text.trim();
-                      if (title.isEmpty || selectedPlayer == null) {
+                      if (title.isEmpty ||
+                          selectedPlayer == null ||
+                          selectedSeason == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content:
-                                    Text('Title and player are required')));
+                                content: Text(
+                                    'Title, player, and season are required')));
                         return;
                       }
 
@@ -1841,7 +1925,7 @@ class _SeasonPageState extends State<SeasonPage> {
                         final a = PlayerAward(
                           id: awardId,
                           playerId: selectedPlayer!.id,
-                          seasonId: season.id,
+                          seasonId: selectedSeason!.id,
                           title: title,
                           description: descriptionController.text.trim().isEmpty
                               ? null
@@ -2197,3 +2281,5 @@ class _SeasonPageState extends State<SeasonPage> {
     return '$hour:$minute $period';
   }
 }
+
+enum SeasonViewType { list, calendar }
