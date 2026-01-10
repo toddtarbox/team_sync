@@ -552,7 +552,7 @@ class _GamePageState extends State<GamePage> {
     }
 
     // In-progress game actions (mobile and tablet)
-    if (_game.gameStatus.index < 9) {
+    if (!kIsWeb && _game.gameStatus.index < 9) {
       return [
         // Stats button (mobile phone only)
         if (!isTabletOrLarger)
