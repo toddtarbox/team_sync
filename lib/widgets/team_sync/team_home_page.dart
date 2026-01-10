@@ -37,6 +37,7 @@ import 'package:team_sync/widgets/team_summary_section.dart';
 
 import 'package:team_sync/widgets/event_stream_widget.dart';
 
+import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
@@ -4272,88 +4273,141 @@ $liveLink
         whenText = '$dateStr at $hour:$minute $period';
       }
 
-      return HoverBuilder(
-        builder: (context, isHovered) {
-          return Transform.scale(
-            scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
-            child: GestureDetector(
-              // Make banner tappable if live link exists
-              onTap: hasLiveLink
-                  ? () async {
-                      final url = _nextUpcomingGame!.gameLinks!;
-                      try {
-                        final uri = Uri.parse(url);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
-                        } else {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(loc.unableToOpenLiveLink)));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoverBuilder(
+            builder: (context, isHovered) {
+              return Transform.scale(
+                scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
+                child: GestureDetector(
+                  // Make banner tappable if live link exists
+                  onTap: hasLiveLink
+                      ? () async {
+                          final url = _nextUpcomingGame!.gameLinks!;
+                          try {
+                            final uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text(loc.unableToOpenLiveLink)));
+                              }
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(loc.unableToOpenLiveLink)));
+                            }
                           }
                         }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(loc.unableToOpenLiveLink)));
-                        }
-                      }
-                    }
-                  : null,
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_team!.color1, _team!.color2],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
+                      : null,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_team!.color1, _team!.color2],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          hasLiveLink ? Icons.videocam : Icons.schedule,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${loc.nextGamePrefix} $opponent',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                hasLiveLink
+                                    ? '$whenText — Tap to watch live! 📺'
+                                    : '$whenText — ${loc.nextGameStayTuned}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Tweet button - show on mobile to promote upcoming game
+                        if (!kIsWeb)
+                          IconButton(
+                            icon: const Icon(Icons.send, color: Colors.white),
+                            tooltip: 'Promote game on Twitter',
+                            onPressed: () => _tweetUpcomingGame(),
+                          ),
+                        // Show external link icon if live link exists
+                        if (hasLiveLink)
+                          const Icon(Icons.open_in_new, color: Colors.white),
+                      ],
+                    ),
                   ),
                 ),
+              );
+            },
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+            child: InkWell(
+              onTap: () {
+                if (_currentSeason != null) {
+                  final databaseId = DatabaseService.instance.publicShareId;
+                  NavigationHelper.navigateTo(
+                    context,
+                    '/team/$databaseId/season/${_currentSeason!.id}',
+                    extra: {
+                      'season': _currentSeason!,
+                      'viewType': SeasonViewType.calendar
+                    },
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      hasLiveLink ? Icons.videocam : Icons.schedule,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${loc.nextGamePrefix} $opponent',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hasLiveLink
-                                ? '$whenText — Tap to watch live! 📺'
-                                : '$whenText — ${loc.nextGameStayTuned}',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ],
+                    Icon(Icons.calendar_month,
+                        size: 16,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.lightBlueAccent
+                            : Theme.of(context).primaryColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      'View Season Schedule',
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.lightBlueAccent
+                            : Theme.of(context).primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
-                    // Tweet button - show on mobile to promote upcoming game
-                    if (!kIsWeb)
-                      IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        tooltip: 'Promote game on Twitter',
-                        onPressed: () => _tweetUpcomingGame(),
-                      ),
-                    // Show external link icon if live link exists
-                    if (hasLiveLink)
-                      const Icon(Icons.open_in_new, color: Colors.white),
                   ],
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ],
       );
     }
 

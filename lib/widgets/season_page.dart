@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -35,8 +36,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 class SeasonPage extends StatefulWidget {
   final Season? season; // made nullable to support deep links
+  final SeasonViewType initialViewType;
 
-  const SeasonPage({super.key, this.season});
+  const SeasonPage(
+      {super.key, this.season, this.initialViewType = SeasonViewType.list});
 
   @override
   State<SeasonPage> createState() => _SeasonPageState();
@@ -62,7 +65,7 @@ class _SeasonPageState extends State<SeasonPage> {
   // Cache the awards future to prevent rebuilding on setState
   final Map<int, Future<List<dynamic>>> _awardsFutureCache = {};
 
-  Set<SeasonViewType> _viewType = {SeasonViewType.list};
+  late Set<SeasonViewType> _viewType;
 
   // Helper to get path segments that works with hash-based routing used by go_router on web.
   List<String> _getPathSegments() {
@@ -84,6 +87,7 @@ class _SeasonPageState extends State<SeasonPage> {
   @override
   void initState() {
     super.initState();
+    _viewType = {widget.initialViewType};
     _loadAwardsExpansionState();
   }
 
@@ -322,21 +326,72 @@ class _SeasonPageState extends State<SeasonPage> {
                             seasonId: season.id,
                           ),
                         ),
-                        Container(
-                          decoration: const BoxDecoration(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(25),
-                              bottomRight: Radius.circular(25),
-                            ),
-                          ),
-                          child: Container(
-                            color: Colors.transparent,
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Center(child: SeasonRecord([season])),
-                            ),
-                          ),
-                        ),
+                        season.logoUrl != null && season.logoUrl!.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _showPhoto(context, season.logoUrl);
+                                },
+                                child: Container(
+                                  height: 200,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    image: DecorationImage(
+                                      image: NetworkImage(season.logoUrl!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black
+                                                  .withValues(alpha: 0.7),
+                                            ],
+                                            stops: const [0.5, 1.0],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10),
+                                          child: Center(
+                                              child: SeasonRecord(
+                                            [season],
+                                            isCompact: true,
+                                          )),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                decoration: const BoxDecoration(
+                                  borderRadius: BorderRadius.only(
+                                    bottomLeft: Radius.circular(25),
+                                    bottomRight: Radius.circular(25),
+                                  ),
+                                ),
+                                child: Container(
+                                  color: Colors.transparent,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child:
+                                        Center(child: SeasonRecord([season])),
+                                  ),
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -2279,6 +2334,23 @@ class _SeasonPageState extends State<SeasonPage> {
     }
 
     return '$hour:$minute $period';
+  }
+
+  Future<void> _showPhoto(BuildContext context, String? logoUrl) async {
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: PhotoView(
+            imageProvider: NetworkImage(logoUrl),
+          ),
+        );
+      },
+    );
   }
 }
 

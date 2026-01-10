@@ -1,4 +1,6 @@
 import 'package:eventify/eventify.dart';
+import 'package:photo_view/photo_view.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -143,6 +145,23 @@ class _GamePageState extends State<GamePage> {
     }
   }
 
+  Future<void> _showPhoto(BuildContext context, String? imageUrl) async {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: PhotoView(
+            imageProvider: NetworkImage(imageUrl),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
@@ -283,6 +302,57 @@ class _GamePageState extends State<GamePage> {
           ),
           body: Column(
             children: [
+              // Game Header Area: Overlay Scoreboard on Image if available
+              if (_game.imageUrl != null && _game.imageUrl!.isNotEmpty)
+                GestureDetector(
+                  onTap: () {
+                    _showPhoto(context, _game.imageUrl);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 250),
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(_game.imageUrl!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.8),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.6],
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          ScoreboardWidget(
+                            game: _game,
+                            season: resolvedSeason,
+                            teamId: resolvedSeason.teamId,
+                            compact: true,
+                            transparentBackground: true,
+                            margin: const EdgeInsets.only(
+                                left: 16, right: 16, top: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ScoreboardWidget(
+                  game: _game,
+                  season: resolvedSeason,
+                  teamId: resolvedSeason.teamId,
+                  compact: false,
+                ),
               if (kIsWeb)
                 Breadcrumbs(
                   items: buildTeamBreadcrumbs(
@@ -293,10 +363,6 @@ class _GamePageState extends State<GamePage> {
                     gameName: _game.displayName(resolvedSeason.teamId),
                   ),
                 ),
-              ScoreboardWidget(
-                  game: _game,
-                  season: resolvedSeason,
-                  teamId: resolvedSeason.teamId),
               // Responsive layout
               Expanded(
                 child: isTabletOrLarger

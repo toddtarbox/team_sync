@@ -3,6 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
@@ -30,12 +35,21 @@ class _GameEditorState extends State<GameEditor> {
   List<Team> _availableTeams = [];
   final _formKey = GlobalKey<FormState>();
   final DateFormat _dateFormat = DateFormat('EEE, MMM d, yyyy');
+  late TextEditingController _imageUrlController;
 
   @override
   void initState() {
     super.initState();
+    super.initState();
     _initializeGame();
+    _imageUrlController = TextEditingController(text: _game.imageUrl);
     _loadTeams();
+  }
+
+  @override
+  void dispose() {
+    _imageUrlController.dispose();
+    super.dispose();
   }
 
   void _initializeGame() {
@@ -229,6 +243,89 @@ class _GameEditorState extends State<GameEditor> {
                       ),
                       onChanged: (val) => _game.gameLinks = val,
                     ),
+                    const SizedBox(height: 16),
+                    // Image URL with Upload Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _imageUrlController,
+                            decoration: InputDecoration(
+                              labelText: 'Image URL (optional)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              prefixIcon: const Icon(Icons.image),
+                              suffixIcon: _imageUrlController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _imageUrlController.clear();
+                                        _game.imageUrl = null;
+                                        setState(() {});
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (val) {
+                              _game.imageUrl = val;
+                              setState(() {}); // Update preview state
+                            },
+                          ),
+                        ),
+                        if (!kIsWeb) ...[
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: _pickAndUploadImage,
+                            icon: const Icon(Icons.upload_file),
+                            tooltip: 'Upload Image',
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // Image Preview
+                    if (_imageUrlController.text.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: Theme.of(context).colorScheme.outline),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              _imageUrlController.text,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.broken_image,
+                                          color: Colors.grey),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Invalid URL',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     // Scoreboard preview if editing
                     if (widget.game != null &&
@@ -656,6 +753,58 @@ class _GameEditorState extends State<GameEditor> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving game: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      if (!mounted) return;
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading image...')),
+      );
+
+      // Upload to Firebase Storage
+      // Using player_action_photos as it allows write access in current security rules
+      // Ideal fix: Update storage.rules to include game_images
+      final storageRef = FirebaseStorage.instance.ref().child(
+          'player_action_photos/game_${widget.season.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await storageRef.putFile(File(image.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      if (!mounted) return;
+
+      setState(() {
+        _imageUrlController.text = downloadUrl;
+        _game.imageUrl = downloadUrl;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image uploaded successfully')),
+      );
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading image: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }

@@ -262,6 +262,7 @@ class Game {
   GameStatus gameStatus;
   String? description;
   String? gameLinks;
+  String? imageUrl; // Optional image URL for the game
 
   List<GameEvent> allGameEvents = [];
   List<GameEvent> scoringEvents = [];
@@ -335,7 +336,8 @@ class Game {
       required this.date,
       required this.gameStatus,
       required this.description,
-      required this.gameLinks});
+      required this.gameLinks,
+      this.imageUrl});
 
   bool get isCompleted => gameStatus.index >= 9;
 
@@ -351,7 +353,8 @@ class Game {
         date: DateTime.now(),
         gameStatus: GameStatus.fromString('0'),
         description: '',
-        gameLinks: '');
+        gameLinks: '',
+        imageUrl: '');
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
@@ -415,7 +418,8 @@ class Game {
         date: date,
         gameStatus: GameStatus.fromString(map['gameStatus']?.toString() ?? '0'),
         description: map['description'],
-        gameLinks: map['gameLinks']);
+        gameLinks: map['gameLinks'],
+        imageUrl: map['imageUrl']);
   }
 
   static Future<Game?> fromId(int id) async {
@@ -551,6 +555,7 @@ class Game {
         'gameStatus': gameStatus.index,
         'description': description,
         'gameLinks': gameLinks,
+        'imageUrl': imageUrl,
       };
 
       if (id == -1) {

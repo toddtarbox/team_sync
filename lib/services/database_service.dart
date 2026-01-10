@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -85,6 +86,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   StreamSubscription<DatabaseEvent>? _dbValueSub;
 
   FirebaseDBProvider() {
+    if (DatabaseService.isTest) return;
     // Enable offline persistence on platforms that support it (mobile/desktop).
     // Web does not support setPersistenceEnabled, so guard with kIsWeb.
     try {
@@ -99,11 +101,13 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     // Listen to connection state from RTDB special location
     try {
-      if (!kIsWeb) {
+      if (!kIsWeb && !DatabaseService.isTest) {
         _database.ref('.info/connected').onValue.listen((event) {
           final connected = (event.snapshot.value == true);
           DatabaseService.instance._emitConnectionStateInternal(connected);
           if (connected) DatabaseService.instance._clearPendingOnReconnect();
+        }, onError: (e) {
+          debugPrint('Connection state stream error: $e');
         });
       }
     } catch (e) {
@@ -291,6 +295,8 @@ class FirebaseDBProvider implements DatabaseProvider {
         }
         // Fall back to local observed time
         _updateController.add(DateTime.now().toUtc());
+      }, onError: (e) {
+        debugPrint('DB value stream error: $e');
       });
     } catch (e) {
       debugPrint('Failed to subscribe to database value events: $e');
@@ -360,6 +366,8 @@ class FirebaseDBProvider implements DatabaseProvider {
                 'updateStream: failed to read lastUpdated from snapshot: $e');
           }
           _updateController.add(DateTime.now().toUtc());
+        }, onError: (e) {
+          debugPrint('DB value stream error (from path): $e');
         });
       } catch (e) {
         debugPrint('Failed to subscribe to database value events: $e');
@@ -897,7 +905,10 @@ class FirebaseDBProvider implements DatabaseProvider {
 
 /// Singleton service that delegates to a DatabaseProvider.
 class DatabaseService {
-  static final DatabaseService instance = DatabaseService._internal();
+  static bool isTest = false;
+  static DatabaseService? _instance;
+  static DatabaseService get instance =>
+      _instance ??= DatabaseService._internal();
   late DatabaseProvider _provider;
 
   // Connection status stream: true = connected, false = disconnected
@@ -1046,7 +1057,9 @@ class DatabaseService {
   Future<bool> open(String path) async => await _provider.open(path);
 
   Future<bool> openFromPath(String path) async {
-    if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
+    if (_provider is! FirebaseDBProvider && !DatabaseService.isTest) {
+      setProvider(FirebaseDBProvider());
+    }
     return await _provider.openFromPath(path);
   }
 

@@ -17,6 +17,7 @@ class ScoreboardWidget extends StatefulWidget {
   final bool compact;
   final EdgeInsets? margin;
   final EdgeInsets? padding;
+  final bool transparentBackground;
 
   const ScoreboardWidget({
     super.key,
@@ -26,6 +27,7 @@ class ScoreboardWidget extends StatefulWidget {
     this.compact = false,
     this.margin,
     this.padding,
+    this.transparentBackground = false,
   });
 
   @override
@@ -193,18 +195,25 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF1a1a1a),
-                    const Color(0xFF2a2a2a),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: widget.transparentBackground
+                    ? null
+                    : LinearGradient(
+                        colors: [
+                          const Color(0xFF1a1a1a),
+                          const Color(0xFF2a2a2a),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                color: widget.transparentBackground
+                    ? Colors.black.withOpacity(0.6)
+                    : null,
                 border: Border.all(
                   color: isLiveGame
                       ? Colors.amber.withOpacity(0.6)
-                      : Colors.grey.withOpacity(0.3),
+                      : widget.transparentBackground
+                          ? Colors.transparent
+                          : Colors.grey.withOpacity(0.3),
                   width: isLiveGame ? 2 : 1,
                 ),
                 boxShadow: isLiveGame
@@ -395,7 +404,9 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                             vertical: isCompact ? 8.0 : 12.0,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black,
+                            color: widget.transparentBackground
+                                ? Colors.black.withOpacity(0.6)
+                                : Colors.black,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: Colors.amber.withOpacity(0.3),
