@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -4320,9 +4321,25 @@ $liveLink
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          hasLiveLink ? Icons.videocam : Icons.schedule,
-                          color: Colors.white,
+                        // Opponent Logo or Schedule Icon
+                        SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: ResponsiveAvatar(
+                            imageUrl: _nextUpcomingGame!.isHomeTeam(_team!.id)
+                                ? _nextUpcomingGame!.awayTeam.logoUrl
+                                : _nextUpcomingGame!.homeTeam.logoUrl,
+                            initials: (_nextUpcomingGame!.isHomeTeam(_team!.id)
+                                        ? _nextUpcomingGame!.awayTeam.shortName
+                                        : _nextUpcomingGame!.homeTeam.shortName)
+                                    .isNotEmpty
+                                ? (_nextUpcomingGame!.isHomeTeam(_team!.id)
+                                    ? _nextUpcomingGame!.awayTeam.shortName
+                                    : _nextUpcomingGame!.homeTeam.shortName)
+                                : opponent.substring(
+                                    0, min(2, opponent.length)),
+                            backgroundColor: Colors.white24,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -4345,6 +4362,16 @@ $liveLink
                             ],
                           ),
                         ),
+                        // Live Link Icon
+                        if (hasLiveLink)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Icon(
+                              Icons.videocam,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
                         // Tweet button - show on mobile to promote upcoming game
                         if (!kIsWeb)
                           IconButton(

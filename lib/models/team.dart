@@ -89,6 +89,10 @@ class Team extends Equatable {
     _teamCache.clear();
   }
 
+  static void invalidate(int id) {
+    _teamCache.remove(id);
+  }
+
   static Future<Team> fromId(int id) async {
     if (_teamCache.containsKey(id)) {
       return _teamCache[id]!;

@@ -13,6 +13,8 @@ import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 
+import 'package:team_sync/widgets/responsive_avatar.dart';
+
 /// Widget to generate newspaper-style match result cards for sharing
 class MatchResultCard {
   /// Show dialog to generate and share match result card
@@ -414,14 +416,29 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
     }
 
     final teamColor = widget.season.team.color1;
-    final isHomeTeam = widget.game.isHomeTeam(widget.season.teamId);
-    final teamScore =
-        isHomeTeam ? widget.game.homeTeamScore : widget.game.awayTeamScore;
+
+    // Explicitly determine "My Team" vs "Opponent"
+    final userIsHome = widget.game.isHomeTeam(widget.season.teamId);
+
+    // Score logic
+    final userScore =
+        userIsHome ? widget.game.homeTeamScore : widget.game.awayTeamScore;
     final opponentScore =
-        isHomeTeam ? widget.game.awayTeamScore : widget.game.homeTeamScore;
-    final opponentName = isHomeTeam
+        userIsHome ? widget.game.awayTeamScore : widget.game.homeTeamScore;
+
+    // Name logic
+    final userName = widget.season.team.fullName;
+    final opponentName = userIsHome
         ? widget.game.awayTeam.shortName
         : widget.game.homeTeam.shortName;
+
+    // Logo logic - prioritize Game object's team references as they match home/away context
+    final userLogo = userIsHome
+        ? widget.game.homeTeam.logoUrl
+        : widget.game.awayTeam.logoUrl;
+    final opponentLogo = userIsHome
+        ? widget.game.awayTeam.logoUrl
+        : widget.game.homeTeam.logoUrl;
 
     return Container(
       width: 800,
@@ -471,12 +488,25 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Home Team
+                // Left Column: MY TEAM
                 Expanded(
                   child: Column(
                     children: [
+                      // My Team Logo
+                      if (userLogo != null && userLogo.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: ResponsiveAvatar(
+                              imageUrl: userLogo,
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                        ),
                       Text(
-                        widget.season.team.fullName.toUpperCase(),
+                        userName.toUpperCase(),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -501,7 +531,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                         ),
                         child: Center(
                           child: Text(
-                            teamScore.toString(),
+                            userScore.toString(),
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
@@ -526,10 +556,23 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                     ),
                   ),
                 ),
-                // Away Team
+                // Right Column: OPPONENT
                 Expanded(
                   child: Column(
                     children: [
+                      // Opponent Logo
+                      if (opponentLogo != null && opponentLogo.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: ResponsiveAvatar(
+                              imageUrl: opponentLogo,
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                        ),
                       Text(
                         opponentName.toUpperCase(),
                         style: TextStyle(
@@ -544,7 +587,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.grey[400],
+                          color: teamColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(

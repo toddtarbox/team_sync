@@ -458,15 +458,30 @@ class _GameEditorState extends State<GameEditor> {
           );
         }),
         const SizedBox(height: 8),
-        if (widget.game == null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(loc.createNewOpponent),
-              onPressed: _showCreateOpponentDialog,
-            ),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (currentOpponentId != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: TextButton.icon(
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text("Edit Opponent"),
+                  onPressed: () {
+                    final team = _availableTeams
+                        .firstWhere((t) => t.id == currentOpponentId);
+                    _showEditTeamDialog(team);
+                  },
+                ),
+              ),
+            if (widget.game == null)
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(loc.createNewOpponent),
+                onPressed: _showCreateOpponentDialog,
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -800,11 +815,209 @@ class _GameEditorState extends State<GameEditor> {
     } catch (e) {
       debugPrint('Error uploading image: $e');
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error uploading image: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _pickAndUploadTeamLogo(int teamId) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512, // Logos don't need to be huge
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image == null) return null;
+
+      if (!mounted) return null;
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading team logo...')),
+      );
+
+      // Upload to Firebase Storage
+      // Keeping in player_action_photos as requested for permission reasons
+      final storageRef = FirebaseStorage.instance.ref().child(
+          'player_action_photos/team_logo_${teamId}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await storageRef.putFile(File(image.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('Error uploading logo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading logo: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
+  void _showEditTeamDialog(Team team) {
+    String teamName = team.fullName;
+    String teamShortName = team.shortName;
+    String? logoUrl = team.logoUrl;
+    TextEditingController logoController =
+        TextEditingController(text: team.logoUrl);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Edit Opponent"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(labelText: loc.teamName),
+                    controller: TextEditingController(text: teamName),
+                    onChanged: (val) => teamName = val,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    decoration: InputDecoration(labelText: loc.teamShortName),
+                    controller: TextEditingController(text: teamShortName),
+                    onChanged: (val) => teamShortName = val,
+                  ),
+                  const SizedBox(height: 16),
+                  // Logo URL with Upload Button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: logoController,
+                          decoration: InputDecoration(
+                            labelText: 'Logo URL (optional)',
+                            prefixIcon: const Icon(Icons.image),
+                            suffixIcon: logoUrl != null && logoUrl!.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        logoController.clear();
+                                        logoUrl = null;
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              logoUrl = val;
+                            });
+                          },
+                        ),
+                      ),
+                      if (!kIsWeb) ...[
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          onPressed: () async {
+                            final url = await _pickAndUploadTeamLogo(team.id);
+                            if (url != null) {
+                              setState(() {
+                                logoUrl = url;
+                                logoController.text = url;
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.upload_file),
+                          tooltip: 'Upload Logo',
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (logoUrl != null && logoUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 80,
+                      width: 80,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(loc.cancelButton),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (teamName.isNotEmpty && teamShortName.isNotEmpty) {
+                    Navigator.pop(context);
+                    await _updateTeamDetails(
+                        team.id, teamName, teamShortName, logoUrl);
+                  }
+                },
+                child: Text(loc.save),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _updateTeamDetails(
+      int teamId, String name, String shortName, String? logoUrl) async {
+    try {
+      await DatabaseService.instance.update(
+          'Teams',
+          {
+            'fullName': name,
+            'shortName': shortName,
+            'logoUrl': logoUrl,
+          },
+          key: teamId.toString());
+
+      Team.invalidate(teamId); // Invalidate cache so we get fresh data
+      await _loadTeams(); // Reload list to reflect changes
+
+      // If this was the currently selected opponent, we might need to update _game.homeTeam/awayTeam
+      // strictly speaking _loadTeams creates new objects so _updateOpponent might be needed
+      // Check if this team is currently selected in the game object
+      if (_game.homeTeam.id == teamId || _game.awayTeam.id == teamId) {
+        _updateOpponent(teamId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Team updated successfully')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating team: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating team: $e')),
         );
       }
     }

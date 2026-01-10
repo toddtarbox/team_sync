@@ -554,160 +554,175 @@ class _GamePageState extends State<GamePage> {
     // In-progress game actions (mobile and tablet)
     if (!kIsWeb && _game.gameStatus.index < 9) {
       return [
-        // Stats button (mobile phone only)
-        if (!isTabletOrLarger)
-          GestureDetector(
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (context) => SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.9,
-                  child: EventStreamWidget(
-                    game: _game,
-                    teamId: season.teamId,
-                  ),
-                ),
-              );
-            },
-            child: const Padding(
-              padding: EdgeInsets.all(5),
-              child: Icon(Icons.analytics, size: 24),
-            ),
-          ),
-        // Generate Lineup button
-        GestureDetector(
-          onTap: () {
-            LineupGenerator.showLineupDialog(
-              context,
-              team: season.team,
-              players: season.players,
-              game: _game,
-            );
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(Icons.sports_soccer, size: 24),
-          ),
-        ),
-        // Tweet button
-        GestureDetector(
-          onTap: () {
-            AdhocTweetDialog.show(context,
-                teamId: season.teamId, team: season.team);
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(Icons.send, size: 24),
-          ),
-        ),
-        // Advance game button
-        GestureDetector(
-          onTap: () async {
-            await showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: Text(loc.advanceGame),
-                  content: const Text(
-                      "Are you sure you want to advance to the next period?"),
-                  actions: [
-                    TextButton(
-                      child: Text(loc.continueText),
-                      onPressed: () async {
-                        Navigator.pop(context, true);
-                        _eventEmitter.emit('advanceGame');
-                      },
-                    ),
-                    TextButton(
-                      child: Text(loc.cancel),
-                      onPressed: () {
-                        Navigator.pop(context, false);
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-          child: const Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(Icons.add),
-          ),
-        ),
-        // End game button
-        GestureDetector(
-          onTap: () async {
-            final selectedStatus = await showDialog<int>(
-              context: context,
-              builder: (context) {
-                int? status = 9;
-                return StatefulBuilder(
-                  builder: (context, setState) {
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) async {
+            switch (value) {
+              case 'advance':
+                await showDialog(
+                  context: context,
+                  builder: (context) {
                     return AlertDialog(
-                      title: Text(loc.endGame),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          RadioListTile(
-                            title: Text(loc.finalText),
-                            value: 9,
-                            groupValue: status,
-                            onChanged: (i) {
-                              setState(() {
-                                status = i;
-                              });
-                            },
-                          ),
-                          RadioListTile(
-                            title: Text(loc.finalOTText),
-                            value: 10,
-                            groupValue: status,
-                            onChanged: (i) {
-                              setState(() {
-                                status = i;
-                              });
-                            },
-                          ),
-                          RadioListTile(
-                            title: Text(loc.finalPKsText),
-                            value: 11,
-                            groupValue: status,
-                            onChanged: (i) {
-                              setState(() {
-                                status = i;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
+                      title: Text(loc.advanceGame),
+                      content: const Text(
+                          "Are you sure you want to advance to the next period?"),
                       actions: [
                         TextButton(
                           child: Text(loc.continueText),
-                          onPressed: () {
-                            Navigator.pop(context, status);
+                          onPressed: () async {
+                            Navigator.pop(context, true);
+                            _eventEmitter.emit('advanceGame');
                           },
                         ),
                         TextButton(
                           child: Text(loc.cancel),
                           onPressed: () {
-                            Navigator.pop(context, null);
+                            Navigator.pop(context, false);
                           },
                         ),
                       ],
                     );
                   },
                 );
-              },
-            );
-            if (selectedStatus != null) {
-              _eventEmitter.emit('endGame', null, selectedStatus);
+                break;
+              case 'end':
+                final selectedStatus = await showDialog<int>(
+                  context: context,
+                  builder: (context) {
+                    int? status = 9;
+                    return StatefulBuilder(
+                      builder: (context, setState) {
+                        return AlertDialog(
+                          title: Text(loc.endGame),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              RadioListTile(
+                                title: Text(loc.finalText),
+                                value: 9,
+                                groupValue: status,
+                                onChanged: (i) {
+                                  setState(() {
+                                    status = i;
+                                  });
+                                },
+                              ),
+                              RadioListTile(
+                                title: Text(loc.finalOTText),
+                                value: 10,
+                                groupValue: status,
+                                onChanged: (i) {
+                                  setState(() {
+                                    status = i;
+                                  });
+                                },
+                              ),
+                              RadioListTile(
+                                title: Text(loc.finalPKsText),
+                                value: 11,
+                                groupValue: status,
+                                onChanged: (i) {
+                                  setState(() {
+                                    status = i;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              child: Text(loc.continueText),
+                              onPressed: () {
+                                Navigator.pop(context, status);
+                              },
+                            ),
+                            TextButton(
+                              child: Text(loc.cancel),
+                              onPressed: () {
+                                Navigator.pop(context, null);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+                if (selectedStatus != null) {
+                  _eventEmitter.emit('endGame', null, selectedStatus);
+                }
+                break;
+              case 'lineup':
+                LineupGenerator.showLineupDialog(
+                  context,
+                  team: season.team,
+                  players: season.players,
+                  game: _game,
+                );
+                break;
+              case 'tweet':
+                AdhocTweetDialog.show(context,
+                    teamId: season.teamId, team: season.team);
+                break;
+              case 'stats':
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (context) => SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.9,
+                    child: EventStreamWidget(
+                      game: _game,
+                      teamId: season.teamId,
+                    ),
+                  ),
+                );
+                break;
             }
           },
-          child: const Padding(
-            padding: EdgeInsets.all(5),
-            child: Icon(Icons.done, size: 24),
-          ),
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'advance',
+              child: ListTile(
+                leading: const Icon(Icons.add),
+                title: Text(loc.advanceGame),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'end',
+              child: ListTile(
+                leading: const Icon(Icons.done),
+                title: Text(loc.endGame),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem<String>(
+              value: 'lineup',
+              child: ListTile(
+                leading: const Icon(Icons.sports_soccer),
+                title: const Text('Generate Lineup'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'tweet',
+              child: ListTile(
+                leading: const Icon(Icons.send),
+                title: const Text('Tweet Update'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            if (!isTabletOrLarger)
+              PopupMenuItem<String>(
+                value: 'stats',
+                child: ListTile(
+                  leading: const Icon(Icons.analytics),
+                  title: Text(loc.statistics),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+          ],
         ),
       ];
     }

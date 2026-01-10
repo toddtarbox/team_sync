@@ -25,6 +25,7 @@ import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
 import 'package:team_sync/widgets/game_result.dart';
 
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
@@ -425,7 +426,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           games: games,
                           onGameTap: (game) {
                             if (!kIsWeb) {
-                              _showGame(game: game, season: season);
+                              _showGameOptions(game, season);
                             } else {
                               _goToGame(game, season);
                             }
@@ -445,7 +446,14 @@ class _SeasonPageState extends State<SeasonPage> {
                                   _buildAwardsSection(season),
                                   // Games list
                                   ...games.map((game) {
-                                    final linkWidget = game
+                                    final opponent =
+                                        game.isHomeTeam(season.teamId)
+                                            ? game.awayTeam
+                                            : game.homeTeam;
+                                    final hasLogo = opponent.logoUrl != null &&
+                                        opponent.logoUrl!.isNotEmpty;
+
+                                    final videoLink = game
                                                 .gameLinks?.isNotEmpty ??
                                             false
                                         ? GestureDetector(
@@ -458,6 +466,31 @@ class _SeasonPageState extends State<SeasonPage> {
                                                 height: 28),
                                           )
                                         : const SizedBox(width: 24);
+
+                                    final linkWidget = Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (hasLogo)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 8.0),
+                                            child: SizedBox(
+                                              width: 32,
+                                              height: 32,
+                                              child: ResponsiveAvatar(
+                                                imageUrl: opponent.logoUrl,
+                                                initials: opponent
+                                                        .shortName.isNotEmpty
+                                                    ? opponent.shortName[0]
+                                                    : '?',
+                                                backgroundColor: opponent.color1
+                                                    .withOpacity(0.2),
+                                              ),
+                                            ),
+                                          ),
+                                        videoLink,
+                                      ],
+                                    );
 
                                     final gameCard = Container(
                                       padding: const EdgeInsets.all(5),
@@ -504,9 +537,8 @@ class _SeasonPageState extends State<SeasonPage> {
                                                   ),
                                                   onTap: () {
                                                     if (!kIsWeb) {
-                                                      _showGame(
-                                                          game: game,
-                                                          season: season);
+                                                      _showGameOptions(
+                                                          game, season);
                                                     } else {
                                                       _goToGame(game, season);
                                                     }
@@ -764,13 +796,6 @@ class _SeasonPageState extends State<SeasonPage> {
           child: GameEditor(
             season: season ?? widget.season!,
             game: game,
-            onGoToGame: (g, s) async {
-              await _goToGame(g, s);
-              if (mounted) {
-                await _loadSeason(context);
-                setState(() {});
-              }
-            },
           ),
         );
       },
@@ -2334,6 +2359,51 @@ class _SeasonPageState extends State<SeasonPage> {
     }
 
     return '$hour:$minute $period';
+  }
+
+  void _showGameOptions(Game game, Season season) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 5,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: Text(loc.editGame),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showGame(game: game, season: season);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.sports_soccer),
+                title: Text(loc.goToGame),
+                onTap: () {
+                  Navigator.pop(context);
+                  _goToGame(game, season);
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _showPhoto(BuildContext context, String? logoUrl) async {
