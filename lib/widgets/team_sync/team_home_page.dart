@@ -1738,7 +1738,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                                       ],
                                     ),
                                   ),
-                                  // Season image banner (if available)
+                                  // Season content
                                   if (season.logoUrl != null &&
                                       season.logoUrl!.isNotEmpty)
                                     GestureDetector(
@@ -1746,32 +1746,69 @@ class _TeamHomePageState extends State<TeamHomePage>
                                         _showSeasonPhoto(
                                             context, season.logoUrl);
                                       },
-                                      child: Container(
+                                      child: SizedBox(
                                         height: 180,
-                                        color: Colors.transparent,
-                                        child: Image.network(
-                                          season.logoUrl!,
-                                          fit: BoxFit.contain,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return Center(
-                                              child: Icon(
-                                                Icons.image_not_supported,
-                                                size: 48,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .outline,
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            // Image
+                                            Image.network(
+                                              season.logoUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Center(
+                                                  child: Icon(
+                                                    Icons.image_not_supported,
+                                                    size: 48,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            // Gradient Overlay
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.transparent,
+                                                    Colors.black
+                                                        .withValues(alpha: 0.7),
+                                                  ],
+                                                  stops: const [0.5, 1.0],
+                                                ),
                                               ),
-                                            );
-                                          },
+                                            ),
+                                            // Overlaid Record
+                                            Positioned(
+                                              bottom: 0,
+                                              left: 0,
+                                              right: 0,
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(10),
+                                                child: Center(
+                                                  child: SeasonRecord(
+                                                    [season],
+                                                    isCompact: true,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                    )
+                                  else
+                                    // Fallback: Stats section (no image)
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: SeasonRecord([season]),
                                     ),
-                                  // Stats section
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: SeasonRecord([season]),
-                                  ),
                                 ],
                               ),
                             ),
