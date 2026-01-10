@@ -497,16 +497,20 @@ final router = GoRouter(
               future:
                   _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
               builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  return SettingsPage(team: snapshot.data!);
-                } else if (snapshot.hasError) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return PageSkeleton.list();
+                }
+
+                if (snapshot.hasError) {
                   return Scaffold(
                     appBar: AppBar(title: const Text('Error')),
                     body: Center(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return PageSkeleton.list();
+
+                // If snapshot.hasData is true, data might be null but we still have a "result"
+                return SettingsPage(team: snapshot.data);
               },
             );
           },
@@ -672,8 +676,10 @@ Future<Season?> _loadSeasonById(int seasonId) async {
 // Helper function to load team by database ID
 Future<Team?> _loadTeamByDatabaseId(String databaseId) async {
   try {
-    final opened = await DatabaseService.instance.openFromId(databaseId);
-    if (!opened) return null;
+    if (databaseId != 'local') {
+      final opened = await DatabaseService.instance.openFromId(databaseId);
+      if (!opened) return null;
+    }
 
     final teamResult =
         await DatabaseService.instance.query('Teams', orderByChild: 'id');

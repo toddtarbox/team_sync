@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
-import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/stat_leaders.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -109,57 +108,59 @@ class GameStats implements StatLeaders {
   }
 
   @override
-  Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
+  Future<HashMap<Player, int>> getStatPlayers(String category) async {
     HashMap<int, int>? sourceTable;
     final HashMap<Player, int> players = HashMap<Player, int>();
 
     switch (category) {
-      case LeaderCategory.goals:
+      case 'goals':
         sourceTable = _playerGoals;
         break;
-      case LeaderCategory.ownGoalsEarned:
+      case 'ownGoalsEarned':
         sourceTable = _teamOwnGoals;
         break;
-      case LeaderCategory.penaltyKickGoals:
+      case 'penaltyKickGoals':
         sourceTable = _playerPenaltyKickGoals;
         break;
-      case LeaderCategory.penaltyKicksTaken:
+      case 'penaltyKicksTaken':
         sourceTable = _playerPenaltyKicksTaken;
         break;
-      case LeaderCategory.assists:
+      case 'assists':
         sourceTable = _playerAssists;
         break;
-      case LeaderCategory.shots:
+      case 'shots':
         sourceTable = _playerShots;
         break;
-      case LeaderCategory.shotsOnGoal:
+      case 'shotsOnGoal':
         sourceTable = _playerShotsOnGoal;
         break;
-      case LeaderCategory.shotsOffPost:
+      case 'shotsOffPost':
         sourceTable = _playerShotsOffPost;
         break;
-      case LeaderCategory.saves:
+      case 'saves':
         sourceTable = _playerSaves;
         break;
-      case LeaderCategory.offsides:
+      case 'offsides':
         sourceTable = _playerOffsides;
         break;
-      case LeaderCategory.corners:
+      case 'corners':
         // Corners are team stats, not player stats
         return players;
-      case LeaderCategory.fouls:
+      case 'fouls':
         sourceTable = _playerFouls;
         break;
-      case LeaderCategory.yellows:
+      case 'yellows':
         sourceTable = _playerYellows;
         break;
-      case LeaderCategory.secondYellowReds:
+      case 'secondYellowReds':
         sourceTable = _playerSecondYellows;
         break;
-      case LeaderCategory.reds:
+      case 'reds':
         sourceTable = _playerReds;
         break;
     }
+
+    if (sourceTable == null) return players;
 
     for (int playerId in sourceTable.keys) {
       if (playerId != -1) {

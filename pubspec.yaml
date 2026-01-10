@@ -103,7 +103,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true # To keep your Android icon
   ios: true     # To generate iOS icons
-  image_path: "assets/images/pngs/icon_no_background.png" # Path to your high-res icon
+  # image_path: "assets/images/pngs/soccer_icon_no_background.png" # Path to your high-res icon
+  image_path: "assets/images/pngs/basketball_icon_no_background.png" # Path to your high-res icon
   remove_alpha_ios: true
 
 flutter:

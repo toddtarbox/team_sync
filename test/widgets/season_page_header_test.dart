@@ -20,7 +20,7 @@ class MockDatabaseProvider implements DatabaseProvider {
   Future<bool> get isImporting async => false;
 
   @override
-  Future<bool> open(String path) async => true;
+  Future<bool> open(String path, {String? createWithSportId}) async => true;
 
   @override
   Future<bool> openFromPath(String path) async => true;
@@ -29,7 +29,7 @@ class MockDatabaseProvider implements DatabaseProvider {
   Future<void> close() async {}
 
   @override
-  Future<List<String>> getAvailableDatabases() async => [];
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async => [];
 
   @override
   Future<List<Map<String, dynamic>>> query(String table,

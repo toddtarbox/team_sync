@@ -27,12 +27,12 @@ class ImportProgress {
 
 /// An abstract class that defines the interface for database operations.
 abstract class DatabaseProvider {
-  Future<bool> open(String path);
+  Future<bool> open(String path, {String? createWithSportId});
   Future<bool> openFromPath(String path);
   String get path;
   Future<bool> get isImporting;
   Future<void> close();
-  Future<List<String>> getAvailableDatabases();
+  Future<List<String>> getAvailableDatabases({String? sportFilter});
 
   /// Query rows under a path or table.
   ///
@@ -205,7 +205,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<List<String>> getAvailableDatabases() async {
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async {
     await _getSubscriptionId();
 
     // Validate that we have a valid subscription ID
@@ -226,7 +226,23 @@ class FirebaseDBProvider implements DatabaseProvider {
     final ownDatabases = <String>[];
     if (snapshot.exists && snapshot.value != null) {
       final data = snapshot.value as Map<dynamic, dynamic>;
-      ownDatabases.addAll(data.keys.map((k) => k.toString()));
+      data.forEach((key, value) {
+        // If we have a filter, check if the database matches
+        // If the database has no 'sportId', we assume it matches (compatibility)
+        // If it has a 'sportId', it must match the filter
+        bool include = true;
+        if (sportFilter != null && value is Map) {
+          // Treat databases with no sportId as 'soccer' (legacy databases)
+          final dbSportId = value['sportId'] ?? 'soccer';
+          if (dbSportId != sportFilter) {
+            include = false;
+          }
+        }
+
+        if (include) {
+          ownDatabases.add(key.toString());
+        }
+      });
     }
 
     // Get shared databases (for Pro users only)
@@ -234,6 +250,10 @@ class FirebaseDBProvider implements DatabaseProvider {
     try {
       final shared = await DatabaseSharingService.instance.getSharedDatabases();
       for (final sharedDb in shared) {
+        // For shared databases, we might not have sport metadata readily available
+        // in the list unless we fetch it or it's included in the share record.
+        // For now, let's include them. Optimization would be to store sportId in share record.
+
         // Add with prefix to distinguish from own databases
         final displayName =
             '${sharedDb['ownerEmail']} - ${sharedDb['databaseName']}';
@@ -247,7 +267,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<bool> open(String path) async {
+  Future<bool> open(String path, {String? createWithSportId}) async {
     await _getSubscriptionId();
 
     // Validate that we have a valid subscription ID
@@ -267,7 +287,11 @@ class FirebaseDBProvider implements DatabaseProvider {
     final ref = _database.ref(dbPath);
     _dbEvent = await ref.once();
     if (_dbEvent?.snapshot.exists == false) {
-      await ref.set({'version': 1});
+      final initData = <String, dynamic>{'version': 1};
+      if (createWithSportId != null) {
+        initData['sportId'] = createWithSportId;
+      }
+      await ref.set(initData);
       _dbEvent = await ref.once();
     }
 
@@ -1054,7 +1078,8 @@ class DatabaseService {
     debugPrint('Importing complete');
   }
 
-  Future<bool> open(String path) async => await _provider.open(path);
+  Future<bool> open(String path, {String? createWithSportId}) async =>
+      await _provider.open(path, createWithSportId: createWithSportId);
 
   Future<bool> openFromPath(String path) async {
     if (_provider is! FirebaseDBProvider && !DatabaseService.isTest) {
@@ -1087,8 +1112,8 @@ class DatabaseService {
 
   Future<void> close() async => await _provider.close();
 
-  Future<List<String>> getAvailableDatabases() async =>
-      await _provider.getAvailableDatabases();
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async =>
+      await _provider.getAvailableDatabases(sportFilter: sportFilter);
 
   Future<List<Map<String, dynamic>>> query(String table,
           {String? path,

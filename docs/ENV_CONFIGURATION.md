@@ -60,7 +60,7 @@ The shell script:
 #### Dart/Flutter (`lib/firebase_options.dart`)
 
 Uses `flutter_dotenv` to read `.env` at runtime initialization:
-- Loads `.env` in `main.dart` via `dotenv.load()`
+- Loads `.env` in `main_soccer.dart` (and other entry points) via `dotenv.load()`
 - `firebase_options.dart` reads values using `dotenv.env[key]`
 - Throws `StateError` if required keys are missing
 
@@ -201,7 +201,7 @@ cd android
 - `android/app/build.gradle` - Contains `generateGoogleServices` task
 - `ios/scripts/generate_google_service_info.sh` - iOS config generator
 - `lib/firebase_options.dart` - Dart Firebase options reader
-- `lib/main.dart` - Loads `.env` via `dotenv.load()`
+- `lib/main_soccer.dart` - Loads `.env` via `dotenv.load()`
 - `pubspec.yaml` - Includes `flutter_dotenv` dependency
 
 ## Example .env Template

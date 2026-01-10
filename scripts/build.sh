@@ -23,6 +23,21 @@ fi
 
 # Build for specified platform
 PLATFORM=${1:-"all"}
+FLAVOR=${2:-"soccer"}
+
+# Determine configuration based on flavor
+if [ "$FLAVOR" == "basketball" ]; then
+  TARGET="lib/main_basketball.dart"
+  BUNDLE_ID="com.tsquared.team_sync.basketball"
+  APP_DISPLAY_NAME="TeamSync Basketball"
+else
+  # Default to soccer
+  TARGET="lib/main_soccer.dart"
+  BUNDLE_ID="com.tsquared.team_sync.soccer"
+  APP_DISPLAY_NAME="TeamSync Soccer"
+fi
+
+echo "🏗️  Building $APP_DISPLAY_NAME ($FLAVOR)..."
 
 case $PLATFORM in
   web)
@@ -32,7 +47,7 @@ case $PLATFORM in
     # flutter pub get # optimization: skip pub get, build command checks it
     echo "🔨 Building web release..."
     flutter build web \
-      --target=lib/main.dart \
+      --target=$TARGET \
       --release \
       --base-href=/ \
       --dart-define=WEB_API_KEY="$WEB_API_KEY" \
@@ -53,9 +68,9 @@ case $PLATFORM in
     echo ""
 
     flutter build ipa \
-      --target=lib/main.dart \
+      --target=$TARGET \
       --release \
-      --flavor teamSync \
+      --flavor $FLAVOR \
       --export-options-plist=ios/ExportOptions.plist
 
     BUILD_EXIT_CODE=$?
@@ -107,10 +122,10 @@ case $PLATFORM in
   android)
     echo "🤖 Building for Android..."
     flutter build appbundle \
-      --target=lib/main.dart \
+      --target=$TARGET \
       --release \
-      --flavor teamSync
-    echo "✅ Android build complete: build/app/outputs/bundle/teamSyncRelease/"
+      --flavor $FLAVOR
+    echo "✅ Android build complete: build/app/outputs/bundle/${FLAVOR}Release/"
     ;;
 
   all)
@@ -123,7 +138,7 @@ case $PLATFORM in
     # Web
     echo "🔨 Building web release..."
     flutter build web \
-      --target=lib/main_team_sync.dart \
+      --target=$TARGET \
       --release \
       --base-href=/ \
       --dart-define=WEB_API_KEY="$WEB_API_KEY" \
@@ -138,18 +153,18 @@ case $PLATFORM in
     # Android
     echo "🔨 Building Android release..."
     flutter build appbundle \
-      --target=lib/main_team_sync.dart \
+      --target=$TARGET \
       --release \
-      --flavor teamSync
+      --flavor $FLAVOR
 
     echo "✅ All builds complete"
     echo "   Web: build/web/"
-    echo "   Android: build/app/outputs/bundle/teamSyncRelease/"
+    echo "   Android: build/app/outputs/bundle/${FLAVOR}Release/"
     ;;
 
   *)
     echo "❌ Unknown platform: $PLATFORM"
-    echo "Usage: $0 [web|ios|android|macos|all]"
+    echo "Usage: $0 [web|ios|android|macos|all] [soccer|basketball]"
     exit 1
     ;;
 esac

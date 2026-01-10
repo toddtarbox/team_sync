@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/connection_status_indicator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -42,7 +43,7 @@ AppBar buildStandardAppBar({
       onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Image.asset('assets/images/pngs/icon_no_background.png',
+        child: Image.asset(SportStrategy.current.appIconAsset,
             width: 16, height: 16),
       ),
     );
@@ -56,7 +57,7 @@ AppBar buildStandardAppBar({
       onTap: launchAppHomePage,
       child: Padding(
         padding: const EdgeInsets.all(8.0),
-        child: Image.asset('assets/images/pngs/icon_no_background.png',
+        child: Image.asset(SportStrategy.current.appIconAsset,
             width: 16, height: 16),
       ),
     );

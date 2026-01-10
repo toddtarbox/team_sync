@@ -5,36 +5,69 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "team_sync",
+            "name": "team_sync - soccer",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug",
-            "program": "lib/main.dart",
+            "program": "lib/main_soccer.dart",
             "args": [
                 "--flavor",
-                "teamSync"
+                "soccer"
             ]
         },
         {
-            "name": "team_sync (profile mode)",
+            "name": "team_sync - soccer (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile",
-            "program": "lib/main.dart",
+            "program": "lib/main_soccer.dart",
             "args": [
                 "--flavor",
-                "teamSync"
+                "soccer"
             ]
         },
         {
-            "name": "team_sync (release mode)",
+            "name": "team_sync - soccer (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",
-            "program": "lib/main.dart",
+            "program": "lib/main_soccer.dart",
             "args": [
                 "--flavor",
-                "teamSync"
+                "soccer"
+            ]
+        },
+        {
+            "name": "team_sync - basketball",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "program": "lib/main_basketball.dart",
+            "args": [
+                "--flavor",
+                "basketball"
+            ]
+        },
+        {
+            "name": "team_sync - basketball (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "program": "lib/main_basketball.dart",
+            "args": [
+                "--flavor",
+                "basketball"
+            ]
+        },
+        {
+            "name": "team_sync - basketball (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "program": "lib/main_basketball.dart",
+            "args": [
+                "--flavor",
+                "basketball"
             ]
         }
     ]

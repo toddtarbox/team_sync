@@ -12,7 +12,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "🏆 Deploying TeamSync DEBUG build (Team Management)..."
 APP_NAME="TeamSync"
-TARGET="lib/main.dart"
+TARGET="lib/main_soccer.dart"
 HOSTING_SITE="team-sync-soccer"
 
 echo ""

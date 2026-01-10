@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/main.dart';
+import 'package:team_sync/main_common.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';

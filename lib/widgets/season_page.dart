@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -2391,7 +2392,7 @@ class _SeasonPageState extends State<SeasonPage> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.sports_soccer),
+                leading: Icon(SportStrategy.current.sportIcon),
                 title: Text(loc.goToGame),
                 onTap: () {
                   Navigator.pop(context);

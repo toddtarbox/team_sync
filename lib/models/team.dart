@@ -12,6 +12,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stat.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 class Team extends Equatable {
   final int id;
@@ -163,25 +164,23 @@ class Team extends Equatable {
     };
   }
 
-  Future<Map<LeaderCategory, MapEntry<Player, int>>> calculateCareerStats(
-      dynamic data,
+  Future<Map<String, MapEntry<Player, int>>> calculateCareerStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final events = data as List<Map<String, dynamic>>;
-    final stats = CareerStats.fromMap(id, events);
-    final careerStats = <LeaderCategory, MapEntry<Player, int>>{};
+    final stats = await CareerStats.fromMap(id, events);
+    final careerStats = <String, MapEntry<Player, int>>{};
     int i = 0;
-    for (final category in LeaderCategory.values) {
+    for (final category in categories) {
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -196,19 +195,18 @@ class Team extends Equatable {
     return careerStats;
   }
 
-  Future<Map<LeaderCategory, SeasonStat>> calculateBestSeasonStats(dynamic data,
+  Future<Map<String, SeasonStat>> calculateBestSeasonStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
-    final bestSeasonStats = <LeaderCategory, SeasonStat>{};
+    final bestSeasonStats = <String, SeasonStat>{};
 
     final eventsBySeason = <int, List<Map<String, dynamic>>>{};
     for (final event in events) {
@@ -219,16 +217,15 @@ class Team extends Equatable {
       eventsBySeason[seasonId]!.add(event);
     }
     int i = 0;
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned ||
-          category == LeaderCategory.corners) {
+    for (final category in categories) {
+      if (category == 'ownGoalsEarned' || category == 'corners') {
         i++;
         continue;
       }
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -264,11 +261,10 @@ class Team extends Equatable {
 
   Future<BestGameStats> calculateBestGameStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final games = data['games'] as List<Game>;
@@ -292,16 +288,15 @@ class Team extends Equatable {
     final totalGames = games.length;
 
     int i = 0;
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned ||
-          category == LeaderCategory.corners) {
+    for (final category in categories) {
+      if (category == 'ownGoalsEarned' || category == 'corners') {
         i++;
         continue;
       }
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -323,7 +318,7 @@ class Team extends Equatable {
           final gameEvents = eventsByGame[game.id] ?? [];
           if (gameEvents.isEmpty) continue;
 
-          final gameStats = GameStats.fromEvents(id, gameEvents);
+          final gameStats = await GameStats.fromEvents(id, gameEvents);
           final statPlayers = await gameStats.getStatPlayers(category);
 
           for (final entry in statPlayers.entries) {
@@ -354,6 +349,8 @@ class Team extends Equatable {
 
   /// Update best game stats for a specific completed game
   /// This is called after a game is finalized to incrementally update cached stats
+  /// Update best game stats for a specific completed game
+  /// This is called after a game is finalized to incrementally update cached stats
   Future<void> updateBestGameStatsForGame(Game game) async {
     try {
       // Load current cached best game stats
@@ -363,7 +360,7 @@ class Team extends Equatable {
       final gameEvents = await GameEvent.listFromGameId(game.id);
       if (gameEvents.isEmpty) return;
 
-      final gameStats = GameStats.fromEvents(id, gameEvents);
+      final gameStats = await GameStats.fromEvents(id, gameEvents);
 
       // Load seasons for this team and find the one matching this game
       final seasons = await Season.fromTeamId(id);
@@ -372,9 +369,9 @@ class Team extends Equatable {
 
       // Check each category to see if this game has a new best
       bool hasUpdates = false;
-      for (final category in LeaderCategory.values) {
-        if (category == LeaderCategory.ownGoalsEarned ||
-            category == LeaderCategory.corners) {
+      final categories = SportStrategy.current.leaderCategories;
+      for (final category in categories) {
+        if (category == 'ownGoalsEarned' || category == 'corners') {
           continue;
         }
 
@@ -464,26 +461,24 @@ class Team extends Equatable {
   }
 
   Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(
-      LeaderCategory category) async {
+      String category) async {
     final results = await DatabaseService.instance
         .query('Events', orderByChild: 'teamId', equalTo: id);
-    final stats = CareerStats.fromMap(id, results);
+    final stats = await CareerStats.fromMap(id, results);
     final statPlayers = await stats.getStatPlayers(category);
     final sortedStats = List.from(statPlayers.entries);
     sortedStats.sort((a, b) => b.value.compareTo(a.value));
     return sortedStats.cast<MapEntry<Player, int>>();
   }
 
-  Future<List<SeasonStat>> getAllSeasonStatsForCategory(
-      LeaderCategory category) async {
+  Future<List<SeasonStat>> getAllSeasonStatsForCategory(String category) async {
     final data = await fetchAllDataForSeason();
     final allSeasonStats = await getAllSeasonStats(data);
     return allSeasonStats[category] ?? [];
   }
 
-  Future<Map<LeaderCategory, List<SeasonStat>>> getAllSeasonStats(
-      dynamic data) async {
-    final allSeasonStats = <LeaderCategory, List<SeasonStat>>{};
+  Future<Map<String, List<SeasonStat>>> getAllSeasonStats(dynamic data) async {
+    final allSeasonStats = <String, List<SeasonStat>>{};
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
@@ -497,7 +492,8 @@ class Team extends Equatable {
       eventsBySeason[seasonId]!.add(event);
     }
 
-    for (final category in LeaderCategory.values) {
+    final categories = SportStrategy.current.leaderCategories;
+    for (final category in categories) {
       allSeasonStats[category] = [];
       for (final season in seasons) {
         final seasonEvents = eventsBySeason[season.id] ?? [];
@@ -517,8 +513,7 @@ class Team extends Equatable {
     return allSeasonStats;
   }
 
-  Future<List<BestGameStat>> getAllGameStatsForCategory(
-      LeaderCategory category) async {
+  Future<List<BestGameStat>> getAllGameStatsForCategory(String category) async {
     final data = await fetchAllDataForGame();
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
@@ -537,7 +532,7 @@ class Team extends Equatable {
 
     for (final game in games) {
       final gameEvents = eventsByGame[game.id] ?? [];
-      final gameStats = GameStats.fromEvents(id, gameEvents);
+      final gameStats = await GameStats.fromEvents(id, gameEvents);
       final statPlayers = await gameStats.getStatPlayers(category);
 
       for (final entry in statPlayers.entries) {

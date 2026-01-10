@@ -16,6 +16,7 @@ import 'package:team_sync/models/player_highlight.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
@@ -197,12 +198,12 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     }
   }
 
-  Future<Map<LeaderCategory, int>> _getPlayerStats(
+  Future<Map<String, int>> _getPlayerStats(
       SeasonStats stats, int playerId) async {
-    final Map<LeaderCategory, int> playerStats = {};
+    final Map<String, int> playerStats = {};
 
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+    for (final category in SportStrategy.current.leaderCategories) {
+      if (category == 'ownGoalsEarned') {
         continue;
       }
 
@@ -220,9 +221,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     return playerStats;
   }
 
-  Future<Map<LeaderCategory, int>> _getCareerStats(
+  Future<Map<String, int>> _getCareerStats(
       Map<Season, SeasonStats> seasonStats) async {
-    final Map<LeaderCategory, int> careerStats = {};
+    final Map<String, int> careerStats = {};
 
     // Aggregate stats across all seasons
     for (final stats in seasonStats.values) {
@@ -1170,7 +1171,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   Widget _buildSeasonStats(
       Season season, SeasonStats stats, Season? currentSeason) {
-    return FutureBuilder<Map<LeaderCategory, int>>(
+    return FutureBuilder<Map<String, int>>(
       future: _getPlayerStats(stats, widget.player.id),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -1287,24 +1288,24 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     );
   }
 
-  String _getStatLabel(LeaderCategory category) {
+  String _getStatLabel(String category) {
     switch (category) {
-      case LeaderCategory.penaltyKickGoals:
+      case 'penaltyKickGoals':
         return 'PK Goals';
-      case LeaderCategory.penaltyKicksTaken:
+      case 'penaltyKicksTaken':
         return 'PKs Taken';
-      case LeaderCategory.shotsOnGoal:
+      case 'shotsOnGoal':
         return 'SOG';
       default:
-        return category.name.toSentenceCase().toTitleCase();
+        return category.toSentenceCase().toTitleCase();
     }
   }
 
-  IconData _getStatIcon(LeaderCategory category) {
+  IconData _getStatIcon(String category) {
     switch (category) {
-      case LeaderCategory.goals:
+      case 'goals':
         return Icons.sports_soccer;
-      case LeaderCategory.assists:
+      case 'assists':
         return Icons.handshake; // best approximation for assist
       default:
         return Icons.analytics;
@@ -1313,7 +1314,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   Widget _buildCareerStats(Map<Season, SeasonStats> seasonStats) {
     final loc = AppLocalizations.of(context)!;
-    return FutureBuilder<Map<LeaderCategory, int>>(
+    return FutureBuilder<Map<String, int>>(
       future: _getCareerStats(seasonStats),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {

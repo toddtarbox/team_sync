@@ -6,7 +6,8 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/season_stats.dart';
+
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/game_stats_display.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
@@ -109,12 +110,12 @@ class _GameStatsViewState extends State<GameStatsView> {
     await _game.loadGameEvents();
     final stats = await _game.getStats(widget.season.teamId);
 
-    final playerStats = <LeaderCategory, Map<Player, int>>{};
-    for (final category in LeaderCategory.values) {
+    final playerStats = <String, Map<Player, int>>{};
+    for (final category in SportStrategy.current.leaderCategories) {
       playerStats[category] = await stats.getStatPlayers(category);
     }
 
-    _statCategoryTiles = LeaderCategory.values.map((category) {
+    _statCategoryTiles = SportStrategy.current.leaderCategories.map((category) {
       int teamTotalForCategory = 0;
       for (final stat in playerStats[category]!.entries) {
         teamTotalForCategory += stat.value;
@@ -123,23 +124,23 @@ class _GameStatsViewState extends State<GameStatsView> {
       int opponentTotalForCategory = 0;
       for (final event in _game.allGameEvents) {
         // Count team corners separately since they don't have player stats
-        if (category == LeaderCategory.corners &&
+        if (category == 'corners' &&
             event.eventType == 'Corner' &&
             event.team.id == widget.season.teamId) {
           teamTotalForCategory++;
         }
 
         switch (category) {
-          case LeaderCategory.goals:
+          case 'goals':
             if (event.eventType == 'Shot' &&
                 event.eventData == 0 &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.assists:
+          case 'assists':
             break;
-          case LeaderCategory.ownGoalsEarned:
+          case 'ownGoalsEarned':
             if (event.eventType == 'Shot' &&
                 event.eventData == 0 &&
                 event.player?.id == -2 &&
@@ -147,26 +148,26 @@ class _GameStatsViewState extends State<GameStatsView> {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.penaltyKickGoals:
+          case 'penaltyKickGoals':
             if (event.eventType == 'PenaltyKick' &&
                 event.eventData == 0 &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.penaltyKicksTaken:
+          case 'penaltyKicksTaken':
             if (event.eventType == 'PenaltyKick' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.shots:
+          case 'shots':
             if (event.eventType == 'Shot' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.shotsOnGoal:
+          case 'shotsOnGoal':
             if (event.eventType == 'Shot' &&
                 (event.eventData == ShotResult.goal.index ||
                     event.eventData == ShotResult.onTargetSave.index) &&
@@ -174,53 +175,53 @@ class _GameStatsViewState extends State<GameStatsView> {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.shotsOffPost:
+          case 'shotsOffPost':
             if (event.eventType == 'Shot' &&
                 event.eventData == ShotResult.offTargetPost.index &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.saves:
+          case 'saves':
             if (event.eventType == 'Shot' &&
                 event.eventData == ShotResult.onTargetSave.index &&
                 event.team.id == widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.offsides:
+          case 'offsides':
             if (event.eventType == 'Offsides' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.corners:
+          case 'corners':
             if (event.eventType == 'Corner' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.fouls:
+          case 'fouls':
             if (event.eventType == 'Foul' &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.yellows:
+          case 'yellows':
             if (event.eventType == 'Card' &&
                 event.eventData == 0 &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.secondYellowReds:
+          case 'secondYellowReds':
             if (event.eventType == 'Card' &&
                 event.eventData == 1 &&
                 event.team.id != widget.season.teamId) {
               opponentTotalForCategory++;
             }
             break;
-          case LeaderCategory.reds:
+          case 'reds':
             if (event.eventType == 'Card' &&
                 event.eventData == 2 &&
                 event.team.id != widget.season.teamId) {
@@ -232,7 +233,7 @@ class _GameStatsViewState extends State<GameStatsView> {
 
       return ListTile(
         title: Center(
-            child: Text(category.name.toSentenceCase().toTitleCase(),
+            child: Text(category.toSentenceCase().toTitleCase(),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 24))),
         leading: InkWell(
@@ -243,7 +244,7 @@ class _GameStatsViewState extends State<GameStatsView> {
                 // Use the common dialog component
                 await StatCategoryDialog.show(
                   context: context,
-                  categoryName: category.name.toSentenceCase().toTitleCase(),
+                  categoryName: category.toSentenceCase().toTitleCase(),
                   playerStats: playerStats[category]!,
                   showPlayerNumber: true,
                   season: widget.season,
@@ -255,10 +256,10 @@ class _GameStatsViewState extends State<GameStatsView> {
                     fontWeight: FontWeight.bold,
                     fontSize: 24,
                     decoration:
-                        category.name != 'corners' && teamTotalForCategory != 0
+                        category != 'corners' && teamTotalForCategory != 0
                             ? TextDecoration.underline
                             : null))),
-        trailing: category.name == 'assists'
+        trailing: category == 'assists'
             ? Text('-',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 24))

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -396,8 +397,12 @@ class _TeamHomePageState extends State<TeamHomePage>
       appBar: buildStandardAppBar(
         context: context,
         team: _team,
-        title: Text(loc.teamSync,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(SportStrategy.current.appTitle,
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        ),
         actions: _buildAppBarActions(),
       ),
       floatingActionButton: _buildFloatingActionButton(),
@@ -770,28 +775,12 @@ class _TeamHomePageState extends State<TeamHomePage>
   }
 
   Widget _buildMainContent() {
-    if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
+    if (!kIsWeb && (DatabaseService.instance.path.isEmpty || _team == null)) {
       return Showcase(
           key: _welcomeKey,
           description:
               'Welcome to TeamSync! Let\'s take a look around and get you started managing your team!',
           child: _buildWelcomeView());
-    }
-
-    if (!kIsWeb && _team == null) {
-      return Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(AppLocalizations.of(context)!.noTeamFound,
-            style: const TextStyle(fontSize: 24)),
-        GestureDetector(
-            onTap: () {
-              _handleSelection(context, 'team');
-            },
-            child: Text(AppLocalizations.of(context)!.createNewTeamToStart,
-                style: TextStyle(
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.secondary))),
-      ]));
     }
 
     if (!kIsWeb && _seasons.isEmpty) {
@@ -2032,6 +2021,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
   Widget _buildWelcomeView() {
     final loc = AppLocalizations.of(context)!;
+    final isDatabaseConnected = DatabaseService.instance.path.isNotEmpty;
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
@@ -2048,14 +2039,18 @@ class _TeamHomePageState extends State<TeamHomePage>
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.sports_soccer_rounded,
+                isDatabaseConnected
+                    ? Icons.storage_rounded
+                    : SportStrategy.current.sportIcon,
                 size: 64,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 32),
             Text(
-              loc.welcomeToTeamSync,
+              isDatabaseConnected
+                  ? 'Database Connected!'
+                  : loc.welcomeToTeamSync,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -2067,7 +2062,9 @@ class _TeamHomePageState extends State<TeamHomePage>
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Text(
-                'Manage your soccer team like a pro. Track games, stats, and player performance all in one place.',
+                isDatabaseConnected
+                    ? 'Your cloud database is ready. Now let\'s create your team to start tracking games and stats!'
+                    : 'Manage your team like a pro. Track games, stats, and player performance all in one place.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -2078,10 +2075,18 @@ class _TeamHomePageState extends State<TeamHomePage>
             ),
             const SizedBox(height: 48),
             ElevatedButton.icon(
-              onPressed: () => _showCreateOptions(context),
-              icon: const Icon(Icons.add_rounded),
+              onPressed: () {
+                if (isDatabaseConnected) {
+                  _handleSelection(context, 'team');
+                } else {
+                  _showCreateOptions(context);
+                }
+              },
+              icon: Icon(isDatabaseConnected
+                  ? Icons.group_add_rounded
+                  : Icons.add_rounded),
               label: Text(
-                loc.getStarted,
+                isDatabaseConnected ? 'Create New Team' : loc.getStarted,
                 style:
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -2099,11 +2104,16 @@ class _TeamHomePageState extends State<TeamHomePage>
             const SizedBox(height: 24),
             TextButton(
               onPressed: () {
-                // If they have a shared link or file, they might want to import
-                _handleSelection(context, 'existingCloudDatabase');
+                if (isDatabaseConnected) {
+                  _showCreateOptions(context);
+                } else {
+                  _handleSelection(context, 'existingCloudDatabase');
+                }
               },
               child: Text(
-                loc.openExistingDatabase,
+                isDatabaseConnected
+                    ? 'Switch Database'
+                    : loc.openExistingDatabase,
                 style: TextStyle(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.primary,
@@ -2391,7 +2401,7 @@ class _TeamHomePageState extends State<TeamHomePage>
       if (stats.containsKey('totalGoalsScored'))
         _buildAnalyticsCard(
           title: loc.goalAnalytics,
-          icon: Icons.sports_soccer,
+          icon: SportStrategy.current.sportIcon,
           iconColor: Colors.green,
           stats: [
             _buildStatRow(loc.totalGoalsScored, '${stats['totalGoalsScored']}',
@@ -3176,7 +3186,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     List<String> entries = [];
     try {
-      entries = await DatabaseService.instance.getAvailableDatabases();
+      entries = await DatabaseService.instance
+          .getAvailableDatabases(sportFilter: SportStrategy.current.sportId);
     } finally {
       if (mounted) {
         Navigator.of(context).pop(); // Dismiss loading
@@ -3442,7 +3453,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
       DatabaseService.instance.setProvider(FirebaseDBProvider());
 
-      await DatabaseService.instance.open(databaseName);
+      await DatabaseService.instance
+          .open(databaseName, createWithSportId: SportStrategy.current.sportId);
 
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
@@ -3802,7 +3814,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.sports_soccer,
+                        Icon(SportStrategy.current.sportIcon,
                             color: _team!.color1, size: 20),
                         const SizedBox(width: 8),
                         Expanded(

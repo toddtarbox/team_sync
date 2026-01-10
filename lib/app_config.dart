@@ -1,6 +1,6 @@
 /// App flavor/mode configuration
 enum AppMode {
-  teamSync, // Single-team management
+  soccer, // Single-team management
 }
 
 /// Global app configuration
@@ -17,9 +17,9 @@ class AppConfig {
     required this.enableTeamFeatures,
   });
 
-  /// TeamSync configuration (single-team app)
-  static const teamSync = AppConfig(
-    mode: AppMode.teamSync,
+  /// Soccer configuration (single-team app)
+  static const soccer = AppConfig(
+    mode: AppMode.soccer,
     appName: 'TeamSync',
     appId: 'com.tsquared.team_sync.soccer',
     enableTeamFeatures: true,
@@ -33,6 +33,6 @@ class AppConfig {
     current = config;
   }
 
-  /// Check if this is TeamSync app
-  bool get isTeamSync => mode == AppMode.teamSync;
+  /// Check if this is Soccer app
+  bool get isSoccer => mode == AppMode.soccer;
 }

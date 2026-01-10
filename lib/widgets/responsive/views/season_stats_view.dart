@@ -9,6 +9,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
+import 'package:team_sync/services/sport_strategy.dart'; // Added import for SportStrategy
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -271,8 +272,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   List<Widget> _buildAllStatRows(
       AppLocalizations loc, SeasonStats stats, Color teamColor) {
     final statRows = <Widget>[];
-
-    for (final category in LeaderCategory.values) {
+    // Use SportStrategy to get categories
+    for (final category in SportStrategy.current.leaderCategories) {
       final teamTotal = stats.teamStat(category);
       final opponentTotal = stats.opponentStat(category);
 
@@ -282,7 +283,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
       }
 
       statRows.add(_buildStatRow(
-        category.name.toSentenceCase().toTitleCase(),
+        category.toSentenceCase().toTitleCase(),
         teamTotal,
         opponentTotal,
         category: category,
@@ -300,7 +301,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
     String label,
     int teamValue,
     int opponentValue, {
-    required LeaderCategory category,
+    required String category,
     required SeasonStats stats,
     required Color teamColor,
   }) {
@@ -309,11 +310,10 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
-      onTap: teamValue > 0 &&
-              category.name != 'corners' &&
-              category != LeaderCategory.ownGoalsEarned
-          ? () => _showPlayerDetailsDialog(category, stats)
-          : null,
+      onTap:
+          teamValue > 0 && category != 'corners' && category != 'ownGoalsEarned'
+              ? () => _showPlayerDetailsDialog(category, stats)
+              : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -356,7 +356,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   ),
                 ),
                 Text(
-                  category.name == 'assists' ? '-' : opponentValue.toString(),
+                  category == 'assists' ? '-' : opponentValue.toString(),
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -385,7 +385,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                         ),
                       ),
                     ),
-                  if (opponentValue > 0 && category.name != 'assists')
+                  if (opponentValue > 0 && category != 'assists')
                     Expanded(
                       flex: ((1 - teamPercentage) * 100).round().clamp(1, 100),
                       child: Container(
@@ -397,8 +397,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
               ),
             ),
             if (teamValue > 0 &&
-                category.name != 'corners' &&
-                category != LeaderCategory.ownGoalsEarned)
+                category != 'corners' &&
+                category != 'ownGoalsEarned')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
@@ -417,7 +417,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }
 
   Future<void> _showPlayerDetailsDialog(
-      LeaderCategory category, SeasonStats stats) async {
+      String category, SeasonStats stats) async {
     final loc = AppLocalizations.of(context)!;
 
     showDialog(
@@ -473,7 +473,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
+                      category.toSentenceCase().toTitleCase(),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,

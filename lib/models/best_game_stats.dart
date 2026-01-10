@@ -1,7 +1,8 @@
+import 'dart:collection';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/season_stats.dart';
+import 'package:team_sync/models/stat_leaders.dart';
 import 'package:team_sync/services/database_service.dart';
 
 class BestGameStat {
@@ -16,11 +17,11 @@ class BestGameStat {
       required this.season,
       required this.value});
 
-  Map<String, dynamic> toMap(int teamId, LeaderCategory category) {
+  Map<String, dynamic> toMap(int teamId, String category) {
     return {
-      'id': '${teamId}_${category.index}',
+      'id': '${teamId}_$category',
       'teamId': teamId,
-      'category': category.index,
+      'category': category,
       'playerId': player.id,
       'gameId': game.id,
       'seasonId': season.id,
@@ -70,20 +71,30 @@ class BestGameStat {
   }
 }
 
-class BestGameStats {
-  final Map<LeaderCategory, BestGameStat> _bestStats = {};
+class BestGameStats implements StatLeaders {
+  final HashMap<String, BestGameStat> _bestStats =
+      HashMap<String, BestGameStat>();
 
-  void setBestStat(LeaderCategory category, Player player, Game game,
-      Season season, int value) {
+  void setBestStat(
+      String category, Player player, Game game, Season season, int value) {
     _bestStats[category] =
         BestGameStat(player: player, game: game, season: season, value: value);
   }
 
-  BestGameStat? getBestStat(LeaderCategory category) {
+  BestGameStat? getBestStat(String category) {
     return _bestStats[category];
   }
 
-  Iterable<LeaderCategory> get categories => _bestStats.keys;
+  Iterable<String> get categories => _bestStats.keys;
+
+  @override
+  Future<HashMap<Player, int>> getStatPlayers(String category) async {
+    final bestStat = _bestStats[category];
+    if (bestStat != null) {
+      return HashMap.fromEntries([MapEntry(bestStat.player, bestStat.value)]);
+    }
+    return HashMap<Player, int>();
+  }
 
   /// Save all best game stats to the database
   Future<void> saveToDatabase(int teamId) async {
@@ -103,24 +114,22 @@ class BestGameStats {
           .query('BestGameStats', orderByChild: 'teamId', equalTo: teamId);
 
       for (final map in results) {
-        final categoryIndex = map['category'] as int?;
-        if (categoryIndex == null ||
-            categoryIndex < 0 ||
-            categoryIndex >= LeaderCategory.values.length) {
-          continue;
-        }
+        // Handle both old int-based and new string-based categories if needed
+        // For strict string refactoring, we expect String
+        final category = map['category'];
 
-        final category = LeaderCategory.values[categoryIndex];
-        final stat = await BestGameStat.fromMap(map);
-
-        if (stat != null) {
-          bestStats.setBestStat(
-            category,
-            stat.player,
-            stat.game,
-            stat.season,
-            stat.value,
-          );
+        if (category is String) {
+          final stat = await BestGameStat.fromMap(map);
+          // Verify category is valid for current sport? Maybe not strictly required
+          if (stat != null) {
+            bestStats.setBestStat(
+              category,
+              stat.player,
+              stat.game,
+              stat.season,
+              stat.value,
+            );
+          }
         }
       }
     } catch (e) {

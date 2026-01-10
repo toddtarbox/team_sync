@@ -66,7 +66,7 @@ The debug build includes `--source-maps` which lets you see Dart code in the bro
 
 ### 3. Enable Verbose Logging
 
-Add this to your `main.dart` temporarily:
+Add this to your `main_soccer.dart` (or `main_basketball.dart`) temporarily:
 
 ```dart
 void main() async {
@@ -147,6 +147,7 @@ If you need to debug the production build:
 # Build production with source maps
 cd /Users/toddtarbox/development/tsquared/team_sync
 flutter build web --release \
+  --target=lib/main_soccer.dart \
   --source-maps \
   --dart-define=WEB_API_KEY="..." \
   # ... other defines

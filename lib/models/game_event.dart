@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
+
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 enum ShotResult {
   goal,
@@ -87,45 +89,6 @@ enum CornerResult {
 class Shot extends GameEvent {
   ShotResult get result => ShotResult.fromInt(eventData);
 
-  @override
-  String get imageAsset {
-    switch (result) {
-      case ShotResult.goal:
-        return 'assets/images/pngs/goal.png';
-
-      case ShotResult.onTargetSave:
-        return 'assets/images/pngs/saved.png';
-
-      case ShotResult.offTargetPost:
-        return 'assets/images/pngs/offpost.png';
-
-      case ShotResult.offTarget:
-        return 'assets/images/pngs/offtarget.png';
-
-      case ShotResult.onTargetBlock:
-        return 'assets/images/pngs/blocked.png';
-
-      case ShotResult.notInitialized:
-        return 'assets/images/pngs/empty.png';
-    }
-  }
-
-  @override
-  String get display {
-    if (player != null) {
-      if (result == ShotResult.goal) {
-        return 'Goal';
-      }
-      return 'Shot - ${result.display}';
-    }
-
-    if (result == ShotResult.goal) {
-      return 'Goal';
-    }
-
-    return 'Shot - ${result.display}';
-  }
-
   Shot(
       {required super.id,
       required super.index,
@@ -141,20 +104,6 @@ class Shot extends GameEvent {
 }
 
 class Assist extends GameEvent {
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_soccer, size: 24, color: Colors.lightGreen);
-  }
-
-  @override
-  String get display {
-    if (player != null) {
-      return 'Assist: ${player!.displayName}';
-    }
-
-    return 'Assist';
-  }
-
   Assist(
       {required super.id,
       required super.index,
@@ -170,20 +119,6 @@ class Assist extends GameEvent {
 }
 
 class Save extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Save by ${player!.displayName}';
-    }
-
-    return 'Save by ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_handball, size: 24, color: Colors.blue);
-  }
-
   Save(
       {required super.id,
       required super.index,
@@ -200,38 +135,6 @@ class Save extends GameEvent {
 
 class PenaltyKick extends GameEvent {
   ShotResult get result => ShotResult.fromInt(eventData);
-
-  @override
-  String get display {
-    if (player != null) {
-      return '${result.display} - ${player!.displayName} (PK)';
-    }
-
-    return '${result.display} - ${team.shortName} (PK)';
-  }
-
-  @override
-  String get imageAsset {
-    switch (result) {
-      case ShotResult.goal:
-        return 'assets/images/pngs/goal.png';
-
-      case ShotResult.onTargetSave:
-        return 'assets/images/pngs/saved.png';
-
-      case ShotResult.offTargetPost:
-        return 'assets/images/pngs/offpost.png';
-
-      case ShotResult.offTarget:
-        return 'assets/images/pngs/offtarget.png';
-
-      case ShotResult.onTargetBlock:
-        return 'assets/images/pngs/blocked.png';
-
-      case ShotResult.notInitialized:
-        return 'assets/images/pngs/empty.png';
-    }
-  }
 
   PenaltyKick(
       {required super.id,
@@ -250,16 +153,6 @@ class PenaltyKick extends GameEvent {
 class Corner extends GameEvent {
   CornerResult get result => CornerResult.fromInt(eventData);
 
-  @override
-  String get display {
-    return 'Corner kick for ${team.shortName} ${result == CornerResult.none ? '' : ' - ${result.display}'}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.flag, size: 24, color: Colors.purple);
-  }
-
   Corner(
       {required super.id,
       required super.index,
@@ -275,20 +168,6 @@ class Corner extends GameEvent {
 }
 
 class Foul extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Foul by ${player!.displayName}';
-    }
-
-    return 'Foul by ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_kabaddi, size: 24, color: Colors.deepOrange);
-  }
-
   Foul(
       {required super.id,
       required super.index,
@@ -304,20 +183,6 @@ class Foul extends GameEvent {
 }
 
 class Offsides extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Offsides on ${player!.displayName}';
-    }
-
-    return 'Offsides on ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.assistant_photo, size: 24, color: Colors.brown);
-  }
-
   Offsides(
       {required super.id,
       required super.index,
@@ -333,26 +198,6 @@ class Offsides extends GameEvent {
 }
 
 class GameCard extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Card by ${player!.displayName}';
-    }
-
-    return 'Card for ${team.shortName}';
-  }
-
-  @override
-  String get imageAsset {
-    if (eventData == 0) {
-      return 'assets/images/pngs/yellow.png';
-    } else if (eventData == 1) {
-      return 'assets/images/pngs/second_yellow_red.png';
-    } else {
-      return 'assets/images/pngs/red.png';
-    }
-  }
-
   GameCard(
       {required super.id,
       required super.index,
@@ -369,41 +214,6 @@ class GameCard extends GameEvent {
 
 class Period extends GameEvent {
   GameStatus get status => GameStatus.fromString(eventData.toString());
-
-  @override
-  Widget get image {
-    return const Icon(Icons.schedule, size: 24, color: Colors.grey);
-  }
-
-  @override
-  String get display {
-    switch (status) {
-      case GameStatus.notStarted:
-        return '';
-      case GameStatus.firstHalf:
-        return 'Game Started';
-      case GameStatus.halftime:
-        return 'Halftime';
-      case GameStatus.secondHalf:
-        return '2nd Half Started';
-      case GameStatus.overtimeNotStarted:
-        return 'Headed to Overtime';
-      case GameStatus.firstHalfOvertime:
-        return 'Overtime Started';
-      case GameStatus.overtimeHalftime:
-        return 'Overtime Halftime';
-      case GameStatus.secondHalfOvertime:
-        return '2nd Half Overtime Started';
-      case GameStatus.shootout:
-        return 'Shootout';
-      case GameStatus.gameFinal:
-        return 'Game Over';
-      case GameStatus.gameFinalOT:
-        return 'Game Over - Overtime';
-      case GameStatus.gameFinalPKs:
-        return 'Game Over - PKs';
-    }
-  }
 
   Period(
       {required super.id,
@@ -435,11 +245,11 @@ class GameEvent {
   String get teamIdSeasonId => '${team.id}_$seasonId';
 
   String get display {
-    return eventType;
+    return SportStrategy.current.formatEventDisplay(this);
   }
 
   String get imageAsset {
-    return 'assets/images/pngs/empty.png';
+    return SportStrategy.current.getEventImageAsset(this);
   }
 
   Widget get image {
@@ -454,8 +264,7 @@ class GameEvent {
 
   /// Helper to check if this event is a goal (either a Shot or PenaltyKick that resulted in a goal)
   bool get isGoalEvent {
-    return (eventType == 'Shot' || eventType == 'PenaltyKick') &&
-        eventData == ShotResult.goal.index;
+    return SportStrategy.current.isGoalEvent(this);
   }
 
   String tweetText(Game game) {

@@ -2,7 +2,6 @@ import 'dart:collection';
 
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/stat_leaders.dart';
 
 class BestSeasonStat {
@@ -15,23 +14,22 @@ class BestSeasonStat {
 }
 
 class BestSeasonStats implements StatLeaders {
-  final HashMap<LeaderCategory, BestSeasonStat> _bestStats =
-      HashMap<LeaderCategory, BestSeasonStat>();
+  final HashMap<String, BestSeasonStat> _bestStats =
+      HashMap<String, BestSeasonStat>();
 
-  void setBestStat(
-      LeaderCategory category, Player player, Season season, int value) {
+  void setBestStat(String category, Player player, Season season, int value) {
     _bestStats[category] =
         BestSeasonStat(player: player, season: season, value: value);
   }
 
-  BestSeasonStat? getBestStat(LeaderCategory category) {
+  BestSeasonStat? getBestStat(String category) {
     return _bestStats[category];
   }
 
-  Iterable<LeaderCategory> get categories => _bestStats.keys;
+  Iterable<String> get categories => _bestStats.keys;
 
   @override
-  Future<HashMap<Player, int>> getStatPlayers(LeaderCategory category) async {
+  Future<HashMap<Player, int>> getStatPlayers(String category) async {
     final bestStat = _bestStats[category];
     if (bestStat != null) {
       return HashMap.fromEntries([MapEntry(bestStat.player, bestStat.value)]);

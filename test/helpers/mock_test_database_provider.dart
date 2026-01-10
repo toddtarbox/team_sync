@@ -29,7 +29,7 @@ class MockTestDatabaseProvider extends DatabaseProvider {
   }
 
   @override
-  Future<bool> open(String path) async {
+  Future<bool> open(String path, {String? createWithSportId}) async {
     _isOpen = true;
     return true;
   }
@@ -53,7 +53,7 @@ class MockTestDatabaseProvider extends DatabaseProvider {
   }
 
   @override
-  Future<List<String>> getAvailableDatabases() async {
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async {
     return ['mock_db_1', 'mock_db_2'];
   }
 

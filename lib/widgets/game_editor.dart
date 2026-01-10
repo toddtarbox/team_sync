@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -346,7 +347,7 @@ class _GameEditorState extends State<GameEditor> {
                       if (widget.onGoToGame != null)
                         Center(
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.sports_soccer),
+                            icon: Icon(SportStrategy.current.sportIcon),
                             label: Text(loc.goToGame),
                             style: ElevatedButton.styleFrom(
                               backgroundColor:

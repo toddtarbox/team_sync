@@ -9,8 +9,9 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/season_stats.dart';
+
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 
 import 'package:team_sync/widgets/responsive_avatar.dart';
@@ -284,9 +285,9 @@ class _MatchResultCardWidget extends StatefulWidget {
 }
 
 class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
-  Map<LeaderCategory, Map<Player, int>>? _playerStats;
-  Map<LeaderCategory, int>? _teamTotals;
-  Map<LeaderCategory, int>? _opponentTotals;
+  Map<String, Map<Player, int>>? _playerStats;
+  Map<String, int>? _teamTotals;
+  Map<String, int>? _opponentTotals;
   bool _isLoading = true;
 
   @override
@@ -300,11 +301,11 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
       await widget.game.loadGameEvents();
       final stats = await widget.game.getStats(widget.season.teamId);
 
-      final playerStats = <LeaderCategory, Map<Player, int>>{};
-      final teamTotals = <LeaderCategory, int>{};
-      final opponentTotals = <LeaderCategory, int>{};
+      final playerStats = <String, Map<Player, int>>{};
+      final teamTotals = <String, int>{};
+      final opponentTotals = <String, int>{};
 
-      for (final category in LeaderCategory.values) {
+      for (final category in SportStrategy.current.leaderCategories) {
         playerStats[category] = await stats.getStatPlayers(category);
 
         // Calculate team total
@@ -314,7 +315,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
         }
 
         // Count corners separately for team
-        if (category == LeaderCategory.corners) {
+        if (category == 'corners') {
           for (final event in widget.game.allGameEvents) {
             if (event.eventType == 'Corner' &&
                 event.team.id == widget.season.teamId) {
@@ -329,7 +330,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
         int opponentTotal = 0;
         for (final event in widget.game.allGameEvents) {
           // Special handling for saves - opponent saves are team shots on goal
-          if (category == LeaderCategory.saves) {
+          if (category == 'saves') {
             if (event.team.id == widget.season.teamId &&
                 event.eventType == 'Shot' &&
                 event.eventData == 1) {
@@ -342,40 +343,40 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
           if (event.team.id == widget.season.teamId) continue;
 
           switch (category) {
-            case LeaderCategory.goals:
+            case 'goals':
               if (event.eventType == 'Shot' && event.eventData == 0) {
                 opponentTotal++;
               }
               break;
-            case LeaderCategory.assists:
+            case 'assists':
               if (event.eventType == 'Assist') opponentTotal++;
               break;
-            case LeaderCategory.shots:
+            case 'shots':
               if (event.eventType == 'Shot') opponentTotal++;
               break;
-            case LeaderCategory.shotsOnGoal:
+            case 'shotsOnGoal':
               if (event.eventType == 'Shot' &&
                   (event.eventData == 0 || event.eventData == 1)) {
                 opponentTotal++;
               }
               break;
-            case LeaderCategory.corners:
+            case 'corners':
               if (event.eventType == 'Corner') opponentTotal++;
               break;
-            case LeaderCategory.fouls:
+            case 'fouls':
               if (event.eventType == 'Foul') opponentTotal++;
               break;
-            case LeaderCategory.yellows:
+            case 'yellows':
               if (event.eventType == 'Card' && event.eventData == 0) {
                 opponentTotal++;
               }
               break;
-            case LeaderCategory.reds:
+            case 'reds':
               if (event.eventType == 'Card' && event.eventData == 2) {
                 opponentTotal++;
               }
               break;
-            case LeaderCategory.secondYellowReds:
+            case 'secondYellowReds':
               if (event.eventType == 'Card' && event.eventData == 1) {
                 opponentTotal++;
               }
@@ -623,34 +624,29 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
               children: [
                 _buildSectionHeader('MATCH STATISTICS'),
                 const SizedBox(height: 16),
-                _buildStatRow('Shots', _teamTotals![LeaderCategory.shots]!,
-                    _opponentTotals![LeaderCategory.shots]!),
-                _buildStatRow(
-                    'Shots on Goal',
-                    _teamTotals![LeaderCategory.shotsOnGoal]!,
-                    _opponentTotals![LeaderCategory.shotsOnGoal]!),
-                _buildStatRow('Saves', _teamTotals![LeaderCategory.saves]!,
-                    _opponentTotals![LeaderCategory.saves]!),
-                _buildStatRow('Corners', _teamTotals![LeaderCategory.corners]!,
-                    _opponentTotals![LeaderCategory.corners]!),
-                _buildStatRow('Fouls', _teamTotals![LeaderCategory.fouls]!,
-                    _opponentTotals![LeaderCategory.fouls]!),
-                _buildStatRow(
-                    'Yellow Cards',
-                    _teamTotals![LeaderCategory.yellows]!,
-                    _opponentTotals![LeaderCategory.yellows]!),
+                _buildStatRow('Shots', _teamTotals!['shots']!,
+                    _opponentTotals!['shots']!),
+                _buildStatRow('Shots on Goal', _teamTotals!['shotsOnGoal']!,
+                    _opponentTotals!['shotsOnGoal']!),
+                _buildStatRow('Saves', _teamTotals!['saves']!,
+                    _opponentTotals!['saves']!),
+                _buildStatRow('Corners', _teamTotals!['corners']!,
+                    _opponentTotals!['corners']!),
+                _buildStatRow('Fouls', _teamTotals!['fouls']!,
+                    _opponentTotals!['fouls']!),
+                _buildStatRow('Yellow Cards', _teamTotals!['yellows']!,
+                    _opponentTotals!['yellows']!),
                 _buildStatRow(
                     'Red Cards',
-                    _teamTotals![LeaderCategory.reds]! +
-                        _teamTotals![LeaderCategory.secondYellowReds]!,
-                    _opponentTotals![LeaderCategory.reds]! +
-                        _opponentTotals![LeaderCategory.secondYellowReds]!),
+                    _teamTotals!['reds']! + _teamTotals!['secondYellowReds']!,
+                    _opponentTotals!['reds']! +
+                        _opponentTotals!['secondYellowReds']!),
               ],
             ),
           ),
 
           // Goal Scorers
-          if (_playerStats![LeaderCategory.goals]!.isNotEmpty) ...[
+          if (_playerStats!['goals']!.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -658,14 +654,14 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 children: [
                   _buildSectionHeader('GOAL SCORERS'),
                   const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.goals),
+                  ..._buildPlayerList('goals'),
                 ],
               ),
             ),
           ],
 
           // Assists
-          if (_playerStats![LeaderCategory.assists]!.isNotEmpty) ...[
+          if (_playerStats!['assists']!.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Column(
@@ -673,14 +669,14 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 children: [
                   _buildSectionHeader('ASSISTS'),
                   const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.assists),
+                  ..._buildPlayerList('assists'),
                 ],
               ),
             ),
           ],
 
           // Saves
-          if (_playerStats![LeaderCategory.saves]!.isNotEmpty) ...[
+          if (_playerStats!['saves']!.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Column(
@@ -688,7 +684,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 children: [
                   _buildSectionHeader('SAVES'),
                   const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.saves),
+                  ..._buildPlayerList('saves'),
                 ],
               ),
             ),
@@ -800,7 +796,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
     );
   }
 
-  List<Widget> _buildPlayerList(LeaderCategory category) {
+  List<Widget> _buildPlayerList(String category) {
     final players = _playerStats![category]!;
     final sortedPlayers = players.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));

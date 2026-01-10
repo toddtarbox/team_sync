@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
-import 'package:team_sync/models/season_stats.dart';
+
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 
@@ -789,24 +789,25 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
           ),
           const Divider(height: 1, thickness: 1),
           // Stats rows
-          _buildStatRow(context, 'Goals', homeStats.goals, awayStats.goals,
-              LeaderCategory.goals),
-          _buildStatRow(context, 'Shots', homeStats.shots, awayStats.shots,
-              LeaderCategory.shots),
+          // Stats rows
+          _buildStatRow(
+              context, 'Goals', homeStats.goals, awayStats.goals, 'goals'),
+          _buildStatRow(
+              context, 'Shots', homeStats.shots, awayStats.shots, 'shots'),
           _buildStatRow(context, 'Shots on Goal', homeStats.shotsOnGoal,
-              awayStats.shotsOnGoal, LeaderCategory.shotsOnGoal),
-          _buildStatRow(context, 'Saves', homeStats.saves, awayStats.saves,
-              LeaderCategory.saves),
+              awayStats.shotsOnGoal, 'shotsOnGoal'),
+          _buildStatRow(
+              context, 'Saves', homeStats.saves, awayStats.saves, 'saves'),
           _buildStatRow(context, 'Assists', homeStats.assists,
-              awayStats.assists, LeaderCategory.assists),
-          _buildStatRow(context, 'Fouls', homeStats.fouls, awayStats.fouls,
-              LeaderCategory.fouls),
+              awayStats.assists, 'assists'),
+          _buildStatRow(
+              context, 'Fouls', homeStats.fouls, awayStats.fouls, 'fouls'),
           _buildStatRow(context, 'Offsides', homeStats.offsides,
-              awayStats.offsides, LeaderCategory.offsides),
+              awayStats.offsides, 'offsides'),
           _buildStatRow(context, 'Yellow Cards', homeStats.yellows,
-              awayStats.yellows, LeaderCategory.yellows),
-          _buildStatRow(context, 'Red Cards', homeStats.reds, awayStats.reds,
-              LeaderCategory.reds),
+              awayStats.yellows, 'yellows'),
+          _buildStatRow(
+              context, 'Red Cards', homeStats.reds, awayStats.reds, 'reds'),
           const SizedBox(height: 8),
         ],
       ),
@@ -814,7 +815,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
   }
 
   Widget _buildStatRow(BuildContext context, String label, int homeValue,
-      int awayValue, LeaderCategory category) {
+      int awayValue, String category) {
     final maxValue = homeValue > awayValue ? homeValue : awayValue;
     final homePercent = maxValue > 0 ? homeValue / maxValue : 0.0;
     final awayPercent = maxValue > 0 ? awayValue / maxValue : 0.0;
@@ -920,8 +921,8 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
         ));
   }
 
-  Future<void> _showStatCategoryDialog(BuildContext context,
-      LeaderCategory category, String label, int teamId) async {
+  Future<void> _showStatCategoryDialog(
+      BuildContext context, String category, String label, int teamId) async {
     // Get player stats for this category
     final stats = await _currentGame!.getStats(teamId);
     final playerStats = await stats.getStatPlayers(category);
