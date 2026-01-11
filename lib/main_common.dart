@@ -11,6 +11,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/app_config.dart';
 import 'package:team_sync/router.dart';
+import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_sharing_service.dart';
 import 'package:team_sync/services/locale_notifier.dart';
 import 'package:team_sync/services/subscription_service.dart';
@@ -23,7 +24,7 @@ Future<void> mainCommon(
   usePathUrlStrategy();
 
   // Initialize as TeamSync (single-team app)
-  AppConfig.initialize(AppConfig.soccer);
+  AppConfig.initialize(strategy.appConfig);
 
   // Initialize SportStrategy
   SportStrategy.initialize(strategy);
@@ -58,6 +59,10 @@ Future<void> _initializeApp(FirebaseOptions Function() optionsBuilder) async {
     }
   }
   await SubscriptionService.instance.initialize();
+
+  if (kIsWeb) {
+    await AuthService.instance.ensureAnonymousSignIn();
+  }
 
   // Register user in lookup table if already signed in
   if (!kIsWeb) {

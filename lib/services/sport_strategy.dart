@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/app_config.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season_stats.dart';
@@ -16,6 +17,8 @@ abstract class SportStrategy {
   String get appIconAsset;
   IconData get sportIcon;
   String get sportId;
+  String get webUrl;
+  AppConfig get appConfig;
 
   // Event formatting
   String formatEventDisplay(GameEvent event);

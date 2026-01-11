@@ -137,6 +137,19 @@ class AuthService {
     }
   }
 
+  /// Ensure the user is signed in (anonymously if needed)
+  /// This is particularly important for web viewers.
+  Future<void> ensureAnonymousSignIn() async {
+    if (_auth.currentUser == null) {
+      try {
+        await _auth.signInAnonymously();
+        debugPrint('Signed in anonymously');
+      } catch (e) {
+        debugPrint('Error signing in anonymously: $e');
+      }
+    }
+  }
+
   /// Get user-friendly error message
   String getErrorMessage(dynamic error) {
     if (error is FirebaseAuthException) {

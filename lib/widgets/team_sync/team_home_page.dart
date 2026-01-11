@@ -3734,7 +3734,8 @@ class _TeamHomePageState extends State<TeamHomePage>
     });
     try {
       final id = await DatabaseService.instance.shareDatabase();
-      final url = 'https://team-sync-soccer.web.app/#/team/$id';
+      final baseUrl = SportStrategy.current.webUrl;
+      final url = '$baseUrl/team/$id';
       final databaseName = DatabaseService.instance.path;
 
       if (mounted) {

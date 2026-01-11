@@ -25,7 +25,7 @@ AppBar buildStandardAppBar({
   final showBackButton = !kIsWeb && Navigator.of(context).canPop();
 
   Future<void> launchAppHomePage() async {
-    final uri = Uri.parse('https://team-sync-soccer-web.web.app/');
+    final uri = Uri.parse(SportStrategy.current.webUrl);
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {

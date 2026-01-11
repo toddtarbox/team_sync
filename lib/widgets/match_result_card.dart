@@ -235,8 +235,9 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
 
       // Generate web link to game
       final databaseId = DatabaseService.instance.publicShareId ?? '';
+      final baseUrl = SportStrategy.current.webUrl;
       final gameUrl =
-          'https://team-sync-soccer.web.app/#/team/$databaseId/season/${widget.season.id}/games/${widget.game.id}';
+          '$baseUrl/team/$databaseId/season/${widget.season.id}/games/${widget.game.id}';
 
       final tweetText =
           '${widget.season.team.shortName} $result $teamScore-$opponentScore vs $opponentName\n\n$gameUrl\n\n#${widget.season.team.shortName.replaceAll(' ', '')}';

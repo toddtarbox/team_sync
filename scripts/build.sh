@@ -1,9 +1,7 @@
 #!/bin/bash
-# Build TeamSync app (single-team management)
+# Build TeamSync app
 
 set -e
-
-echo "🏗️  Building TeamSync (Single-Team Management)..."
 
 # Set app name
 APP_NAME="TeamSync"
@@ -30,11 +28,13 @@ if [ "$FLAVOR" == "basketball" ]; then
   TARGET="lib/main_basketball.dart"
   BUNDLE_ID="com.tsquared.team_sync.basketball"
   APP_DISPLAY_NAME="TeamSync Basketball"
+  WEB_APP_ID=$WEB_APP_ID_BASKETBALL
 else
   # Default to soccer
   TARGET="lib/main_soccer.dart"
   BUNDLE_ID="com.tsquared.team_sync.soccer"
   APP_DISPLAY_NAME="TeamSync Soccer"
+  WEB_APP_ID=$WEB_APP_ID_SOCCER
 fi
 
 echo "🏗️  Building $APP_DISPLAY_NAME ($FLAVOR)..."

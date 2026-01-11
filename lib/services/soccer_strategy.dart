@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/app_config.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season_stats.dart';
@@ -19,6 +20,12 @@ class SoccerStrategy implements SportStrategy {
 
   @override
   String get sportId => 'soccer';
+
+  @override
+  String get webUrl => 'https://team-sync-soccer.web.app';
+
+  @override
+  AppConfig get appConfig => AppConfig.soccer;
 
   @override
   List<String> get leaderCategories => [

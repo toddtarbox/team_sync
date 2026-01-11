@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -507,7 +506,7 @@ class FirebaseDBProvider implements DatabaseProvider {
         return rows;
       } catch (e, st) {
         debugPrint(
-            'RTDB native query failed, falling back to full read: $e\n$st');
+            'RTDB native query failed for $nodePath, falling back to full read: $e\n$st');
         // fall through
       }
     }

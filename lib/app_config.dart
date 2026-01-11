@@ -1,6 +1,7 @@
 /// App flavor/mode configuration
 enum AppMode {
   soccer, // Single-team management
+  basketball,
 }
 
 /// Global app configuration
@@ -25,6 +26,13 @@ class AppConfig {
     enableTeamFeatures: true,
   );
 
+  static const basketball = AppConfig(
+    mode: AppMode.basketball,
+    appName: 'TeamSync',
+    appId: 'com.tsquared.team_sync.basketball',
+    enableTeamFeatures: true,
+  );
+
   /// Current app configuration (set at build time)
   static late AppConfig current;
 
@@ -35,4 +43,7 @@ class AppConfig {
 
   /// Check if this is Soccer app
   bool get isSoccer => mode == AppMode.soccer;
+
+  /// Check if this is Basketball app
+  bool get isBasketball => mode == AppMode.basketball;
 }

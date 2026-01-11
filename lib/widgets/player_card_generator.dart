@@ -1,5 +1,6 @@
 // Web-specific imports
 import 'dart:io';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -1476,7 +1477,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   // Generate the web URL for this player
   String _getPlayerWebUrl() {
     final databaseId = DatabaseService.instance.publicShareId ?? '';
-    final baseUrl = 'https://team-sync-soccer.web.app';
+    final baseUrl = SportStrategy.current.webUrl;
     // Use global player route (not season-specific)
     return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }

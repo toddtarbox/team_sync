@@ -8,10 +8,14 @@
         "team-sync-soccer": [
           "team-sync-soccer"
         ],
+        "team-sync-basketball": [
+          "team-sync-basketball"
+        ],
         "landing": [
           "team-sync-soccer-web"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }
