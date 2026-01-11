@@ -19,7 +19,7 @@ echo -e "${BLUE}🚀 TeamSync Web Deployment${NC}"
 echo "================================================"
 
 # Default values
-TARGET_SPORT="soccer"
+TARGET_SPORT="all"
 BUILD_MODE="release"
 FIREBASE_ARGS=""
 

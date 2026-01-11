@@ -499,26 +499,19 @@ class _TeamHomePageState extends State<TeamHomePage>
                   await _shareDatabase();
                   break;
                 case 'records':
-                  final databaseId = DatabaseService.instance.publicShareId;
-                  if (databaseId != null) {
-                    NavigationHelper.navigateTo(
-                        context, '/team/$databaseId/records',
-                        extra: _team);
-                  }
+                  final databaseId = DatabaseService.instance.publicShareId!;
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/records',
+                      extra: _team);
                   break;
                 case 'history':
-                  final databaseId = DatabaseService.instance.publicShareId;
-                  if (databaseId != null) {
-                    NavigationHelper.navigateTo(
-                        context, '/team/$databaseId/history',
-                        extra: _team);
-                  }
+                  final databaseId = DatabaseService.instance.publicShareId!;
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/history',
+                      extra: _team);
                   break;
                 case 'settings':
-                  // For settings, use publicShareId if available, otherwise use 'local'
-                  // Settings should work even when not signed in for local databases
-                  final databaseId =
-                      DatabaseService.instance.publicShareId ?? 'local';
+                  final databaseId = DatabaseService.instance.publicShareId!;
                   NavigationHelper.navigateTo(
                       context, '/team/$databaseId/settings',
                       extra: _team);
@@ -603,25 +596,22 @@ class _TeamHomePageState extends State<TeamHomePage>
                 onSelected: (value) async {
                   switch (value) {
                     case 'records':
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/records',
-                            extra: _team);
-                      }
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/records',
+                          extra: _team);
                       break;
                     case 'history':
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/history',
-                            extra: _team);
-                      }
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/history',
+                          extra: _team);
                       break;
                     case 'settings':
-                      // For settings on web, use publicShareId if available, otherwise use 'local'
                       final databaseId =
-                          DatabaseService.instance.publicShareId ?? 'local';
+                          DatabaseService.instance.publicShareId!;
                       NavigationHelper.navigateTo(
                           context, '/team/$databaseId/settings',
                           extra: _team);
@@ -1375,13 +1365,11 @@ class _TeamHomePageState extends State<TeamHomePage>
                     InkWell(
                       onTap: () {
                         final databaseId =
-                            DatabaseService.instance.publicShareId;
-                        if (databaseId != null) {
-                          NavigationHelper.navigateTo(
-                            context,
-                            '/team/$databaseId/history',
-                          );
-                        }
+                            DatabaseService.instance.publicShareId!;
+                        NavigationHelper.navigateTo(
+                          context,
+                          '/team/$databaseId/history',
+                        );
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: HoverBuilder(
@@ -1624,15 +1612,13 @@ class _TeamHomePageState extends State<TeamHomePage>
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final season = _seasons[index];
-                    final databaseId = DatabaseService.instance.publicShareId;
+                    final databaseId = DatabaseService.instance.publicShareId!;
 
                     return GestureDetector(
                       onTap: () {
-                        if (databaseId != null) {
-                          NavigationHelper.navigateTo(
-                              context, '/team/$databaseId/season/${season.id}',
-                              extra: season);
-                        }
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/season/${season.id}',
+                            extra: season);
                       },
                       child: HoverBuilder(
                         builder: (context, isHovered) {
@@ -1871,15 +1857,14 @@ class _TeamHomePageState extends State<TeamHomePage>
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final season = _importedSeasons[index];
-                      final databaseId = DatabaseService.instance.publicShareId;
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
 
                       return GestureDetector(
                         onTap: () {
-                          if (databaseId != null) {
-                            NavigationHelper.navigateTo(context,
-                                '/team/$databaseId/season/${season.id}',
-                                extra: season);
-                          }
+                          NavigationHelper.navigateTo(
+                              context, '/team/$databaseId/season/${season.id}',
+                              extra: season);
                         },
                         child: HoverBuilder(
                           builder: (context, isHovered) {
@@ -2152,8 +2137,22 @@ class _TeamHomePageState extends State<TeamHomePage>
   // Data loading methods
   Future<bool> _load() async {
     try {
+      if (kIsWeb) {
+        // Ensure we are authenticated (even anonymously) before trying to load
+        if (FirebaseAuth.instance.currentUser == null) {
+          // Wait a brief moment ensuring auth state might still be initializing
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (FirebaseAuth.instance.currentUser == null) {
+            throw 'Authentication failed. Please refresh the page. If the issue persists, ensure Anonymous Authentication is enabled in the Firebase Console.';
+          }
+        }
+      }
+
       if (widget.databaseId != null) {
         final result = await _loadFromDatabaseId();
+        if (!result) {
+          throw 'Unable to load team data. The link may be invalid or you do not have permission to view this team.';
+        }
         return result;
       } else if (!kIsWeb) {
         final result = await _loadLocalDatabase();
@@ -2184,24 +2183,31 @@ class _TeamHomePageState extends State<TeamHomePage>
     _team = widget.initialTeam; // For testing only!!!
 
     if (_team == null) {
-      final teamResult = await DatabaseService.instance
+      // Try finding team with id=1 first (most common)
+      var teamResult = await DatabaseService.instance
           .query('Teams', orderBy: 'id', equalTo: 1);
-      if (teamResult.isNotEmpty) {
-        // First try team with id=1
-        var teamMap = teamResult.firstWhere(
-          (t) => t['id'] == 1,
-          orElse: () => teamResult.first,
-        );
 
+      // If not found, try finding ANY team
+      if (teamResult.isEmpty) {
+        debugPrint(
+            '[TeamHomePage] Team with id=1 not found. Fetching any team...');
+        teamResult =
+            await DatabaseService.instance.query('Teams', limitToFirst: 1);
+      }
+
+      if (teamResult.isNotEmpty) {
+        // Use the first team found
+        final teamMap = teamResult.first;
         final team = Team.fromMap(teamMap);
-        if (_team == null) {
-          setState(() {
-            _team = team;
-          });
-        } else {
+
+        setState(() {
           _team = team;
-        }
+        });
+
         await _loadSeasons();
+      } else {
+        debugPrint('[TeamHomePage] No teams found in database.');
+        return false;
       }
     }
     return true;
@@ -2612,13 +2618,11 @@ class _TeamHomePageState extends State<TeamHomePage>
           child: InkWell(
             onTap: () {
               // Navigate to Analytics (History Versus) page
-              final databaseId = DatabaseService.instance.publicShareId;
-              if (databaseId != null) {
-                NavigationHelper.navigateTo(
-                  context,
-                  '/team/$databaseId/history',
-                );
-              }
+              final databaseId = DatabaseService.instance.publicShareId!;
+              NavigationHelper.navigateTo(
+                context,
+                '/team/$databaseId/history',
+              );
             },
             borderRadius: BorderRadius.circular(16),
             child: Card(
@@ -4452,7 +4456,7 @@ $liveLink
             child: InkWell(
               onTap: () {
                 if (_currentSeason != null) {
-                  final databaseId = DatabaseService.instance.publicShareId;
+                  final databaseId = DatabaseService.instance.publicShareId!;
                   NavigationHelper.navigateTo(
                     context,
                     '/team/$databaseId/season/${_currentSeason!.id}',
