@@ -27,11 +27,15 @@ The `generateGoogleServices` Gradle task:
 - `FIREBASE_DATABASE_URL`
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_STORAGE_BUCKET`
-- `FIREBASE_MOBILE_APP_ID`
+- `FIREBASE_MOBILE_APP_ID` (fallback for soccer)
+- `FIREBASE_MOBILE_APP_ID_SOCCER`
+- `FIREBASE_MOBILE_APP_ID_BASKETBALL`
 - `API_KEY`
 - `OAUTH_CLIENT_IDS` (comma-separated)
 - `IOS_APPINVITE_CLIENT_ID`
-- `ANDROID_PACKAGE_NAME`
+- `ANDROID_PACKAGE_NAME` (fallback for soccer)
+- `ANDROID_PACKAGE_NAME_SOCCER`
+- `ANDROID_PACKAGE_NAME_BASKETBALL`
 
 **Generated file:** `android/app/google-services.json` (gitignored)
 

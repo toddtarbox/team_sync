@@ -2216,7 +2216,30 @@ class _TeamHomePageState extends State<TeamHomePage>
   Future<bool> _loadLocalDatabase() async {
     try {
       const storage = FlutterSecureStorage();
-      final lastDBUsed = await storage.read(key: 'last_db_used');
+      var lastDBUsed = await storage.read(key: 'last_db_used');
+
+      if (FirebaseAuth.instance.currentUser != null &&
+          lastDBUsed != null &&
+          lastDBUsed.isNotEmpty) {
+        try {
+          final availableDBs = await DatabaseService.instance
+              .getAvailableDatabases(
+                  sportFilter: SportStrategy.current.sportId);
+          if (!availableDBs.contains(lastDBUsed)) {
+            debugPrint(
+                'Last DB $lastDBUsed not valid for sport ${SportStrategy.current.sportId}');
+            if (availableDBs.isNotEmpty) {
+              lastDBUsed = availableDBs.first;
+              await storage.write(key: 'last_db_used', value: lastDBUsed);
+            } else {
+              lastDBUsed = null;
+              await storage.delete(key: 'last_db_used');
+            }
+          }
+        } catch (e) {
+          debugPrint('Error validating last DB: $e');
+        }
+      }
 
       if (lastDBUsed != null && lastDBUsed.isNotEmpty) {
         await DatabaseService.instance.open(lastDBUsed);
@@ -3607,7 +3630,20 @@ class _TeamHomePageState extends State<TeamHomePage>
       {Color? color1 = Colors.green,
       Color? color2 = Colors.green,
       String? logoUrl}) async {
-    final teamId = DateTime.now().millisecondsSinceEpoch;
+    int teamId;
+
+    // Check if there are any teams in the database
+    final existingTeams =
+        await DatabaseService.instance.query('Teams', limitToFirst: 1);
+
+    if (existingTeams.isEmpty) {
+      // First team gets ID 1
+      teamId = 1;
+    } else {
+      // Subsequent teams get timestamp ID
+      teamId = DateTime.now().millisecondsSinceEpoch;
+    }
+
     await DatabaseService.instance.insert('Teams', {
       'id': teamId,
       'fullName': teamName,

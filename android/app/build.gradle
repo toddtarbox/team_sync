@@ -233,11 +233,21 @@ task generateGoogleServices {
         def clients = []
         // Add Soccer Client
         def soccerClient = buildClientJson(soccer_app_id, soccer_package)
-        if (soccerClient) clients << soccerClient
+        if (soccerClient) {
+            println "[generateGoogleServices] Adding Soccer client (App ID: ${soccer_app_id})"
+            clients << soccerClient
+        } else {
+             println "[generateGoogleServices] Skipping Soccer client (Missing App ID or Package)"
+        }
 
         // Add Basketball Client
         def basketballClient = buildClientJson(basketball_app_id, basketball_package)
-        if (basketballClient) clients << basketballClient
+        if (basketballClient) {
+            println "[generateGoogleServices] Adding Basketball client (App ID: ${basketball_app_id})"
+            clients << basketballClient
+        } else {
+            println "[generateGoogleServices] Skipping Basketball client (Missing App ID or Package)"
+        }
 
         // Build JSON text
         def jsonBuilder = new StringBuilder()
