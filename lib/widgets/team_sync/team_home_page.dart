@@ -1369,8 +1369,9 @@ class _TeamHomePageState extends State<TeamHomePage>
                     ),
                   ],
                   const SizedBox(height: 24),
-                  // Enhanced Overall Record Card - Only show when all seasons are loaded
-                  if (_allSeasonsLoaded)
+                  // Enhanced Overall Record Card - Only show when all seasons are loaded AND there are seasons
+                  if (_allSeasonsLoaded &&
+                      (_seasons.isNotEmpty || _importedSeasons.isNotEmpty))
                     InkWell(
                       onTap: () {
                         final databaseId =
@@ -2159,6 +2160,13 @@ class _TeamHomePageState extends State<TeamHomePage>
         return result;
       }
       return true;
+    } on FirebaseException catch (e) {
+      debugPrint(
+          '[TeamHomePage] Firebase Error in _load: ${e.code} - ${e.message}');
+      if (e.code == 'permission-denied') {
+        throw 'Access denied. The database link may be invalid, or public access is not enabled for this team.';
+      }
+      rethrow;
     } catch (e, stackTrace) {
       debugPrint('[TeamHomePage] Error in _load: $e');
       debugPrint('[TeamHomePage] Stack trace: $stackTrace');

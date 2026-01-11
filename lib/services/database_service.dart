@@ -360,11 +360,30 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     try {
       final ref = _database.ref(path);
-      _dbEvent = await ref.once();
 
-      if (_dbEvent?.snapshot.exists == false) {
-        debugPrint('openFromPath: Database not found at path: $path');
-        return false;
+      // Check for public share ID first to verify access without reading entire DB
+      try {
+        final publicShareSnap = await ref.child('publicShareId').get();
+        if (publicShareSnap.exists) {
+          debugPrint('openFromPath: Valid public share ID found at $path');
+        } else {
+          // Fallback to checking full db existence if publicShareId is missing/not readable
+          // This might fail if we don't have root read access
+          _dbEvent = await ref.once();
+          if (_dbEvent?.snapshot.exists == false) {
+            debugPrint('openFromPath: Database not found at path: $path');
+            return false;
+          }
+        }
+      } catch (e) {
+        if (e is FirebaseException && e.code == 'permission-denied') {
+          debugPrint(
+              'openFromPath: Permission denied reading publicShareId. Attempting to proceed blindly in case rules allow specific child access.');
+          // We return true here to allow specific table queries (like Teams) to attempt their own reads, which might succeed if rules are granular.
+        } else {
+          debugPrint('openFromPath: Error checking database existence: $e');
+          return false;
+        }
       }
 
       // Subscribe to value events for this database path
@@ -914,6 +933,9 @@ class FirebaseDBProvider implements DatabaseProvider {
         final mapVal = mapSnap.value;
         if (mapVal is Map && mapVal['databasePath'] != null) {
           final path = mapVal['databasePath'].toString();
+          debugPrint('openFromId: resolved publicId $id to path $path');
+          // For public shares, the path is usually absolute (subscriptionIds/uid/databases/dbName)
+          // We need to use openFromPath to handle this correctly as 'open' expects a relative path.
           return await openFromPath(path);
         }
       }

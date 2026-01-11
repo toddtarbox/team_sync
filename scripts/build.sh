@@ -22,6 +22,7 @@ fi
 # Build for specified platform
 PLATFORM=${1:-"all"}
 FLAVOR=${2:-"soccer"}
+BUILD_MODE=${3:-"release"}
 
 # Determine configuration based on flavor
 if [ "$FLAVOR" == "basketball" ]; then
@@ -37,7 +38,17 @@ else
   WEB_APP_ID=$WEB_APP_ID_SOCCER
 fi
 
-echo "🏗️  Building $APP_DISPLAY_NAME ($FLAVOR)..."
+echo "🏗️  Building $APP_DISPLAY_NAME ($FLAVOR) in $BUILD_MODE mode..."
+
+# Set build flags based on mode
+if [ "$BUILD_MODE" == "debug" ]; then
+  # Use profile mode for "debug" deployments as it's more performant than pure debug but allows debugging
+  BUILD_FLAGS="--profile --source-maps"
+elif [ "$BUILD_MODE" == "profile" ]; then
+  BUILD_FLAGS="--profile --source-maps"
+else
+  BUILD_FLAGS="--release"
+fi
 
 case $PLATFORM in
   web)
@@ -45,10 +56,10 @@ case $PLATFORM in
     cd "$PROJECT_ROOT"
     # flutter clean # optimization: skip clean to allow incremental builds
     # flutter pub get # optimization: skip pub get, build command checks it
-    echo "🔨 Building web release..."
+    echo "🔨 Building web $BUILD_MODE..."
     flutter build web \
       --target=$TARGET \
-      --release \
+      $BUILD_FLAGS \
       --base-href=/ \
       --dart-define=WEB_API_KEY="$WEB_API_KEY" \
       --dart-define=WEB_APP_ID="$WEB_APP_ID" \

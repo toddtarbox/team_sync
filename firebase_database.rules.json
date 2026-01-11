@@ -28,39 +28,39 @@
             ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
             ".write": "auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).child('accessLevel').val() == 'write')",
             "Teams": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()",
+              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
               ".indexOn": ["id"]
             },
             "Players": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()",
+              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
               ".indexOn": ["id", "teamId", "seasonId", "teamId_seasonId", "id_seasonId"]
             },
             "Games": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()",
+              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
               ".indexOn": ["id", "seasonId", "homeTeamId", "awayTeamId"]
             },
             "Events": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()",
+              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
               ".indexOn": ["id", "gameId", "teamId", "seasonId", "teamId_seasonId", "playerId"]
             },
             "Seasons": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()",
+              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))",
               ".indexOn": ["id", "teamId"]
             },
             "GameEvents": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()"
+              ".read": "data.parent().child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))"
             },
             "PlayerAwards": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()"
+              ".read": "data.parent().child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))"
             },
             "PlayerStats": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()"
+              ".read": "data.parent().child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))"
             },
             "TeamStats": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()"
+              ".read": "data.parent().child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))"
             },
             "Settings": {
-              ".read": "root.child('subscriptionIds').child($uid).child('databases').child($db).child('publicShareId').exists()"
+              ".read": "data.parent().child('publicShareId').exists() || (auth != null && (auth.uid == $uid || root.child('user_database_access').child(auth.uid).child($uid).child($db).exists()))"
             },
             "_backups": {
               "$backup_ts": {

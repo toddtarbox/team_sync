@@ -18,22 +18,41 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 echo -e "${BLUE}🚀 TeamSync Web Deployment${NC}"
 echo "================================================"
 
-# Determine target (default to soccer)
-TARGET_SPORT=${1:-"soccer"}
-shift || true # Remove first arg if it exists
+# Default values
+TARGET_SPORT="soccer"
+BUILD_MODE="release"
+FIREBASE_ARGS=""
+
+# Process arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    soccer|basketball|all)
+      TARGET_SPORT="$1"
+      shift
+      ;;
+    --debug)
+      BUILD_MODE="debug"
+      shift
+      ;;
+    *)
+      # Pass unknown args to Firebase
+      FIREBASE_ARGS="$FIREBASE_ARGS $1"
+      shift
+      ;;
+  esac
+done
 
 # Function to deploy a specific sport
 deploy_sport() {
   local sport=$1
-  shift # Remove sport name from arguments
   local hosting_site="team-sync-$sport"
   local app_name="TeamSync $sport"
   
-  echo -e "${BLUE}🏆 Deploying $app_name...${NC}"
+  echo -e "${BLUE}🏆 Deploying $app_name (${BUILD_MODE})...${NC}"
   
   echo ""
   echo -e "${YELLOW}🔨 Building $app_name web...${NC}"
-  "$SCRIPT_DIR/build.sh" web "$sport"
+  "$SCRIPT_DIR/build.sh" web "$sport" "$BUILD_MODE"
 
   echo ""
   echo -e "${YELLOW}🚀 Deploying $app_name to Firebase hosting site: $hosting_site...${NC}"
@@ -43,10 +62,12 @@ deploy_sport() {
   firebase use team-sync-soccer
 
   # Deploy to the specific hosting target
-  if [ $# -eq 0 ]; then
+  if [ -z "$FIREBASE_ARGS" ]; then
     firebase deploy --only hosting:$hosting_site
   else
-    firebase deploy --only hosting:$hosting_site "$@"
+    # Remove leading space
+    FIREBASE_ARGS=${FIREBASE_ARGS# }
+    firebase deploy --only hosting:$hosting_site $FIREBASE_ARGS
   fi
 
   echo ""

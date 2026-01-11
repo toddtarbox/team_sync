@@ -144,6 +144,12 @@ class AuthService {
       try {
         await _auth.signInAnonymously();
         debugPrint('Signed in anonymously');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'admin-restricted-operation') {
+          debugPrint(
+              'WARNING: Anonymous authentication is disabled in Firebase Console. Please enable it in Authentication > Sign-in method.');
+        }
+        debugPrint('Error signing in anonymously: ${e.code} - ${e.message}');
       } catch (e) {
         debugPrint('Error signing in anonymously: $e');
       }
