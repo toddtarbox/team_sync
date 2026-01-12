@@ -3560,7 +3560,12 @@ class _TeamHomePageState extends State<TeamHomePage>
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
               child: Padding(
-                padding: const EdgeInsets.all(50),
+                padding: EdgeInsets.only(
+                  top: 50,
+                  left: 50,
+                  right: 50,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+                ),
                 child: SingleChildScrollView(
                   child: Column(children: [
                     Text(AppLocalizations.of(context)!.newTeam),
@@ -3630,22 +3635,8 @@ class _TeamHomePageState extends State<TeamHomePage>
       {Color? color1 = Colors.green,
       Color? color2 = Colors.green,
       String? logoUrl}) async {
-    int teamId;
-
-    // Check if there are any teams in the database
-    final existingTeams =
-        await DatabaseService.instance.query('Teams', limitToFirst: 1);
-
-    if (existingTeams.isEmpty) {
-      // First team gets ID 1
-      teamId = 1;
-    } else {
-      // Subsequent teams get timestamp ID
-      teamId = DateTime.now().millisecondsSinceEpoch;
-    }
-
     await DatabaseService.instance.insert('Teams', {
-      'id': teamId,
+      'id': 1,
       'fullName': teamName,
       'shortName': teamShortName,
       'color1': color1?.toARGB32(),
@@ -3655,7 +3646,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     // Load the new team
     final teamResult = await DatabaseService.instance
-        .query('Teams', orderByChild: 'id', equalTo: teamId);
+        .query('Teams', orderByChild: 'id', equalTo: 1);
     if (teamResult.isNotEmpty) {
       _team = Team.fromMap(teamResult.first);
       await _loadSeasons();
@@ -3672,7 +3663,12 @@ class _TeamHomePageState extends State<TeamHomePage>
         builder: (context) {
           return Card(
             child: Padding(
-              padding: const EdgeInsets.all(50),
+              padding: EdgeInsets.only(
+                top: 50,
+                left: 50,
+                right: 50,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+              ),
               child: SingleChildScrollView(
                 child: Column(children: [
                   Text(AppLocalizations.of(context)!.newSeason),
