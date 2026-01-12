@@ -136,127 +136,148 @@ do_push() {
 echo -e "${BLUE}🤖 Generating commit message...${NC}"
 echo ""
 
-# Check if GitHub Copilot CLI is available
-# Note: As of late 2024/2025, GitHub Copilot CLI has undergone changes
-# The gh-copilot extension is deprecated, and GitHub is transitioning to new tooling
-COPILOT_AVAILABLE=false
+SUGGESTED_MSG=""
 
-# For now, we'll disable Copilot integration until the new CLI is stable
-# Uncomment and update when the new Copilot CLI is available and stable
-# if command -v github-copilot-cli &> /dev/null; then
-#   COPILOT_AVAILABLE=true
-# fi
+# 1. Try Gemini
+if [ -n "$GEMINI_API_KEY" ]; then
+  echo -e "${CYAN}✨ Gemini API key detected! Generating AI commit message...${NC}"
+  
+  DIFF_OUT=$(git diff --cached | head -n 2000)
+  
+  # output diff to debug if needed
+  # echo "$DIFF_OUT" > /tmp/debug_diff.txt
 
-# Skip Copilot for now - it's in transition
-if [ "$COPILOT_AVAILABLE" = true ]; then
-  echo -e "${CYAN}🤖 GitHub Copilot CLI detected! Generating AI commit message...${NC}"
-  # Copilot integration code would go here
-  # Currently disabled due to GitHub's CLI changes
-fi
+  # Use set +e to prevent script from exiting if python script fails
+  set +e
+  # Use python3 for robust JSON handling
+  GEMINI_Response=$(python3 -c "
+import sys, json, urllib.request, os, traceback
 
-# Use traditional commit message generation
-echo -e "${CYAN}📝 Generating commit message...${NC}"
+try:
+    api_key = '$GEMINI_API_KEY'.strip()
+    diff = sys.stdin.read().strip()
+    if not diff:
+        print('')
+        sys.exit(0)
+        
+    url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=' + api_key
+    
+    prompt = \"Write a concise git commit message for the following diff. Only output the message text. Use standard conventional commits format (feat, fix, refactor, etc). Keep it under 72 chars if possible. Diff:\\n\" + diff
 
-# Analyze changes
-ADDED_FILES=$(git diff --cached --name-status | grep -E "^A" | wc -l | tr -d ' ')
-MODIFIED_FILES=$(git diff --cached --name-status | grep -E "^M" | wc -l | tr -d ' ')
-DELETED_FILES=$(git diff --cached --name-status | grep -E "^D" | wc -l | tr -d ' ')
-RENAMED_FILES=$(git diff --cached --name-status | grep -E "^R" | wc -l | tr -d ' ')
+    data = {
+        'contents': [{
+            'parts': [{'text': prompt}]
+        }]
+    }
 
-# Get list of changed files
-CHANGED_FILES=$(git diff --cached --name-only)
+    req = urllib.request.Request(url, json.dumps(data).encode('utf-8'), {'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req) as response:
+        result = json.loads(response.read().decode('utf-8'))
+        print(result['candidates'][0]['content']['parts'][0]['text'].strip())
+except urllib.error.HTTPError as e:
+    print('HTTP Error ' + str(e.code) + ': ' + str(e.reason), file=sys.stderr)
+    try:
+        print(e.read().decode('utf-8'), file=sys.stderr)
+    except:
+        pass
+    sys.exit(1)
+except Exception:
+    # Print error to stderr so it doesn't get captured in the variable but shows in terminal
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+" <<< "$DIFF_OUT")
+  
+  GEMINI_EXIT_CODE=$?
+  set -e
 
-# Detect what types of changes were made
-HAS_DART=false
-HAS_SCRIPT=false
-HAS_DOCS=false
-HAS_ASSETS=false
-HAS_CONFIG=false
-HAS_IOS=false
-HAS_ANDROID=false
-HAS_WEB=false
-
-while IFS= read -r file; do
-  case $file in
-    *.dart) HAS_DART=true ;;
-    *.sh|scripts/*) HAS_SCRIPT=true ;;
-    *.md|docs/*) HAS_DOCS=true ;;
-    assets/*|*.png|*.jpg|*.svg) HAS_ASSETS=true ;;
-    pubspec.yaml|*.json|*.yaml) HAS_CONFIG=true ;;
-    ios/*) HAS_IOS=true ;;
-    android/*) HAS_ANDROID=true ;;
-    web/*) HAS_WEB=true ;;
-  esac
-done <<< "$CHANGED_FILES"
-
-# Detect specific features
-COMMIT_KEYWORDS=""
-
-# Check for common patterns in dart files
-if [ "$HAS_DART" = true ]; then
-  # Check for specific changes
-  if git diff --cached | grep -q "^\+.*Widget"; then
-    COMMIT_KEYWORDS="${COMMIT_KEYWORDS}UI "
-  fi
-  if git diff --cached | grep -q "^\+.*Service\|^\+.*Repository"; then
-    COMMIT_KEYWORDS="${COMMIT_KEYWORDS}Service "
-  fi
-  if git diff --cached | grep -q "^\+.*Model\|^\+.*class.*{"; then
-    COMMIT_KEYWORDS="${COMMIT_KEYWORDS}Model "
-  fi
-  if git diff --cached | grep -q "^\+.*test\|^\+.*expect"; then
-    COMMIT_KEYWORDS="${COMMIT_KEYWORDS}Tests "
-  fi
-  if git diff --cached | grep -q "^\+.*fix\|^\+.*bug"; then
-    COMMIT_KEYWORDS="${COMMIT_KEYWORDS}Fix "
+  if [ $GEMINI_EXIT_CODE -eq 0 ] && [ -n "$GEMINI_Response" ]; then
+    SUGGESTED_MSG="$GEMINI_Response"
+    echo -e "${GREEN}✅ Gemini generated a message!${NC}"
+  else
+    echo -e "${YELLOW}⚠️  Gemini API call failed or empty. Falling back to template logic.${NC}"
+    # check if response was empty but exit code was 0?
   fi
 fi
 
-# Generate smart commit message
-COMMIT_MSG=""
+# 2. Fallback to Template if SUGGESTED_MSG is empty
+if [ -z "$SUGGESTED_MSG" ]; then
+  echo -e "${CYAN}📝 Generating template message...${NC}"
 
-# Determine primary action
-if [ $ADDED_FILES -gt 0 ] && [ $MODIFIED_FILES -eq 0 ] && [ $DELETED_FILES -eq 0 ]; then
-  COMMIT_MSG="Add"
-elif [ $DELETED_FILES -gt 0 ] && [ $ADDED_FILES -eq 0 ] && [ $MODIFIED_FILES -eq 0 ]; then
-  COMMIT_MSG="Remove"
-elif [ $MODIFIED_FILES -gt 0 ] && [ $ADDED_FILES -eq 0 ] && [ $DELETED_FILES -eq 0 ]; then
-  COMMIT_MSG="Update"
-elif [ $RENAMED_FILES -gt 0 ]; then
-  COMMIT_MSG="Refactor"
-else
-  COMMIT_MSG="Update"
-fi
+  # Analyze changes
+  ADDED_FILES=$(git diff --cached --name-status | grep -E "^A" | wc -l | tr -d ' ')
+  MODIFIED_FILES=$(git diff --cached --name-status | grep -E "^M" | wc -l | tr -d ' ')
+  DELETED_FILES=$(git diff --cached --name-status | grep -E "^D" | wc -l | tr -d ' ')
+  RENAMED_FILES=$(git diff --cached --name-status | grep -E "^R" | wc -l | tr -d ' ')
 
-# Add component info
-COMPONENTS=""
-if [ "$HAS_DART" = true ]; then COMPONENTS="${COMPONENTS}code, "; fi
-if [ "$HAS_SCRIPT" = true ]; then COMPONENTS="${COMPONENTS}scripts, "; fi
-if [ "$HAS_DOCS" = true ]; then COMPONENTS="${COMPONENTS}docs, "; fi
-if [ "$HAS_ASSETS" = true ]; then COMPONENTS="${COMPONENTS}assets, "; fi
-if [ "$HAS_CONFIG" = true ]; then COMPONENTS="${COMPONENTS}config, "; fi
-if [ "$HAS_IOS" = true ]; then COMPONENTS="${COMPONENTS}iOS, "; fi
-if [ "$HAS_ANDROID" = true ]; then COMPONENTS="${COMPONENTS}Android, "; fi
-if [ "$HAS_WEB" = true ]; then COMPONENTS="${COMPONENTS}web, "; fi
+  # Get list of changed files
+  CHANGED_FILES=$(git diff --cached --name-only)
 
-# Remove trailing comma and space
-COMPONENTS=${COMPONENTS%, }
+  # Detect what types of changes were made
+  HAS_DART=false
+  HAS_SCRIPT=false
+  HAS_DOCS=false
+  HAS_ASSETS=false
+  HAS_CONFIG=false
+  HAS_IOS=false
+  HAS_ANDROID=false
+  HAS_WEB=false
 
-# Build full commit message
-if [ -n "$COMPONENTS" ]; then
-  SUGGESTED_MSG="$COMMIT_MSG $COMPONENTS"
-else
-  SUGGESTED_MSG="$COMMIT_MSG files"
-fi
+  while IFS= read -r file; do
+    case $file in
+      *.dart) HAS_DART=true ;;
+      *.sh|scripts/*) HAS_SCRIPT=true ;;
+      *.md|docs/*) HAS_DOCS=true ;;
+      assets/*|*.png|*.jpg|*.svg) HAS_ASSETS=true ;;
+      pubspec.yaml|*.json|*.yaml) HAS_CONFIG=true ;;
+      ios/*) HAS_IOS=true ;;
+      android/*) HAS_ANDROID=true ;;
+      web/*) HAS_WEB=true ;;
+    esac
+  done <<< "$CHANGED_FILES"
 
-# Add stats
-STATS=""
-if [ $ADDED_FILES -gt 0 ]; then STATS="${STATS}+$ADDED_FILES "; fi
-if [ $MODIFIED_FILES -gt 0 ]; then STATS="${STATS}~$MODIFIED_FILES "; fi
-if [ $DELETED_FILES -gt 0 ]; then STATS="${STATS}-$DELETED_FILES "; fi
+  # Determine primary action
+  if [ $ADDED_FILES -gt 0 ] && [ $MODIFIED_FILES -eq 0 ] && [ $DELETED_FILES -eq 0 ]; then
+    COMMIT_MSG="Add"
+  elif [ $DELETED_FILES -gt 0 ] && [ $ADDED_FILES -eq 0 ] && [ $MODIFIED_FILES -eq 0 ]; then
+    COMMIT_MSG="Remove"
+  elif [ $MODIFIED_FILES -gt 0 ] && [ $ADDED_FILES -eq 0 ] && [ $DELETED_FILES -eq 0 ]; then
+    COMMIT_MSG="Update"
+  elif [ $RENAMED_FILES -gt 0 ]; then
+    COMMIT_MSG="Refactor"
+  else
+    COMMIT_MSG="Update"
+  fi
 
-if [ -n "$STATS" ]; then
-  SUGGESTED_MSG="$SUGGESTED_MSG ($STATS)"
+  # Add component info
+  COMPONENTS=""
+  if [ "$HAS_DART" = true ]; then COMPONENTS="${COMPONENTS}code, "; fi
+  if [ "$HAS_SCRIPT" = true ]; then COMPONENTS="${COMPONENTS}scripts, "; fi
+  if [ "$HAS_DOCS" = true ]; then COMPONENTS="${COMPONENTS}docs, "; fi
+  if [ "$HAS_ASSETS" = true ]; then COMPONENTS="${COMPONENTS}assets, "; fi
+  if [ "$HAS_CONFIG" = true ]; then COMPONENTS="${COMPONENTS}config, "; fi
+  if [ "$HAS_IOS" = true ]; then COMPONENTS="${COMPONENTS}iOS, "; fi
+  if [ "$HAS_ANDROID" = true ]; then COMPONENTS="${COMPONENTS}Android, "; fi
+  if [ "$HAS_WEB" = true ]; then COMPONENTS="${COMPONENTS}web, "; fi
+
+  # Remove trailing comma and space
+  COMPONENTS=${COMPONENTS%, }
+
+  # Build full commit message
+  if [ -n "$COMPONENTS" ]; then
+    SUGGESTED_MSG="$COMMIT_MSG $COMPONENTS"
+  else
+    SUGGESTED_MSG="$COMMIT_MSG files"
+  fi
+
+  # Add stats
+  STATS=""
+  if [ $ADDED_FILES -gt 0 ]; then STATS="${STATS}+$ADDED_FILES "; fi
+  if [ $MODIFIED_FILES -gt 0 ]; then STATS="${STATS}~$MODIFIED_FILES "; fi
+  if [ $DELETED_FILES -gt 0 ]; then STATS="${STATS}-$DELETED_FILES "; fi
+
+  if [ -n "$STATS" ]; then
+    SUGGESTED_MSG="$SUGGESTED_MSG ($STATS)"
+  fi
 fi
 
 echo ""
