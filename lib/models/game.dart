@@ -7,6 +7,7 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/stat_leaders.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 class GameStats implements StatLeaders {
   final int teamId;
@@ -28,10 +29,26 @@ class GameStats implements StatLeaders {
   final HashMap<int, int> _playerSecondYellows = HashMap<int, int>();
   final HashMap<int, int> _playerReds = HashMap<int, int>();
 
+  // Basketball / Generic
+  final HashMap<int, int> _playerPoints = HashMap<int, int>();
+  final HashMap<int, int> _playerThreePointersMade = HashMap<int, int>();
+  final HashMap<int, int> _playerThreePointersAttempted = HashMap<int, int>();
+  final HashMap<int, int> _playerTwoPointersMade = HashMap<int, int>();
+  final HashMap<int, int> _playerTwoPointersAttempted = HashMap<int, int>();
+  final HashMap<int, int> _playerFreeThrowsMade = HashMap<int, int>();
+  final HashMap<int, int> _playerFreeThrowsAttempted = HashMap<int, int>();
+  final HashMap<int, int> _playerRebounds = HashMap<int, int>();
+  final HashMap<int, int> _playerOffRebounds = HashMap<int, int>();
+  final HashMap<int, int> _playerDefRebounds = HashMap<int, int>();
+  final HashMap<int, int> _playerSteals = HashMap<int, int>();
+  final HashMap<int, int> _playerBlocks = HashMap<int, int>();
+  final HashMap<int, int> _playerTurnovers = HashMap<int, int>();
+
   factory GameStats.fromEvents(int teamId, List<GameEvent> events) {
     final stats = GameStats(teamId: teamId);
 
     for (final event in events) {
+      if (event.team.id != teamId) continue;
       if (event.player == null) continue;
       final playerId = event.player!.id;
 
@@ -55,6 +72,17 @@ class GameStats implements StatLeaders {
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           } else if (event.eventData == ShotResult.offTargetPost.index) {
             stats._playerShotsOffPost
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+
+          // Fallback: treat soccer-style shot goals as 1 point in basketball stats
+          if (SportStrategy.current.sportId == 'basketball' &&
+              event.eventData == ShotResult.goal.index) {
+            stats._playerPoints
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerTwoPointersMade
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerTwoPointersAttempted
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
           break;
@@ -101,6 +129,71 @@ class GameStats implements StatLeaders {
             stats._playerReds
                 .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           }
+          break;
+
+        // Basketball / Generic
+        case 'Point':
+          stats._playerPoints.update(
+              playerId, (value) => value + event.eventData,
+              ifAbsent: () => event.eventData);
+
+          if (event.eventData == 3) {
+            stats._playerThreePointersMade
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerThreePointersAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 2) {
+            stats._playerTwoPointersMade
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerTwoPointersAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 1) {
+            stats._playerFreeThrowsMade
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+            stats._playerFreeThrowsAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+
+        case 'Miss':
+          if (event.eventData == 3) {
+            stats._playerThreePointersAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 2) {
+            stats._playerTwoPointersAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 1) {
+            stats._playerFreeThrowsAttempted
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+
+        case 'Rebound':
+          stats._playerRebounds
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+
+          if (event.eventData == 2) {
+            stats._playerOffRebounds
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          } else if (event.eventData == 3) {
+            stats._playerDefRebounds
+                .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          }
+          break;
+
+        case 'Steal':
+          stats._playerSteals
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Block':
+          stats._playerBlocks
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Turnover':
+          stats._playerTurnovers
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
       }
     }
@@ -157,6 +250,46 @@ class GameStats implements StatLeaders {
         break;
       case 'reds':
         sourceTable = _playerReds;
+        break;
+      // Basketball / Generic
+      case 'points':
+        sourceTable = _playerPoints;
+        break;
+      case 'threePointersMade':
+        sourceTable = _playerThreePointersMade;
+        break;
+      case 'threePointersAttempted':
+        sourceTable = _playerThreePointersAttempted;
+        break;
+      case 'twoPointersMade':
+        sourceTable = _playerTwoPointersMade;
+        break;
+      case 'twoPointersAttempted':
+        sourceTable = _playerTwoPointersAttempted;
+        break;
+      case 'freeThrowsMade':
+        sourceTable = _playerFreeThrowsMade;
+        break;
+      case 'freeThrowsAttempted':
+        sourceTable = _playerFreeThrowsAttempted;
+        break;
+      case 'rebounds':
+        sourceTable = _playerRebounds;
+        break;
+      case 'offRebounds':
+        sourceTable = _playerOffRebounds;
+        break;
+      case 'defRebounds':
+        sourceTable = _playerDefRebounds;
+        break;
+      case 'steals':
+        sourceTable = _playerSteals;
+        break;
+      case 'blocks':
+        sourceTable = _playerBlocks;
+        break;
+      case 'turnovers':
+        sourceTable = _playerTurnovers;
         break;
     }
 
@@ -264,6 +397,7 @@ class Game {
   String? description;
   String? gameLinks;
   String? imageUrl; // Optional image URL for the game
+  bool isScrimmage;
 
   List<GameEvent> allGameEvents = [];
   List<GameEvent> scoringEvents = [];
@@ -338,7 +472,8 @@ class Game {
       required this.gameStatus,
       required this.description,
       required this.gameLinks,
-      this.imageUrl});
+      this.imageUrl,
+      this.isScrimmage = false});
 
   bool get isCompleted => gameStatus.index >= 9;
 
@@ -355,7 +490,8 @@ class Game {
         gameStatus: GameStatus.fromString('0'),
         description: '',
         gameLinks: '',
-        imageUrl: '');
+        imageUrl: '',
+        isScrimmage: false);
   }
 
   static Future<Game> fromMap(Map<String, dynamic> map) async {
@@ -420,7 +556,10 @@ class Game {
         gameStatus: GameStatus.fromString(map['gameStatus']?.toString() ?? '0'),
         description: map['description'],
         gameLinks: map['gameLinks'],
-        imageUrl: map['imageUrl']);
+        imageUrl: map['imageUrl'],
+        isScrimmage: map['isScrimmage'] == 1 ||
+            map['isScrimmage'] == true ||
+            map['isScrimmage'] == 'true');
   }
 
   static Future<Game?> fromId(int id) async {
@@ -494,10 +633,7 @@ class Game {
   Future<List<GameEvent>> loadGameEvents() async {
     allGameEvents = await GameEvent.listFromGameId(id);
     scoringEvents = allGameEvents
-        .where((e) =>
-            e.eventMinute > -2 &&
-            (e.eventType == 'Shot' || e.eventType == 'PenaltyKick') &&
-            e.eventData == ShotResult.goal.index)
+        .where((e) => e.eventMinute > -2 && e.isGoalEvent)
         .toList(growable: false);
     scoringEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
 
@@ -514,8 +650,16 @@ class Game {
 
   Future<void> updateScore() async {
     await loadGameEvents();
-    awayTeamScore = scoringEvents.where((e) => e.team.id == awayTeam.id).length;
-    homeTeamScore = scoringEvents.where((e) => e.team.id == homeTeam.id).length;
+    homeTeamScore = 0;
+    awayTeamScore = 0;
+
+    for (final event in scoringEvents) {
+      if (event.team.id == homeTeam.id) {
+        homeTeamScore += event.eventValue;
+      } else if (event.team.id == awayTeam.id) {
+        awayTeamScore += event.eventValue;
+      }
+    }
 
     saveGame();
   }
@@ -557,6 +701,7 @@ class Game {
         'description': description,
         'gameLinks': gameLinks,
         'imageUrl': imageUrl,
+        'isScrimmage': isScrimmage ? 1 : 0,
       };
 
       if (id == -1) {

@@ -80,6 +80,7 @@ dependencies:
   integration_test:
     sdk: flutter
   table_calendar: ^3.2.0
+  html: ^0.15.6
 
   # keep dev deps below
 

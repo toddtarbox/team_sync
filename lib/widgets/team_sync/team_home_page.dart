@@ -98,6 +98,8 @@ class _TeamHomePageState extends State<TeamHomePage>
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
+  bool _hasTwitterConfig = false;
+  Map<String, num> _asyncOverallStats = {};
 
   final _welcomeKey = GlobalKey();
   final _fabKeyOnly = GlobalKey();
@@ -124,10 +126,23 @@ class _TeamHomePageState extends State<TeamHomePage>
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
-    DatabaseService.instance.setProvider(FirebaseDBProvider());
+    if (!DatabaseService.isTest) {
+      DatabaseService.instance.setProvider(FirebaseDBProvider());
+    }
 
     // Initialize the load future once
-    _loadFuture = _load();
+    _loadFuture = _load().then((success) async {
+      if (success && _team != null) {
+        final hasConfig =
+            await TwitterService.instance.isConfigured(teamId: _team!.id);
+        if (mounted) {
+          setState(() {
+            _hasTwitterConfig = hasConfig;
+          });
+        }
+      }
+      return success;
+    });
 
     if (!kIsWeb) {
       _setupShowcase();
@@ -521,8 +536,8 @@ class _TeamHomePageState extends State<TeamHomePage>
             itemBuilder: (BuildContext context) {
               final loc = AppLocalizations.of(context)!;
               return [
-                // Tweet option - show on mobile when team exists
-                if (!kIsWeb && _team != null)
+                // Tweet option - show on mobile when team exists AND twitter is configured
+                if (!kIsWeb && _team != null && _hasTwitterConfig)
                   PopupMenuItem<String>(
                     value: 'tweet',
                     child: Row(
@@ -2154,7 +2169,7 @@ class _TeamHomePageState extends State<TeamHomePage>
           throw 'Unable to load team data. The link may be invalid or you do not have permission to view this team.';
         }
         return result;
-      } else if (!kIsWeb) {
+      } else if (!kIsWeb && !DatabaseService.isTest) {
         final result = await _loadLocalDatabase();
         return result;
       }
@@ -2327,6 +2342,64 @@ class _TeamHomePageState extends State<TeamHomePage>
     if (importedSeasons.isNotEmpty) {
       _loadImportedSeasonsAsync(importedSeasons);
     }
+
+    // Trigger async stats update (for percentages)
+    _updateOverallStats();
+  }
+
+  /// Calculates detailed stats (e.g. percentages) asynchronously
+  Future<void> _updateOverallStats() async {
+    final allSeasons = [..._seasons, ..._importedSeasons];
+    if (allSeasons.isEmpty) return;
+
+    final stats = <String, num>{};
+
+    // Calculate percentages for basketball
+    if (SportStrategy.current.sportId == 'basketball') {
+      int total3PM = 0;
+      int total3PMissed = 0;
+      int total2PM = 0;
+      int total2PMissed = 0;
+      int totalFTM = 0;
+      int totalFTMissed = 0;
+
+      for (final season in allSeasons) {
+        // Fetch SeasonStats (this loads events which might be expensive, so we do it async)
+        final sStats = await season.getStats();
+        if (sStats != null) {
+          total3PM += sStats.teamStat('3_pointers');
+          total3PMissed += sStats.teamStat('3_pointers_missed');
+          total2PM += sStats.teamStat('2_pointers');
+          total2PMissed += sStats.teamStat('2_pointers_missed');
+          totalFTM += sStats.teamStat('free_throws');
+          totalFTMissed += sStats.teamStat('free_throws_missed');
+        }
+      }
+
+      final total3PAttempts = total3PM + total3PMissed;
+      if (total3PAttempts > 0) {
+        stats['3_point_percentage'] =
+            ((total3PM / total3PAttempts) * 100).round();
+      }
+
+      final total2PAttempts = total2PM + total2PMissed;
+      if (total2PAttempts > 0) {
+        stats['2_point_percentage'] =
+            ((total2PM / total2PAttempts) * 100).round();
+      }
+
+      final totalFTAttempts = totalFTM + totalFTMissed;
+      if (totalFTAttempts > 0) {
+        stats['free_throw_percentage'] =
+            ((totalFTM / totalFTAttempts) * 100).round();
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _asyncOverallStats = stats;
+      });
+    }
   }
 
   /// Load remaining regular seasons asynchronously in the background
@@ -2431,30 +2504,57 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     // Calculate overall statistics
     final stats = _calculateOverallStats(allSeasons);
+    stats.addAll(_asyncOverallStats);
 
     // Build items list first to get count
     final items = [
-      // Goals Analytics Card
+      // Goals/Points Analytics Card
       if (stats.containsKey('totalGoalsScored'))
         _buildAnalyticsCard(
-          title: loc.goalAnalytics,
+          title: SportStrategy.current.sportId == 'basketball'
+              ? 'Scoring Analytics'
+              : loc.goalAnalytics,
           icon: SportStrategy.current.sportIcon,
           iconColor: Colors.green,
           stats: [
-            _buildStatRow(loc.totalGoalsScored, '${stats['totalGoalsScored']}',
-                Icons.sports_score),
-            _buildStatRow(loc.totalGoalsConceded,
-                '${stats['totalGoalsConceded']}', Icons.shield),
             _buildStatRow(
-                loc.avgGoalsPerGame,
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Total Points'
+                    : loc.totalGoalsScored,
+                '${stats['totalGoalsScored']}',
+                Icons.sports_score),
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Points Allowed'
+                    : loc.totalGoalsConceded,
+                '${stats['totalGoalsConceded']}',
+                Icons.shield),
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Points Per Game'
+                    : loc.avgGoalsPerGame,
                 stats['avgGoalsPerGame']!.toStringAsFixed(2),
                 Icons.trending_up),
             _buildStatRow(
-                loc.goalDifferential,
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Point Diff'
+                    : loc.goalDifferential,
                 stats['goalDifferential']! >= 0
                     ? '+${stats['goalDifferential']}'
                     : '${stats['goalDifferential']}',
                 Icons.compare_arrows),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('2_point_percentage'))
+              _buildStatRow(
+                  'FG %', '${stats['2_point_percentage']}%', Icons.data_usage),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('3_point_percentage'))
+              _buildStatRow(
+                  '3PT %', '${stats['3_point_percentage']}%', Icons.data_usage),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('free_throw_percentage'))
+              _buildStatRow('FT %', '${stats['free_throw_percentage']}%',
+                  Icons.data_usage),
           ],
         ),
       // Win Streaks Card
@@ -2470,7 +2570,11 @@ class _TeamHomePageState extends State<TeamHomePage>
                 loc.longestUnbeatenStreak,
                 '${stats['longestUnbeatenStreak']} ${loc.games}',
                 Icons.shield_outlined),
-            _buildStatRow(loc.mostGoalsInGame, '${stats['mostGoalsInGame']}',
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Most Points in Game'
+                    : loc.mostGoalsInGame,
+                '${stats['mostGoalsInGame']}',
                 Icons.sports_score),
             _buildStatRow(loc.biggestVictory, '+${stats['biggestVictory']}',
                 Icons.celebration),
@@ -2501,8 +2605,9 @@ class _TeamHomePageState extends State<TeamHomePage>
                 Icons.percent),
           ],
         ),
-      // Clean Sheets & Defense Card
-      if (stats.containsKey('cleanSheets'))
+      // Clean Sheets & Defense Card (Soccer Only)
+      if (stats.containsKey('cleanSheets') &&
+          SportStrategy.current.sportId != 'basketball')
         _buildAnalyticsCard(
           title: loc.defensiveStats,
           icon: Icons.shield,
@@ -2529,7 +2634,7 @@ class _TeamHomePageState extends State<TeamHomePage>
         // Analytics cards carousel
         CarouselSlider(
           options: CarouselOptions(
-            height: 200,
+            height: 240,
             viewportFraction: 0.85,
             enlargeCenterPage: true,
             enableInfiniteScroll: stats.isNotEmpty,
@@ -2570,7 +2675,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
   Widget _buildAnalyticsSkeleton() {
     return SizedBox(
-      height: 200,
+      height: 240,
       child: Card(
         elevation: 0,
         margin: const EdgeInsets.symmetric(
@@ -2704,9 +2809,17 @@ class _TeamHomePageState extends State<TeamHomePage>
                     const SizedBox(height: 12),
                     // Stats rows
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: stats,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < stats.length; i++) ...[
+                              stats[i],
+                              if (i < stats.length - 1)
+                                const SizedBox(height: 8),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -4169,6 +4282,10 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     final teamName = _team!.shortName;
     final now = DateTime.now();
+    
+    final watchText = liveLink.isNotEmpty 
+        ? 'Watch LIVE: $liveLink'
+        : 'Live streaming link will be shared once the game starts!';
 
     if (game != null) {
       final gameDate = game.date;
@@ -4196,7 +4313,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
 $teamName takes on $opponent $location TODAY at $timeStr!
 
-Watch LIVE: $liveLink
+$watchText
 
 #$teamName #GameDay #Soccer ⚽🔥''';
       } else {
@@ -4222,7 +4339,7 @@ $teamName vs $opponent
 📅 $dateStr at $timeStr
 🏟️ ${isHome ? 'Home' : 'Away'} game
 
-Watch LIVE: $liveLink
+$watchText
 
 #$teamName #Soccer''';
       }
@@ -4259,7 +4376,7 @@ $liveLink
     if (_team != null &&
         _currentOrLastGame != null &&
         _currentOrLastGame!.gameLinks != null &&
-        _currentOrLastGame!.gameLinks!.isNotEmpty) {
+        _currentOrLastGame!.gameLinks!.trim().isNotEmpty) {
       try {
         final g = _currentOrLastGame!.date.toLocal();
         isLive = g.year == nowLocal.year &&
@@ -4277,58 +4394,66 @@ $liveLink
 
       final loc = AppLocalizations.of(context)!;
 
-      return HoverBuilder(
-        builder: (context, isHovered) {
-          return Transform.scale(
-            scale: isHovered && kIsWeb ? 1.02 : 1.0,
-            child: GestureDetector(
-              onTap: () async {
-                try {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoverBuilder(
+            builder: (context, isHovered) {
+              return Transform.scale(
+                scale: isHovered && kIsWeb ? 1.02 : 1.0,
+                child: GestureDetector(
+                  onTap: () async {
+                    try {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(loc.unableToOpenLiveLink)));
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                      }
                     }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
-                  }
-                }
-              },
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_team!.color1, _team!.color2],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.videocam, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        loc.liveBannerTapToWatch,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_team!.color1, _team!.color2],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                       ),
                     ),
-                    const Icon(Icons.open_in_new, color: Colors.white),
-                  ],
+                    child: Row(
+                      children: [
+                        const Icon(Icons.videocam, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            loc.liveBannerTapToWatch,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const Icon(Icons.open_in_new, color: Colors.white),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            },
+          ),
+          _buildViewScheduleLink(),
+        ],
       );
     }
 
@@ -4348,7 +4473,7 @@ $liveLink
 
       final opponent = _nextUpcomingGame!.displayName(_team!.id);
       final hasLiveLink = _nextUpcomingGame!.gameLinks != null &&
-          _nextUpcomingGame!.gameLinks!.isNotEmpty;
+          _nextUpcomingGame!.gameLinks!.trim().isNotEmpty;
 
       // Check if time is set (not midnight/00:00)
       final hasTime = gameDate.hour != 0 || gameDate.minute != 0;
@@ -4483,56 +4608,59 @@ $liveLink
               );
             },
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-            child: InkWell(
-              onTap: () {
-                if (_currentSeason != null) {
-                  final databaseId = DatabaseService.instance.publicShareId!;
-                  NavigationHelper.navigateTo(
-                    context,
-                    '/team/$databaseId/season/${_currentSeason!.id}',
-                    extra: {
-                      'season': _currentSeason!,
-                      'viewType': SeasonViewType.calendar
-                    },
-                  );
-                }
-              },
-              borderRadius: BorderRadius.circular(4),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.calendar_month,
-                        size: 16,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.lightBlueAccent
-                            : Theme.of(context).primaryColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      'View Season Schedule',
-                      style: TextStyle(
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.lightBlueAccent
-                            : Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          _buildViewScheduleLink(),
         ],
       );
     }
 
-    return const SizedBox.shrink();
+    return _buildViewScheduleLink();
+  }
+
+  Widget _buildViewScheduleLink() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+      child: InkWell(
+        onTap: () {
+          if (_currentSeason != null) {
+            final databaseId = DatabaseService.instance.publicShareId!;
+            NavigationHelper.navigateTo(
+              context,
+              '/team/$databaseId/season/${_currentSeason!.id}',
+              extra: {
+                'season': _currentSeason!,
+                'viewType': SeasonViewType.calendar
+              },
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_month,
+                  size: 16,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.lightBlueAccent
+                      : Theme.of(context).primaryColor),
+              const SizedBox(width: 6),
+              Text(
+                'View Season Schedule',
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.lightBlueAccent
+                      : Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Shows recent highlights (events with non-empty eventUrls) from the

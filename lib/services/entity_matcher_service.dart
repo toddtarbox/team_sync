@@ -3,6 +3,7 @@ import 'package:team_sync/models/import_models.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/database_service.dart';
 
 class EntityMatcherService {
   /// Match team by name
@@ -263,5 +264,61 @@ class EntityMatcherService {
     }
 
     return matrix[s1.length][s2.length];
+  }
+
+  /// Match game by season, date, and teams
+  Future<EntityMatch> matchGame(Map<String, dynamic> data) async {
+    final seasonId = data['seasonId'];
+    final date = data['date'];
+    final homeTeamId = data['homeTeamId'];
+    final awayTeamId = data['awayTeamId'];
+
+    if (seasonId == null ||
+        date == null ||
+        homeTeamId == null ||
+        awayTeamId == null) {
+      return const EntityMatch(
+        entityType: 'Game',
+        confidence: 0.0,
+        matchType: MatchType.none,
+      );
+    }
+
+    try {
+      // Query games for this season
+      final games = await DatabaseService.instance.query(
+        'Games',
+        orderByChild: 'seasonId',
+        equalTo: seasonId,
+      );
+
+      for (final game in games) {
+        // Strict match on teams and date
+        if (game['homeTeamId'] == homeTeamId &&
+            game['awayTeamId'] == awayTeamId &&
+            game['date'] == date) {
+          return EntityMatch(
+            entityType: 'Game',
+            existingId: game['id'],
+            confidence: 1.0,
+            matchType: MatchType.exact,
+            existingData: Map<String, dynamic>.from(game as Map),
+          );
+        }
+      }
+
+      return const EntityMatch(
+        entityType: 'Game',
+        confidence: 0.0,
+        matchType: MatchType.createNew,
+      );
+    } catch (e) {
+      debugPrint('Error matching game: $e');
+      return const EntityMatch(
+        entityType: 'Game',
+        confidence: 0.0,
+        matchType: MatchType.none,
+      );
+    }
   }
 }

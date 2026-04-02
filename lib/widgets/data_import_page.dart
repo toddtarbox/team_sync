@@ -13,6 +13,7 @@ import 'package:team_sync/services/data_importer_service.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/error_csv_exporter_service.dart';
 import 'package:team_sync/utils/date_parser.dart';
+import 'package:team_sync/widgets/bound_import_dialog.dart';
 import 'package:team_sync/widgets/player_merger_tool.dart';
 
 /// Tracks the import status of a single file
@@ -262,6 +263,20 @@ class _DataImportPageState extends State<DataImportPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _openBoundImportDialog,
+              icon: const Icon(Icons.public),
+              label: const Text('Import from Bound'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[800],
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
             ),
           ],
@@ -705,6 +720,42 @@ class _DataImportPageState extends State<DataImportPage> {
         );
       }
     }
+  }
+
+  void _openBoundImportDialog() {
+    // Get current IDs if available, else default (or prompt)
+    // Note: DataImportPage doesn't seemingly hold seasonId in state easily,
+    // assuming it might be available in widget.team context or we prompt.
+    // For now, attempting to use widget.team.currentSeasonId if defined.
+
+    // Fallback ID validation
+    if (widget.team == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No team loaded context for import.')),
+      );
+      return;
+    }
+
+    // We assume current season is passed, or try to infer.
+    // If team!.currentSeasonId is missing, we might use a SeasonService to find it,
+    // but for now let's check if we can pass just teamId and let User pick season or use default.
+    // Actually, checking Team model shows no currentSeasonId.
+    // We will just pass teamId and -1 for seasonId and let the dialog handle selection or default.
+    final teamId = widget.team!.id;
+    // Attempt to find a season ID from context or default
+    final seasonId = -1; // Dialog should handle or we prompt user
+
+    // Optional: Get actual season year from Season model if possible.
+    // Assuming '2025-26' for defaults if not found, but it's passed as null let the dialog handle or text field.
+
+    showDialog(
+      context: context,
+      builder: (context) => BoundImportDialog(
+        teamId: teamId,
+        seasonId: seasonId,
+        seasonYear: null,
+      ),
+    );
   }
 
   Future<void> _startImport() async {

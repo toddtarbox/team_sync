@@ -4,8 +4,7 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/widgets/game_result.dart'; // Assuming this is where GameResult is
-import 'package:team_sync/widgets/common/tappable_image.dart'; // If needed for avatars or similar
-import 'package:team_sync/l10n/app_localizations.dart';
+// If needed for avatars or similar
 
 class SeasonCalendarView extends StatefulWidget {
   final Season season;

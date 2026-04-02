@@ -319,6 +319,16 @@ class GameStatsDisplay extends StatelessWidget {
   Future<void> _showPlayerDetailsDialog(
       BuildContext context, String category) async {
     final playerStats = await _getPlayerStatsForCategory(category);
+    final stats = await game.getStats(season.teamId);
+
+    Map<Player, int>? playerAttempts;
+    if (category == 'threePointersMade') {
+      playerAttempts = await stats.getStatPlayers('threePointersAttempted');
+    } else if (category == 'twoPointersMade') {
+      playerAttempts = await stats.getStatPlayers('twoPointersAttempted');
+    } else if (category == 'freeThrowsMade') {
+      playerAttempts = await stats.getStatPlayers('freeThrowsAttempted');
+    }
 
     if (!context.mounted) return;
 
@@ -327,6 +337,7 @@ class GameStatsDisplay extends StatelessWidget {
       context: context,
       categoryName: category.toSentenceCase().toTitleCase(),
       playerStats: playerStats,
+      playerAttempts: playerAttempts,
       showPlayerNumber: true,
       season: season,
       onPlayerTap: (player) {

@@ -7,10 +7,12 @@ import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/entity_matcher_service.dart';
 import 'package:team_sync/services/import_validator_service.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/game.dart';
 
 class DataImporterService {
   final ImportValidatorService _validator = ImportValidatorService();
   final EntityMatcherService _matcher = EntityMatcherService();
+  final Map<int, Game> _gameCache = {};
 
   final StreamController<ImportProgress> _progressController =
       StreamController<ImportProgress>.broadcast();
@@ -175,6 +177,21 @@ class DataImporterService {
       if (_isCancelled) break;
 
       try {
+        // Step 0: Pre-validation Resolution (Game Opponents)
+        if (entityType == 'Game') {
+          if (row.data['homeTeamId'] == null &&
+              row.data['opponentName'] != null) {
+            final opponentId =
+                await _resolveOpponentTeam(row.data['opponentName']);
+            row.data['homeTeamId'] = opponentId;
+          } else if (row.data['awayTeamId'] == null &&
+              row.data['opponentName'] != null) {
+            final opponentId =
+                await _resolveOpponentTeam(row.data['opponentName']);
+            row.data['awayTeamId'] = opponentId;
+          }
+        }
+
         // Step 1: Validate
         final errors = await _validator.validateRow(row);
         if (errors.isNotEmpty) {
@@ -205,6 +222,47 @@ class DataImporterService {
           final teamId = row.data['teamId'];
           if (teamId != null) {
             match = await _matcher.matchSeason(row.data, teamId);
+          }
+        } else if (entityType == 'Game') {
+          match = await _matcher.matchGame(row.data);
+        } else if (entityType == 'PlayerStats' || entityType == 'GameEvent') {
+          // Link to player ID
+          if (row.data['playerId'] == null) {
+            final playerId = await _resolvePlayerId(row.data);
+            if (playerId != null) {
+              row.data['playerId'] = playerId;
+            } else {
+              debugPrint(
+                  'Warning: Could not resolve player for stats: ${row.data['name']}');
+
+              // If player not found, assign to opponent team
+              final gameId = row.data['gameId'] as int?;
+              final currentTeamId = row.data['teamId'] as int?;
+
+              if (gameId != null && currentTeamId != null) {
+                final game = await _getGame(gameId);
+                if (game != null) {
+                  int? opponentId;
+                  if (game.homeTeam.id == currentTeamId) {
+                    opponentId = game.awayTeam.id;
+                  } else if (game.awayTeam.id == currentTeamId) {
+                    opponentId = game.homeTeam.id;
+                  }
+
+                  if (opponentId != null) {
+                    debugPrint(
+                        'Swapping stat for "${row.data['name']}" to opponent team $opponentId');
+                    row.data['teamId'] = opponentId;
+                    // Ensure playerId is null so it imports as team/opponent stat
+                    row.data['playerId'] = null;
+                  } else {
+                    // Create a placeholder opponent team if not exists?
+                    // Or just let it fail/warn?
+                    // Usually existing logic handles creating placeholder teams for Games but here we have an ID logic
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -247,6 +305,15 @@ class DataImporterService {
     // Add isFromImport flag
     data['isFromImport'] = true;
 
+    // Special handling for Players
+    if (entityType == 'Player') {
+      // Ensure compound keys exist for optimized queries
+      if (data['teamId'] != null && data['seasonId'] != null) {
+        data['teamId_seasonId'] = '${data['teamId']}_${data['seasonId']}';
+      }
+      // We'll set id_seasonId after we ensure we have an ID
+    }
+
     // Special handling for Players found in different seasons
     final isPlayerInDifferentSeason = entityType == 'Player' &&
         match != null &&
@@ -257,6 +324,11 @@ class DataImporterService {
     if (match != null && match.isExactMatch && match.existingId != null) {
       data['id'] = match.existingId;
       row.data['id'] = match.existingId; // Update original row data
+
+      if (entityType == 'Player' && data['seasonId'] != null) {
+        data['id_seasonId'] = '${data['id']}_${data['seasonId']}';
+      }
+
       // Update existing record
       await DatabaseService.instance.update(
         _getTableName(entityType),
@@ -274,6 +346,10 @@ class DataImporterService {
       data['id'] = match.existingId;
       row.data['id'] = match.existingId;
 
+      if (entityType == 'Player' && data['seasonId'] != null) {
+        data['id_seasonId'] = '${data['id']}_${data['seasonId']}';
+      }
+
       debugPrint(
           'Creating new season record for existing player ID ${match.existingId} '
           '(${data['firstName']} ${data['lastName']}) in season ${data['seasonId']}');
@@ -289,6 +365,10 @@ class DataImporterService {
         data['id'] = await _generateNextId(entityType);
         row.data['id'] =
             data['id']; // Update original row data with generated ID
+      }
+
+      if (entityType == 'Player' && data['seasonId'] != null) {
+        data['id_seasonId'] = '${data['id']}_${data['seasonId']}';
       }
 
       // Ensure required default values (only if not already set)
@@ -357,9 +437,109 @@ class DataImporterService {
         return 'Games';
       case 'GameEvent':
         return 'Events';
+      case 'PlayerStats':
+        return 'PlayerStats'; // Raw stats dump
       default:
         throw Exception('Unknown entity type: $entityType');
     }
+  }
+
+  /// Resolve opponent team by name (find or create)
+  Future<int> _resolveOpponentTeam(String name) async {
+    // Try to match existing team
+    final match = await _matcher.matchTeam({'name': name});
+
+    if (match.existingId != null) {
+      return match.existingId!;
+    }
+
+    // If not found, create new placeholder team
+    final newId = await _generateNextId('Team');
+    final newTeam = {
+      'id': newId,
+      'name': name,
+      'fullName': name,
+      'shortName': name, // Can be updated later
+      'mascot': '',
+      'city': '',
+      'state': '',
+      'primaryColor': '0xFF000000', // Default black
+      'secondaryColor': '0xFFFFFFFF', // Default white
+      'isPlaceholder': true, // Optional flag if supported by schema
+    };
+
+    try {
+      await DatabaseService.instance.insert('Teams', newTeam);
+      debugPrint('Created new placeholder team: $name (ID: $newId)');
+      // Clear cache so subsequent lookups find it
+      Team.clearCache();
+      return newId;
+    } catch (e) {
+      debugPrint('Error creating placeholder team $name: $e');
+      rethrow;
+    }
+  }
+
+  /// Resolve player ID for stats
+  Future<int?> _resolvePlayerId(Map<String, dynamic> data) async {
+    final teamId = data['teamId'];
+    final seasonId = data['seasonId'];
+    if (teamId == null || seasonId == null) return null;
+
+    // Try name/number match
+    final match = await _matcher.matchPlayer(data, teamId, seasonId);
+    return match.existingId;
+  }
+
+  /// Clear all data for a specific season
+  Future<void> clearSeasonData(int seasonId) async {
+    try {
+      debugPrint('Clearing data for season $seasonId...');
+
+      // Delete Games
+      await DatabaseService.instance.delete(
+        'Games',
+        orderByChild: 'seasonId',
+        equalTo: seasonId,
+      );
+
+      // Delete Players (specific to this season)
+      await DatabaseService.instance.delete(
+        'Players',
+        orderByChild: 'seasonId',
+        equalTo: seasonId,
+      );
+
+      // Delete PlayerStats
+      await DatabaseService.instance.delete(
+        'PlayerStats',
+        orderByChild: 'seasonId',
+        equalTo: seasonId,
+      );
+
+      // Delete Game Events
+      await DatabaseService.instance.delete(
+        'Events',
+        orderByChild: 'seasonId',
+        equalTo: seasonId,
+      );
+
+      debugPrint('Season data cleared.');
+    } catch (e) {
+      debugPrint('Error clearing season data: $e');
+      rethrow;
+    }
+  }
+
+  Future<Game?> _getGame(int gameId) async {
+    if (_gameCache.containsKey(gameId)) {
+      return _gameCache[gameId];
+    }
+    final game = await Game.fromId(gameId);
+    if (game != null) {
+      _gameCache[gameId] = game;
+    }
+    return game;
   }
 
   void dispose() {

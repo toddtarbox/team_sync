@@ -1,51 +1,86 @@
 {
   "de": [
     "openExistingDatabase",
+    "renameTeam",
+    "teamNameUpdated",
+    "teamLogo",
+    "organizationLogo",
     "sending",
     "twitterNotConfigured",
     "addGame",
     "opponent",
     "date",
-    "timeOptional"
+    "timeOptional",
+    "importStats",
+    "importStatsConfirm",
+    "importStatsButton"
   ],
 
   "es": [
     "openExistingDatabase",
+    "renameTeam",
+    "teamNameUpdated",
+    "teamLogo",
+    "organizationLogo",
     "sending",
     "twitterNotConfigured",
     "addGame",
     "opponent",
     "date",
-    "timeOptional"
+    "timeOptional",
+    "importStats",
+    "importStatsConfirm",
+    "importStatsButton"
   ],
 
   "fr": [
     "openExistingDatabase",
+    "renameTeam",
+    "teamNameUpdated",
+    "teamLogo",
+    "organizationLogo",
     "sending",
     "twitterNotConfigured",
     "addGame",
     "opponent",
     "date",
-    "timeOptional"
+    "timeOptional",
+    "importStats",
+    "importStatsConfirm",
+    "importStatsButton"
   ],
 
   "it": [
     "openExistingDatabase",
+    "renameTeam",
+    "teamNameUpdated",
+    "teamLogo",
+    "organizationLogo",
     "sending",
     "twitterNotConfigured",
     "addGame",
     "opponent",
     "date",
-    "timeOptional"
+    "timeOptional",
+    "importStats",
+    "importStatsConfirm",
+    "importStatsButton"
   ],
 
   "pt": [
     "openExistingDatabase",
+    "renameTeam",
+    "teamNameUpdated",
+    "teamLogo",
+    "organizationLogo",
     "sending",
     "twitterNotConfigured",
     "addGame",
     "opponent",
     "date",
-    "timeOptional"
+    "timeOptional",
+    "importStats",
+    "importStatsConfirm",
+    "importStatsButton"
   ]
 }

@@ -19,6 +19,7 @@ import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/services/sport_strategy.dart'; // Added import for SportStrategy
+import 'package:team_sync/models/career_stat_entry.dart';
 
 enum StatType {
   career,
@@ -320,7 +321,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
           tile = _buildGameStatTile(category, bestStat);
         } else {
           final categoryStats =
-              (stats as Map<String, MapEntry<Player, int>>)[category];
+              (stats as Map<String, CareerStatEntry>)[category];
           if (categoryStats == null) {
             return const SizedBox.shrink();
           }
@@ -794,7 +795,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                bestStat.value.toString(),
+                bestStat.displayValue ?? bestStat.value.toString(),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -981,7 +982,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  Widget _buildStatTile(String category, MapEntry<Player, int> topEntry) {
+  Widget _buildStatTile(String category, CareerStatEntry topEntry) {
     return InkWell(
       onTap: () async {
         showDialog(
@@ -1108,7 +1109,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 final seasonResults = await DatabaseService.instance.query(
                     'Seasons',
                     orderByChild: 'id',
-                    equalTo: topEntry.key.seasonId);
+                    equalTo: topEntry.player.seasonId);
 
                 if (!mounted) return;
                 Navigator.pop(context);
@@ -1133,9 +1134,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   if (databaseId != null) {
                     NavigationHelper.navigateTo(
                       context,
-                      '/team/$databaseId/player/${topEntry.key.id}',
+                      '/team/$databaseId/player/${topEntry.player.id}',
                       extra: {
-                        'player': topEntry.key,
+                        'player': topEntry.player,
                         'season': season,
                       },
                     );
@@ -1154,7 +1155,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.key,
+                    player: topEntry.player,
                     avatarSize: 48,
                     useLatestImages: true),
               ),
@@ -1173,7 +1174,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    topEntry.key.displayName,
+                    topEntry.player.displayName,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -1188,7 +1189,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                topEntry.value.toString(),
+                topEntry.displayValue ?? topEntry.value.toString(),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -1202,15 +1203,24 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   }
 
   Future<void> _showCareerStatsModal(BuildContext context, String category,
-      List<MapEntry<Player, int>> categoryStats) async {
+      List<CareerStatEntry> categoryStats) async {
     // Convert list to map for StatCategoryDialog
-    final playerStatsMap = Map<Player, int>.fromEntries(categoryStats);
+    final playerStatsMap = <Player, int>{};
+    final displayValues = <Player, String>{};
+
+    for (final entry in categoryStats) {
+      playerStatsMap[entry.player] = entry.value;
+      if (entry.displayValue != null) {
+        displayValues[entry.player] = entry.displayValue!;
+      }
+    }
 
     // Show dialog with navigation callback
     await StatCategoryDialog.show(
       context: context,
       categoryName: category.toSentenceCase().toTitleCase(),
       playerStats: playerStatsMap,
+      displayValues: displayValues,
       showPlayerNumber: true,
       onPlayerTap: (player) => _showPlayerDetailsDialog(player, null),
       season: null,

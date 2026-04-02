@@ -111,9 +111,35 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       final allEvents = await _allPlayerEventsFuture;
       if (allEvents == null || allEvents.isEmpty) return {};
 
+      // Filter out events from scrimmage games
+      final gameIds = allEvents
+          .map((e) => e['gameId'] as int?)
+          .where((id) => id != null)
+          .cast<int>()
+          .toSet();
+      final Set<int> scrimmageGameIds = {};
+
+      for (final gameId in gameIds) {
+        final gameData = await DatabaseService.instance
+            .query('Games', orderByChild: 'id', equalTo: gameId);
+        if (gameData.isNotEmpty) {
+          final map = gameData.first;
+          final isScrimmage = map['isScrimmage'] == 1 ||
+              map['isScrimmage'] == true ||
+              map['isScrimmage'] == 'true';
+          if (isScrimmage) {
+            scrimmageGameIds.add(gameId);
+          }
+        }
+      }
+
+      final filteredEvents = allEvents
+          .where((e) => !scrimmageGameIds.contains(e['gameId'] as int?))
+          .toList();
+
       // Group events by seasonId
       final eventsBySeason = <int, List<Map<String, dynamic>>>{};
-      for (final event in allEvents) {
+      for (final event in filteredEvents) {
         final seasonId = event['seasonId'] as int?;
         if (seasonId != null) {
           if (!eventsBySeason.containsKey(seasonId)) {
@@ -238,6 +264,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Future<void> _showPinDialog() async {
+    if (!kIsWeb) {
+      setState(() {
+        _isEditMode = true;
+      });
+      return;
+    }
+
     final pin = await showDialog<String>(
       context: context,
       builder: (context) => PinEntryDialog(player: widget.player),

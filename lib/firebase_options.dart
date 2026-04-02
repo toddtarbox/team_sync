@@ -47,6 +47,9 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static FirebaseOptions get soccer => currentPlatform;
+  static FirebaseOptions get basketball => currentPlatform;
+
   // Helper to read an env var (required). Throws if missing to avoid embedding secret fallbacks.
   static String _env(String key) {
     final v = dotenv.env[key];

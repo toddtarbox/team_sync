@@ -64,7 +64,17 @@ class Season {
     try {
       final results = await DatabaseService.instance
           .query('Events', orderByChild: 'seasonId', equalTo: id);
-      return SeasonStats.fromMap(teamId, id, results);
+
+      // Filter out events from scrimmage games
+      final seasonGames = await Game.listFromSeasonId(id);
+      final scrimmageGameIds =
+          seasonGames.where((g) => g.isScrimmage).map((g) => g.id).toSet();
+
+      final filteredResults = results
+          .where((event) => !scrimmageGameIds.contains(event['gameId']))
+          .toList();
+
+      return SeasonStats.fromMap(teamId, id, filteredResults);
     } catch (ex) {
       return null;
     }

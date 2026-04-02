@@ -5,8 +5,14 @@ import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season_stats.dart';
 
 abstract class SportStrategy {
-  static late SportStrategy _instance;
-  static SportStrategy get current => _instance;
+  static SportStrategy? _instance;
+  static SportStrategy get current {
+    if (_instance == null) {
+      throw StateError(
+          'SportStrategy not initialized. Call SportStrategy.initialize() first.');
+    }
+    return _instance!;
+  }
 
   static void initialize(SportStrategy strategy) {
     _instance = strategy;
@@ -24,6 +30,10 @@ abstract class SportStrategy {
   String formatEventDisplay(GameEvent event);
   String getEventImageAsset(GameEvent event);
   bool isGoalEvent(GameEvent event);
+  int getEventValue(GameEvent event);
+  String get scoreCategory;
+  String get gameTerminology;
+  String get gameReportTerminology;
 
   // Stats
   SeasonStats createSeasonStats(

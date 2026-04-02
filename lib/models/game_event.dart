@@ -100,7 +100,8 @@ class Shot extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Assist extends GameEvent {
@@ -115,7 +116,8 @@ class Assist extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Save extends GameEvent {
@@ -130,7 +132,8 @@ class Save extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class PenaltyKick extends GameEvent {
@@ -147,7 +150,8 @@ class PenaltyKick extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Corner extends GameEvent {
@@ -164,7 +168,8 @@ class Corner extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Foul extends GameEvent {
@@ -179,7 +184,8 @@ class Foul extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Offsides extends GameEvent {
@@ -194,7 +200,8 @@ class Offsides extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class GameCard extends GameEvent {
@@ -209,7 +216,8 @@ class GameCard extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Period extends GameEvent {
@@ -226,7 +234,8 @@ class Period extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class GameEvent {
@@ -241,6 +250,7 @@ class GameEvent {
   int eventPeriod;
   int eventData;
   String? eventUrls;
+  final bool isFromImport;
 
   String get teamIdSeasonId => '${team.id}_$seasonId';
 
@@ -266,6 +276,8 @@ class GameEvent {
   bool get isGoalEvent {
     return SportStrategy.current.isGoalEvent(this);
   }
+
+  int get eventValue => SportStrategy.current.getEventValue(this);
 
   String tweetText(Game game) {
     if (eventType == 'Period') {
@@ -297,7 +309,8 @@ class GameEvent {
       required this.eventMinute,
       required this.eventPeriod,
       required this.eventUrls,
-      required this.eventData});
+      required this.eventData,
+      this.isFromImport = false});
 
   static GameEvent initial(
       {required Team team,
@@ -319,7 +332,8 @@ class GameEvent {
         eventMinute: eventMinute,
         eventPeriod: eventPeriod,
         eventUrls: eventUrls,
-        eventData: eventData);
+        eventData: eventData,
+        isFromImport: false);
   }
 
   static Future<GameEvent?> fromMap(Map<String, dynamic> map) async {
@@ -330,6 +344,7 @@ class GameEvent {
     final eventPeriod = map['eventPeriod'] as int?;
     final eventData = map['eventData'] as int?;
     final eventType = map['eventType'] as String?;
+    final isFromImport = (map['isFromImport'] as bool?) ?? false;
 
     if (id == null ||
         gameId == null ||
@@ -361,11 +376,11 @@ class GameEvent {
     final team = await Team.fromId(teamId);
 
     final playerId = map['playerId'] as int?;
-    if (playerId == null) {
-      return null;
+    // Allow null player (for opponent stats or team stats)
+    Player? player;
+    if (playerId != null) {
+      player = await Player.singleFromIdSeasonId(playerId, game.seasonId);
     }
-
-    final player = await Player.singleFromIdSeasonId(playerId, game.seasonId);
 
     // Use game.seasonId as fallback if map['seasonId'] is null
     final seasonId = (map['seasonId'] as int?) ?? game.seasonId;
@@ -384,7 +399,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Shot') {
       return Shot(
           id: id,
@@ -397,7 +413,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Assist') {
       return Assist(
           id: id,
@@ -410,7 +427,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Save') {
       return Save(
           id: id,
@@ -423,7 +441,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'PenaltyKick') {
       return PenaltyKick(
           id: id,
@@ -436,7 +455,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Corner') {
       return Corner(
           id: id,
@@ -449,7 +469,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Foul') {
       return Foul(
           id: id,
@@ -462,7 +483,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Offsides') {
       return Offsides(
           id: id,
@@ -475,7 +497,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Card') {
       return GameCard(
           id: id,
@@ -488,7 +511,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     }
 
     return GameEvent(
@@ -502,7 +526,8 @@ class GameEvent {
         eventMinute: eventMinute,
         eventPeriod: eventPeriod,
         eventUrls: eventUrls,
-        eventData: eventData);
+        eventData: eventData,
+        isFromImport: isFromImport);
   }
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {

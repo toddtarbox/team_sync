@@ -55,37 +55,59 @@ class SoccerStrategy implements SportStrategy {
       }
       return 'Shot - ${shot.result.display}';
     } else if (event.eventType == 'Assist') {
-      return event.player != null
-          ? 'Assist: ${event.player!.displayName}'
-          : 'Assist';
+      return 'Assist';
     } else if (event.eventType == 'Save') {
-      return event.player != null
-          ? 'Save by ${event.player!.displayName}'
-          : 'Save by ${event.team.shortName}';
+      return 'Save';
     } else if (event.eventType == 'PenaltyKick') {
       final pk = event as PenaltyKick;
-      if (event.player != null) {
-        return '${pk.result.display} - ${event.player!.displayName} (PK)';
-      }
-      return '${pk.result.display} - ${event.team.shortName} (PK)';
+      return '${pk.result.display} (PK)';
     } else if (event.eventType == 'Corner') {
-      final corner = event as Corner;
-      return 'Corner kick for ${event.team.shortName} ${corner.result == CornerResult.none ? '' : ' - ${corner.result.display}'}';
+      return 'Corner kick';
     } else if (event.eventType == 'Foul') {
-      return event.player != null
-          ? 'Foul by ${event.player!.displayName}'
-          : 'Foul by ${event.team.shortName}';
+      return 'Foul';
     } else if (event.eventType == 'Offsides') {
-      return event.player != null
-          ? 'Offsides on ${event.player!.displayName}'
-          : 'Offsides on ${event.team.shortName}';
+      return 'Offsides';
     } else if (event.eventType == 'Card') {
-      return event.player != null
-          ? 'Card by ${event.player!.displayName}'
-          : 'Card for ${event.team.shortName}';
+      return 'Card';
     } else if (event.eventType == 'Period') {
-      return (event as Period)
-          .display; // Period logic is fairly generic but has soccer terms
+      if (event.eventData == 0) {
+        return 'Not Started';
+      }
+      if (event.eventData == 1) {
+        return '1st Half';
+      }
+      if (event.eventData == 2) {
+        return 'Halftime';
+      }
+      if (event.eventData == 3) {
+        return '2nd Half';
+      }
+      if (event.eventData == 4) {
+        return 'End of 2nd Half';
+      }
+      if (event.eventData == 5) {
+        return '1st OT';
+      }
+      if (event.eventData == 6) {
+        return 'End of 1st OT';
+      }
+      if (event.eventData == 7) {
+        return '2nd OT';
+      }
+      if (event.eventData == 8) {
+        return 'End of 2nd OT';
+      }
+      if (event.eventData == 9) {
+        return 'Final';
+      }
+      if (event.eventData == 10) {
+        return 'Overtime';
+      }
+      if (event.eventData == 11) {
+        return 'Shootout';
+      }
+
+      return '';
     }
 
     return event.eventType;
@@ -146,6 +168,20 @@ class SoccerStrategy implements SportStrategy {
     return (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
         event.eventData == 0; // 0 is ShotResult.goal.index
   }
+
+  @override
+  int getEventValue(GameEvent event) {
+    return isGoalEvent(event) ? 1 : 0;
+  }
+
+  @override
+  String get scoreCategory => 'goals';
+
+  @override
+  String get gameTerminology => 'Match';
+
+  @override
+  String get gameReportTerminology => 'Match Report';
 
   @override
   SeasonStats createSeasonStats(

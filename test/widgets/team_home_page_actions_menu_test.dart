@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:team_sync/app_config.dart';
+import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/sport_strategy.dart';
+import 'package:team_sync/services/soccer_strategy.dart';
 import 'package:team_sync/widgets/team_sync/team_home_page.dart';
 
 import '../helpers/firebase_mocks.dart';
@@ -21,6 +27,75 @@ import '../helpers/screen_size_helper.dart';
 /// - Subscription-dependent menu items
 /// - Menu interaction behavior
 
+class MockDatabaseProvider implements DatabaseProvider {
+  @override
+  String get path => 'test_path';
+
+  @override
+  Future<bool> get isImporting async => false;
+
+  @override
+  Future<bool> open(String path, {String? createWithSportId}) async => true;
+
+  @override
+  Future<bool> openFromPath(String path) async => true;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async => [];
+
+  @override
+  Future<List<Map<String, dynamic>>> query(String table,
+      {String? path,
+      String? where,
+      List<dynamic>? whereArgs,
+      String? orderBy,
+      String? orderByChild,
+      dynamic equalTo,
+      dynamic startAt,
+      dynamic endAt,
+      int? limitToFirst,
+      int? limitToLast}) async {
+    print(
+        'DEBUG: MockDatabaseProvider.query for $table where (orderBy: $orderBy, orderByChild: $orderByChild) == $equalTo');
+    if (table == 'Teams' && (orderBy == 'id' || orderByChild == 'id')) {
+      // Mock team with twitter credentials for testing
+      return [
+        {
+          'id': equalTo ?? 1,
+          'twitterCredentials': {'consumerKey': 'test'}
+        }
+      ];
+    }
+    return [];
+  }
+
+  @override
+  Future<String?> insert(String table, Map<String, dynamic> data,
+          {String? key, String? path}) async =>
+      'new_id';
+
+  @override
+  Future<void> update(String table, Map<String, dynamic> data,
+      {String? path,
+      String? key,
+      String? where,
+      List<dynamic>? whereArgs,
+      String? orderByChild,
+      dynamic equalTo}) async {}
+
+  @override
+  Future<void> delete(String table,
+      {String? path,
+      String? key,
+      String? where,
+      List<dynamic>? whereArgs,
+      String? orderByChild,
+      dynamic equalTo}) async {}
+}
+
 /// Helper to wrap widget with MaterialApp and localization
 Widget wrapWithMaterialApp(Widget child, {ThemeData? theme}) {
   return MaterialApp(
@@ -34,9 +109,39 @@ Widget wrapWithMaterialApp(Widget child, {ThemeData? theme}) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUp(() {
+    final strategy = SoccerStrategy();
+    AppConfig.initialize(strategy.appConfig);
+    SportStrategy.initialize(strategy);
+
+    // Inject MockDatabaseProvider to handle Twitter configuration check
+    DatabaseService.isTest = true;
+    final mockProvider = MockDatabaseProvider();
+    DatabaseService.instance.setProvider(mockProvider);
+
+    // Mock FlutterSecureStorage (try both potential channel names)
+    for (final channelName in [
+      'plugins.it_elysium.org/flutter_secure_storage',
+      'plugins.it-elysium.org/flutter_secure_storage'
+    ]) {
+      final channel = MethodChannel(channelName);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'read') {
+          return null;
+        }
+        if (methodCall.method == 'readAll') {
+          return <String, String>{};
+        }
+        return null;
+      });
+    }
+  });
+
   setUpAll(() async {
     // Setup Firebase mocks WITH authenticated user
     // This allows the actions menu to appear on mobile
+    SharedPreferences.setMockInitialValues({});
     await FirebaseMocks.setupFirebaseMocks(authenticatedUser: true);
   });
 
@@ -797,17 +902,15 @@ void main() {
       await tester.pumpWidget(
         wrapWithMaterialApp(TeamHomePage(initialTeam: mockTeam)),
       );
-
-      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
 
       await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Verify all menu items are present
       expect(find.text('Send Tweet'), findsOneWidget);
       expect(find.text('Records'), findsOneWidget);
-      expect(find.text('History'), findsOneWidget);
+      expect(find.text('Analytics'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
 
       await tester.resetScreenSize();

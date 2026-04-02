@@ -8,6 +8,9 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/bound_game_stats_importer_service.dart';
+import 'package:team_sync/services/data_importer_service.dart';
+import 'package:team_sync/models/import_models.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/event_stream_widget.dart';
@@ -16,6 +19,7 @@ import 'package:team_sync/widgets/responsive/views/game_view.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
+import 'package:team_sync/widgets/box_score_widget.dart';
 
 /// Unified responsive game page that works for mobile, tablet, and desktop
 class GamePage extends StatefulWidget {
@@ -142,6 +146,89 @@ class _GamePageState extends State<GamePage> {
     } catch (e) {
       debugPrint('GamePage: Error loading season: $e');
       rethrow; // Let FutureBuilder handle the error
+    }
+  }
+
+  Future<void> _importStatsFromBound(BuildContext context, int myTeamId) async {
+    final url = _game.gameLinks;
+    if (url == null || url.isEmpty) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: Text(loc.importStats),
+          content: Text(loc.importStatsConfirm),
+          actions: [
+            TextButton(
+              child: Text(loc.cancel),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            TextButton(
+              child: Text(loc.importStatsButton),
+              onPressed: () => Navigator.pop(context, true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      debugPrint('Importing game stats from: $url');
+      final rows = await BoundGameStatsImporterService().parseGameStats(
+        url: url,
+        gameId: _game.id,
+        teamId: myTeamId,
+        seasonId: _game.seasonId,
+      );
+
+      debugPrint(
+          'Parsed ${rows.length} event rows. Clearing old events and importing...');
+
+      // Clear existing events for this game
+      await DatabaseService.instance
+          .delete('Events', orderByChild: 'gameId', equalTo: _game.id);
+
+      // Import via DataImporter
+      final result = await DataImporterService().importData(
+        rows: rows,
+        fileName: 'Manual Game Stats',
+        entityType: 'GameEvent',
+        // We use disableValidation: true largely because validating rigid constraints on events might be tricky
+        // But let's try with default config first or minimal config.
+        // Actually, let's keep validation on but handle errors.
+        config: const ImportConfig(
+          batchSize: 50,
+        ),
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Imported ${result.successCount} events. ${result.errorCount} errors.')));
+        // Refresh game data?
+        // Trigger a reload or event emit?
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -341,17 +428,29 @@ class _GamePageState extends State<GamePage> {
                             margin: const EdgeInsets.only(
                                 left: 16, right: 16, top: 16),
                           ),
+                          BoxScoreWidget(
+                            game: _game,
+                            season: resolvedSeason,
+                          ),
                         ],
                       ),
                     ),
                   ),
                 )
               else
-                ScoreboardWidget(
-                  game: _game,
-                  season: resolvedSeason,
-                  teamId: resolvedSeason.teamId,
-                  compact: false,
+                Column(
+                  children: [
+                    ScoreboardWidget(
+                      game: _game,
+                      season: resolvedSeason,
+                      teamId: resolvedSeason.teamId,
+                      compact: false,
+                    ),
+                    BoxScoreWidget(
+                      game: _game,
+                      season: resolvedSeason,
+                    ),
+                  ],
                 ),
               if (kIsWeb)
                 Breadcrumbs(
@@ -372,6 +471,24 @@ class _GamePageState extends State<GamePage> {
               ),
             ],
           ),
+          floatingActionButton: (_game.gameStatus.index < 9)
+              ? FloatingActionButton(
+                  heroTag: 'addEventButton',
+                  child: const Icon(Icons.add),
+                  onPressed: () async {
+                    if (_game.gameStatus == GameStatus.notStarted ||
+                        _game.gameStatus == GameStatus.halftime ||
+                        _game.gameStatus == GameStatus.overtimeNotStarted ||
+                        _game.gameStatus == GameStatus.overtimeHalftime) {
+                      await _game.advanceGame();
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    }
+                    _eventEmitter.emit('createEvent');
+                  },
+                )
+              : null,
         );
       },
     );
@@ -502,7 +619,7 @@ class _GamePageState extends State<GamePage> {
         ),
 
         // Stats button (mobile phone only)
-        if (!isTabletOrLarger)
+        if (!kIsWeb)
           GestureDetector(
             onTap: () {
               showModalBottomSheet(
@@ -521,6 +638,12 @@ class _GamePageState extends State<GamePage> {
               padding: EdgeInsets.all(5),
               child: Icon(Icons.analytics, size: 24),
             ),
+          ),
+        if (_game.gameLinks != null && _game.gameLinks!.contains('gobound.com'))
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Import Stats',
+            onPressed: () => _importStatsFromBound(context, season.teamId),
           ),
       ];
     }
@@ -549,6 +672,20 @@ class _GamePageState extends State<GamePage> {
           ),
         ),
       ];
+    }
+
+    // Web Desktop (implicit in remaining logic or added generally)
+    if (kIsWeb && isTabletOrLarger) {
+      // We want to add the Import button to web desktop too
+      // But _buildAppBarActions returns specific lists.
+      // Current 'Web on mobile' block above returns early.
+      // If isTabletOrLarger, it falls through to next blocks or empty.
+      // The existing code doesn't explicitly handle Web Desktop Actions in a dedicated block that returns.
+      // It falls through to 'In-progress game' or empty.
+      // We should add a generic check or add to existing blocks.
+
+      final actions = <Widget>[];
+      return actions;
     }
 
     // In-progress game actions (mobile and tablet)

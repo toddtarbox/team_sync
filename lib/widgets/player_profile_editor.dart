@@ -37,6 +37,11 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   String? _actionPhotoUrl;
   String? _headshotUrl;
   bool _isUploading = false;
+  bool _isSavingBasicDetails = false;
+
+  late final TextEditingController _firstNameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _numberController;
 
   Future<List<PlayerHighlight>>? _highlightsFuture;
   Future<List<PlayerAward>>? _awardsFuture;
@@ -44,6 +49,11 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   @override
   void initState() {
     super.initState();
+    _firstNameController = TextEditingController(text: widget.player.firstName);
+    _lastNameController = TextEditingController(text: widget.player.lastName);
+    _numberController =
+        TextEditingController(text: widget.player.number.toString());
+
     _profileImageUrl = widget.player.profileImage;
     _actionPhotoUrl = widget.player.actionPhoto;
     _headshotUrl = widget.player.headshot;
@@ -61,6 +71,14 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     setState(() {
       _awardsFuture = PlayerAward.listFromPlayerId(widget.player.id);
     });
+  }
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _numberController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage(ImageSource source, String imageType) async {
@@ -258,6 +276,10 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
             ),
             const Divider(height: 32),
 
+            // Basic Details Section
+            _buildBasicDetailsSection(),
+            const SizedBox(height: 24),
+
             // Profile Picture Section
             _buildImageSection(
               title: loc.profilePicture,
@@ -368,6 +390,112 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
         ),
       ),
     );
+  }
+
+  Widget _buildBasicDetailsSection() {
+    final loc = AppLocalizations.of(context)!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Basic Details',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _isSavingBasicDetails ? null : _saveBasicDetails,
+              icon: _isSavingBasicDetails
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save),
+              label: Text(loc.save),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _firstNameController,
+                decoration: const InputDecoration(
+                  labelText: 'First Name',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Last Name',
+                  border: OutlineInputBorder(),
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _numberController,
+          decoration: const InputDecoration(
+            labelText: 'Number',
+            border: OutlineInputBorder(),
+          ),
+          keyboardType: TextInputType.number,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveBasicDetails() async {
+    setState(() {
+      _isSavingBasicDetails = true;
+    });
+
+    try {
+      final loc = AppLocalizations.of(context)!;
+      widget.player.firstName = _firstNameController.text.trim();
+      widget.player.lastName = _lastNameController.text.trim();
+      widget.player.number =
+          int.tryParse(_numberController.text.trim()) ?? widget.player.number;
+
+      if (kIsWeb && widget.pin != null) {
+        await widget.player.saveWithPin(widget.pin!);
+      } else {
+        await widget.player.save();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.profileUpdated)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final loc = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.errorUpdatingProfile(e.toString()))),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingBasicDetails = false;
+        });
+      }
+    }
   }
 
   Widget _buildImageSection({

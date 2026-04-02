@@ -190,6 +190,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
   bool _showingBack = false;
+  bool _hasTwitterConfig = false;
 
   @override
   void initState() {
@@ -201,6 +202,17 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
     );
+    _checkTwitterConfig();
+  }
+
+  Future<void> _checkTwitterConfig() async {
+    final hasConfig =
+        await TwitterService.instance.isConfigured(teamId: widget.team.id);
+    if (mounted) {
+      setState(() {
+        _hasTwitterConfig = hasConfig;
+      });
+    }
   }
 
   @override
@@ -482,31 +494,33 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isGenerating
-                                ? null
-                                : () => _captureAndShare(true),
-                            icon: _isGenerating
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.send, size: 18),
-                            label: Text(_isGenerating
-                                ? 'Generating...'
-                                : _showingBack
-                                    ? 'Tweet Stats'
-                                    : 'Tweet Card'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1DA1F2),
-                              foregroundColor: Colors.white,
+                        if (_hasTwitterConfig) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isGenerating
+                                  ? null
+                                  : () => _captureAndShare(true),
+                              icon: _isGenerating
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.send, size: 18),
+                              label: Text(_isGenerating
+                                  ? 'Generating...'
+                                  : _showingBack
+                                      ? 'Tweet Stats'
+                                      : 'Tweet Card'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1DA1F2),
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
             ),

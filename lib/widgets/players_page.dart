@@ -1034,8 +1034,8 @@ class _PlayersPageState extends State<PlayersPage> {
   }
 
   void _createPlayer() {
-    late String playerName;
-    late int playerNumber;
+    String playerName = '';
+    int playerNumber = -1;
     String? playerPin;
     final pinController = TextEditingController();
     _imageFile = null;
@@ -1081,7 +1081,7 @@ class _PlayersPageState extends State<PlayersPage> {
                               labelText:
                                   AppLocalizations.of(context)!.playerNumber),
                           onChanged: (number) =>
-                              playerNumber = int.parse(number)),
+                              playerNumber = int.tryParse(number) ?? -1),
                       const SizedBox(height: 16),
                       // PIN Field with Generate Button
                       Row(
@@ -1159,28 +1159,52 @@ class _PlayersPageState extends State<PlayersPage> {
                                                             equalTo: widget
                                                                 .season.teamId);
 
-                                                // Check if any existing player has the same name
-                                                final duplicates =
+                                                // Check for duplicates
+                                                final existingFirst =
+                                                    firstName.toLowerCase();
+                                                final existingLast =
+                                                    lastName.toLowerCase();
+
+                                                final duplicatesInCurrentSeason =
                                                     allPlayers.where((p) {
-                                                  final existingFirst =
-                                                      (p['firstName'] ?? '')
-                                                          .toString()
-                                                          .toLowerCase();
-                                                  final existingLast =
+                                                  if (p['seasonId'] !=
+                                                      widget.season.id) {
+                                                    return false;
+                                                  }
+                                                  return (p['firstName'] ?? '')
+                                                              .toString()
+                                                              .toLowerCase() ==
+                                                          existingFirst &&
                                                       (p['lastName'] ?? '')
-                                                          .toString()
-                                                          .toLowerCase();
-                                                  return existingFirst ==
-                                                          firstName
-                                                              .toLowerCase() &&
-                                                      existingLast ==
-                                                          lastName
-                                                              .toLowerCase();
+                                                              .toString()
+                                                              .toLowerCase() ==
+                                                          existingLast;
                                                 }).toList();
 
-                                                if (duplicates.isNotEmpty) {
+                                                final duplicatesInPastSeasons =
+                                                    allPlayers.where((p) {
+                                                  if (p['seasonId'] ==
+                                                      widget.season.id) {
+                                                    return false;
+                                                  }
+                                                  return (p['firstName'] ?? '')
+                                                              .toString()
+                                                              .toLowerCase() ==
+                                                          existingFirst &&
+                                                      (p['lastName'] ?? '')
+                                                              .toString()
+                                                              .toLowerCase() ==
+                                                          existingLast;
+                                                }).toList();
+
+                                                bool useExistingPlayer = false;
+                                                Map<dynamic, dynamic>?
+                                                    existingPlayer;
+
+                                                if (duplicatesInCurrentSeason
+                                                    .isNotEmpty) {
                                                   if (!context.mounted) return;
-                                                  // Show confirmation dialog
+                                                  // Show confirmation dialog for duplicates in the current season
                                                   final shouldContinue =
                                                       await showDialog<bool>(
                                                     context: context,
@@ -1190,7 +1214,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                                         title: const Text(
                                                             'Duplicate Player Name'),
                                                         content: Text(
-                                                          'A player named "$playerName" already exists. Are you sure you want to create another player with the same name?',
+                                                          'A player named "$playerName" already exists in this season. Are you sure you want to create another player with the same name?',
                                                         ),
                                                         actions: [
                                                           TextButton(
@@ -1224,6 +1248,88 @@ class _PlayersPageState extends State<PlayersPage> {
                                                     });
                                                     return; // User cancelled
                                                   }
+                                                } else if (duplicatesInPastSeasons
+                                                    .isNotEmpty) {
+                                                  if (!context.mounted) return;
+
+                                                  // Find the most recent record of this player
+                                                  duplicatesInPastSeasons
+                                                      .sort((a, b) {
+                                                    int aSeason = a['seasonId']
+                                                            is int
+                                                        ? a['seasonId']
+                                                        : int.tryParse(a[
+                                                                        'seasonId']
+                                                                    ?.toString() ??
+                                                                '0') ??
+                                                            0;
+                                                    int bSeason = b['seasonId']
+                                                            is int
+                                                        ? b['seasonId']
+                                                        : int.tryParse(b[
+                                                                        'seasonId']
+                                                                    ?.toString() ??
+                                                                '0') ??
+                                                            0;
+                                                    return bSeason
+                                                        .compareTo(aSeason);
+                                                  });
+                                                  existingPlayer =
+                                                      duplicatesInPastSeasons
+                                                          .first;
+
+                                                  final action =
+                                                      await showDialog<String>(
+                                                    context: context,
+                                                    builder: (BuildContext
+                                                        dialogContext) {
+                                                      return AlertDialog(
+                                                        title: const Text(
+                                                            'Existing Player Found'),
+                                                        content: Text(
+                                                            'A player named "$playerName" was found in a previous season. Would you like to add the existing player to this season, or create a brand new player?'),
+                                                        actions: [
+                                                          TextButton(
+                                                            child: Text(
+                                                                AppLocalizations.of(
+                                                                        context)!
+                                                                    .cancelButton),
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    dialogContext,
+                                                                    'cancel'),
+                                                          ),
+                                                          TextButton(
+                                                            child: const Text(
+                                                                'Create New'),
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    dialogContext,
+                                                                    'new'),
+                                                          ),
+                                                          TextButton(
+                                                            child: const Text(
+                                                                'Add Existing'),
+                                                            onPressed: () =>
+                                                                Navigator.pop(
+                                                                    dialogContext,
+                                                                    'existing'),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+
+                                                  if (action == 'cancel' ||
+                                                      action == null) {
+                                                    setModalState(() {
+                                                      isSaving = false;
+                                                    });
+                                                    return;
+                                                  } else if (action ==
+                                                      'existing') {
+                                                    useExistingPlayer = true;
+                                                  }
                                                 }
 
                                                 // Proceed with creating the player
@@ -1238,21 +1344,77 @@ class _PlayersPageState extends State<PlayersPage> {
                                                       .putFile(_imageFile!);
                                                   imageUrl = await storageRef
                                                       .getDownloadURL();
+                                                } else if (useExistingPlayer &&
+                                                    existingPlayer != null) {
+                                                  imageUrl = existingPlayer[
+                                                          'profileImage']
+                                                      ?.toString();
                                                 }
 
+                                                int newPlayerId = DateTime.now()
+                                                    .millisecondsSinceEpoch;
+                                                if (useExistingPlayer &&
+                                                    existingPlayer != null) {
+                                                  newPlayerId = existingPlayer[
+                                                          'id'] is int
+                                                      ? existingPlayer['id']
+                                                      : int.tryParse(existingPlayer[
+                                                                      'id']
+                                                                  ?.toString() ??
+                                                              '') ??
+                                                          newPlayerId;
+                                                }
+
+                                                Player newPlayer = Player(
+                                                  id: newPlayerId,
+                                                  teamId: widget.season.teamId,
+                                                  seasonId: widget.season.id,
+                                                  firstName: firstName,
+                                                  lastName: lastName,
+                                                  number: (useExistingPlayer &&
+                                                          existingPlayer !=
+                                                              null &&
+                                                          playerNumber == -1)
+                                                      ? (existingPlayer[
+                                                              'number'] is int
+                                                          ? existingPlayer[
+                                                              'number']
+                                                          : int.tryParse(existingPlayer[
+                                                                          'number']
+                                                                      ?.toString() ??
+                                                                  '0') ??
+                                                              0)
+                                                      : (playerNumber == -1
+                                                          ? 0
+                                                          : playerNumber),
+                                                  profileImage: imageUrl,
+                                                  actionPhoto:
+                                                      useExistingPlayer &&
+                                                              existingPlayer !=
+                                                                  null
+                                                          ? existingPlayer[
+                                                                  'actionPhoto']
+                                                              ?.toString()
+                                                          : null,
+                                                  headshot: useExistingPlayer &&
+                                                          existingPlayer != null
+                                                      ? existingPlayer[
+                                                              'headshot']
+                                                          ?.toString()
+                                                      : null,
+                                                  editPin: playerPin ??
+                                                      (useExistingPlayer &&
+                                                              existingPlayer !=
+                                                                  null
+                                                          ? existingPlayer[
+                                                                  'editPin']
+                                                              ?.toString()
+                                                          : null),
+                                                );
+
                                                 await DatabaseService.instance
-                                                    .insert('Players', {
-                                                  'id': DateTime.now()
-                                                      .millisecondsSinceEpoch,
-                                                  'firstName': firstName,
-                                                  'lastName': lastName,
-                                                  'number': playerNumber,
-                                                  'seasonId': widget.season.id,
-                                                  'teamId':
-                                                      widget.season.teamId,
-                                                  'profileImage': imageUrl,
-                                                  'editPin': playerPin,
-                                                });
+                                                    .insert('Players',
+                                                        newPlayer.toMap());
 
                                                 if (context.mounted) {
                                                   setState(() {});

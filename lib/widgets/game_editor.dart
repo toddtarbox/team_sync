@@ -217,6 +217,21 @@ class _GameEditorState extends State<GameEditor> {
 
                     const SizedBox(height: 24),
 
+                    // Scrimmage Toggle
+                    SwitchListTile(
+                      title: const Text('Scrimmage'),
+                      subtitle: const Text(
+                          'Stats from this game will not count towards player or season totals.'),
+                      value: _game.isScrimmage,
+                      onChanged: (bool value) {
+                        setState(() {
+                          _game.isScrimmage = value;
+                        });
+                      },
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: 16),
+
                     // Metadata
                     TextFormField(
                       initialValue: _game.description,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class SeasonRecord extends StatelessWidget {
@@ -182,19 +183,21 @@ class SeasonRecord extends StatelessWidget {
                       isOverall: isOverall,
                       isSmallScreen: isSmallScreen,
                     ),
-                    SizedBox(
-                        width: isOverall
-                            ? (isSmallScreen ? 4 : 16)
-                            : (isLargeLayout ? 12 : 8)),
-                    _buildStatBadge(
-                      context,
-                      ties.toString(),
-                      loc.tieAbbreviation,
-                      Theme.of(context).colorScheme.tertiary,
-                      isLarge: isLargeLayout,
-                      isOverall: isOverall,
-                      isSmallScreen: isSmallScreen,
-                    ),
+                    if (SportStrategy.current.sportId != 'basketball') ...[
+                      SizedBox(
+                          width: isOverall
+                              ? (isSmallScreen ? 4 : 16)
+                              : (isLargeLayout ? 12 : 8)),
+                      _buildStatBadge(
+                        context,
+                        ties.toString(),
+                        loc.tieAbbreviation,
+                        Theme.of(context).colorScheme.tertiary,
+                        isLarge: isLargeLayout,
+                        isOverall: isOverall,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                    ],
                   ],
                 ),
               ],

@@ -1,8 +1,9 @@
 import 'package:change_case/change_case.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/player.dart';
+
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/models/career_stat_entry.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 
 class CareerStatsView extends StatefulWidget {
@@ -20,7 +21,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
     return FutureBuilder(
         future: _loadCareerStats(),
         builder: (BuildContext context,
-            AsyncSnapshot<Map<String, MapEntry<Player, int>>> snapshot) {
+            AsyncSnapshot<Map<String, CareerStatEntry>> snapshot) {
           if (snapshot.hasData) {
             final stats = snapshot.data!;
             final statCategoryTiles = stats.entries.map((entry) {
@@ -67,13 +68,16 @@ class _CareerStatsViewState extends State<CareerStatsView> {
                                             final statEntry = stat[index];
                                             return ListTile(
                                                 title: Text(
-                                                    statEntry.key.displayName,
+                                                    statEntry
+                                                        .player.displayName,
                                                     style: const TextStyle(
                                                         fontSize: 24,
                                                         fontWeight:
                                                             FontWeight.bold)),
                                                 trailing: Text(
-                                                    statEntry.value.toString(),
+                                                    statEntry.displayValue ??
+                                                        statEntry.value
+                                                            .toString(),
                                                     style: const TextStyle(
                                                         fontSize: 24,
                                                         fontWeight:
@@ -130,7 +134,7 @@ class _CareerStatsViewState extends State<CareerStatsView> {
         });
   }
 
-  Future<Map<String, MapEntry<Player, int>>> _loadCareerStats() async {
+  Future<Map<String, CareerStatEntry>> _loadCareerStats() async {
     final data = await widget.team.fetchAllDataForCareer();
     return await widget.team.calculateCareerStats(data);
   }

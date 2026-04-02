@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:dart_twitter_api/twitter_api.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -111,7 +113,9 @@ class TwitterService {
       final hasTeamCreds =
           await TwitterCredentialsService.hasCredentials(teamId);
       debugPrint('Twitter isConfigured (team $teamId): $hasTeamCreds');
-      return hasTeamCreds;
+      if (hasTeamCreds) {
+        return true;
+      }
     }
 
     // Check local credentials
@@ -164,11 +168,19 @@ class TwitterService {
     }
 
     try {
-      await _twitterAPI!.tweetService.update(status: text);
+      await _twitterAPI!.client.post(
+        Uri.parse('https://api.twitter.com/2/tweets'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'text': text}),
+      );
       return true;
     } catch (e) {
       debugPrint('Error sending tweet: $e');
-      return false;
+      if (e is http.Response) {
+        debugPrint('Error sending tweet: ${e.body}');
+        throw Exception('Twitter API Error ${e.statusCode}: ${e.body}');
+      }
+      rethrow;
     }
   }
 
@@ -194,19 +206,41 @@ class TwitterService {
 
     try {
       if (imageFile != null && await imageFile.exists()) {
-        // For now, we'll use the Twitter web API approach or a package that supports media upload
-        // The dart_twitter_api package's media upload is not straightforward
-        // As a workaround, we'll just send the text for now
-        debugPrint(
-            'Image tweet requested, but media upload not fully implemented. Sending text only.');
-        debugPrint('Image path: ${imageFile.path}');
+        final file = await http.MultipartFile.fromPath('media', imageFile.path);
+        final mediaResponse = await _twitterAPI!.client.multipartRequest(
+          Uri.parse('https://upload.twitter.com/1.1/media/upload.json'),
+          files: [file],
+        );
+        
+        final mediaData = jsonDecode(mediaResponse.body);
+        final mediaIdStr = mediaData['media_id_string'];
+        
+        await _twitterAPI!.client.post(
+          Uri.parse('https://api.twitter.com/2/tweets'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'text': text,
+            'media': {
+              'media_ids': [mediaIdStr]
+            }
+          }),
+        );
+        return true;
       }
 
-      await _twitterAPI!.tweetService.update(status: text);
+      await _twitterAPI!.client.post(
+        Uri.parse('https://api.twitter.com/2/tweets'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'text': text}),
+      );
       return true;
     } catch (e) {
       debugPrint('Error sending tweet: $e');
-      return false;
+      if (e is http.Response) {
+        debugPrint('Error sending tweet: ${e.body}');
+        throw Exception('Twitter API Error ${e.statusCode}: ${e.body}');
+      }
+      rethrow;
     }
   }
 

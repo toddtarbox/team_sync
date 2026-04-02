@@ -31,12 +31,20 @@ class BasketballStrategy implements SportStrategy {
   @override
   List<String> get leaderCategories => [
         'points',
+        '3_pointers',
+        '3_point_percentage',
+        '2_pointers',
+        '2_point_percentage',
+        'free_throws',
+        'free_throw_percentage',
         'rebounds',
+        'off_rebounds',
+        'def_rebounds',
         'assists',
         'steals',
         'blocks',
         'turnovers',
-        'fouls'
+        'fouls',
       ];
 
   @override
@@ -71,11 +79,18 @@ class BasketballStrategy implements SportStrategy {
       return event.player != null
           ? 'Foul: ${event.player!.displayName}'
           : 'Foul';
+    } else if (event.eventType == 'Miss') {
+      final shotType =
+          event.eventData == 3 ? '3PT' : (event.eventData == 2 ? 'FG' : 'FT');
+      if (event.player != null) {
+        return 'Miss $shotType - ${event.player!.displayName}';
+      }
+      return 'Miss $shotType - ${event.team.shortName}';
     } else if (event.eventType == 'Period') {
       return (event as Period).display;
     }
 
-    return '${event.eventType}';
+    return event.eventType;
   }
 
   @override
@@ -86,8 +101,30 @@ class BasketballStrategy implements SportStrategy {
 
   @override
   bool isGoalEvent(GameEvent event) {
-    return event.eventType == 'Point';
+    // Both 'Point' events and soccer-style 'Shot' goals contribute to the score
+    return event.eventType == 'Point' ||
+        (event.eventType == 'Shot' && event.eventData == 0);
   }
+
+  @override
+  int getEventValue(GameEvent event) {
+    if (event.eventType == 'Point') {
+      return event.eventData;
+    }
+    if (event.eventType == 'Shot' && event.eventData == 0) {
+      return 1;
+    }
+    return 0;
+  }
+
+  @override
+  String get scoreCategory => 'points';
+
+  @override
+  String get gameTerminology => 'Game';
+
+  @override
+  String get gameReportTerminology => 'Game Report';
 
   @override
   SeasonStats createSeasonStats(
@@ -105,10 +142,54 @@ class BasketballStrategy implements SportStrategy {
       switch (type) {
         case 'Point':
           category = 'points';
-          value = event['eventData'] as int? ?? 0;
+          final data = event['eventData'];
+          int pointValue = 1;
+          if (data is num) {
+            pointValue = data.toInt();
+          } else if (data is String) {
+            pointValue = int.tryParse(data) ?? 0;
+          } else {
+            pointValue = 0;
+          }
+          // Add breakdown stats
+          if (pointValue == 3) {
+            _incrementStat(stats, '3_pointers', isTeam, event['playerId'], 1);
+          } else if (pointValue == 2) {
+            _incrementStat(stats, '2_pointers', isTeam, event['playerId'], 1);
+          } else if (pointValue == 1) {
+            _incrementStat(stats, 'free_throws', isTeam, event['playerId'], 1);
+          }
+          break;
+        case 'Miss':
+          // Track missed shots for percentages
+          final missType = event['eventData']; // 3=3PT, 2=FG, 1=FT
+          if (missType == 3) {
+            _incrementStat(
+                stats, '3_pointers_missed', isTeam, event['playerId'], 1);
+          } else if (missType == 2) {
+            _incrementStat(
+                stats, '2_pointers_missed', isTeam, event['playerId'], 1);
+          } else if (missType == 1) {
+            _incrementStat(
+                stats, 'free_throws_missed', isTeam, event['playerId'], 1);
+          }
+          break;
+        case 'Shot':
+          // Fallback: treat soccer-style shot goals as 1 point in basketball stats
+          if (event['eventData'] == 0) {
+            category = 'points';
+            value = 1;
+          }
           break;
         case 'Rebound':
           category = 'rebounds';
+          // Add breakdown stats
+          final reboundType = event['eventData'];
+          if (reboundType == 2) {
+            _incrementStat(stats, 'off_rebounds', isTeam, event['playerId'], 1);
+          } else if (reboundType == 3) {
+            _incrementStat(stats, 'def_rebounds', isTeam, event['playerId'], 1);
+          }
           break;
         case 'Assist':
           category = 'assists';
@@ -145,7 +226,73 @@ class BasketballStrategy implements SportStrategy {
       }
     }
 
+    return _calculatePercentages(stats);
+  }
+
+  SeasonStats _calculatePercentages(SeasonStats stats) {
+    _calculateCategoryPercentage(
+        stats, '3_pointers', '3_pointers_missed', '3_point_percentage');
+    _calculateCategoryPercentage(
+        stats, '2_pointers', '2_pointers_missed', '2_point_percentage');
+    _calculateCategoryPercentage(
+        stats, 'free_throws', 'free_throws_missed', 'free_throw_percentage');
     return stats;
+  }
+
+  void _calculateCategoryPercentage(SeasonStats stats, String madeKey,
+      String missedKey, String percentageKey) {
+    // Team
+    final teamMade = stats.teamStats[madeKey] ?? 0;
+    final teamMissed = stats.teamStats[missedKey] ?? 0;
+    final teamAttempts = teamMade + teamMissed;
+    if (teamAttempts > 0) {
+      stats.teamStats[percentageKey] =
+          ((teamMade / teamAttempts) * 100).round();
+    }
+
+    // Opponent
+    final opponentMade = stats.opponentStats[madeKey] ?? 0;
+    final opponentMissed = stats.opponentStats[missedKey] ?? 0;
+    final opponentAttempts = opponentMade + opponentMissed;
+    if (opponentAttempts > 0) {
+      stats.opponentStats[percentageKey] =
+          ((opponentMade / opponentAttempts) * 100).round();
+    }
+
+    // Players
+    final playerMadeMap = stats.playerStats[madeKey] ?? {};
+    final playerMissedMap = stats.playerStats[missedKey] ?? {};
+
+    // Union of players who have either made or missed
+    final allPlayerIds = {...playerMadeMap.keys, ...playerMissedMap.keys};
+
+    for (final playerId in allPlayerIds) {
+      final made = playerMadeMap[playerId] ?? 0;
+      final missed = playerMissedMap[playerId] ?? 0;
+      final attempts = made + missed;
+
+      if (attempts > 0) {
+        _incrementStatMap(stats.playerStats, percentageKey, playerId,
+            ((made / attempts) * 100).round());
+      }
+    }
+  }
+
+  void _incrementStat(SeasonStats stats, String category, bool isTeam,
+      dynamic playerIdObj, int value) {
+    // Update Team/Opponent totals
+    if (isTeam) {
+      stats.teamStats.update(category, (v) => v + value, ifAbsent: () => value);
+    } else {
+      stats.opponentStats
+          .update(category, (v) => v + value, ifAbsent: () => value);
+    }
+
+    // Player Stats
+    final playerId = playerIdObj as int?;
+    if (playerId != null && playerId != -1) {
+      _incrementPlayerStat(stats, category, playerId, value);
+    }
   }
 
   @override
@@ -166,10 +313,55 @@ class BasketballStrategy implements SportStrategy {
       switch (type) {
         case 'Point':
           category = 'points';
-          value = event['eventData'] as int? ?? 0;
+          final data = event['eventData'];
+          int pointValue = 1;
+          if (data is num) {
+            pointValue = data.toInt();
+          } else if (data is String) {
+            pointValue = int.tryParse(data) ?? 0;
+          } else {
+            pointValue = 0;
+          }
+          value = pointValue;
+
+          // Add breakdown stats
+          if (pointValue == 3) {
+            _incrementStatMap(stats.playerStats, '3_pointers', playerId, 1);
+          } else if (pointValue == 2) {
+            _incrementStatMap(stats.playerStats, '2_pointers', playerId, 1);
+          } else if (pointValue == 1) {
+            _incrementStatMap(stats.playerStats, 'free_throws', playerId, 1);
+          }
+          break;
+        case 'Miss':
+          final missType = event['eventData'];
+          if (missType == 3) {
+            _incrementStatMap(
+                stats.playerStats, '3_pointers_missed', playerId, 1);
+          } else if (missType == 2) {
+            _incrementStatMap(
+                stats.playerStats, '2_pointers_missed', playerId, 1);
+          } else if (missType == 1) {
+            _incrementStatMap(
+                stats.playerStats, 'free_throws_missed', playerId, 1);
+          }
+          break;
+        case 'Shot':
+          // Fallback: treat soccer-style shot goals as 1 point in basketball stats
+          if (event['eventData'] == 0) {
+            category = 'points';
+            value = 1;
+          }
           break;
         case 'Rebound':
           category = 'rebounds';
+          // Add breakdown stats
+          final reboundType = event['eventData'];
+          if (reboundType == 2) {
+            _incrementStatMap(stats.playerStats, 'off_rebounds', playerId, 1);
+          } else if (reboundType == 3) {
+            _incrementStatMap(stats.playerStats, 'def_rebounds', playerId, 1);
+          }
           break;
         case 'Assist':
           category = 'assists';
@@ -192,7 +384,36 @@ class BasketballStrategy implements SportStrategy {
         _incrementStatMap(stats.playerStats, category, playerId, value);
       }
     }
+    return _calculateCareerPercentages(stats);
+  }
+
+  CareerStats _calculateCareerPercentages(CareerStats stats) {
+    _calculateCareerCategoryPercentage(
+        stats, '3_pointers', '3_pointers_missed', '3_point_percentage');
+    _calculateCareerCategoryPercentage(
+        stats, '2_pointers', '2_pointers_missed', '2_point_percentage');
+    _calculateCareerCategoryPercentage(
+        stats, 'free_throws', 'free_throws_missed', 'free_throw_percentage');
     return stats;
+  }
+
+  void _calculateCareerCategoryPercentage(CareerStats stats, String madeKey,
+      String missedKey, String percentageKey) {
+    final playerMadeMap = stats.playerStats[madeKey] ?? {};
+    final playerMissedMap = stats.playerStats[missedKey] ?? {};
+
+    final allPlayerIds = {...playerMadeMap.keys, ...playerMissedMap.keys};
+
+    for (final playerId in allPlayerIds) {
+      final made = playerMadeMap[playerId] ?? 0;
+      final missed = playerMissedMap[playerId] ?? 0;
+      final attempts = made + missed;
+
+      if (attempts > 0) {
+        _incrementStatMap(stats.playerStats, percentageKey, playerId,
+            ((made / attempts) * 100).round());
+      }
+    }
   }
 
   void _incrementStatMap(Map<String, Map<int, int>> stats, String category,

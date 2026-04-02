@@ -7,6 +7,7 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 
@@ -244,61 +245,89 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (isLiveGame)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: isCompact ? 8 : 12,
-                                  vertical: isCompact ? 2 : 4),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius:
-                                    BorderRadius.circular(isCompact ? 8 : 12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.5),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isLiveGame)
                                   Container(
-                                    width: isCompact ? 6 : 8,
-                                    height: isCompact ? 6 : 8,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: isCompact ? 8 : 12,
+                                        vertical: isCompact ? 2 : 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(
+                                          isCompact ? 8 : 12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withOpacity(0.5),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(width: isCompact ? 4 : 6),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: isCompact ? 6 : 8,
+                                          height: isCompact ? 6 : 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        SizedBox(width: isCompact ? 4 : 6),
+                                        Text(
+                                          loc.live,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: isCompact ? 10 : 12,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
                                   Text(
-                                    loc.live,
+                                    DateFormat(
+                                            isCompact ? 'MMM d' : 'MMM d, yyyy')
+                                        .format(_currentGame!.date),
                                     style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: isCompact ? 10 : 12,
-                                      letterSpacing: 1.2,
+                                      fontSize: headerFontSize,
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                if (_currentGame!.isScrimmage) ...[
+                                  SizedBox(width: isCompact ? 6 : 8),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: isCompact ? 4 : 6,
+                                        vertical: isCompact ? 2 : 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(
+                                          isCompact ? 4 : 6),
+                                    ),
+                                    child: Text(
+                                      'Scrimmage',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: isCompact ? 9 : 11,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
                                 ],
-                              ),
-                            )
-                          else
-                            Flexible(
-                              child: Text(
-                                DateFormat(isCompact ? 'MMM d' : 'MMM d, yyyy')
-                                    .format(_currentGame!.date),
-                                style: TextStyle(
-                                  fontSize: headerFontSize,
-                                  color: Colors.amber,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              ],
                             ),
+                          ),
                           Flexible(
                             child: Text(
                               _currentGame!.gameStatus.display,
@@ -551,7 +580,10 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                                     child: Text(
                                       isWin
                                           ? loc.win
-                                          : isLoss
+                                          : (isLoss ||
+                                                  SportStrategy
+                                                          .current.sportId ==
+                                                      'basketball')
                                               ? loc.loss
                                               : loc.tie,
                                       style: TextStyle(

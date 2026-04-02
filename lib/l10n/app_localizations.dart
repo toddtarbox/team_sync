@@ -1894,6 +1894,12 @@ abstract class AppLocalizations {
   /// **'Row {number}'**
   String rowNumber(Object number);
 
+  /// No description provided for @renameTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Team'**
+  String get renameTeam;
+
   /// No description provided for @save.
   ///
   /// In en, this message translates to:
@@ -2176,6 +2182,12 @@ abstract class AppLocalizations {
   /// **'Team Name'**
   String get teamName;
 
+  /// No description provided for @teamNameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Team name updated successfully'**
+  String get teamNameUpdated;
+
   /// No description provided for @teamShortName.
   ///
   /// In en, this message translates to:
@@ -2385,6 +2397,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uploading image...'**
   String get uploadingImage;
+
+  /// No description provided for @teamLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Team Logo'**
+  String get teamLogo;
+
+  /// No description provided for @organizationLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Organization Logo'**
+  String get organizationLogo;
 
   /// No description provided for @addLogo.
   ///
@@ -3081,6 +3105,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Time (optional)'**
   String get timeOptional;
+
+  /// No description provided for @importStats.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Stats'**
+  String get importStats;
+
+  /// No description provided for @importStatsConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to import stats? This will overwrite existing game events.'**
+  String get importStatsConfirm;
+
+  /// No description provided for @importStatsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get importStatsButton;
 }
 
 class _AppLocalizationsDelegate

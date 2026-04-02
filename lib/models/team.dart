@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
+import 'package:team_sync/models/career_stat_entry.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
@@ -164,7 +165,7 @@ class Team extends Equatable {
     };
   }
 
-  Future<Map<String, MapEntry<Player, int>>> calculateCareerStats(dynamic data,
+  Future<Map<String, CareerStatEntry>> calculateCareerStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
     final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
@@ -174,7 +175,7 @@ class Team extends Equatable {
 
     final events = data as List<Map<String, dynamic>>;
     final stats = await CareerStats.fromMap(id, events);
-    final careerStats = <String, MapEntry<Player, int>>{};
+    final careerStats = <String, CareerStatEntry>{};
     int i = 0;
     for (final category in categories) {
       progressController?.add(CalculationProgress(
@@ -188,7 +189,40 @@ class Team extends Equatable {
       if (statPlayers.isNotEmpty) {
         final sortedStats = List.from(statPlayers.entries);
         sortedStats.sort((a, b) => b.value.compareTo(a.value));
-        careerStats[category] = sortedStats.first;
+        final topEntry = sortedStats.first;
+
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            final madePlayers = await stats.getStatPlayers(madeKey);
+            final missedPlayers = await stats.getStatPlayers(missedKey);
+
+            final made = madePlayers[topEntry.key] ?? 0;
+            final missed = missedPlayers[topEntry.key] ?? 0;
+            final attempts = made + missed;
+            displayValue = '${topEntry.value}% ($made/$attempts)';
+          } else {
+            displayValue = '${topEntry.value}%';
+          }
+        }
+
+        careerStats[category] = CareerStatEntry(
+            player: topEntry.key,
+            value: topEntry.value,
+            displayValue: displayValue);
       }
       i++;
     }
@@ -251,8 +285,43 @@ class Team extends Equatable {
       }
 
       if (bestPlayer != null && bestSeason != null) {
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            // We need to re-fetch the season stats for the best season to get the made/missed counts
+            final seasonEvents = eventsBySeason[bestSeason.id] ?? [];
+            final seasonStats =
+                SeasonStats.fromMap(id, bestSeason.id, seasonEvents);
+            final madePlayers = await seasonStats.getStatPlayers(madeKey);
+            final missedPlayers = await seasonStats.getStatPlayers(missedKey);
+
+            final made = madePlayers[bestPlayer] ?? 0;
+            final missed = missedPlayers[bestPlayer] ?? 0;
+            final attempts = made + missed;
+            displayValue = '$bestValue% ($made/$attempts)';
+          } else {
+            displayValue = '$bestValue%';
+          }
+        }
+
         bestSeasonStats[category] = SeasonStat(
-            player: bestPlayer, season: bestSeason, value: bestValue);
+            player: bestPlayer,
+            season: bestSeason,
+            value: bestValue,
+            displayValue: displayValue);
       }
       i++;
     }
@@ -318,7 +387,7 @@ class Team extends Equatable {
           final gameEvents = eventsByGame[game.id] ?? [];
           if (gameEvents.isEmpty) continue;
 
-          final gameStats = await GameStats.fromEvents(id, gameEvents);
+          final gameStats = GameStats.fromEvents(id, gameEvents);
           final statPlayers = await gameStats.getStatPlayers(category);
 
           for (final entry in statPlayers.entries) {
@@ -339,8 +408,42 @@ class Team extends Equatable {
       }
 
       if (bestPlayer != null && bestGame != null && bestSeason != null) {
-        bestGameStats.setBestStat(
-            category, bestPlayer, bestGame, bestSeason, bestValue);
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            // Re-calculate stats for the best game to get made/missed
+            final gameEvents = eventsByGame[bestGame.id] ?? [];
+            if (gameEvents.isNotEmpty) {
+              final gameStats = GameStats.fromEvents(id, gameEvents);
+              final madePlayers = await gameStats.getStatPlayers(madeKey);
+              final missedPlayers = await gameStats.getStatPlayers(missedKey);
+
+              final made = madePlayers[bestPlayer] ?? 0;
+              final missed = missedPlayers[bestPlayer] ?? 0;
+              final attempts = made + missed;
+              displayValue = '$bestValue% ($made/$attempts)';
+            }
+          }
+        }
+        if (displayValue == null && category.contains('percentage')) {
+          displayValue = '$bestValue%';
+        }
+
+        bestGameStats.setBestStat(category, bestPlayer, bestGame, bestSeason,
+            bestValue, displayValue);
       }
       i++;
     }
@@ -360,7 +463,7 @@ class Team extends Equatable {
       final gameEvents = await GameEvent.listFromGameId(game.id);
       if (gameEvents.isEmpty) return;
 
-      final gameStats = await GameStats.fromEvents(id, gameEvents);
+      final gameStats = GameStats.fromEvents(id, gameEvents);
 
       // Load seasons for this team and find the one matching this game
       final seasons = await Season.fromTeamId(id);
@@ -393,12 +496,41 @@ class Team extends Equatable {
         // Check if this beats the current best
         final currentBest = currentBestStats.getBestStat(category);
         if (currentBest == null || bestGameValue > currentBest.value) {
+          String? displayValue;
+          if (category.contains('percentage')) {
+            String madeKey = '';
+            String missedKey = '';
+            if (category == '3_point_percentage') {
+              madeKey = '3_pointers';
+              missedKey = '3_pointers_missed';
+            } else if (category == '2_point_percentage') {
+              madeKey = '2_pointers';
+              missedKey = '2_pointers_missed';
+            } else if (category == 'free_throw_percentage') {
+              madeKey = 'free_throws';
+              missedKey = 'free_throws_missed';
+            }
+
+            if (madeKey.isNotEmpty) {
+              final madePlayers = await gameStats.getStatPlayers(madeKey);
+              final missedPlayers = await gameStats.getStatPlayers(missedKey);
+
+              final made = madePlayers[bestGamePlayer] ?? 0;
+              final missed = missedPlayers[bestGamePlayer] ?? 0;
+              final attempts = made + missed;
+              displayValue = '$bestGameValue% ($made/$attempts)';
+            } else {
+              displayValue = '$bestGameValue%';
+            }
+          }
+
           currentBestStats.setBestStat(
             category,
             bestGamePlayer,
             game,
             season,
             bestGameValue,
+            displayValue,
           );
           hasUpdates = true;
         }
@@ -460,7 +592,7 @@ class Team extends Equatable {
         CalculationProgress(total: 1, current: 1, message: 'Cache rebuilt'));
   }
 
-  Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(
+  Future<List<CareerStatEntry>> getCareerStatsForCategory(
       String category) async {
     final results = await DatabaseService.instance
         .query('Events', orderByChild: 'teamId', equalTo: id);
@@ -468,7 +600,42 @@ class Team extends Equatable {
     final statPlayers = await stats.getStatPlayers(category);
     final sortedStats = List.from(statPlayers.entries);
     sortedStats.sort((a, b) => b.value.compareTo(a.value));
-    return sortedStats.cast<MapEntry<Player, int>>();
+
+    final careerStatEntries = <CareerStatEntry>[];
+    for (final entry in sortedStats) {
+      String? displayValue;
+      if (category.contains('percentage')) {
+        String madeKey = '';
+        String missedKey = '';
+        if (category == '3_point_percentage') {
+          madeKey = '3_pointers';
+          missedKey = '3_pointers_missed';
+        } else if (category == '2_point_percentage') {
+          madeKey = '2_pointers';
+          missedKey = '2_pointers_missed';
+        } else if (category == 'free_throw_percentage') {
+          madeKey = 'free_throws';
+          missedKey = 'free_throws_missed';
+        }
+
+        if (madeKey.isNotEmpty) {
+          final madePlayers = await stats.getStatPlayers(madeKey);
+          final missedPlayers = await stats.getStatPlayers(missedKey);
+
+          final made = madePlayers[entry.key] ?? 0;
+          final missed = missedPlayers[entry.key] ?? 0;
+          final attempts = made + missed;
+          displayValue = '${entry.value}% ($made/$attempts)';
+        } else {
+          displayValue = '${entry.value}%';
+        }
+      }
+
+      careerStatEntries.add(CareerStatEntry(
+          player: entry.key, value: entry.value, displayValue: displayValue));
+    }
+
+    return careerStatEntries;
   }
 
   Future<List<SeasonStat>> getAllSeasonStatsForCategory(String category) async {
@@ -532,7 +699,7 @@ class Team extends Equatable {
 
     for (final game in games) {
       final gameEvents = eventsByGame[game.id] ?? [];
-      final gameStats = await GameStats.fromEvents(id, gameEvents);
+      final gameStats = GameStats.fromEvents(id, gameEvents);
       final statPlayers = await gameStats.getStatPlayers(category);
 
       for (final entry in statPlayers.entries) {
@@ -561,6 +728,8 @@ class Team extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        fullName,
+        shortName,
         color1,
         color2,
         createdBy,

@@ -11,11 +11,14 @@ class BestGameStat {
   final Season season;
   final int value;
 
+  final String? displayValue;
+
   BestGameStat(
       {required this.player,
       required this.game,
       required this.season,
-      required this.value});
+      required this.value,
+      this.displayValue});
 
   Map<String, dynamic> toMap(int teamId, String category) {
     return {
@@ -26,6 +29,7 @@ class BestGameStat {
       'gameId': game.id,
       'seasonId': season.id,
       'value': value,
+      'displayValue': displayValue,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
   }
@@ -36,6 +40,7 @@ class BestGameStat {
       final gameId = map['gameId'] as int?;
       final seasonId = map['seasonId'] as int?;
       final value = map['value'] as int?;
+      final displayValue = map['displayValue'] as String?;
 
       if (playerId == null ||
           gameId == null ||
@@ -64,6 +69,7 @@ class BestGameStat {
         game: game,
         season: season,
         value: value,
+        displayValue: displayValue,
       );
     } catch (e) {
       return null;
@@ -75,10 +81,14 @@ class BestGameStats implements StatLeaders {
   final HashMap<String, BestGameStat> _bestStats =
       HashMap<String, BestGameStat>();
 
-  void setBestStat(
-      String category, Player player, Game game, Season season, int value) {
-    _bestStats[category] =
-        BestGameStat(player: player, game: game, season: season, value: value);
+  void setBestStat(String category, Player player, Game game, Season season,
+      int value, String? displayValue) {
+    _bestStats[category] = BestGameStat(
+        player: player,
+        game: game,
+        season: season,
+        value: value,
+        displayValue: displayValue);
   }
 
   BestGameStat? getBestStat(String category) {
@@ -128,6 +138,7 @@ class BestGameStats implements StatLeaders {
               stat.game,
               stat.season,
               stat.value,
+              stat.displayValue,
             );
           }
         }

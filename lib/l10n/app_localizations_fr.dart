@@ -1003,6 +1003,9 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get renameTeam => 'Rename Team';
+
+  @override
   String get save => 'Enregistrer';
 
   @override
@@ -1149,6 +1152,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get teamName => 'Nom de l\'équipe';
 
   @override
+  String get teamNameUpdated => 'Team name updated successfully';
+
+  @override
   String get teamShortName => 'Nom court de l\'équipe';
 
   @override
@@ -1256,6 +1262,12 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get uploadingImage => 'Téléchargement de l\'image...';
+
+  @override
+  String get teamLogo => 'Team Logo';
+
+  @override
+  String get organizationLogo => 'Organization Logo';
 
   @override
   String get addLogo => 'Ajouter un logo';
@@ -1626,4 +1638,14 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get timeOptional => 'Time (optional)';
+
+  @override
+  String get importStats => 'Import Stats';
+
+  @override
+  String get importStatsConfirm =>
+      'Are you sure you want to import stats? This will overwrite existing game events.';
+
+  @override
+  String get importStatsButton => 'Import';
 }
