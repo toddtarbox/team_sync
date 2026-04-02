@@ -685,6 +685,20 @@ class Game {
     }
   }
 
+  Future<void> resetGame() async {
+    gameStatus = GameStatus.notStarted;
+    homeTeamScore = 0;
+    awayTeamScore = 0;
+
+    await saveGame();
+
+    // delete all associated events
+    final events = await GameEvent.listFromGameId(id);
+    for (final event in events) {
+      await DatabaseService.instance.delete('Events', key: event.id.toString());
+    }
+  }
+
   Future<bool> saveGame() async {
     if (homeTeam.id > 0 && awayTeam.id > 0) {
       // Use ISO8601 format to preserve time information

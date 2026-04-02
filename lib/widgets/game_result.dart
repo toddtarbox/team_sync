@@ -19,16 +19,18 @@ class GameResult extends StatelessWidget {
     int oppScore =
         game.isHomeTeam(teamId) ? game.awayTeamScore : game.homeTeamScore;
 
-    String result;
+    String result = '';
     Color color;
-    if (game.isWin(teamId)) {
-      result = 'W';
+    if (!game.isCompleted) {
+      color = Colors.blueGrey;
+    } else if (game.isWin(teamId)) {
+      result = 'W ';
       color = Colors.green;
     } else if (game.isTie && SportStrategy.current.sportId != 'basketball') {
-      result = 'T';
+      result = 'T ';
       color = Colors.grey;
     } else {
-      result = 'L';
+      result = 'L ';
       color = Colors.red;
     }
 
@@ -36,7 +38,7 @@ class GameResult extends StatelessWidget {
         decoration: BoxDecoration(
             color: color, borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-        child: Text('$result ${teamScore.toString()} - ${oppScore.toString()}',
+        child: Text('$result${teamScore.toString()} - ${oppScore.toString()}',
             maxLines: 1,
             softWrap: false,
             style: const TextStyle(

@@ -789,6 +789,38 @@ class _GamePageState extends State<GamePage> {
                   _eventEmitter.emit('endGame', null, selectedStatus);
                 }
                 break;
+              case 'reset':
+                final bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Reset Game'),
+                      content: const Text(
+                          "Are you sure you want to reset this game back to 'Not Started'? All events logged for this game will be deleted. This cannot be undone."),
+                      actions: [
+                        TextButton(
+                          child: Text(loc.continueText),
+                          onPressed: () {
+                            Navigator.pop(context, true);
+                          },
+                        ),
+                        TextButton(
+                          child: Text(loc.cancel),
+                          onPressed: () {
+                            Navigator.pop(context, false);
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirm == true) {
+                  await _game.resetGame();
+                  if (mounted) {
+                    setState(() {});
+                  }
+                }
+                break;
               case 'lineup':
                 LineupGenerator.showLineupDialog(
                   context,
@@ -830,6 +862,14 @@ class _GamePageState extends State<GamePage> {
               child: ListTile(
                 leading: const Icon(Icons.done),
                 title: Text(loc.endGame),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'reset',
+              child: ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('Reset Game'),
                 contentPadding: EdgeInsets.zero,
               ),
             ),
