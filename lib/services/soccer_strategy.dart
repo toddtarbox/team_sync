@@ -34,6 +34,7 @@ class SoccerStrategy implements SportStrategy {
         'saves',
         'shots',
         'shotsOnGoal',
+        'corners',
         'fouls',
         'yellows',
         'reds'
@@ -411,6 +412,10 @@ class SoccerStrategy implements SportStrategy {
           }
           break;
 
+        case 'Corner':
+          _incrementPlayerStat(stats, 'corners', playerId);
+          break;
+
         case 'Foul':
           _incrementPlayerStat(stats, 'fouls', playerId);
           break;
@@ -479,6 +484,10 @@ class SoccerStrategy implements SportStrategy {
           } else if (eventData == 2) {
             _incrementStatMap(stats.playerStats, 'secondYellowReds', playerId);
           }
+          break;
+
+        case 'Corner':
+          _incrementStatMap(stats.playerStats, 'corners', playerId);
           break;
       }
     }

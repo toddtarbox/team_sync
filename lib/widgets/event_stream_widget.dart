@@ -38,8 +38,13 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
   @override
   void didUpdateWidget(EventStreamWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    
+    // Always update _currentGame when widget.game changes
+    _currentGame = widget.game;
+    
     if (oldWidget.game?.id != widget.game?.id) {
-      _currentGame = widget.game;
+      _setupAutoUpdate();
+    } else if (oldWidget.game?.gameStatus != widget.game?.gameStatus) {
       _setupAutoUpdate();
     }
   }
@@ -1058,6 +1063,8 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
                 awayStats.assists, 'assists'),
             _buildStatRow(
                 context, 'Fouls', homeStats.fouls, awayStats.fouls, 'fouls'),
+            _buildStatRow(context, 'Corners', homeStats.corners,
+                awayStats.corners, 'corners'),
             _buildStatRow(context, 'Offsides', homeStats.offsides,
                 awayStats.offsides, 'offsides'),
             _buildStatRow(context, 'Yellow Cards', homeStats.yellows,
@@ -1405,6 +1412,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
     int offsides = 0;
     int yellows = 0;
     int reds = 0;
+    int corners = 0;
 
     // Basketball / Generic
     int points = 0;
@@ -1455,6 +1463,9 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
           break;
         case 'Offsides':
           offsides++;
+          break;
+        case 'Corner':
+          corners++;
           break;
         case 'Card':
           if (event.eventData == 0) {
@@ -1516,6 +1527,7 @@ class _EventStreamWidgetState extends State<EventStreamWidget> {
       offsides: offsides,
       yellows: yellows,
       reds: reds,
+      corners: corners,
       points: points,
       threePointersMade: threePointersMade,
       threePointersAttempted: threePointersAttempted,
@@ -1543,6 +1555,7 @@ class _TeamStats {
   final int offsides;
   final int yellows;
   final int reds;
+  final int corners;
 
   // Basketball / Generic
   final int points;
@@ -1572,6 +1585,7 @@ class _TeamStats {
     required this.offsides,
     required this.yellows,
     required this.reds,
+    this.corners = 0,
     this.points = 0,
     this.threePointersMade = 0,
     this.threePointersAttempted = 0,

@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -25,7 +23,7 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Check if Apple sign-in is available on current platform
-  bool get isAppleSignInAvailable => kIsWeb || Platform.isIOS;
+  bool get isAppleSignInAvailable => kIsWeb || defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
@@ -59,7 +57,7 @@ class AuthService {
   /// Sign in with Apple
   Future<UserCredential?> signInWithApple() async {
     // Apple sign-in is only supported on iOS and web
-    if (!kIsWeb && !Platform.isIOS) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
       throw UnsupportedError('Apple sign-in is not supported on this platform');
     }
 

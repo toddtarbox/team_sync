@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';

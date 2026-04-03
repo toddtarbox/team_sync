@@ -1,5 +1,5 @@
 // Web-specific imports
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'package:team_sync/services/sport_strategy.dart';
 import 'dart:ui' as ui;
 

@@ -196,7 +196,7 @@ class GameStatsDisplay extends StatelessWidget {
     final awayValueColor = isHomeTeam ? Colors.grey[700]! : teamColor;
 
     return InkWell(
-      onTap: showPlayerDetails && category != 'corners'
+      onTap: showPlayerDetails
           ? () => _showPlayerDetailsDialog(context, category)
           : null,
       borderRadius: BorderRadius.circular(8),
@@ -298,7 +298,7 @@ class GameStatsDisplay extends StatelessWidget {
                 ],
               ),
             ),
-            if (showPlayerDetails && category != 'corners')
+            if (showPlayerDetails)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(

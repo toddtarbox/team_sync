@@ -24,6 +24,7 @@ class GameStats implements StatLeaders {
   final HashMap<int, int> _playerShotsOffPost = HashMap<int, int>();
   final HashMap<int, int> _playerSaves = HashMap<int, int>();
   final HashMap<int, int> _playerOffsides = HashMap<int, int>();
+  final HashMap<int, int> _playerCorners = HashMap<int, int>();
   final HashMap<int, int> _playerFouls = HashMap<int, int>();
   final HashMap<int, int> _playerYellows = HashMap<int, int>();
   final HashMap<int, int> _playerSecondYellows = HashMap<int, int>();
@@ -110,6 +111,11 @@ class GameStats implements StatLeaders {
 
         case 'Offsides':
           stats._playerOffsides
+              .update(playerId, (value) => value + 1, ifAbsent: () => 1);
+          break;
+
+        case 'Corner':
+          stats._playerCorners
               .update(playerId, (value) => value + 1, ifAbsent: () => 1);
           break;
 
@@ -237,8 +243,8 @@ class GameStats implements StatLeaders {
         sourceTable = _playerOffsides;
         break;
       case 'corners':
-        // Corners are team stats, not player stats
-        return players;
+        sourceTable = _playerCorners;
+        break;
       case 'fouls':
         sourceTable = _playerFouls;
         break;
@@ -631,7 +637,26 @@ class Game {
   }
 
   Future<List<GameEvent>> loadGameEvents() async {
-    allGameEvents = await GameEvent.listFromGameId(id);
+    final rawEvents = await GameEvent.listFromGameId(id);
+
+    // Deduplicate Period events (same eventPeriod)
+    final Map<int, GameEvent> uniquePeriods = {};
+    allGameEvents = [];
+    
+    for (final e in rawEvents) {
+      if (e.eventType == 'Period') {
+        if (uniquePeriods.containsKey(e.eventPeriod)) {
+          // Duplicate period event, clean it up from DB
+          await DatabaseService.instance.delete('Events', key: e.id.toString());
+        } else {
+          uniquePeriods[e.eventPeriod] = e;
+          allGameEvents.add(e);
+        }
+      } else {
+        allGameEvents.add(e);
+      }
+    }
+
     scoringEvents = allGameEvents
         .where((e) => e.eventMinute > -2 && e.isGoalEvent)
         .toList(growable: false);

@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -3068,6 +3068,18 @@ class _TeamHomePageState extends State<TeamHomePage>
       if (_currentOrLastGame != null) {
         await _currentOrLastGame!.loadGameEvents();
       }
+
+      // Cancel the update timer if game is no longer live
+      if (_liveGameUpdateTimer != null) {
+        final isLiveGame = _currentOrLastGame != null && 
+                           _currentOrLastGame!.gameStatus.index > 0 && 
+                           _currentOrLastGame!.gameStatus.index < 9;
+        if (!isLiveGame) {
+          _liveGameUpdateTimer?.cancel();
+          _liveGameUpdateTimer = null;
+        }
+      }
+
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading current/last game: $e');
@@ -4381,7 +4393,9 @@ $liveLink
         final g = _currentOrLastGame!.date.toLocal();
         isLive = g.year == nowLocal.year &&
             g.month == nowLocal.month &&
-            g.day == nowLocal.day;
+            g.day == nowLocal.day &&
+            _currentOrLastGame!.gameStatus.index > 0 &&
+            _currentOrLastGame!.gameStatus.index < 9;
       } catch (e) {
         debugPrint('Error checking live game date: $e');
         isLive = false;

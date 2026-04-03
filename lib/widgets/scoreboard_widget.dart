@@ -49,8 +49,14 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
   @override
   void didUpdateWidget(ScoreboardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Always update _currentGame when widget.game changes, 
+    // even if the ID is the same, as properties like gameStatus may have changed.
+    _currentGame = widget.game;
+    
     if (oldWidget.game?.id != widget.game?.id) {
-      _currentGame = widget.game;
+      _setupAutoUpdate();
+    } else if (oldWidget.game?.gameStatus != widget.game?.gameStatus) {
+      // Re-setup auto update if status changed (e.g. from live to non-live)
       _setupAutoUpdate();
     }
   }

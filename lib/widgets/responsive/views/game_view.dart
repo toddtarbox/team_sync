@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
@@ -38,29 +38,53 @@ class GameView extends StatefulWidget {
   State<GameView> createState() => _GameViewState();
 }
 
-class _GameViewState extends State<GameView> {
+class _GameViewState extends State<GameView>
+    with AutomaticKeepAliveClientMixin {
   GameEvent? _autoCreateSave;
   GameEvent? _autoCreateAssist;
   late Game _game;
+  bool _isAdvancing = false;
+  static int _lastGeneratedId = 0;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  dynamic _createEventListener;
+  dynamic _advanceGameListener;
+  dynamic _sendTweetListener;
+  dynamic _loadSettingsListener;
+  dynamic _endGameListener;
 
   @override
   void initState() {
     _game = widget.game;
 
-    widget.eventEmitter.on('createEvent', context, (event, eventContext) async {
+    _createEventListener = widget.eventEmitter.on('createEvent', context,
+        (event, eventContext) async {
       await _editEvent();
     });
 
-    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+    _advanceGameListener = widget.eventEmitter.on('advanceGame', context,
+        (event, eventContext) async {
       await _advanceGame();
     });
 
-    widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
+    _endGameListener =
+        widget.eventEmitter.on('endGame', context, (event, eventContext) async {
+      final status = event.eventData as int;
+      await _game.endGame(status);
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    _sendTweetListener = widget.eventEmitter.on('sendTweet', context,
+        (event, eventContext) async {
       await AdhocTweetDialog.show(context,
           teamId: widget.season.teamId, team: widget.season.team);
     });
 
-    widget.eventEmitter.on('loadSettings', context,
+    _loadSettingsListener = widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
       // Initialize Twitter with team credentials once at startup
       await TwitterService.instance
@@ -72,7 +96,26 @@ class _GameViewState extends State<GameView> {
   }
 
   @override
+  void dispose() {
+    _createEventListener?.cancel();
+    _advanceGameListener?.cancel();
+    _endGameListener?.cancel();
+    _sendTweetListener?.cancel();
+    _loadSettingsListener?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GameView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game.id != widget.game.id) {
+      _game = widget.game;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final loc = AppLocalizations.of(context)!;
 
     if (_autoCreateSave != null) {
@@ -238,7 +281,7 @@ class _GameViewState extends State<GameView> {
                     visible: showScoringEvents,
                     child: Column(
                       children: [
-                        _getEventTile(event, loc),
+                        _getEventTile(event, loc, prefix: 'scoring-'),
                         const Divider(height: 1),
                       ],
                     ));
@@ -261,7 +304,7 @@ class _GameViewState extends State<GameView> {
                     key: ValueKey('event-${event.id}'),
                     child: Column(
                       children: [
-                        _getEventTile(event, loc),
+                        _getEventTile(event, loc, prefix: 'event-'),
                         const Divider(height: 1),
                       ],
                     ));
@@ -290,7 +333,7 @@ class _GameViewState extends State<GameView> {
                       key: ValueKey('shootout-${event.id}'),
                       child: Column(
                         children: [
-                          _getEventTile(event, loc),
+                          _getEventTile(event, loc, prefix: 'shootout-'),
                           const Divider(height: 1),
                         ],
                       ));
@@ -406,7 +449,8 @@ class _GameViewState extends State<GameView> {
     await launchUrl(Uri.parse(url));
   }
 
-  Widget _getEventTile(GameEvent event, AppLocalizations loc) {
+  Widget _getEventTile(GameEvent event, AppLocalizations loc,
+      {String prefix = ''}) {
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
@@ -477,12 +521,12 @@ class _GameViewState extends State<GameView> {
       ),
     );
 
-    if (kIsWeb || isPeriodEvent) {
+    if (kIsWeb) {
       return eventCard;
     }
 
     return Dismissible(
-        key: Key(event.id.toString()),
+        key: Key('$prefix${event.id}'),
         direction: DismissDirection.endToStart,
         dismissThresholds: const {
           DismissDirection.endToStart: 0.7,
@@ -546,6 +590,12 @@ class _GameViewState extends State<GameView> {
           );
         },
         onDismissed: (direction) async {
+          // Synchronously remove the event to avoid "dismissed widget still part of tree" assert
+          _game.gameEvents.removeWhere((e) => e.id == event.id);
+          _game.scoringEvents.removeWhere((e) => e.id == event.id);
+          _game.shootoutEvents.removeWhere((e) => e.id == event.id);
+          _game.allGameEvents.removeWhere((e) => e.id == event.id);
+
           await DatabaseService.instance
               .delete('Events', key: event.id.toString());
           setState(() {
@@ -1265,15 +1315,20 @@ class _GameViewState extends State<GameView> {
       }
 
       if (mounted) {
-        // Show tweet preview dialog - it handles initialization and sending internally
-        await TweetPreviewDialog.show(
-          context,
-          initialText: tweetText,
-          teamId: widget.season.teamId,
-          team: widget.season.team,
-          imageFile: playerImageFile,
-          eventContext: 'GOAL!',
-        );
+        // Check if twitter is configured first
+        if (await TwitterService.instance
+            .isConfigured(teamId: widget.season.teamId)) {
+          if (!mounted) return;
+          // Show tweet preview dialog - it handles initialization and sending internally
+          await TweetPreviewDialog.show(
+            context,
+            initialText: tweetText,
+            teamId: widget.season.teamId,
+            team: widget.season.team,
+            imageFile: playerImageFile,
+            eventContext: 'GOAL!',
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error sending goal tweet: $e');
@@ -1537,8 +1592,7 @@ class _GameViewState extends State<GameView> {
                         Visibility(
                             visible: playerEntries.isNotEmpty,
                             child: DropdownMenu(
-                                enabled: (event.eventType != 'Corner' &&
-                                        playerEntries.isNotEmpty) ||
+                                enabled: (playerEntries.isNotEmpty) ||
                                     (event.eventType == 'Shot' &&
                                         event.eventData ==
                                             ShotResult.goal.index),
@@ -1733,23 +1787,37 @@ class _GameViewState extends State<GameView> {
   }
 
   Future<void> _advanceGame() async {
-    await _game.advanceGame();
+    if (_isAdvancing) return;
+    _isAdvancing = true;
+    try {
+      await _game.advanceGame();
 
-    final periodEvent = Period(
-        id: -1,
-        index: -1,
-        player: null,
-        team: _game.homeTeam,
-        game: _game,
-        seasonId: _game.seasonId,
-        eventType: 'Period',
-        eventMinute: -1,
-        eventPeriod: _game.gameStatus.index,
-        eventUrls: '',
-        eventData: _game.gameStatus.index);
-    await _saveEvent(periodEvent);
+      // Ensure we don't create duplicate period events defensively
+      final bool existingPeriod = _game.allGameEvents.any((e) =>
+          e.eventType == 'Period' && e.eventPeriod == _game.gameStatus.index);
 
-    setState(() {});
+      if (!existingPeriod) {
+        final periodEvent = Period(
+            id: -1,
+            index: -1,
+            player: null,
+            team: _game.homeTeam,
+            game: _game,
+            seasonId: _game.seasonId,
+            eventType: 'Period',
+            eventMinute: -1,
+            eventPeriod: _game.gameStatus.index,
+            eventUrls: '',
+            eventData: _game.gameStatus.index);
+        await _saveEvent(periodEvent);
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } finally {
+      _isAdvancing = false;
+    }
   }
 
   Future<bool> _saveEvent(GameEvent event) async {
@@ -1760,8 +1828,17 @@ class _GameViewState extends State<GameView> {
     }
 
     if (event.eventPeriod >= 0) {
+      int eventId = event.id;
       if (event.id == -1) {
-        final newId = DateTime.now().millisecondsSinceEpoch;
+        int newId = DateTime.now().millisecondsSinceEpoch;
+        if (newId <= _lastGeneratedId) {
+          newId = _lastGeneratedId + 1;
+        }
+        _lastGeneratedId = newId;
+
+        eventId = newId;
+        event.id = newId;
+        event.index = newId;
         await DatabaseService.instance.insert('Events', {
           'id': newId,
           'index': newId,
@@ -1796,27 +1873,33 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      // Only send tweets when game is in progress (but NOT for goals - those are sent after assist dialog)
+      bool showAssistDialog = event.isGoalEvent &&
+          event.player?.id != -2 &&
+          event.team.id == widget.season.teamId;
+
+      // Only send tweets when game is in progress (but NOT for goals with assist dialogs - those are sent after assist dialog)
       final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
           _game.gameStatus != GameStatus.gameFinal &&
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      // Don't tweet goals here - they'll be tweeted after assist dialog
-      if (event.shouldTweet && !event.isGoalEvent && gameInProgress) {
+      // Don't tweet here if it will be handled by the assist dialog flow
+      if (event.shouldTweet && !showAssistDialog && gameInProgress) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
           if (mounted) {
             // Check if twitter is configured first
             if (await TwitterService.instance
                 .isConfigured(teamId: widget.season.teamId)) {
-              // Show tweet preview dialog - it handles initialization and sending internally
-              await TweetPreviewDialog.show(
-                context,
-                initialText: tweetText,
-                teamId: widget.season.teamId,
-                team: widget.season.team,
-              );
+              if (mounted) {
+                // Show tweet preview dialog - it handles initialization and sending internally
+                await TweetPreviewDialog.show(
+                  context,
+                  initialText: tweetText,
+                  teamId: widget.season.teamId,
+                  team: widget.season.team,
+                );
+              }
             }
           }
         }
@@ -1839,13 +1922,11 @@ class _GameViewState extends State<GameView> {
             eventMinute: event.eventMinute,
             eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: event.id);
+            eventData: eventId);
         setState(() {
           _autoCreateSave = saveEvent;
         });
-      } else if (event.isGoalEvent &&
-          event.player?.id != -2 &&
-          event.team.id == widget.season.teamId) {
+      } else if (showAssistDialog) {
         // Auto-create an Assist event for goals by our team (excluding own goals)
         final assistEvent = Assist(
             id: -1,
@@ -1858,7 +1939,7 @@ class _GameViewState extends State<GameView> {
             eventMinute: event.eventMinute,
             eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: event.id);
+            eventData: eventId);
         setState(() {
           _autoCreateAssist = assistEvent;
         });

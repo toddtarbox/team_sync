@@ -49,6 +49,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   // Current future being displayed
   Future<dynamic>? _currentFuture;
 
+  dynamic _eventCreatedListener;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -58,7 +60,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     // Initialize the first future
     _careerStatsFuture = _loadAndCalculateStats();
     _currentFuture = _careerStatsFuture;
-    EventService().eventEmitter.on('eventCreated', context,
+    _eventCreatedListener = EventService().eventEmitter.on('eventCreated', context,
         (event, eventContext) {
       _clearCache();
     });
@@ -66,6 +68,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   @override
   void dispose() {
+    _eventCreatedListener?.cancel();
     _progressController.close();
     super.dispose();
   }

@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -314,7 +314,7 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
       final databaseId = DatabaseService.instance.publicShareId ?? '';
       final baseUrl = SportStrategy.current.webUrl;
       final gameUrl =
-          '$baseUrl/team/$databaseId/season/${widget.season.id}/games/${widget.game.id}';
+          '$baseUrl/team/$databaseId/season/${widget.season.id}/game/${widget.game.id}';
 
       final tweetText =
           '${widget.season.team.shortName} $result $teamScore-$opponentScore vs $opponentName\n\n$gameUrl\n\n#${widget.season.team.shortName.replaceAll(' ', '')}';

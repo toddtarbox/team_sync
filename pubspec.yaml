@@ -81,6 +81,7 @@ dependencies:
     sdk: flutter
   table_calendar: ^3.2.0
   html: ^0.15.6
+  universal_io: ^2.3.1
 
   # keep dev deps below
 

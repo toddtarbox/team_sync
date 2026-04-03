@@ -27,21 +27,32 @@ class GameStatsView extends StatefulWidget {
   State<GameStatsView> createState() => _GameStatsViewState();
 }
 
-class _GameStatsViewState extends State<GameStatsView> {
+class _GameStatsViewState extends State<GameStatsView> with AutomaticKeepAliveClientMixin {
   late Game _game;
   late List<ListTile> _statCategoryTiles;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  dynamic _eventCreatedListener;
+  dynamic _advanceGameListener;
+  dynamic _endGameListener;
 
   @override
   void initState() {
     _game = widget.game;
 
-    widget.eventEmitter.on('eventCreated', context,
+    _eventCreatedListener = widget.eventEmitter.on('eventCreated', context,
         (event, eventContext) async {
       await _loadStats();
       setState(() {});
     });
 
-    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+    _advanceGameListener = widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+      setState(() {});
+    });
+
+    _endGameListener = widget.eventEmitter.on('endGame', context, (event, eventContext) async {
       setState(() {});
     });
 
@@ -49,7 +60,24 @@ class _GameStatsViewState extends State<GameStatsView> {
   }
 
   @override
+  void dispose() {
+    _eventCreatedListener?.cancel();
+    _advanceGameListener?.cancel();
+    _endGameListener?.cancel();
+    super.dispose();
+  }
+  @override
+  void didUpdateWidget(GameStatsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game.id != widget.game.id) {
+       _game = widget.game;
+       _loadStats();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final loc = AppLocalizations.of(context)!;
     return FutureBuilder(
         future: _loadStats(),
@@ -123,10 +151,11 @@ class _GameStatsViewState extends State<GameStatsView> {
 
       int opponentTotalForCategory = 0;
       for (final event in _game.allGameEvents) {
-        // Count team corners separately since they don't have player stats
+        // Count legacy team corners separately since they didn't have player stats
         if (category == 'corners' &&
             event.eventType == 'Corner' &&
-            event.team.id == widget.season.teamId) {
+            event.team.id == widget.season.teamId &&
+            event.player == null) {
           teamTotalForCategory++;
         }
 

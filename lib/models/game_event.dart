@@ -239,7 +239,7 @@ class Period extends GameEvent {
 }
 
 class GameEvent {
-  final int id;
+  int id;
   int index; // Added index field for ordering
   Player? player;
   Team team;
