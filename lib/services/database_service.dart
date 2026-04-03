@@ -86,17 +86,6 @@ class FirebaseDBProvider implements DatabaseProvider {
 
   FirebaseDBProvider() {
     if (DatabaseService.isTest) return;
-    // Enable offline persistence on platforms that support it (mobile/desktop).
-    // Web does not support setPersistenceEnabled, so guard with kIsWeb.
-    try {
-      if (!kIsWeb) {
-        _database.setPersistenceEnabled(true);
-        // Set a reasonable cache size (10 MB) — adjust if needed.
-        _database.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
-      }
-    } catch (e) {
-      debugPrint('Could not enable RTDB persistence: $e');
-    }
 
     // Listen to connection state from RTDB special location
     try {

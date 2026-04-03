@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -58,6 +60,19 @@ Future<void> _initializeApp(FirebaseOptions Function() optionsBuilder) async {
       rethrow;
     }
   }
+
+  // Enable offline persistence on platforms that support it (mobile/desktop).
+  // Web does not support setPersistenceEnabled, so guard with kIsWeb.
+  try {
+    if (!kIsWeb) {
+      FirebaseDatabase.instance.setPersistenceEnabled(true);
+      // Set a reasonable cache size (10 MB) — adjust if needed.
+      FirebaseDatabase.instance.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
+    }
+  } catch (e) {
+    debugPrint('Could not enable RTDB persistence: $e');
+  }
+
   await SubscriptionService.instance.initialize();
 
   if (kIsWeb) {
@@ -125,16 +140,18 @@ class MyApp extends StatelessWidget {
           supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: router,
           builder: (context, child) {
-            return ShowCaseWidget(
-              builder: (context) => ResponsiveBreakpoints.builder(
-                child: child!,
-                breakpoints: [
-                  const Breakpoint(start: 0, end: 450, name: MOBILE),
-                  const Breakpoint(start: 451, end: 800, name: TABLET),
-                  const Breakpoint(start: 801, end: 1920, name: DESKTOP),
-                  const Breakpoint(
-                      start: 1921, end: double.infinity, name: '4K'),
-                ],
+            return OrientationLocker(
+              child: ShowCaseWidget(
+                builder: (context) => ResponsiveBreakpoints.builder(
+                  child: child!,
+                  breakpoints: [
+                    const Breakpoint(start: 0, end: 450, name: MOBILE),
+                    const Breakpoint(start: 451, end: 800, name: TABLET),
+                    const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+                    const Breakpoint(
+                        start: 1921, end: double.infinity, name: '4K'),
+                  ],
+                ),
               ),
             );
           },
@@ -221,5 +238,40 @@ class ThemeNotifier extends ChangeNotifier {
     }
     notifyListeners();
     _savePreferences();
+  }
+}
+
+class OrientationLocker extends StatefulWidget {
+  final Widget child;
+  const OrientationLocker({super.key, required this.child});
+
+  @override
+  State<OrientationLocker> createState() => _OrientationLockerState();
+}
+
+class _OrientationLockerState extends State<OrientationLocker> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!kIsWeb) {
+      final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+      if (shortestSide < 600) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.child;
   }
 }
