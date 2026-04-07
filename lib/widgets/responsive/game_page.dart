@@ -3,6 +3,7 @@ import 'package:photo_view/photo_view.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
@@ -40,6 +41,7 @@ class _GamePageState extends State<GamePage> {
   Future<Season?>? _seasonFuture;
   Season? _loadedSeason;
   bool _isStatsPanelOpen = false;
+  bool _showBoxScore = true;
 
   @override
   void initState() {
@@ -428,9 +430,15 @@ class _GamePageState extends State<GamePage> {
                             margin: const EdgeInsets.only(
                                 left: 16, right: 16, top: 16),
                           ),
-                          BoxScoreWidget(
-                            game: _game,
-                            season: resolvedSeason,
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            child: _showBoxScore
+                                ? BoxScoreWidget(
+                                    game: _game,
+                                    season: resolvedSeason,
+                                  )
+                                : const SizedBox(width: double.infinity, height: 0),
                           ),
                         ],
                       ),
@@ -446,9 +454,15 @@ class _GamePageState extends State<GamePage> {
                       teamId: resolvedSeason.teamId,
                       compact: false,
                     ),
-                    BoxScoreWidget(
-                      game: _game,
-                      season: resolvedSeason,
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: _showBoxScore
+                          ? BoxScoreWidget(
+                              game: _game,
+                              season: resolvedSeason,
+                            )
+                          : const SizedBox(width: double.infinity, height: 0),
                     ),
                   ],
                 ),
@@ -464,10 +478,27 @@ class _GamePageState extends State<GamePage> {
                 ),
               // Responsive layout
               Expanded(
-                child: isTabletOrLarger
-                    ? _buildTabletLayout(
-                        gameView, gameStatsView, width, resolvedSeason, loc)
-                    : gameView, // Mobile: just the game view
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification notification) {
+                    if (notification.metrics.axis == Axis.vertical) {
+                      if (notification is UserScrollNotification) {
+                        if (notification.direction == ScrollDirection.reverse) {
+                          if (_showBoxScore) setState(() => _showBoxScore = false);
+                        } else if (notification.direction == ScrollDirection.forward) {
+                          if (!_showBoxScore) setState(() => _showBoxScore = true);
+                        }
+                      }
+                      if (notification.metrics.pixels <= 0 && !_showBoxScore) {
+                        setState(() => _showBoxScore = true);
+                      }
+                    }
+                    return false;
+                  },
+                  child: isTabletOrLarger
+                      ? _buildTabletLayout(
+                          gameView, gameStatsView, width, resolvedSeason, loc)
+                      : gameView, // Mobile: just the game view
+                ),
               ),
             ],
           ),

@@ -76,6 +76,7 @@ class _GameViewState extends State<GameView>
       if (mounted) {
         setState(() {});
       }
+      EventService().eventEmitter.emit('eventCreated');
     });
 
     _sendTweetListener = widget.eventEmitter.on('sendTweet', context,
@@ -601,6 +602,7 @@ class _GameViewState extends State<GameView>
           setState(() {
             _game.updateScore();
           });
+          EventService().eventEmitter.emit('eventCreated');
         },
         child: eventCard);
   }
@@ -781,6 +783,17 @@ class _GameViewState extends State<GameView>
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (isGoal && !kIsWeb) ...[
+                  IconButton(
+                    onPressed: () => _sendGoalTweet(event.id, assistEvent?.player, forceTweet: true),
+                    icon: const Icon(Icons.send, size: 20),
+                    color: Colors.blue,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: loc.sendTweet,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 if (event.eventUrls?.isNotEmpty ?? false) ...[
                   GestureDetector(
                     onTap: () => _launchUrl(event.eventUrls!),
@@ -1122,7 +1135,17 @@ class _GameViewState extends State<GameView>
         // Score display for goals
         if (event.eventMinute > 0 &&
             (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
-            event.eventData == ShotResult.goal.index)
+            event.eventData == ShotResult.goal.index) ...[
+          if (!kIsWeb)
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: IconButton(
+                onPressed: () => _sendGoalTweet(event.id, assistEvent?.player, forceTweet: true),
+                icon: const Icon(Icons.send, size: 24),
+                color: Colors.blue,
+                tooltip: loc.sendTweet,
+              ),
+            ),
           Container(
             margin: const EdgeInsets.only(left: 8),
             padding: const EdgeInsets.symmetric(
@@ -1151,6 +1174,7 @@ class _GameViewState extends State<GameView>
               ),
             ),
           ),
+        ],
       ],
     );
   }
@@ -1263,7 +1287,7 @@ class _GameViewState extends State<GameView>
   }
 
   /// Send a tweet for a goal event, including assist information if provided
-  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer) async {
+  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer, {bool forceTweet = false}) async {
     try {
       // Find the goal event
       final goalEvent =
@@ -1277,7 +1301,7 @@ class _GameViewState extends State<GameView>
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      if (!gameInProgress && !kDebugMode) return;
+      if (!gameInProgress && !kDebugMode && !forceTweet) return;
 
       // Generate tweet text with assist information
       String tweetText;
@@ -1292,25 +1316,25 @@ class _GameViewState extends State<GameView>
             '(${goalEvent.eventMinute}\') Goal by ${goalEvent.team.shortName}';
       }
 
-      tweetText = '$tweetText\n\n${_game.tweetStatus()}';
+      tweetText = '$tweetText\n\n${_game.tweetStatusAtEvent(goalEvent)}';
 
       // Check if goal scorer has a profile image
       File? playerImageFile;
-      if (goalEvent.player != null &&
-          goalEvent.player!.profileImage != null &&
-          goalEvent.player!.profileImage!.isNotEmpty) {
-        try {
-          final response =
-              await http.get(Uri.parse(goalEvent.player!.profileImage!));
-          if (response.statusCode == 200) {
-            final tempDir = await getTemporaryDirectory();
-            final imageFile = File(
-                '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            await imageFile.writeAsBytes(response.bodyBytes);
-            playerImageFile = imageFile;
+      if (goalEvent.player != null) {
+        final imageUrl = goalEvent.player!.displayImageForProfile;
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          try {
+            final response = await http.get(Uri.parse(imageUrl));
+            if (response.statusCode == 200) {
+              final tempDir = await getTemporaryDirectory();
+              final imageFile = File(
+                  '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+              await imageFile.writeAsBytes(response.bodyBytes);
+              playerImageFile = imageFile;
+            }
+          } catch (e) {
+            debugPrint('Error downloading player image for tweet: $e');
           }
-        } catch (e) {
-          debugPrint('Error downloading player image for tweet: $e');
         }
       }
 
@@ -1327,6 +1351,11 @@ class _GameViewState extends State<GameView>
             team: widget.season.team,
             imageFile: playerImageFile,
             eventContext: 'GOAL!',
+          );
+        } else if (forceTweet) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Twitter is not configured for this team.')),
           );
         }
       }
@@ -1486,7 +1515,7 @@ class _GameViewState extends State<GameView>
       number: -1,
     );
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
         // ignore: use_build_context_synchronously
         context: context,
         showDragHandle: true,
@@ -1587,10 +1616,10 @@ class _GameViewState extends State<GameView>
                                 style: TextStyle(fontSize: 18)),
                             dropdownMenuEntries: eventEntries),
                         Visibility(
-                            visible: playerEntries.isNotEmpty,
+                            visible: playerEntries.isNotEmpty && event.eventType != 'Corner',
                             child: const SizedBox(height: 30)),
                         Visibility(
-                            visible: playerEntries.isNotEmpty,
+                            visible: playerEntries.isNotEmpty && event.eventType != 'Corner',
                             child: DropdownMenu(
                                 enabled: (playerEntries.isNotEmpty) ||
                                     (event.eventType == 'Shot' &&
@@ -1815,6 +1844,7 @@ class _GameViewState extends State<GameView>
       if (mounted) {
         setState(() {});
       }
+      EventService().eventEmitter.emit('eventCreated');
     } finally {
       _isAdvancing = false;
     }

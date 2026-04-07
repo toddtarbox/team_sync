@@ -9,6 +9,8 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:eventify/eventify.dart' as eventify;
+import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class ScoreboardWidget extends StatefulWidget {
@@ -38,12 +40,20 @@ class ScoreboardWidget extends StatefulWidget {
 class _ScoreboardWidgetState extends State<ScoreboardWidget> {
   Timer? _updateTimer;
   Game? _currentGame;
+  late final eventify.Listener _eventListener;
 
   @override
   void initState() {
     super.initState();
     _currentGame = widget.game;
     _setupAutoUpdate();
+
+    _eventListener = EventService().eventEmitter.on('eventCreated', null,
+        (event, context) {
+      if (mounted) {
+        _reloadGameData();
+      }
+    });
   }
 
   @override
@@ -55,15 +65,22 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
     
     if (oldWidget.game?.id != widget.game?.id) {
       _setupAutoUpdate();
-    } else if (oldWidget.game?.gameStatus != widget.game?.gameStatus) {
-      // Re-setup auto update if status changed (e.g. from live to non-live)
-      _setupAutoUpdate();
+    } else {
+      bool timerIsActive = _updateTimer?.isActive ?? false;
+      if (isLiveGame && !timerIsActive) {
+        // Game changed to live, timer wasn't running
+        _setupAutoUpdate();
+      } else if (!isLiveGame && timerIsActive) {
+        // Game is no longer live, timer should be cancelled
+        _setupAutoUpdate();
+      }
     }
   }
 
   @override
   void dispose() {
     _updateTimer?.cancel();
+    _eventListener.cancel();
     super.dispose();
   }
 

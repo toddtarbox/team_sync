@@ -763,4 +763,21 @@ class Game {
   String tweetStatus() {
     return '${homeTeam.shortName}: $homeTeamScore - ${awayTeam.shortName}: $awayTeamScore';
   }
+
+  String tweetStatusAtEvent(GameEvent currentEvent) {
+    int homeScore = 0;
+    int awayScore = 0;
+
+    for (final event in scoringEvents) {
+      if (event.index <= currentEvent.index) {
+        if (event.team.id == homeTeam.id) {
+          homeScore += event.eventValue;
+        } else if (event.team.id == awayTeam.id) {
+          awayScore += event.eventValue;
+        }
+      }
+    }
+
+    return '${homeTeam.shortName}: $homeScore - ${awayTeam.shortName}: $awayScore';
+  }
 }
