@@ -396,11 +396,17 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Colors.blue.shade100,
-          child: Text(
-            player.number.toString(),
-            style: TextStyle(
-              color: Colors.blue.shade900,
-              fontWeight: FontWeight.bold,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2.0),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                player.displayNumbers,
+                style: TextStyle(
+                  color: Colors.blue.shade900,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ),
@@ -448,7 +454,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
               ),
               Text('• ${primaryPlayer.displayName} - '
                   '${_seasons[primaryPlayer.seasonId]?.name ?? "Season ${primaryPlayer.seasonId}"} '
-                  '#${primaryPlayer.number}'),
+                  '${primaryPlayer.displayNumbers}'),
               const SizedBox(height: 12),
               const Text(
                 'DUPLICATES (Merge):',
@@ -458,7 +464,7 @@ class _PlayerMergerToolState extends State<PlayerMergerTool> {
               ...duplicates.map((p) => Text(
                     '• ${p.displayName} - '
                     '${_seasons[p.seasonId]?.name ?? "Season ${p.seasonId}"} '
-                    '#${p.number}',
+                    '${p.displayNumbers}',
                   )),
               const SizedBox(height: 16),
               const Text(

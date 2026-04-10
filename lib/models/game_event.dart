@@ -281,7 +281,16 @@ class GameEvent {
 
   String tweetText(Game game) {
     if (eventType == 'Period') {
-      return (this as Period).display;
+      String tweetText = (this as Period).display;
+      if (tweetText == '1st Half' ||
+          tweetText == '2nd Half' ||
+          tweetText == '1st OT' ||
+          tweetText == '2nd OT' ||
+          tweetText == 'Overtime' ||
+          tweetText == 'Shootout') {
+        tweetText += ' Starting';
+      }
+      return '$tweetText\n\n${game.tweetStatusAtEvent(this)}';
     } else if (isGoalEvent) {
       String tweetText;
       if (player != null) {

@@ -656,7 +656,7 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                '#${player.number}',
+                player.displayNumbers,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 13,

@@ -667,11 +667,15 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      Text(
-                                        '#${player.number}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colorScheme.onSurfaceVariant,
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          player.displayNumbers,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
                                     ],

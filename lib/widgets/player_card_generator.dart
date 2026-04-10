@@ -641,7 +641,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
           await Share.shareXFiles(
             [XFile(file.path)],
             text:
-                '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}',
+                '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}',
           );
 
           if (mounted) {
@@ -684,10 +684,10 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     String tweetText = '';
     if (widget.eventContext != null) {
       tweetText =
-          '${widget.eventContext} ${widget.player.displayName} #${widget.player.number}';
+          '${widget.eventContext} ${widget.player.displayName} ${widget.player.displayNumbers}';
     } else {
       tweetText =
-          '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}';
+          '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}';
     }
 
     // Use common tweet preview dialog
@@ -719,10 +719,10 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     String tweetText = '';
     if (widget.eventContext != null) {
       tweetText =
-          '${widget.eventContext} ${widget.player.displayName} #${widget.player.number}';
+          '${widget.eventContext} ${widget.player.displayName} ${widget.player.displayNumbers}';
     } else {
       tweetText =
-          '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}';
+          '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}';
     }
 
     // Note: Twitter API v1.1 image upload would go here
@@ -875,13 +875,16 @@ class _PlayerCardWidget extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Player number (large)
-                  Text(
-                    '#${player.number}',
-                    style: TextStyle(
-                      color: config.accentColor,
-                      fontSize: 110,
-                      fontWeight: FontWeight.bold,
-                      height: 1,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      player.displayNumbers,
+                      style: TextStyle(
+                        color: config.accentColor,
+                        fontSize: 110,
+                        fontWeight: FontWeight.bold,
+                        height: 1,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1211,12 +1214,18 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                     color: config.accentColor,
                   ),
                   child: Center(
-                    child: Text(
-                      '#${widget.player.number}',
-                      style: TextStyle(
-                        color: config.backgroundColor,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.player.displayNumbers,
+                          style: TextStyle(
+                            color: config.backgroundColor,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),

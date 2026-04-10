@@ -42,6 +42,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _numberController;
+  late final TextEditingController _awayNumberController;
 
   Future<List<PlayerHighlight>>? _highlightsFuture;
   Future<List<PlayerAward>>? _awardsFuture;
@@ -53,6 +54,8 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     _lastNameController = TextEditingController(text: widget.player.lastName);
     _numberController =
         TextEditingController(text: widget.player.number.toString());
+    _awayNumberController = TextEditingController(
+        text: widget.player.awayNumber?.toString() ?? '');
 
     _profileImageUrl = widget.player.profileImage;
     _actionPhotoUrl = widget.player.actionPhoto;
@@ -78,6 +81,7 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _numberController.dispose();
+    _awayNumberController.dispose();
     super.dispose();
   }
 
@@ -447,13 +451,30 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
           ],
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _numberController,
-          decoration: const InputDecoration(
-            labelText: 'Number',
-            border: OutlineInputBorder(),
-          ),
-          keyboardType: TextInputType.number,
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _numberController,
+                decoration: const InputDecoration(
+                  labelText: 'Default / Home Jersey Number',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _awayNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Away Jersey Number',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -470,6 +491,11 @@ class _PlayerProfileEditorState extends State<PlayerProfileEditor> {
       widget.player.lastName = _lastNameController.text.trim();
       widget.player.number =
           int.tryParse(_numberController.text.trim()) ?? widget.player.number;
+      if (_awayNumberController.text.trim().isEmpty) {
+        widget.player.awayNumber = null;
+      } else {
+        widget.player.awayNumber = int.tryParse(_awayNumberController.text.trim());
+      }
 
       if (kIsWeb && widget.pin != null) {
         await widget.player.saveWithPin(widget.pin!);

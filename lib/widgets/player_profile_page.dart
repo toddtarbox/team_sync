@@ -877,7 +877,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                         Border.all(color: Colors.white.withValues(alpha: 0.4)),
                   ),
                   child: Text(
-                    '#${widget.player.number}',
+                    widget.player.displayNumbers,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -1135,7 +1135,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               textAlign: TextAlign.center,
             ),
             Text(
-              '#${widget.player.number}',
+              widget.player.displayNumbers,
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,

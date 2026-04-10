@@ -804,12 +804,18 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Text(
-                  '#${entry.key.number}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      entry.key.displayNumbers,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),

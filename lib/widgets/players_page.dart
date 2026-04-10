@@ -315,7 +315,7 @@ class _PlayersPageState extends State<PlayersPage> {
                                                 BorderRadius.circular(12),
                                           ),
                                           child: Text(
-                                            '#${player.number}',
+                                            player.displayNumbers,
                                             style: TextStyle(
                                               fontSize: 15,
                                               fontWeight: FontWeight.w600,
@@ -422,6 +422,7 @@ class _PlayersPageState extends State<PlayersPage> {
   void _editPlayer(Player player) {
     late String playerName = player.displayName;
     late int playerNumber = player.number;
+    late int? playerAwayNumber = player.awayNumber;
     _imageFile = null;
     _actionPhotoFile = null; // Reset action photo file
     _headshotFile = null; // Reset headshot file
@@ -780,6 +781,13 @@ class _PlayersPageState extends State<PlayersPage> {
                                   AppLocalizations.of(context)!.playerNumber),
                           onChanged: (number) =>
                               playerNumber = int.parse(number)),
+                      TextFormField(
+                          initialValue: playerAwayNumber?.toString() ?? '',
+                          autofocus: false,
+                          decoration: const InputDecoration(
+                              labelText: 'Away Jersey Number (Optional)'),
+                          onChanged: (number) =>
+                              playerAwayNumber = int.tryParse(number)),
                       const SizedBox(height: 16),
                       // PIN Field with Generate Button
                       StatefulBuilder(
@@ -971,6 +979,8 @@ class _PlayersPageState extends State<PlayersPage> {
                                                                     lastName,
                                                                 'number':
                                                                     playerNumber,
+                                                                'awayNumber':
+                                                                    playerAwayNumber,
                                                                 'profileImage':
                                                                     imageUrl,
                                                                 'actionPhoto':
@@ -1036,6 +1046,7 @@ class _PlayersPageState extends State<PlayersPage> {
   void _createPlayer() {
     String playerName = '';
     int playerNumber = -1;
+    int? playerAwayNumber;
     String? playerPin;
     final pinController = TextEditingController();
     _imageFile = null;
@@ -1082,6 +1093,12 @@ class _PlayersPageState extends State<PlayersPage> {
                                   AppLocalizations.of(context)!.playerNumber),
                           onChanged: (number) =>
                               playerNumber = int.tryParse(number) ?? -1),
+                      TextField(
+                          autofocus: false,
+                          decoration: const InputDecoration(
+                              labelText: 'Away Jersey Number (Optional)'),
+                          onChanged: (number) =>
+                              playerAwayNumber = int.tryParse(number)),
                       const SizedBox(height: 16),
                       // PIN Field with Generate Button
                       Row(
@@ -1387,6 +1404,14 @@ class _PlayersPageState extends State<PlayersPage> {
                                                       : (playerNumber == -1
                                                           ? 0
                                                           : playerNumber),
+                                                  awayNumber: (useExistingPlayer &&
+                                                          existingPlayer !=
+                                                              null &&
+                                                          playerAwayNumber == null)
+                                                      ? (existingPlayer['awayNumber'] is int 
+                                                          ? existingPlayer['awayNumber'] 
+                                                          : int.tryParse(existingPlayer['awayNumber']?.toString() ?? ''))
+                                                      : playerAwayNumber,
                                                   profileImage: imageUrl,
                                                   actionPhoto:
                                                       useExistingPlayer &&

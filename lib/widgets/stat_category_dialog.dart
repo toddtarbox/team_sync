@@ -185,7 +185,7 @@ class StatCategoryDialog {
                                       ),
                                       if (showPlayerNumber)
                                         Text(
-                                          '#${player.number}',
+                                        player.displayNumbers,
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Theme.of(context)
