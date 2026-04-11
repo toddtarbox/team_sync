@@ -49,6 +49,20 @@ class _GameViewState extends State<GameView>
   @override
   bool get wantKeepAlive => true;
 
+  Player? _getLastSavePlayer(int teamId) {
+    final saves = _game.allGameEvents
+        .where((e) =>
+            e.eventType == 'Save' &&
+            e.team.id == teamId &&
+            e.player != null &&
+            e.player!.id != -2)
+        .toList();
+    if (saves.isNotEmpty) {
+      return saves.last.player;
+    }
+    return null;
+  }
+
   dynamic _createEventListener;
   dynamic _advanceGameListener;
   dynamic _sendTweetListener;
@@ -1428,6 +1442,10 @@ class _GameViewState extends State<GameView>
         eventUrls: event?.eventUrls ?? '',
         eventData: event?.eventData ?? 0);
 
+    if (event.eventType == 'Save' && event.player == null) {
+      event.player = _getLastSavePlayer(event.team.id);
+    }
+
     final initialStatus = event.eventPeriod == -1
         ? _game.gameStatus == GameStatus.firstHalf
             ? '1st Half'
@@ -1944,7 +1962,7 @@ class _GameViewState extends State<GameView>
         final saveEvent = Save(
             id: -1,
             index: -1,
-            player: null,
+            player: _getLastSavePlayer(team.id),
             team: team,
             game: _game,
             seasonId: _game.seasonId,

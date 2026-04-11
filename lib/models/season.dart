@@ -56,7 +56,7 @@ class Season {
     team = await Team.fromId(teamId);
     games = await Game.listFromSeasonId(id);
     players = await Player.listFromTeamIdSeasonId(team.id, id);
-    teams = await Team.listFromSeasonId(id);
+    teams = await Team.listFromSeasonId(id, preloadedGames: games);
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }
 
@@ -66,7 +66,7 @@ class Season {
           .query('Events', orderByChild: 'seasonId', equalTo: id);
 
       // Filter out events from scrimmage games
-      final seasonGames = await Game.listFromSeasonId(id);
+      final seasonGames = this.games.isNotEmpty ? this.games : await Game.listFromSeasonId(id);
       final scrimmageGameIds =
           seasonGames.where((g) => g.isScrimmage).map((g) => g.id).toSet();
 

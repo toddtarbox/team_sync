@@ -2413,6 +2413,8 @@ class _TeamHomePageState extends State<TeamHomePage>
           setState(() {
             _seasons.add(season);
           });
+          _loadCurrentOrLastGame();
+          _updateOverallStats();
         }
       }
 
@@ -2443,6 +2445,7 @@ class _TeamHomePageState extends State<TeamHomePage>
           setState(() {
             _importedSeasons.add(season);
           });
+          _updateOverallStats();
         }
       }
     } catch (e) {
@@ -3005,8 +3008,8 @@ class _TeamHomePageState extends State<TeamHomePage>
     if (_team == null) return;
 
     try {
-      // Get all games for this team
-      final games = await Game.listFromTeamId(_team!.id);
+      // Get all games incrementally from loaded seasons
+      final games = _seasons.expand((s) => s.games).toList();
 
       if (games.isEmpty) {
         _currentOrLastGame = null;

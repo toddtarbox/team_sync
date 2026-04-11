@@ -22,6 +22,7 @@ class Player {
   /// Helper to get the correct number based on game context.
   /// If game is provided and the player's team is not the home team, use awayNumber if present.
   String getDisplayNumber(dynamic game) {
+    if (id == -2) return 'OG';
     if (game != null) {
       // Avoid circular dependency by using dynamic or checking isHomeTeam via duck typing
       // Provide an easy check: if game.homeTeam == teamId, etc.
@@ -39,6 +40,7 @@ class Player {
 
   /// Helper for roster and profile display
   String get displayNumbers {
+    if (id == -2) return 'OG';
     if (awayNumber != null) {
       return '#$number (H) / #$awayNumber (A)';
     }
@@ -207,6 +209,16 @@ class Player {
   }
 
   static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
+    if (id == -2) {
+      return Player(
+          id: -2,
+          teamId: -1,
+          seasonId: -1,
+          firstName: 'Own',
+          lastName: 'Goal',
+          number: -1);
+    }
+
     try {
       final results = await DatabaseService.instance.query('Players',
           orderByChild: 'id_seasonId', equalTo: '${id}_$seasonId');

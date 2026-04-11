@@ -93,6 +93,14 @@ class SeasonStats implements StatLeaders {
 
     // Build the result map with unique players
     for (int playerId in playerIds) {
+      if (playerId == -2) {
+        final ownGoalPlayer = await Player.fromId(-2);
+        if (ownGoalPlayer != null) {
+          players[ownGoalPlayer] = sourceTable[playerId] ?? 0;
+        }
+        continue;
+      }
+
       final player = uniquePlayers[playerId];
       if (player != null) {
         players[player] = sourceTable[playerId] ?? 0;

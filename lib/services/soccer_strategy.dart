@@ -288,8 +288,6 @@ class SoccerStrategy implements SportStrategy {
     stats.teamStats['goals'] = events
         .where((m) =>
             m['teamId'] == teamId &&
-            m['playerId'] != null &&
-            m['playerId'] != -1 &&
             (m['eventType'] == 'Shot' || m['eventType'] == 'PenaltyKick') &&
             m['eventData'] != null &&
             m['eventData'] == ShotResult.goal.index)
@@ -356,6 +354,8 @@ class SoccerStrategy implements SportStrategy {
 
     // Player Stats
     for (final event in events) {
+      if (event['teamId'] != teamId) continue;
+
       final playerId = event['playerId'] as int?;
       if (playerId == null) continue;
 

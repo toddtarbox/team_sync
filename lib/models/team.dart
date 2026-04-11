@@ -111,19 +111,27 @@ class Team extends Equatable {
     return results.map((t) => Team.fromMap(t)).toList(growable: false);
   }
 
-  static Future<List<Team>> listFromSeasonId(int seasonId) async {
-    // Get all games for this season
-    final games = await DatabaseService.instance
-        .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
-
+  static Future<List<Team>> listFromSeasonId(int seasonId, {List<Game>? preloadedGames}) async {
     // Extract unique team IDs from homeTeamId and awayTeamId
     final teamIds = <int>{};
-    for (final game in games) {
-      if (game['homeTeamId'] != null) {
-        teamIds.add(game['homeTeamId'] as int);
+
+    if (preloadedGames != null) {
+      for (final game in preloadedGames) {
+        teamIds.add(game.homeTeam.id);
+        teamIds.add(game.awayTeam.id);
       }
-      if (game['awayTeamId'] != null) {
-        teamIds.add(game['awayTeamId'] as int);
+    } else {
+      // Get all games for this season
+      final games = await DatabaseService.instance
+          .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
+
+      for (final game in games) {
+        if (game['homeTeamId'] != null) {
+          teamIds.add(game['homeTeamId'] as int);
+        }
+        if (game['awayTeamId'] != null) {
+          teamIds.add(game['awayTeamId'] as int);
+        }
       }
     }
 

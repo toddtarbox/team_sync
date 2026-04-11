@@ -294,7 +294,13 @@ class GameEvent {
     } else if (isGoalEvent) {
       String tweetText;
       if (player != null) {
-        tweetText = '($eventMinute\') Goal by ${player!.displayName}';
+        if (player!.id == -2) {
+          final isHomeTeam = game.homeTeam.id == team.id;
+          final opponentTeamName = isHomeTeam ? game.awayTeam.shortName : game.homeTeam.shortName;
+          tweetText = '($eventMinute\') Own Goal by $opponentTeamName';
+        } else {
+          tweetText = '($eventMinute\') Goal by ${player!.displayName}';
+        }
       } else {
         tweetText = '($eventMinute\') Goal by ${team.shortName}';
       }

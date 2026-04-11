@@ -791,7 +791,16 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
     final sortedPlayers = players.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    final isHomeTeam = widget.game.homeTeam.id == widget.season.teamId;
+    final opponentTeamName = isHomeTeam
+        ? widget.game.awayTeam.shortName
+        : widget.game.homeTeam.shortName;
+
     return sortedPlayers.map((entry) {
+      final isOwnGoal = entry.key.id == -2;
+      final displayName =
+          isOwnGoal ? 'Own Goal by $opponentTeamName' : entry.key.displayName;
+
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
@@ -823,7 +832,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                entry.key.displayName,
+                displayName,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
