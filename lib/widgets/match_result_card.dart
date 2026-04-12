@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -11,7 +11,11 @@ import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
+import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
+
+import 'package:team_sync/widgets/responsive_avatar.dart';
 
 /// Widget to generate newspaper-style match result cards for sharing
 class MatchResultCard {
@@ -47,7 +51,56 @@ class _MatchResultDialog extends StatefulWidget {
 
 class _MatchResultDialogState extends State<_MatchResultDialog> {
   final GlobalKey _cardKey = GlobalKey();
+  final TransformationController _transformationController =
+      TransformationController();
   bool _isGenerating = false;
+  bool _hasTwitterConfig = false;
+  bool _hasCalculatedInitialScale = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTwitterConfig();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasCalculatedInitialScale) {
+      // Calculate scale to fit
+      // Card width is fixed at 800
+      final screenWidth =
+          MediaQuery.of(context).size.width * 0.9; // Dialog max width
+      final screenHeight = MediaQuery.of(context).size.height * 0.9 -
+          200; // Dialog max height minus header/footer buffer
+
+      // Calculate scale based on width, but ensure it doesn't overflow height
+      // The card height is variable but let's assume a reasonable minimum aspect ratio or base it on width primarily
+      // Ideally we'd measure the card but that's complex before layout.
+      // Safe bet: scale to fit width, as vertical scroll is less annoying than horizontal cut-off.
+      double scale = (screenWidth - 48) / 800; // 48 for padding
+      if (scale > 1.0) scale = 1.0; // Don't scale up if screen is huge
+
+      _transformationController.value = Matrix4.identity()..scale(scale);
+      _hasCalculatedInitialScale = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkTwitterConfig() async {
+    final hasConfig = await TwitterService.instance
+        .isConfigured(teamId: widget.season.teamId);
+    if (mounted) {
+      setState(() {
+        _hasTwitterConfig = hasConfig;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,11 +123,31 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
                   Icon(Icons.newspaper,
                       color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Match Report',
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          SportStrategy.current.gameReportTerminology,
+                          style: TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.pinch, size: 14, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Pinch to zoom • Drag to pan',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -87,10 +160,13 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
             const Divider(height: 1),
             // Scrollable preview - both horizontal and vertical scrolling
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+              child: InteractiveViewer(
+                transformationController: _transformationController,
+                boundaryMargin: const EdgeInsets.all(double.infinity),
+                minScale: 0.1,
+                maxScale: 4.0,
+                constrained: false,
+                child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: RepaintBoundary(
                     key: _cardKey,
@@ -114,21 +190,25 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
                     child: Text(loc.cancel),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _isGenerating ? null : () => _tweetCard(),
-                    icon: _isGenerating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                    label: const Text('Tweet'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1DA1F2), // Twitter blue
-                      foregroundColor: Colors.white,
+                  if (_hasTwitterConfig) ...[
+                    ElevatedButton.icon(
+                      onPressed: _isGenerating ? null : () => _tweetCard(),
+                      icon: _isGenerating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send),
+                      label: const Text('Tweet'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xFF1DA1F2), // Twitter blue
+                        foregroundColor: Colors.white,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                  ],
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: _isGenerating ? null : () => _shareCard(),
@@ -177,7 +257,7 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: '$opponent - Match Result',
+          text: '$opponent - ${SportStrategy.current.gameTerminology} Result',
         ),
       );
 
@@ -232,8 +312,9 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
 
       // Generate web link to game
       final databaseId = DatabaseService.instance.publicShareId ?? '';
+      final baseUrl = SportStrategy.current.webUrl;
       final gameUrl =
-          'https://team-sync-soccer.web.app/#/team/$databaseId/season/${widget.season.id}/games/${widget.game.id}';
+          '$baseUrl/team/$databaseId/season/${widget.season.id}/game/${widget.game.id}';
 
       final tweetText =
           '${widget.season.team.shortName} $result $teamScore-$opponentScore vs $opponentName\n\n$gameUrl\n\n#${widget.season.team.shortName.replaceAll(' ', '')}';
@@ -247,7 +328,7 @@ class _MatchResultDialogState extends State<_MatchResultDialog> {
         team: widget.season.team,
         teamId: widget.season.teamId,
         imageFile: file,
-        eventContext: 'Match Report',
+        eventContext: SportStrategy.current.gameReportTerminology,
       );
 
       if (success && mounted) {
@@ -282,9 +363,9 @@ class _MatchResultCardWidget extends StatefulWidget {
 }
 
 class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
-  Map<LeaderCategory, Map<Player, int>>? _playerStats;
-  Map<LeaderCategory, int>? _teamTotals;
-  Map<LeaderCategory, int>? _opponentTotals;
+  Map<String, Map<Player, int>>? _playerStats;
+  Map<String, int>? _teamTotals;
+  Map<String, int>? _opponentTotals;
   bool _isLoading = true;
 
   @override
@@ -296,94 +377,35 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
   Future<void> _loadStats() async {
     try {
       await widget.game.loadGameEvents();
-      final stats = await widget.game.getStats(widget.season.teamId);
 
-      final playerStats = <LeaderCategory, Map<Player, int>>{};
-      final teamTotals = <LeaderCategory, int>{};
-      final opponentTotals = <LeaderCategory, int>{};
+      // Convert GameEvents to Map for SeasonStats.fromMap
+      final eventMaps = widget.game.allGameEvents
+          .map((e) => {
+                'id': e.id,
+                'gameId': e.game.id,
+                'teamId': e.team.id,
+                'playerId': e.player?.id ?? -1,
+                'eventType': e.eventType,
+                'eventMinute': e.eventMinute,
+                'eventPeriod': e.eventPeriod,
+                'eventData': e.eventData,
+              })
+          .toList();
 
-      for (final category in LeaderCategory.values) {
+      final stats = SeasonStats.fromMap(
+        widget.season.teamId,
+        widget.season.id,
+        eventMaps,
+      );
+
+      final playerStats = <String, Map<Player, int>>{};
+      final teamTotals = <String, int>{};
+      final opponentTotals = <String, int>{};
+
+      for (final category in SportStrategy.current.leaderCategories) {
         playerStats[category] = await stats.getStatPlayers(category);
-
-        // Calculate team total
-        int teamTotal = 0;
-        for (final stat in playerStats[category]!.entries) {
-          teamTotal += stat.value;
-        }
-
-        // Count corners separately for team
-        if (category == LeaderCategory.corners) {
-          for (final event in widget.game.allGameEvents) {
-            if (event.eventType == 'Corner' &&
-                event.team.id == widget.season.teamId) {
-              teamTotal++;
-            }
-          }
-        }
-
-        teamTotals[category] = teamTotal;
-
-        // Calculate opponent total from game events
-        int opponentTotal = 0;
-        for (final event in widget.game.allGameEvents) {
-          // Special handling for saves - opponent saves are team shots on goal
-          if (category == LeaderCategory.saves) {
-            if (event.team.id == widget.season.teamId &&
-                event.eventType == 'Shot' &&
-                event.eventData == 1) {
-              opponentTotal++;
-            }
-            continue;
-          }
-
-          // For other stats, skip team events
-          if (event.team.id == widget.season.teamId) continue;
-
-          switch (category) {
-            case LeaderCategory.goals:
-              if (event.eventType == 'Shot' && event.eventData == 0) {
-                opponentTotal++;
-              }
-              break;
-            case LeaderCategory.assists:
-              if (event.eventType == 'Assist') opponentTotal++;
-              break;
-            case LeaderCategory.shots:
-              if (event.eventType == 'Shot') opponentTotal++;
-              break;
-            case LeaderCategory.shotsOnGoal:
-              if (event.eventType == 'Shot' &&
-                  (event.eventData == 0 || event.eventData == 1)) {
-                opponentTotal++;
-              }
-              break;
-            case LeaderCategory.corners:
-              if (event.eventType == 'Corner') opponentTotal++;
-              break;
-            case LeaderCategory.fouls:
-              if (event.eventType == 'Foul') opponentTotal++;
-              break;
-            case LeaderCategory.yellows:
-              if (event.eventType == 'Card' && event.eventData == 0) {
-                opponentTotal++;
-              }
-              break;
-            case LeaderCategory.reds:
-              if (event.eventType == 'Card' && event.eventData == 2) {
-                opponentTotal++;
-              }
-              break;
-            case LeaderCategory.secondYellowReds:
-              if (event.eventType == 'Card' && event.eventData == 1) {
-                opponentTotal++;
-              }
-              break;
-            default:
-              break;
-          }
-        }
-
-        opponentTotals[category] = opponentTotal;
+        teamTotals[category] = stats.teamStat(category);
+        opponentTotals[category] = stats.opponentStat(category);
       }
 
       if (mounted) {
@@ -414,14 +436,30 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
     }
 
     final teamColor = widget.season.team.color1;
-    final isHomeTeam = widget.game.isHomeTeam(widget.season.teamId);
-    final teamScore =
-        isHomeTeam ? widget.game.homeTeamScore : widget.game.awayTeamScore;
-    final opponentScore =
-        isHomeTeam ? widget.game.awayTeamScore : widget.game.homeTeamScore;
-    final opponentName = isHomeTeam
+
+    // Explicitly determine "My Team" vs "Opponent"
+    final userIsHome = widget.game.isHomeTeam(widget.season.teamId);
+
+    // Score logic
+    final scoreCat = SportStrategy.current.scoreCategory;
+    final userScore = _teamTotals?[scoreCat] ??
+        (userIsHome ? widget.game.homeTeamScore : widget.game.awayTeamScore);
+    final opponentScore = _opponentTotals?[scoreCat] ??
+        (userIsHome ? widget.game.awayTeamScore : widget.game.homeTeamScore);
+
+    // Name logic
+    final userName = widget.season.team.fullName;
+    final opponentName = userIsHome
         ? widget.game.awayTeam.shortName
         : widget.game.homeTeam.shortName;
+
+    // Logo logic - prioritize Game object's team references as they match home/away context
+    final userLogo = userIsHome
+        ? widget.game.homeTeam.logoUrl
+        : widget.game.awayTeam.logoUrl;
+    final opponentLogo = userIsHome
+        ? widget.game.awayTeam.logoUrl
+        : widget.game.homeTeam.logoUrl;
 
     return Container(
       width: 800,
@@ -443,7 +481,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             child: Column(
               children: [
                 Text(
-                  'MATCH REPORT',
+                  SportStrategy.current.gameReportTerminology.toUpperCase(),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -471,12 +509,25 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Home Team
+                // Left Column: MY TEAM
                 Expanded(
                   child: Column(
                     children: [
+                      // My Team Logo
+                      if (userLogo != null && userLogo.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: ResponsiveAvatar(
+                              imageUrl: userLogo,
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                        ),
                       Text(
-                        widget.season.team.fullName.toUpperCase(),
+                        userName.toUpperCase(),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -501,7 +552,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                         ),
                         child: Center(
                           child: Text(
-                            teamScore.toString(),
+                            userScore.toString(),
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
@@ -526,10 +577,23 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                     ),
                   ),
                 ),
-                // Away Team
+                // Right Column: OPPONENT
                 Expanded(
                   child: Column(
                     children: [
+                      // Opponent Logo
+                      if (opponentLogo != null && opponentLogo.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: ResponsiveAvatar(
+                              imageUrl: opponentLogo,
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                        ),
                       Text(
                         opponentName.toUpperCase(),
                         style: TextStyle(
@@ -544,7 +608,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.grey[400],
+                          color: teamColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
@@ -578,78 +642,43 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionHeader('MATCH STATISTICS'),
+                _buildSectionHeader(
+                    '${SportStrategy.current.gameTerminology.toUpperCase()} STATISTICS'),
                 const SizedBox(height: 16),
-                _buildStatRow('Shots', _teamTotals![LeaderCategory.shots]!,
-                    _opponentTotals![LeaderCategory.shots]!),
-                _buildStatRow(
-                    'Shots on Goal',
-                    _teamTotals![LeaderCategory.shotsOnGoal]!,
-                    _opponentTotals![LeaderCategory.shotsOnGoal]!),
-                _buildStatRow('Saves', _teamTotals![LeaderCategory.saves]!,
-                    _opponentTotals![LeaderCategory.saves]!),
-                _buildStatRow('Corners', _teamTotals![LeaderCategory.corners]!,
-                    _opponentTotals![LeaderCategory.corners]!),
-                _buildStatRow('Fouls', _teamTotals![LeaderCategory.fouls]!,
-                    _opponentTotals![LeaderCategory.fouls]!),
-                _buildStatRow(
-                    'Yellow Cards',
-                    _teamTotals![LeaderCategory.yellows]!,
-                    _opponentTotals![LeaderCategory.yellows]!),
-                _buildStatRow(
-                    'Red Cards',
-                    _teamTotals![LeaderCategory.reds]! +
-                        _teamTotals![LeaderCategory.secondYellowReds]!,
-                    _opponentTotals![LeaderCategory.reds]! +
-                        _opponentTotals![LeaderCategory.secondYellowReds]!),
+                ...SportStrategy.current.leaderCategories.map((category) {
+                  final teamVal = _teamTotals![category] ?? 0;
+                  final oppVal = _opponentTotals![category] ?? 0;
+                  if (teamVal == 0 && oppVal == 0) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return _buildStatRow(
+                    _getCategoryLabel(category),
+                    teamVal,
+                    oppVal,
+                  );
+                }),
               ],
             ),
           ),
 
-          // Goal Scorers
-          if (_playerStats![LeaderCategory.goals]!.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('GOAL SCORERS'),
-                  const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.goals),
-                ],
-              ),
-            ),
-          ],
-
-          // Assists
-          if (_playerStats![LeaderCategory.assists]!.isNotEmpty) ...[
-            Container(
+          // Leader Sections
+          ...SportStrategy.current.leaderCategories
+              .where((cat) => _playerStats![cat]?.isNotEmpty ?? false)
+              .map((category) {
+            return Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader('ASSISTS'),
+                  _buildSectionHeader(
+                      _getCategoryLabel(category).toUpperCase()),
                   const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.assists),
+                  ..._buildPlayerList(category),
                 ],
               ),
-            ),
-          ],
-
-          // Saves
-          if (_playerStats![LeaderCategory.saves]!.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('SAVES'),
-                  const SizedBox(height: 12),
-                  ..._buildPlayerList(LeaderCategory.saves),
-                ],
-              ),
-            ),
-          ],
+            );
+          }),
 
           // Footer
           Container(
@@ -757,12 +786,21 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
     );
   }
 
-  List<Widget> _buildPlayerList(LeaderCategory category) {
+  List<Widget> _buildPlayerList(String category) {
     final players = _playerStats![category]!;
     final sortedPlayers = players.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    final isHomeTeam = widget.game.homeTeam.id == widget.season.teamId;
+    final opponentTeamName = isHomeTeam
+        ? widget.game.awayTeam.shortName
+        : widget.game.homeTeam.shortName;
+
     return sortedPlayers.map((entry) {
+      final isOwnGoal = entry.key.id == -2;
+      final displayName =
+          isOwnGoal ? 'Own Goal by $opponentTeamName' : entry.key.displayName;
+
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
@@ -775,12 +813,18 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 shape: BoxShape.circle,
               ),
               child: Center(
-                child: Text(
-                  '#${entry.key.number}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      entry.key.displayNumbers,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -788,7 +832,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                entry.key.displayName,
+                displayName,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -796,7 +840,7 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                 ),
               ),
             ),
-            if (entry.value > 1)
+            if (entry.value > 0)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -804,7 +848,10 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '×${entry.value}',
+                  SportStrategy.current.sportId == 'soccer' &&
+                          (category == 'goals' || category == 'assists')
+                      ? '×${entry.value}'
+                      : entry.value.toString(),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -816,6 +863,41 @@ class _MatchResultCardWidgetState extends State<_MatchResultCardWidget> {
         ),
       );
     }).toList();
+  }
+
+  String _getCategoryLabel(String category) {
+    switch (category) {
+      case 'goals':
+        return 'Goals';
+      case 'points':
+        return 'Points';
+      case 'rebounds':
+        return 'Rebounds';
+      case 'assists':
+        return 'Assists';
+      case 'steals':
+        return 'Steals';
+      case 'blocks':
+        return 'Blocks';
+      case 'turnovers':
+        return 'Turnovers';
+      case 'fouls':
+        return 'Fouls';
+      case 'shots':
+        return 'Shots';
+      case 'shotsOnGoal':
+        return 'Shots on Goal';
+      case 'saves':
+        return 'Saves';
+      case 'corners':
+        return 'Corners';
+      case 'yellows':
+        return 'Yellow Cards';
+      case 'reds':
+        return 'Red Cards';
+      default:
+        return category;
+    }
   }
 
   String _formatDate(DateTime date) {

@@ -2,15 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class SeasonRecord extends StatelessWidget {
   final List<Season> seasons;
   final bool singleSeason;
   final bool isOverall; // New parameter to make overall record bigger
+  final bool isCompact;
 
   const SeasonRecord(this.seasons,
-      {this.singleSeason = true, this.isOverall = false, super.key});
+      {this.singleSeason = true,
+      this.isOverall = false,
+      this.isCompact = false,
+      super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -46,16 +51,23 @@ class SeasonRecord extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 450; // Phone screens in portrait
 
+    final bool isLargeLayout = singleSeason && !isCompact;
+
     return Container(
       width: (singleSeason || isOverall) ? double.infinity : null,
       padding: EdgeInsets.symmetric(
         horizontal:
-            isOverall ? (isSmallScreen ? 12 : 32) : (singleSeason ? 24 : 16),
+            isOverall ? (isSmallScreen ? 12 : 32) : (isLargeLayout ? 24 : 16),
         vertical:
-            isOverall ? (isSmallScreen ? 12 : 24) : (singleSeason ? 20 : 12),
+            isOverall ? (isSmallScreen ? 12 : 24) : (isLargeLayout ? 20 : 12),
       ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        color: isCompact
+            ? Theme.of(context)
+                .colorScheme
+                .surfaceContainerHigh
+                .withValues(alpha: 0.6)
+            : Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(isOverall ? 16 : 12),
         border: Border.all(
           color: Theme.of(context).colorScheme.outlineVariant,
@@ -95,7 +107,7 @@ class SeasonRecord extends StatelessWidget {
                       style: TextStyle(
                         fontSize: isOverall
                             ? (isSmallScreen ? 14 : 18)
-                            : (singleSeason ? 14 : 12),
+                            : (isLargeLayout ? 14 : 12),
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.primary,
                         letterSpacing: 0.5,
@@ -106,30 +118,30 @@ class SeasonRecord extends StatelessWidget {
                       SizedBox(
                           width: isOverall
                               ? (isSmallScreen ? 6 : 12)
-                              : (singleSeason ? 8 : 6)),
+                              : (isLargeLayout ? 8 : 6)),
                       Flexible(
                         child: Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: isOverall
                                 ? (isSmallScreen ? 8 : 14)
-                                : (singleSeason ? 10 : 6),
+                                : (isLargeLayout ? 10 : 6),
                             vertical: isOverall
                                 ? (isSmallScreen ? 4 : 6)
-                                : (singleSeason ? 4 : 3),
+                                : (isLargeLayout ? 4 : 3),
                           ),
                           decoration: BoxDecoration(
                             color:
                                 Theme.of(context).colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(isOverall
                                 ? (isSmallScreen ? 4 : 8)
-                                : (singleSeason ? 6 : 4)),
+                                : (isLargeLayout ? 6 : 4)),
                           ),
                           child: Text(
                             '${winPercentage.toStringAsFixed(1)}% win pct',
                             style: TextStyle(
                               fontSize: isOverall
                                   ? (isSmallScreen ? 11 : 16)
-                                  : (singleSeason ? 12 : 10),
+                                  : (isLargeLayout ? 12 : 10),
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context)
                                   .colorScheme
@@ -145,7 +157,7 @@ class SeasonRecord extends StatelessWidget {
                 SizedBox(
                     height: isOverall
                         ? (isSmallScreen ? 8 : 12)
-                        : (singleSeason ? 8 : 4)),
+                        : (isLargeLayout ? 8 : 4)),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -154,36 +166,38 @@ class SeasonRecord extends StatelessWidget {
                       wins.toString(),
                       loc.winAbbreviation,
                       Theme.of(context).colorScheme.primary,
-                      isLarge: singleSeason,
+                      isLarge: isLargeLayout,
                       isOverall: isOverall,
                       isSmallScreen: isSmallScreen,
                     ),
                     SizedBox(
                         width: isOverall
                             ? (isSmallScreen ? 4 : 16)
-                            : (singleSeason ? 12 : 8)),
+                            : (isLargeLayout ? 12 : 8)),
                     _buildStatBadge(
                       context,
                       losses.toString(),
                       loc.lossAbbreviation,
                       Theme.of(context).colorScheme.error,
-                      isLarge: singleSeason,
+                      isLarge: isLargeLayout,
                       isOverall: isOverall,
                       isSmallScreen: isSmallScreen,
                     ),
-                    SizedBox(
-                        width: isOverall
-                            ? (isSmallScreen ? 4 : 16)
-                            : (singleSeason ? 12 : 8)),
-                    _buildStatBadge(
-                      context,
-                      ties.toString(),
-                      loc.tieAbbreviation,
-                      Theme.of(context).colorScheme.tertiary,
-                      isLarge: singleSeason,
-                      isOverall: isOverall,
-                      isSmallScreen: isSmallScreen,
-                    ),
+                    if (SportStrategy.current.sportId != 'basketball') ...[
+                      SizedBox(
+                          width: isOverall
+                              ? (isSmallScreen ? 4 : 16)
+                              : (isLargeLayout ? 12 : 8)),
+                      _buildStatBadge(
+                        context,
+                        ties.toString(),
+                        loc.tieAbbreviation,
+                        Theme.of(context).colorScheme.tertiary,
+                        isLarge: isLargeLayout,
+                        isOverall: isOverall,
+                        isSmallScreen: isSmallScreen,
+                      ),
+                    ],
                   ],
                 ),
               ],

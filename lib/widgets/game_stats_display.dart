@@ -5,10 +5,11 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/season_stats.dart';
+
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 
 /// Reusable widget to display game statistics in a modern layout
@@ -157,13 +158,17 @@ class GameStatsDisplay extends StatelessWidget {
         continue;
       }
 
+      // Safe access to category from SportStrategy
+      final categories = SportStrategy.current.leaderCategories;
+      final category = i < categories.length ? categories[i] : 'unknown';
+
       statRows.add(_buildStatRow(
         context,
         label,
         homeValue,
         awayValue,
         showPlayerDetails: userTeamValue > 0,
-        category: LeaderCategory.values[i],
+        category: category,
         isHomeTeam: isHomeTeam,
       ));
 
@@ -179,7 +184,7 @@ class GameStatsDisplay extends StatelessWidget {
     int homeValue,
     int awayValue, {
     bool showPlayerDetails = false,
-    required LeaderCategory category,
+    required String category,
     required bool isHomeTeam,
   }) {
     final teamColor = season.team.color1;
@@ -191,7 +196,7 @@ class GameStatsDisplay extends StatelessWidget {
     final awayValueColor = isHomeTeam ? Colors.grey[700]! : teamColor;
 
     return InkWell(
-      onTap: showPlayerDetails && category.name != 'corners'
+      onTap: showPlayerDetails
           ? () => _showPlayerDetailsDialog(context, category)
           : null,
       borderRadius: BorderRadius.circular(8),
@@ -293,7 +298,7 @@ class GameStatsDisplay extends StatelessWidget {
                 ],
               ),
             ),
-            if (showPlayerDetails && category.name != 'corners')
+            if (showPlayerDetails)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
@@ -312,16 +317,27 @@ class GameStatsDisplay extends StatelessWidget {
   }
 
   Future<void> _showPlayerDetailsDialog(
-      BuildContext context, LeaderCategory category) async {
+      BuildContext context, String category) async {
     final playerStats = await _getPlayerStatsForCategory(category);
+    final stats = await game.getStats(season.teamId);
+
+    Map<Player, int>? playerAttempts;
+    if (category == 'threePointersMade') {
+      playerAttempts = await stats.getStatPlayers('threePointersAttempted');
+    } else if (category == 'twoPointersMade') {
+      playerAttempts = await stats.getStatPlayers('twoPointersAttempted');
+    } else if (category == 'freeThrowsMade') {
+      playerAttempts = await stats.getStatPlayers('freeThrowsAttempted');
+    }
 
     if (!context.mounted) return;
 
     // Use the common dialog component
     await StatCategoryDialog.show(
       context: context,
-      categoryName: category.name.toSentenceCase().toTitleCase(),
+      categoryName: category.toSentenceCase().toTitleCase(),
       playerStats: playerStats,
+      playerAttempts: playerAttempts,
       showPlayerNumber: true,
       season: season,
       onPlayerTap: (player) {
@@ -375,8 +391,7 @@ class GameStatsDisplay extends StatelessWidget {
     );
   }
 
-  Future<Map<Player, int>> _getPlayerStatsForCategory(
-      LeaderCategory category) async {
+  Future<Map<Player, int>> _getPlayerStatsForCategory(String category) async {
     final stats = await game.getStats(season.teamId);
     return await stats.getStatPlayers(category);
   }

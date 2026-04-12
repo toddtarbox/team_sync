@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:eventify/eventify.dart';
 import 'package:flutter/foundation.dart';
@@ -20,6 +20,8 @@ import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/tweet_preview_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
+import 'package:team_sync/widgets/event_stream_widget.dart';
+import 'package:team_sync/widgets/penalty_kick_overlay.dart';
 
 class GameView extends StatefulWidget {
   final Season season;
@@ -36,29 +38,75 @@ class GameView extends StatefulWidget {
   State<GameView> createState() => _GameViewState();
 }
 
-class _GameViewState extends State<GameView> {
+class _GameViewState extends State<GameView>
+    with AutomaticKeepAliveClientMixin {
   GameEvent? _autoCreateSave;
   GameEvent? _autoCreateAssist;
   late Game _game;
+  bool _isAdvancing = false;
+  static int _lastGeneratedId = 0;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  Player? _getLastSavePlayer(int teamId) {
+    final saves = _game.allGameEvents
+        .where((e) =>
+            e.eventType == 'Save' &&
+            e.team.id == teamId &&
+            e.player != null &&
+            e.player!.id != -2)
+        .toList();
+    if (saves.isNotEmpty) {
+      return saves.last.player;
+    }
+    return null;
+  }
+
+  dynamic _createEventListener;
+  dynamic _advanceGameListener;
+  dynamic _sendTweetListener;
+  dynamic _loadSettingsListener;
+  dynamic _endGameListener;
 
   @override
   void initState() {
     _game = widget.game;
 
-    widget.eventEmitter.on('createEvent', context, (event, eventContext) async {
-      await _editEvent();
+    _createEventListener = widget.eventEmitter.on('createEvent', context,
+        (event, eventContext) async {
+      final parsedEvent = event.eventData as GameEvent?;
+      await _editEvent(event: parsedEvent);
     });
 
-    widget.eventEmitter.on('advanceGame', context, (event, eventContext) async {
+    widget.eventEmitter.on('createEventSpeech', context,
+        (event, eventContext) async {
+      final future = event.eventData as Future<GameEvent?>;
+      await _editEvent(speechFuture: future);
+    });
+
+    _advanceGameListener = widget.eventEmitter.on('advanceGame', context,
+        (event, eventContext) async {
       await _advanceGame();
     });
 
-    widget.eventEmitter.on('sendTweet', context, (event, eventContext) async {
+    _endGameListener =
+        widget.eventEmitter.on('endGame', context, (event, eventContext) async {
+      final status = event.eventData as int;
+      await _game.endGame(status);
+      if (mounted) {
+        setState(() {});
+      }
+      EventService().eventEmitter.emit('eventCreated');
+    });
+
+    _sendTweetListener = widget.eventEmitter.on('sendTweet', context,
+        (event, eventContext) async {
       await AdhocTweetDialog.show(context,
           teamId: widget.season.teamId, team: widget.season.team);
     });
 
-    widget.eventEmitter.on('loadSettings', context,
+    _loadSettingsListener = widget.eventEmitter.on('loadSettings', context,
         (event, eventContext) async {
       // Initialize Twitter with team credentials once at startup
       await TwitterService.instance
@@ -70,7 +118,26 @@ class _GameViewState extends State<GameView> {
   }
 
   @override
+  void dispose() {
+    _createEventListener?.cancel();
+    _advanceGameListener?.cancel();
+    _endGameListener?.cancel();
+    _sendTweetListener?.cancel();
+    _loadSettingsListener?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(GameView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game.id != widget.game.id) {
+      _game = widget.game;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final loc = AppLocalizations.of(context)!;
 
     if (_autoCreateSave != null) {
@@ -143,6 +210,66 @@ class _GameViewState extends State<GameView> {
               return _buildWebLayout(loc);
             }
 
+            // Check for imported events
+            final hasImportedEvents =
+                _game.allGameEvents.any((e) => e.isFromImport);
+
+            if (hasImportedEvents) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.analytics_outlined,
+                      size: 64,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Game stats were imported',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Detailed play-by-play data is not available.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (context) => SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.9,
+                            child: EventStreamWidget(
+                              game: _game,
+                              teamId: widget.season.teamId,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.bar_chart),
+                      label: const Text('View Game Stats'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             // Mobile layout: full event list with reordering
 
             var itemCount = _game.scoringEvents.length +
@@ -176,7 +303,7 @@ class _GameViewState extends State<GameView> {
                     visible: showScoringEvents,
                     child: Column(
                       children: [
-                        _getEventTile(event, loc),
+                        _getEventTile(event, loc, prefix: 'scoring-'),
                         const Divider(height: 1),
                       ],
                     ));
@@ -199,7 +326,7 @@ class _GameViewState extends State<GameView> {
                     key: ValueKey('event-${event.id}'),
                     child: Column(
                       children: [
-                        _getEventTile(event, loc),
+                        _getEventTile(event, loc, prefix: 'event-'),
                         const Divider(height: 1),
                       ],
                     ));
@@ -228,7 +355,7 @@ class _GameViewState extends State<GameView> {
                       key: ValueKey('shootout-${event.id}'),
                       child: Column(
                         children: [
-                          _getEventTile(event, loc),
+                          _getEventTile(event, loc, prefix: 'shootout-'),
                           const Divider(height: 1),
                         ],
                       ));
@@ -344,7 +471,8 @@ class _GameViewState extends State<GameView> {
     await launchUrl(Uri.parse(url));
   }
 
-  Widget _getEventTile(GameEvent event, AppLocalizations loc) {
+  Widget _getEventTile(GameEvent event, AppLocalizations loc,
+      {String prefix = ''}) {
     final opponent = !widget.game.isHomeTeam(widget.season.teamId)
         ? widget.game.homeTeam
         : widget.game.awayTeam;
@@ -404,11 +532,13 @@ class _GameViewState extends State<GameView> {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: EdgeInsets.all(useCompactLayout ? 10 : 20),
-          child: useCompactLayout
-              ? _buildCompactEventLayout(
-                  event, loc, eventColor, isGoal, opponent, assistEvent)
-              : _buildLargeEventLayout(
-                  event, loc, eventColor, isGoal, opponent, assistEvent),
+          child: isPeriodEvent
+              ? _buildPeriodEventLayout(event, loc)
+              : useCompactLayout
+                  ? _buildCompactEventLayout(
+                      event, loc, eventColor, isGoal, opponent, assistEvent)
+                  : _buildLargeEventLayout(
+                      event, loc, eventColor, isGoal, opponent, assistEvent),
         ),
       ),
     );
@@ -418,7 +548,7 @@ class _GameViewState extends State<GameView> {
     }
 
     return Dismissible(
-        key: Key(event.id.toString()),
+        key: Key('$prefix${event.id}'),
         direction: DismissDirection.endToStart,
         dismissThresholds: const {
           DismissDirection.endToStart: 0.7,
@@ -482,13 +612,51 @@ class _GameViewState extends State<GameView> {
           );
         },
         onDismissed: (direction) async {
+          // Synchronously remove the event to avoid "dismissed widget still part of tree" assert
+          _game.gameEvents.removeWhere((e) => e.id == event.id);
+          _game.scoringEvents.removeWhere((e) => e.id == event.id);
+          _game.shootoutEvents.removeWhere((e) => e.id == event.id);
+          _game.allGameEvents.removeWhere((e) => e.id == event.id);
+
           await DatabaseService.instance
               .delete('Events', key: event.id.toString());
           setState(() {
             _game.updateScore();
           });
+          EventService().eventEmitter.emit('eventCreated');
         },
         child: eventCard);
+  }
+
+  Widget _buildPeriodEventLayout(GameEvent event, AppLocalizations loc) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+          ),
+          child: Icon(
+            Icons.flag,
+            size: 16,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          event.display,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
   }
 
   // Compact layout for small screens - vertical stacking
@@ -636,6 +804,17 @@ class _GameViewState extends State<GameView> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (isGoal && !kIsWeb) ...[
+                  IconButton(
+                    onPressed: () => _sendGoalTweet(event.id, assistEvent?.player, forceTweet: true),
+                    icon: const Icon(Icons.send, size: 20),
+                    color: Colors.blue,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: loc.sendTweet,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 if (event.eventUrls?.isNotEmpty ?? false) ...[
                   GestureDetector(
                     onTap: () => _launchUrl(event.eventUrls!),
@@ -977,7 +1156,17 @@ class _GameViewState extends State<GameView> {
         // Score display for goals
         if (event.eventMinute > 0 &&
             (event.eventType == 'Shot' || event.eventType == 'PenaltyKick') &&
-            event.eventData == ShotResult.goal.index)
+            event.eventData == ShotResult.goal.index) ...[
+          if (!kIsWeb)
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: IconButton(
+                onPressed: () => _sendGoalTweet(event.id, assistEvent?.player, forceTweet: true),
+                icon: const Icon(Icons.send, size: 24),
+                color: Colors.blue,
+                tooltip: loc.sendTweet,
+              ),
+            ),
           Container(
             margin: const EdgeInsets.only(left: 8),
             padding: const EdgeInsets.symmetric(
@@ -1006,6 +1195,7 @@ class _GameViewState extends State<GameView> {
               ),
             ),
           ),
+        ],
       ],
     );
   }
@@ -1118,7 +1308,7 @@ class _GameViewState extends State<GameView> {
   }
 
   /// Send a tweet for a goal event, including assist information if provided
-  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer) async {
+  Future<void> _sendGoalTweet(int goalEventId, Player? assistPlayer, {bool forceTweet = false}) async {
     try {
       // Find the goal event
       final goalEvent =
@@ -1132,7 +1322,7 @@ class _GameViewState extends State<GameView> {
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      if (!gameInProgress && !kDebugMode) return;
+      if (!gameInProgress && !kDebugMode && !forceTweet) return;
 
       // Generate tweet text with assist information
       String tweetText;
@@ -1147,50 +1337,108 @@ class _GameViewState extends State<GameView> {
             '(${goalEvent.eventMinute}\') Goal by ${goalEvent.team.shortName}';
       }
 
-      tweetText = '$tweetText\n\n${_game.tweetStatus()}';
+      tweetText = '$tweetText\n\n${_game.tweetStatusAtEvent(goalEvent)}';
 
       // Check if goal scorer has a profile image
       File? playerImageFile;
-      if (goalEvent.player != null &&
-          goalEvent.player!.profileImage != null &&
-          goalEvent.player!.profileImage!.isNotEmpty) {
-        try {
-          final response =
-              await http.get(Uri.parse(goalEvent.player!.profileImage!));
-          if (response.statusCode == 200) {
-            final tempDir = await getTemporaryDirectory();
-            final imageFile = File(
-                '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            await imageFile.writeAsBytes(response.bodyBytes);
-            playerImageFile = imageFile;
+      if (goalEvent.player != null) {
+        final imageUrl = goalEvent.player!.displayImageForProfile;
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          try {
+            final response = await http.get(Uri.parse(imageUrl));
+            if (response.statusCode == 200) {
+              final tempDir = await getTemporaryDirectory();
+              final imageFile = File(
+                  '${tempDir.path}/player_${goalEvent.player!.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+              await imageFile.writeAsBytes(response.bodyBytes);
+              playerImageFile = imageFile;
+            }
+          } catch (e) {
+            debugPrint('Error downloading player image for tweet: $e');
           }
-        } catch (e) {
-          debugPrint('Error downloading player image for tweet: $e');
         }
       }
 
       if (mounted) {
-        // Show tweet preview dialog - it handles initialization and sending internally
-        await TweetPreviewDialog.show(
-          context,
-          initialText: tweetText,
-          teamId: widget.season.teamId,
-          team: widget.season.team,
-          imageFile: playerImageFile,
-          eventContext: 'GOAL!',
-        );
+        // Check if twitter is configured first
+        if (await TwitterService.instance
+            .isConfigured(teamId: widget.season.teamId)) {
+          if (!mounted) return;
+          // Show tweet preview dialog - it handles initialization and sending internally
+          await TweetPreviewDialog.show(
+            context,
+            initialText: tweetText,
+            teamId: widget.season.teamId,
+            team: widget.season.team,
+            imageFile: playerImageFile,
+            eventContext: 'GOAL!',
+          );
+        } else if (forceTweet) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Twitter is not configured for this team.')),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error sending goal tweet: $e');
     }
   }
 
-  Future<void> _editEvent({GameEvent? event}) async {
+  Future<void> _editEvent({GameEvent? event, bool showGeneric = false, Future<GameEvent?>? speechFuture}) async {
     if (kIsWeb) {
       return;
     }
 
     if (event?.eventType == 'Period') {
+      return;
+    }
+
+    if (speechFuture != null) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        builder: (context) {
+          return FutureBuilder<GameEvent?>(
+            future: speechFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Container(
+                    height: 300,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 24),
+                        const Text('Processing...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                 Navigator.of(context).pop();
+                 if (snapshot.data != null) {
+                   _editEvent(event: snapshot.data);
+                 }
+              });
+              
+              return Container(height: 100);
+            }
+          );
+        }
+      );
+      return;
+    }
+
+    if (!showGeneric && event?.eventType == 'PenaltyKick') {
+      _showPenaltyKickOverlay(event!);
       return;
     }
 
@@ -1234,15 +1482,23 @@ class _GameViewState extends State<GameView> {
     List<Player> homeTeamPlayers =
         await Player.listFromTeamIdSeasonId(_game.homeTeam.id, _game.seasonId);
 
+    int defaultPeriod = _game.gameEvents.isNotEmpty 
+        ? _game.gameEvents.last.eventPeriod 
+        : _game.gameStatus.index;
+
     event ??= GameEvent.initial(
         team: event?.team ?? _game.awayTeam,
         game: _game,
         seasonId: _game.seasonId,
         eventType: event?.eventType ?? 'Shot',
         eventMinute: event?.eventMinute ?? -1,
-        eventPeriod: event?.eventPeriod ?? -1,
+        eventPeriod: event?.eventPeriod == null || event?.eventPeriod == -1 ? defaultPeriod : event!.eventPeriod,
         eventUrls: event?.eventUrls ?? '',
         eventData: event?.eventData ?? 0);
+
+    if (event.eventType == 'Save' && event.player == null) {
+      event.player = _getLastSavePlayer(event.team.id);
+    }
 
     final initialStatus = event.eventPeriod == -1
         ? _game.gameStatus == GameStatus.firstHalf
@@ -1331,7 +1587,7 @@ class _GameViewState extends State<GameView> {
       number: -1,
     );
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
         // ignore: use_build_context_synchronously
         context: context,
         showDragHandle: true,
@@ -1413,6 +1669,14 @@ class _GameViewState extends State<GameView> {
                                 data = 2;
                               }
 
+                              if (type == 'PenaltyKick') {
+                                Navigator.of(context).pop();
+                                event!.eventType = type;
+                                event.eventData = data;
+                                _showPenaltyKickOverlay(event);
+                                return;
+                              }
+
                               setModalState(() {
                                 event!.eventType = type;
                                 event.eventData = data;
@@ -1424,13 +1688,12 @@ class _GameViewState extends State<GameView> {
                                 style: TextStyle(fontSize: 18)),
                             dropdownMenuEntries: eventEntries),
                         Visibility(
-                            visible: playerEntries.isNotEmpty,
+                            visible: playerEntries.isNotEmpty && event.eventType != 'Corner',
                             child: const SizedBox(height: 30)),
                         Visibility(
-                            visible: playerEntries.isNotEmpty,
+                            visible: playerEntries.isNotEmpty && event.eventType != 'Corner',
                             child: DropdownMenu(
-                                enabled: (event.eventType != 'Corner' &&
-                                        playerEntries.isNotEmpty) ||
+                                enabled: (playerEntries.isNotEmpty) ||
                                     (event.eventType == 'Shot' &&
                                         event.eventData ==
                                             ShotResult.goal.index),
@@ -1553,24 +1816,110 @@ class _GameViewState extends State<GameView> {
         });
   }
 
+  void _showPenaltyKickOverlay(GameEvent event) {
+    PenaltyKickOverlay.show(
+      context,
+      pkEvent: PenaltyKick(
+        id: event.id,
+        index: event.index,
+        player: event.player,
+        team: event.team,
+        game: event.game,
+        seasonId: event.seasonId,
+        eventType: event.eventType,
+        eventMinute: event.eventMinute,
+        eventPeriod: event.eventPeriod,
+        eventUrls: event.eventUrls,
+        eventData: event.eventData,
+        isFromImport: event.isFromImport,
+      ),
+      season: widget.season,
+      game: _game,
+      onSaved: (pk, keeper) async {
+        Navigator.of(context).pop(); // Close overlay
+        await _saveEvent(pk);
+
+        if (pk.eventData == ShotResult.onTargetSave.index && keeper != null) {
+          // Find existing save event by keeper
+          final saveEvents = _game.allGameEvents
+              .where((e) => e.eventType == 'Save' && e.team.id != pk.team.id)
+              .toList();
+
+          GameEvent? matchingSave;
+          for (final s in saveEvents) {
+            if ((pk.eventMinute <= 0 ||
+                    (s.eventMinute - pk.eventMinute).abs() <= 2) &&
+                s.player != null) {
+              matchingSave = s;
+              break;
+            }
+          }
+
+          if (matchingSave != null) {
+            matchingSave.player = keeper;
+            matchingSave.eventMinute = pk.eventMinute;
+            matchingSave.eventPeriod = pk.eventPeriod;
+            await _saveEvent(matchingSave);
+          } else {
+            final newSave = GameEvent.initial(
+              team: pk.team.id == _game.homeTeam.id
+                  ? _game.awayTeam
+                  : _game.homeTeam,
+              game: _game,
+              seasonId: _game.seasonId,
+              eventType: 'Save',
+              eventMinute: pk.eventMinute,
+              eventPeriod: pk.eventPeriod,
+              eventUrls: '',
+              eventData: 0,
+            );
+            newSave.player = keeper;
+            await _saveEvent(newSave);
+          }
+        }
+
+        setState(() {}); // refresh generic state
+      },
+      onEditDetails: () {
+        Navigator.of(context).pop(); // Close overlay
+        _editEvent(event: event, showGeneric: true);
+      },
+    );
+  }
+
   Future<void> _advanceGame() async {
-    await _game.advanceGame();
+    if (_isAdvancing) return;
+    _isAdvancing = true;
+    try {
+      await _game.advanceGame();
 
-    final periodEvent = Period(
-        id: -1,
-        index: -1,
-        player: null,
-        team: _game.homeTeam,
-        game: _game,
-        seasonId: _game.seasonId,
-        eventType: 'Period',
-        eventMinute: -1,
-        eventPeriod: _game.gameStatus.index,
-        eventUrls: '',
-        eventData: _game.gameStatus.index);
-    await _saveEvent(periodEvent);
+      // Ensure we don't create duplicate period events defensively
+      final bool existingPeriod = _game.allGameEvents.any((e) =>
+          e.eventType == 'Period' && e.eventPeriod == _game.gameStatus.index);
 
-    setState(() {});
+      if (!existingPeriod) {
+        final periodEvent = Period(
+            id: -1,
+            index: -1,
+            player: null,
+            team: _game.homeTeam,
+            game: _game,
+            seasonId: _game.seasonId,
+            eventType: 'Period',
+            eventMinute: -1,
+            eventPeriod: _game.gameStatus.index,
+            eventUrls: '',
+            eventData: _game.gameStatus.index);
+        await _saveEvent(periodEvent);
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+      EventService().eventEmitter.emit('eventCreated');
+    } finally {
+      _isAdvancing = false;
+    }
   }
 
   Future<bool> _saveEvent(GameEvent event) async {
@@ -1581,8 +1930,17 @@ class _GameViewState extends State<GameView> {
     }
 
     if (event.eventPeriod >= 0) {
+      int eventId = event.id;
       if (event.id == -1) {
-        final newId = DateTime.now().millisecondsSinceEpoch;
+        int newId = DateTime.now().millisecondsSinceEpoch;
+        if (newId <= _lastGeneratedId) {
+          newId = _lastGeneratedId + 1;
+        }
+        _lastGeneratedId = newId;
+
+        eventId = newId;
+        event.id = newId;
+        event.index = newId;
         await DatabaseService.instance.insert('Events', {
           'id': newId,
           'index': newId,
@@ -1617,24 +1975,34 @@ class _GameViewState extends State<GameView> {
 
       await _game.updateScore();
 
-      // Only send tweets when game is in progress (but NOT for goals - those are sent after assist dialog)
+      bool showAssistDialog = event.isGoalEvent &&
+          event.player?.id != -2 &&
+          event.team.id == widget.season.teamId;
+
+      // Only send tweets when game is in progress (but NOT for goals with assist dialogs - those are sent after assist dialog)
       final gameInProgress = _game.gameStatus != GameStatus.notStarted &&
           _game.gameStatus != GameStatus.gameFinal &&
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
-      // Don't tweet goals here - they'll be tweeted after assist dialog
-      if (event.shouldTweet && !event.isGoalEvent && gameInProgress) {
+      // Don't tweet here if it will be handled by the assist dialog flow
+      if (event.shouldTweet && !showAssistDialog && gameInProgress) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
           if (mounted) {
-            // Show tweet preview dialog - it handles initialization and sending internally
-            await TweetPreviewDialog.show(
-              context,
-              initialText: tweetText,
-              teamId: widget.season.teamId,
-              team: widget.season.team,
-            );
+            // Check if twitter is configured first
+            if (await TwitterService.instance
+                .isConfigured(teamId: widget.season.teamId)) {
+              if (mounted) {
+                // Show tweet preview dialog - it handles initialization and sending internally
+                await TweetPreviewDialog.show(
+                  context,
+                  initialText: tweetText,
+                  teamId: widget.season.teamId,
+                  team: widget.season.team,
+                );
+              }
+            }
           }
         }
       }
@@ -1648,7 +2016,7 @@ class _GameViewState extends State<GameView> {
         final saveEvent = Save(
             id: -1,
             index: -1,
-            player: null,
+            player: _getLastSavePlayer(team.id),
             team: team,
             game: _game,
             seasonId: _game.seasonId,
@@ -1656,13 +2024,11 @@ class _GameViewState extends State<GameView> {
             eventMinute: event.eventMinute,
             eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: event.id);
+            eventData: eventId);
         setState(() {
           _autoCreateSave = saveEvent;
         });
-      } else if (event.isGoalEvent &&
-          event.player?.id != -2 &&
-          event.team.id == widget.season.teamId) {
+      } else if (showAssistDialog) {
         // Auto-create an Assist event for goals by our team (excluding own goals)
         final assistEvent = Assist(
             id: -1,
@@ -1675,7 +2041,7 @@ class _GameViewState extends State<GameView> {
             eventMinute: event.eventMinute,
             eventPeriod: event.eventPeriod,
             eventUrls: event.eventUrls ?? '',
-            eventData: event.id);
+            eventData: eventId);
         setState(() {
           _autoCreateAssist = assistEvent;
         });

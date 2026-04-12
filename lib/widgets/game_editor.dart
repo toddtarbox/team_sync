@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
+import 'package:universal_io/io.dart';
+
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
@@ -30,12 +36,21 @@ class _GameEditorState extends State<GameEditor> {
   List<Team> _availableTeams = [];
   final _formKey = GlobalKey<FormState>();
   final DateFormat _dateFormat = DateFormat('EEE, MMM d, yyyy');
+  late TextEditingController _imageUrlController;
 
   @override
   void initState() {
     super.initState();
+    super.initState();
     _initializeGame();
+    _imageUrlController = TextEditingController(text: _game.imageUrl);
     _loadTeams();
+  }
+
+  @override
+  void dispose() {
+    _imageUrlController.dispose();
+    super.dispose();
   }
 
   void _initializeGame() {
@@ -202,6 +217,21 @@ class _GameEditorState extends State<GameEditor> {
 
                     const SizedBox(height: 24),
 
+                    // Scrimmage Toggle
+                    SwitchListTile(
+                      title: const Text('Scrimmage'),
+                      subtitle: const Text(
+                          'Stats from this game will not count towards player or season totals.'),
+                      value: _game.isScrimmage,
+                      onChanged: (bool value) {
+                        setState(() {
+                          _game.isScrimmage = value;
+                        });
+                      },
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: 16),
+
                     // Metadata
                     TextFormField(
                       initialValue: _game.description,
@@ -229,6 +259,89 @@ class _GameEditorState extends State<GameEditor> {
                       ),
                       onChanged: (val) => _game.gameLinks = val,
                     ),
+                    const SizedBox(height: 16),
+                    // Image URL with Upload Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _imageUrlController,
+                            decoration: InputDecoration(
+                              labelText: 'Image URL (optional)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              prefixIcon: const Icon(Icons.image),
+                              suffixIcon: _imageUrlController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _imageUrlController.clear();
+                                        _game.imageUrl = null;
+                                        setState(() {});
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (val) {
+                              _game.imageUrl = val;
+                              setState(() {}); // Update preview state
+                            },
+                          ),
+                        ),
+                        if (!kIsWeb) ...[
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: _pickAndUploadImage,
+                            icon: const Icon(Icons.upload_file),
+                            tooltip: 'Upload Image',
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // Image Preview
+                    if (_imageUrlController.text.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                                color: Theme.of(context).colorScheme.outline),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              _imageUrlController.text,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.broken_image,
+                                          color: Colors.grey),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Invalid URL',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     // Scoreboard preview if editing
                     if (widget.game != null &&
@@ -249,7 +362,7 @@ class _GameEditorState extends State<GameEditor> {
                       if (widget.onGoToGame != null)
                         Center(
                           child: ElevatedButton.icon(
-                            icon: const Icon(Icons.sports_soccer),
+                            icon: Icon(SportStrategy.current.sportIcon),
                             label: Text(loc.goToGame),
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
@@ -361,15 +474,30 @@ class _GameEditorState extends State<GameEditor> {
           );
         }),
         const SizedBox(height: 8),
-        if (widget.game == null)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(loc.createNewOpponent),
-              onPressed: _showCreateOpponentDialog,
-            ),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (currentOpponentId != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: TextButton.icon(
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text("Edit Opponent"),
+                  onPressed: () {
+                    final team = _availableTeams
+                        .firstWhere((t) => t.id == currentOpponentId);
+                    _showEditTeamDialog(team);
+                  },
+                ),
+              ),
+            if (widget.game == null)
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(loc.createNewOpponent),
+                onPressed: _showCreateOpponentDialog,
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -656,6 +784,256 @@ class _GameEditorState extends State<GameEditor> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving game: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (image == null) return;
+
+      if (!mounted) return;
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading image...')),
+      );
+
+      // Upload to Firebase Storage
+      // Using player_action_photos as it allows write access in current security rules
+      // Ideal fix: Update storage.rules to include game_images
+      final storageRef = FirebaseStorage.instance.ref().child(
+          'player_action_photos/game_${widget.season.id}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await storageRef.putFile(File(image.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      if (!mounted) return;
+
+      setState(() {
+        _imageUrlController.text = downloadUrl;
+        _game.imageUrl = downloadUrl;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image uploaded successfully')),
+      );
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading image: $e')),
+        );
+      }
+    }
+  }
+
+  Future<String?> _pickAndUploadTeamLogo(int teamId) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512, // Logos don't need to be huge
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image == null) return null;
+
+      if (!mounted) return null;
+
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uploading team logo...')),
+      );
+
+      // Upload to Firebase Storage
+      // Keeping in player_action_photos as requested for permission reasons
+      final storageRef = FirebaseStorage.instance.ref().child(
+          'player_action_photos/team_logo_${teamId}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await storageRef.putFile(File(image.path));
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      return downloadUrl;
+    } catch (e) {
+      debugPrint('Error uploading logo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error uploading logo: $e')),
+        );
+      }
+      return null;
+    }
+  }
+
+  void _showEditTeamDialog(Team team) {
+    String teamName = team.fullName;
+    String teamShortName = team.shortName;
+    String? logoUrl = team.logoUrl;
+    TextEditingController logoController =
+        TextEditingController(text: team.logoUrl);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text("Edit Opponent"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(labelText: loc.teamName),
+                    controller: TextEditingController(text: teamName),
+                    onChanged: (val) => teamName = val,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    decoration: InputDecoration(labelText: loc.teamShortName),
+                    controller: TextEditingController(text: teamShortName),
+                    onChanged: (val) => teamShortName = val,
+                  ),
+                  const SizedBox(height: 16),
+                  // Logo URL with Upload Button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: logoController,
+                          decoration: InputDecoration(
+                            labelText: 'Logo URL (optional)',
+                            prefixIcon: const Icon(Icons.image),
+                            suffixIcon: logoUrl != null && logoUrl!.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        logoController.clear();
+                                        logoUrl = null;
+                                      });
+                                    },
+                                  )
+                                : null,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              logoUrl = val;
+                            });
+                          },
+                        ),
+                      ),
+                      if (!kIsWeb) ...[
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          onPressed: () async {
+                            final url = await _pickAndUploadTeamLogo(team.id);
+                            if (url != null) {
+                              setState(() {
+                                logoUrl = url;
+                                logoController.text = url;
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.upload_file),
+                          tooltip: 'Upload Logo',
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (logoUrl != null && logoUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 80,
+                      width: 80,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(loc.cancelButton),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (teamName.isNotEmpty && teamShortName.isNotEmpty) {
+                    Navigator.pop(context);
+                    await _updateTeamDetails(
+                        team.id, teamName, teamShortName, logoUrl);
+                  }
+                },
+                child: Text(loc.save),
+              ),
+            ],
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _updateTeamDetails(
+      int teamId, String name, String shortName, String? logoUrl) async {
+    try {
+      await DatabaseService.instance.update(
+          'Teams',
+          {
+            'fullName': name,
+            'shortName': shortName,
+            'logoUrl': logoUrl,
+          },
+          key: teamId.toString());
+
+      Team.invalidate(teamId); // Invalidate cache so we get fresh data
+      await _loadTeams(); // Reload list to reflect changes
+
+      // If this was the currently selected opponent, we might need to update _game.homeTeam/awayTeam
+      // strictly speaking _loadTeams creates new objects so _updateOpponent might be needed
+      // Check if this team is currently selected in the game object
+      if (_game.homeTeam.id == teamId || _game.awayTeam.id == teamId) {
+        _updateOpponent(teamId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Team updated successfully')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating team: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating team: $e')),
         );
       }
     }

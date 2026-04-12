@@ -1,13 +1,27 @@
 #!/bin/bash
 
 # Run Flutter web in development mode with Firebase secrets from .env file
-# Usage: ./scripts/run-team-web.sh
+# Usage: ./scripts/run-team-web.sh [soccer|basketball]
 
 set -euo pipefail
+
+# Colors for output
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Determine target (default to soccer)
+SPORT=${1:-"soccer"}
+
+# Determine entry point
+if [ "$SPORT" == "basketball" ]; then
+  ENTRY_POINT="lib/main_basketball.dart"
+else
+  ENTRY_POINT="lib/main_soccer.dart"
+fi
 
 # Path to .env file
 ENV_FILE="$PROJECT_ROOT/.env"
@@ -43,14 +57,15 @@ for var in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
-echo "Running TeamSync web with Firebase configuration from .env..."
+echo -e "${BLUE}Running TeamSync ($SPORT) web with Firebase configuration from .env...${NC}"
 echo "Project: $FIREBASE_PROJECT_ID"
+echo "Entry Point: $ENTRY_POINT"
 echo ""
 
 # Run TeamSync web with all dart-defines
 cd "$PROJECT_ROOT"
 flutter run -d chrome --web-port 5000 \
-  -t lib/main_team_sync.dart \
+  -t "$ENTRY_POINT" \
   --dart-define=WEB_API_KEY="$WEB_API_KEY" \
   --dart-define=WEB_APP_ID="$WEB_APP_ID" \
   --dart-define=MESSAGING_SENDER_ID="$MESSAGING_SENDER_ID" \

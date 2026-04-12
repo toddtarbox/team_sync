@@ -76,11 +76,36 @@ get_val() {
   echo "$val"
 }
 
-CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID" "")
-REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "IOS_REVERSED_CLIENT_ID" "")
+# Check if we are building for Basketball based on BUNDLE_ID or PRODUCT_BUNDLE_IDENTIFIER
+IS_BASKETBALL=0
+if [[ "$BUNDLE_ID" == *"basketball"* ]] || [[ "$PRODUCT_BUNDLE_IDENTIFIER" == *"basketball"* ]]; then
+  IS_BASKETBALL=1
+fi
+
+if [ "$IS_BASKETBALL" -eq 1 ]; then
+  # Basketball Configuration
+  CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID_BASKETBALL" "")
+  REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "IOS_REVERSED_CLIENT_ID_BASKETBALL" "")
+  GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "IOS_GOOGLE_APP_ID_BASKETBALL" "")
+  
+  # Fallback to shared if specific not found (except App ID, which must be specific)
+  if [ -z "$CLIENT_ID" ]; then CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID" ""); fi
+else
+  # Soccer / Default Configuration
+  CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID_SOCCER" "")
+  if [ -z "$CLIENT_ID" ]; then CLIENT_ID=$(get_val "CLIENT_ID" "IOS_CLIENT_ID" ""); fi
+  
+  REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "IOS_REVERSED_CLIENT_ID_SOCCER" "")
+  if [ -z "$REVERSED_CLIENT_ID" ]; then REVERSED_CLIENT_ID=$(get_val "REVERSED_CLIENT_ID" "IOS_REVERSED_CLIENT_ID" ""); fi
+
+  GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "IOS_GOOGLE_APP_ID_SOCCER" "")
+  if [ -z "$GOOGLE_APP_ID" ]; then GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "IOS_GOOGLE_APP_ID" ""); fi
+fi
+
 if [ -z "$REVERSED_CLIENT_ID" ] && [ -n "$CLIENT_ID" ]; then
   REVERSED_CLIENT_ID="com.googleusercontent.apps.$CLIENT_ID"
 fi
+
 ANDROID_CLIENT_ID=$(get_val "ANDROID_CLIENT_ID" "IOS_ANDROID_CLIENT_ID" "")
 API_KEY=$(get_val "API_KEY" "IOS_API_KEY" "")
 GCM_SENDER_ID=$(get_val "GCM_SENDER_ID" "IOS_GCM_SENDER_ID" "")
@@ -89,10 +114,10 @@ if [ -z "$GCM_SENDER_ID" ]; then
 fi
 PLIST_VERSION=$(get_val "PLIST_VERSION" "PLIST_VERSION" "1")
 # Prefer BUNDLE_ID env or Xcode's PRODUCT_BUNDLE_IDENTIFIER
-BUNDLE_ID="${IOS_BUNDLE_ID:-$PRODUCT_BUNDLE_IDENTIFIER}"
 if [ -z "$BUNDLE_ID" ]; then
   BUNDLE_ID=$(get_val "BUNDLE_ID" "BUNDLE_ID" "${PRODUCT_BUNDLE_IDENTIFIER}")
 fi
+
 PROJECT_ID=$(get_val "PROJECT_ID" "FIREBASE_PROJECT_ID" "")
 STORAGE_BUCKET=$(get_val "STORAGE_BUCKET" "FIREBASE_STORAGE_BUCKET" "")
 IS_ADS_ENABLED=$(get_val "IS_ADS_ENABLED" "IS_ADS_ENABLED" "false")
@@ -100,7 +125,8 @@ IS_ANALYTICS_ENABLED=$(get_val "IS_ANALYTICS_ENABLED" "IS_ANALYTICS_ENABLED" "fa
 IS_APPINVITE_ENABLED=$(get_val "IS_APPINVITE_ENABLED" "IS_APPINVITE_ENABLED" "true")
 IS_GCM_ENABLED=$(get_val "IS_GCM_ENABLED" "IS_GCM_ENABLED" "true")
 IS_SIGNIN_ENABLED=$(get_val "IS_SIGNIN_ENABLED" "IS_SIGNIN_ENABLED" "true")
-GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "IOS_GOOGLE_APP_ID" "")
+
+# Final Fallback for Google App ID if still empty (legacy support)
 if [ -z "$GOOGLE_APP_ID" ]; then
   GOOGLE_APP_ID=$(get_val "GOOGLE_APP_ID" "FIREBASE_IOS_APP_ID" "")
 fi

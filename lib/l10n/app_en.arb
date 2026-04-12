@@ -297,6 +297,7 @@
   "retry": "Retry",
   "revokeAccess": "Revoke access",
   "rowNumber": "Row {number}",
+  "renameTeam": "Rename Team",
   "save": "Save",
   "saves": "Saves",
   "scoringSummary": "Scoring Summary",
@@ -344,6 +345,7 @@
   "teamAccomplishments": "Team Accomplishments",
   "teamId": "Team ID",
   "teamName": "Team Name",
+  "teamNameUpdated": "Team name updated successfully",
   "teamShortName": "Team Short Name",
   "teamStandings": "Team Standings",
   "teamSummary": "About the Team",
@@ -379,6 +381,8 @@
   "upgradeToPro": "Upgrade to Pro",
   "uploadImage": "Upload Image",
   "uploadingImage": "Uploading image...",
+  "teamLogo": "Team Logo",
+  "organizationLogo": "Organization Logo",
   "addLogo": "Add Logo",
   "changeLogo": "Change Logo",
   "removeLogo": "Remove Logo",
@@ -494,5 +498,8 @@
   "addGame": "Add Game",
   "opponent": "Opponent",
   "date": "Date",
-  "timeOptional": "Time (optional)"
+  "timeOptional": "Time (optional)",
+  "importStats": "Import Stats",
+  "importStatsConfirm": "Are you sure you want to import stats? This will overwrite existing game events.",
+  "importStatsButton": "Import"
 }

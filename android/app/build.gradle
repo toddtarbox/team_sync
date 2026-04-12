@@ -39,7 +39,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.tsquared.team_sync.soccer"
+        applicationId = "com.tsquared.team_sync"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -48,11 +48,19 @@ android {
 
     flavorDimensions "app"
     productFlavors {
-        teamSync {
+        soccer {
             dimension "app"
+            applicationIdSuffix ".soccer"
             // TeamSync Firebase project: com.tsquared.team_sync.soccer
-            manifestPlaceholders = [appName: "TeamSync"]
-            resValue "string", "app_name", "TeamSync"
+            manifestPlaceholders = [appName: "TeamSync - Soccer Analytics"]
+            resValue "string", "app_name", "TeamSync - Soccer Analytics"
+        }
+        basketball {
+            dimension "app"
+            applicationIdSuffix ".basketball"
+            // TeamSync Basketball Firebase project: com.tsquared.team_sync.basketball
+            manifestPlaceholders = [appName: "TeamSync - Basketball Analytics"]
+            resValue "string", "app_name", "TeamSync - Basketball Analytics"
         }
     }
 
@@ -148,29 +156,44 @@ task generateGoogleServices {
             return v.toString().replace('\\','\\\\').replace('"','\\"')
         }
 
+        // Helper to get value with fallback to legacy keys
+        def getValWithFallback = { key, legacyKey ->
+            def v = getVal(key)
+            if (v == null || v.toString().trim() == '') {
+                v = getVal(legacyKey)
+            }
+            return v
+        }
+
         def project_number = esc(getVal('FIREBASE_PROJECT_NUMBER'))
         def firebase_url = esc(getVal('FIREBASE_DATABASE_URL'))
         def project_id = esc(getVal('FIREBASE_PROJECT_ID'))
         def storage_bucket = esc(getVal('FIREBASE_STORAGE_BUCKET'))
-        def mobile_app_id = esc(getVal('FIREBASE_MOBILE_APP_ID'))
-        def raw_package_name = getVal('ANDROID_PACKAGE_NAME') ?: project?.android?.defaultConfig?.applicationId
-        def package_name = esc(raw_package_name)
+        
+        // --- Clients Configuration ---
+        
+        // 1. Soccer (Default/Legacy) configuration
+        def soccer_app_id = esc(getValWithFallback('FIREBASE_MOBILE_APP_ID_SOCCER', 'FIREBASE_MOBILE_APP_ID'))
+        def soccer_package = esc(getValWithFallback('ANDROID_PACKAGE_NAME_SOCCER', 'ANDROID_PACKAGE_NAME') ?: "com.tsquared.team_sync.soccer")
+        
+        // 2. Basketball configuration
+        def basketball_app_id = esc(getVal('FIREBASE_MOBILE_APP_ID_BASKETBALL'))
+        def basketball_package = esc(getVal('ANDROID_PACKAGE_NAME_BASKETBALL') ?: "com.tsquared.team_sync.basketball")
+
         def api_key = esc(getVal('API_KEY'))
         def oauthRaw = getVal('OAUTH_CLIENT_IDS')
         def iosInviteClient = esc(getVal('IOS_APPINVITE_CLIENT_ID'))
 
-        // Build oauth_client array
+        // Build oauth_client array (shared)
         def oauthClients = [] as List
         if (oauthRaw && oauthRaw.toString().trim() != '') {
             oauthRaw.toString().split(',').collect { it.trim() }.findAll { it }.each { id ->
                 oauthClients << "{\"client_id\":\"${esc(id)}\",\"client_type\":1}"
             }
         }
-
-        // If no oauth clients provided, leave empty array
         def oauthClientsJson = oauthClients.size() ? oauthClients.join(',') : ''
 
-        // Build other_platform_oauth_client for appinvite_service (include iosInviteClient if present)
+        // Build other_platform_oauth_client (shared)
         def otherPlatform = [] as List
         if (oauthRaw && oauthRaw.toString().trim() != '') {
             oauthRaw.toString().split(',').collect { it.trim() }.findAll { it }.each { id ->
@@ -182,6 +205,50 @@ task generateGoogleServices {
         }
         def otherPlatformJson = otherPlatform.size() ? otherPlatform.join(',') : ''
 
+        // Build Client JSON Object Helper
+        def buildClientJson = { appId, pkgName ->
+             if (!appId || appId.trim() == "") return ""
+             return """
+    {
+      "client_info": {
+        "mobilesdk_app_id": "${appId}",
+        "android_client_info": {
+          "package_name": "${pkgName}"
+        }
+      },
+      "oauth_client": [${oauthClientsJson}],
+      "api_key": [
+        {
+          "current_key": "${api_key}"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [${otherPlatformJson}]
+        }
+      }
+    }"""
+        }
+
+        def clients = []
+        // Add Soccer Client
+        def soccerClient = buildClientJson(soccer_app_id, soccer_package)
+        if (soccerClient) {
+            println "[generateGoogleServices] Adding Soccer client (App ID: ${soccer_app_id})"
+            clients << soccerClient
+        } else {
+             println "[generateGoogleServices] Skipping Soccer client (Missing App ID or Package)"
+        }
+
+        // Add Basketball Client
+        def basketballClient = buildClientJson(basketball_app_id, basketball_package)
+        if (basketballClient) {
+            println "[generateGoogleServices] Adding Basketball client (App ID: ${basketball_app_id})"
+            clients << basketballClient
+        } else {
+            println "[generateGoogleServices] Skipping Basketball client (Missing App ID or Package)"
+        }
+
         // Build JSON text
         def jsonBuilder = new StringBuilder()
         jsonBuilder.append('{\n')
@@ -192,29 +259,7 @@ task generateGoogleServices {
         jsonBuilder.append('    "storage_bucket": "' + storage_bucket + '"\n')
         jsonBuilder.append('  },\n')
         jsonBuilder.append('  "client": [\n')
-        jsonBuilder.append('    {\n')
-        jsonBuilder.append('      "client_info": {\n')
-        jsonBuilder.append('        "mobilesdk_app_id": "' + mobile_app_id + '",\n')
-        jsonBuilder.append('        "android_client_info": {\n')
-        jsonBuilder.append('          "package_name": "' + package_name + '"\n')
-        jsonBuilder.append('        }\n')
-        jsonBuilder.append('      },\n')
-        jsonBuilder.append('      "oauth_client": [')
-        jsonBuilder.append(oauthClientsJson)
-        jsonBuilder.append('],\n')
-        jsonBuilder.append('      "api_key": [\n')
-        jsonBuilder.append('        {\n')
-        jsonBuilder.append('          "current_key": "' + api_key + '"\n')
-        jsonBuilder.append('        }\n')
-        jsonBuilder.append('      ],\n')
-        jsonBuilder.append('      "services": {\n')
-        jsonBuilder.append('        "appinvite_service": {\n')
-        jsonBuilder.append('          "other_platform_oauth_client": [')
-        jsonBuilder.append(otherPlatformJson)
-        jsonBuilder.append(']\n')
-        jsonBuilder.append('        }\n')
-        jsonBuilder.append('      }\n')
-        jsonBuilder.append('    }\n')
+        jsonBuilder.append(clients.join(','))
         jsonBuilder.append('  ],\n')
         jsonBuilder.append('  "configuration_version": "1"\n')
         jsonBuilder.append('}\n')

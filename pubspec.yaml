@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.11.4+129
+version: 1.11.6+131
 
 environment:
   sdk: ^3.5.2
@@ -58,6 +58,8 @@ dependencies:
   purchases_flutter: ^9.8.0
   purchases_ui_flutter: ^9.8.0
 
+  speech_to_text: ^7.3.0
+
   twitter_webview_auth: ^0.2.0
   dart_twitter_api: ^0.6.0
   firebase_analytics: ^12.0.3
@@ -80,6 +82,8 @@ dependencies:
   integration_test:
     sdk: flutter
   table_calendar: ^3.2.0
+  html: ^0.15.6
+  universal_io: ^2.3.1
 
   # keep dev deps below
 
@@ -103,7 +107,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true # To keep your Android icon
   ios: true     # To generate iOS icons
-  image_path: "assets/images/pngs/icon_no_background.png" # Path to your high-res icon
+  # image_path: "assets/images/pngs/soccer_icon_no_background.png" # Path to your high-res icon
+  image_path: "assets/images/pngs/basketball_icon_no_background.png" # Path to your high-res icon
   remove_alpha_ios: true
 
 flutter:

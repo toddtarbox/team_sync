@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -68,7 +68,7 @@ class CommonPageHeader extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (team.logoUrl != null && team.logoUrl!.isNotEmpty)
+              if (team.logoUrl != null && team.logoUrl!.isNotEmpty) ...[
                 HoverBuilder(
                   builder: (context, isHovered) {
                     return Transform.scale(
@@ -86,17 +86,48 @@ class CommonPageHeader extends StatelessWidget {
                     );
                   },
                 ),
-              if (team.logoUrl != null && team.logoUrl!.isNotEmpty)
                 const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  team.fullName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              ] else if (!kIsWeb &&
+                  team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid)) ...[
+                GestureDetector(
+                  onTap: () =>
+                      _showLogoOptions(context, isOrganizationLogo: false),
+                  child: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.add_photo_alternate,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: 10),
+              ],
+              Flexible(
+                child: GestureDetector(
+                  onTap: !kIsWeb &&
+                          team.isTeamAdmin(
+                              FirebaseAuth.instance.currentUser?.uid)
+                      ? () => _showEditNameDialog(context)
+                      : null,
+                  child: Text(
+                    team.fullName,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
               if (organizationAvatar != null) ...[
@@ -167,6 +198,26 @@ class CommonPageHeader extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              child: Text(
+                isOrganizationLogo ? loc.organizationLogo : loc.teamLogo,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            if (!isOrganizationLogo)
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: Text(loc.renameTeam),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditNameDialog(context);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: Text(hasLogo ? loc.changeLogo : loc.addLogo),
@@ -419,6 +470,87 @@ class CommonPageHeader extends StatelessWidget {
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _showEditNameDialog(BuildContext context) async {
+    final loc = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: team.fullName);
+    final shortNameController = TextEditingController(text: team.shortName);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(loc.renameTeam),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: loc.teamName,
+                hintText: loc.teamName,
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: shortNameController,
+              decoration: InputDecoration(
+                labelText: loc.teamShortName,
+                hintText: loc.teamShortName,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(loc.save),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && context.mounted) {
+      if (nameController.text.isEmpty || shortNameController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter both names')),
+        );
+        return;
+      }
+
+      try {
+        await DatabaseService.instance.update(
+          'Teams',
+          {
+            'fullName': nameController.text,
+            'shortName': shortNameController.text,
+          },
+          key: team.id.toString(),
+        );
+        Team.clearCache();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(loc.teamNameUpdated)),
+          );
+          onTeamUpdated?.call();
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(loc.errorSaving(e.toString())),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
       }
     }
   }

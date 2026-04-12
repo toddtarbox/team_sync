@@ -16,6 +16,7 @@ import 'package:team_sync/models/player_highlight.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
@@ -110,9 +111,35 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
       final allEvents = await _allPlayerEventsFuture;
       if (allEvents == null || allEvents.isEmpty) return {};
 
+      // Filter out events from scrimmage games
+      final gameIds = allEvents
+          .map((e) => e['gameId'] as int?)
+          .where((id) => id != null)
+          .cast<int>()
+          .toSet();
+      final Set<int> scrimmageGameIds = {};
+
+      for (final gameId in gameIds) {
+        final gameData = await DatabaseService.instance
+            .query('Games', orderByChild: 'id', equalTo: gameId);
+        if (gameData.isNotEmpty) {
+          final map = gameData.first;
+          final isScrimmage = map['isScrimmage'] == 1 ||
+              map['isScrimmage'] == true ||
+              map['isScrimmage'] == 'true';
+          if (isScrimmage) {
+            scrimmageGameIds.add(gameId);
+          }
+        }
+      }
+
+      final filteredEvents = allEvents
+          .where((e) => !scrimmageGameIds.contains(e['gameId'] as int?))
+          .toList();
+
       // Group events by seasonId
       final eventsBySeason = <int, List<Map<String, dynamic>>>{};
-      for (final event in allEvents) {
+      for (final event in filteredEvents) {
         final seasonId = event['seasonId'] as int?;
         if (seasonId != null) {
           if (!eventsBySeason.containsKey(seasonId)) {
@@ -197,12 +224,12 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     }
   }
 
-  Future<Map<LeaderCategory, int>> _getPlayerStats(
+  Future<Map<String, int>> _getPlayerStats(
       SeasonStats stats, int playerId) async {
-    final Map<LeaderCategory, int> playerStats = {};
+    final Map<String, int> playerStats = {};
 
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned) {
+    for (final category in SportStrategy.current.leaderCategories) {
+      if (category == 'ownGoalsEarned') {
         continue;
       }
 
@@ -220,9 +247,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     return playerStats;
   }
 
-  Future<Map<LeaderCategory, int>> _getCareerStats(
+  Future<Map<String, int>> _getCareerStats(
       Map<Season, SeasonStats> seasonStats) async {
-    final Map<LeaderCategory, int> careerStats = {};
+    final Map<String, int> careerStats = {};
 
     // Aggregate stats across all seasons
     for (final stats in seasonStats.values) {
@@ -237,6 +264,13 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   }
 
   Future<void> _showPinDialog() async {
+    if (!kIsWeb) {
+      setState(() {
+        _isEditMode = true;
+      });
+      return;
+    }
+
     final pin = await showDialog<String>(
       context: context,
       builder: (context) => PinEntryDialog(player: widget.player),
@@ -843,7 +877,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                         Border.all(color: Colors.white.withValues(alpha: 0.4)),
                   ),
                   child: Text(
-                    '#${widget.player.number}',
+                    widget.player.displayNumbers,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -1039,7 +1073,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
   String _getPlayerWebUrl(Season season) {
     final databaseId = DatabaseService.instance.publicShareId ?? '';
     // Use Firebase hosting URL as base - this can be customized
-    final baseUrl = 'https://team-sync-soccer.web.app';
+    final baseUrl = SportStrategy.current.webUrl;
     // Use global player route (not season-specific)
     return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }
@@ -1101,7 +1135,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               textAlign: TextAlign.center,
             ),
             Text(
-              '#${widget.player.number}',
+              widget.player.displayNumbers,
               style: const TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
@@ -1170,7 +1204,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   Widget _buildSeasonStats(
       Season season, SeasonStats stats, Season? currentSeason) {
-    return FutureBuilder<Map<LeaderCategory, int>>(
+    return FutureBuilder<Map<String, int>>(
       future: _getPlayerStats(stats, widget.player.id),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
@@ -1287,24 +1321,24 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     );
   }
 
-  String _getStatLabel(LeaderCategory category) {
+  String _getStatLabel(String category) {
     switch (category) {
-      case LeaderCategory.penaltyKickGoals:
+      case 'penaltyKickGoals':
         return 'PK Goals';
-      case LeaderCategory.penaltyKicksTaken:
+      case 'penaltyKicksTaken':
         return 'PKs Taken';
-      case LeaderCategory.shotsOnGoal:
+      case 'shotsOnGoal':
         return 'SOG';
       default:
-        return category.name.toSentenceCase().toTitleCase();
+        return category.toSentenceCase().toTitleCase();
     }
   }
 
-  IconData _getStatIcon(LeaderCategory category) {
+  IconData _getStatIcon(String category) {
     switch (category) {
-      case LeaderCategory.goals:
+      case 'goals':
         return Icons.sports_soccer;
-      case LeaderCategory.assists:
+      case 'assists':
         return Icons.handshake; // best approximation for assist
       default:
         return Icons.analytics;
@@ -1313,7 +1347,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
 
   Widget _buildCareerStats(Map<Season, SeasonStats> seasonStats) {
     final loc = AppLocalizations.of(context)!;
-    return FutureBuilder<Map<LeaderCategory, int>>(
+    return FutureBuilder<Map<String, int>>(
       future: _getCareerStats(seasonStats),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {

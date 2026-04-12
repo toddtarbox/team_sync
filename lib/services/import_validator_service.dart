@@ -19,6 +19,8 @@ class ImportValidatorService {
         return await _validateGame(row.data);
       case 'GameEvent':
         return await _validateGameEvent(row.data);
+      case 'PlayerStats':
+        return _validatePlayerStats(row.data);
       default:
         return [
           ValidationError(
@@ -401,7 +403,13 @@ class ImportValidatorService {
         'Foul',
         'Card',
         'Offsides',
-        'Period'
+        'Period',
+        'Point',
+        'Rebound',
+        'Steal',
+        'Block',
+        'Turnover',
+        'Miss'
       ];
       if (!validTypes.contains(data['eventType'].toString())) {
         errors.add(ValidationError(
@@ -463,5 +471,38 @@ class ImportValidatorService {
       return int.tryParse(str.substring(1), radix: 16);
     }
     return int.tryParse(str);
+  }
+
+  List<ValidationError> _validatePlayerStats(Map<String, dynamic> data) {
+    final errors = <ValidationError>[];
+
+    // Basic structure validation only?
+    // Bound stats can be sparse, so maybe just check for player name or ID?
+    // Actually, importers provide most data.
+
+    if ((data['name'] == null || data['name'].toString().isEmpty) &&
+        data['jerseyNumber'] == null) {
+      errors.add(const ValidationError(
+        field: 'name',
+        message: 'Player name or jersey number is required',
+      ));
+    }
+
+    // Check teamId and seasonId required for stats persistence?
+    if (data['teamId'] == null) {
+      errors.add(const ValidationError(
+        field: 'teamId',
+        message: 'Team ID is required',
+      ));
+    }
+
+    if (data['seasonId'] == null) {
+      errors.add(const ValidationError(
+        field: 'seasonId',
+        message: 'Season ID is required',
+      ));
+    }
+
+    return errors;
   }
 }

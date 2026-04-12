@@ -53,14 +53,25 @@ final router = GoRouter(
           name: 'season',
           builder: (context, state) {
             final seasonId = int.parse(state.pathParameters['seasonId']!);
-            // Check if extra is explicitly a Season object.
-            // When navigating to child routes (like game) with a different extra object (like a Map),
-            // this check prevents a TypeError.
-            final season =
-                (state.extra is Season) ? state.extra as Season : null;
+
+            Season? season;
+            var initialViewType = SeasonViewType.list;
+
+            if (state.extra is Season) {
+              season = state.extra as Season;
+            } else if (state.extra is Map) {
+              final map = state.extra as Map;
+              if (map['season'] is Season) {
+                season = map['season'] as Season;
+              }
+              if (map['viewType'] is SeasonViewType) {
+                initialViewType = map['viewType'] as SeasonViewType;
+              }
+            }
 
             if (season != null) {
-              return SeasonPage(season: season);
+              return SeasonPage(
+                  season: season, initialViewType: initialViewType);
             }
 
             // Build a future that opens the shared DB from the route parameter if present,
@@ -83,7 +94,8 @@ final router = GoRouter(
               future: future,
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
-                  return SeasonPage(season: snapshot.data!);
+                  return SeasonPage(
+                      season: snapshot.data!, initialViewType: initialViewType);
                 } else if (snapshot.hasError) {
                   return Scaffold(
                     appBar: AppBar(title: const Text('Error')),
@@ -485,16 +497,20 @@ final router = GoRouter(
               future:
                   _loadTeamByDatabaseId(state.pathParameters['databaseId']!),
               builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  return SettingsPage(team: snapshot.data!);
-                } else if (snapshot.hasError) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return PageSkeleton.list();
+                }
+
+                if (snapshot.hasError) {
                   return Scaffold(
                     appBar: AppBar(title: const Text('Error')),
                     body: Center(
                         child: Text('Error loading team: ${snapshot.error}')),
                   );
                 }
-                return PageSkeleton.list();
+
+                // If snapshot.hasData is true, data might be null but we still have a "result"
+                return SettingsPage(team: snapshot.data);
               },
             );
           },
@@ -660,8 +676,10 @@ Future<Season?> _loadSeasonById(int seasonId) async {
 // Helper function to load team by database ID
 Future<Team?> _loadTeamByDatabaseId(String databaseId) async {
   try {
-    final opened = await DatabaseService.instance.openFromId(databaseId);
-    if (!opened) return null;
+    if (databaseId != 'local') {
+      final opened = await DatabaseService.instance.openFromId(databaseId);
+      if (!opened) return null;
+    }
 
     final teamResult =
         await DatabaseService.instance.query('Teams', orderByChild: 'id');

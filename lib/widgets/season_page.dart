@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,35 +8,44 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/player_award.dart';
 import 'package:team_sync/models/season.dart';
-
 import 'package:team_sync/models/team_award.dart';
+import 'package:team_sync/services/bound_game_stats_importer_service.dart';
+import 'package:team_sync/services/data_importer_service.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/breadcrumbs.dart';
 import 'package:team_sync/widgets/common/award_card.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
 import 'package:team_sync/widgets/common/tappable_image.dart';
+import 'package:team_sync/widgets/game_editor.dart';
 import 'package:team_sync/widgets/game_result.dart';
-
+import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoring_summary.dart';
+import 'package:team_sync/widgets/season_calendar_view.dart';
 import 'package:team_sync/widgets/season_record.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/video_thumbnail.dart';
-import 'package:team_sync/widgets/game_editor.dart';
-import 'package:team_sync/widgets/season_calendar_view.dart';
-
 import 'package:url_launcher/url_launcher.dart';
 
-class SeasonPage extends StatefulWidget {
-  final Season? season; // made nullable to support deep links
+enum SeasonViewType { list, calendar }
 
-  const SeasonPage({super.key, this.season});
+class SeasonPage extends StatefulWidget {
+  final Season season;
+  final SeasonViewType initialViewType;
+
+  const SeasonPage({
+    super.key,
+    required this.season,
+    this.initialViewType = SeasonViewType.list,
+  });
 
   @override
   State<SeasonPage> createState() => _SeasonPageState();
@@ -59,10 +68,16 @@ class _SeasonPageState extends State<SeasonPage> {
   int _teamCurrentPage = 0;
   int _playerCurrentPage = 0;
 
+  // Bulk Import State
+  bool _isBulkImporting = false;
+  String _bulkImportStatus = '';
+  final _statsImporter = BoundGameStatsImporterService();
+  final _dataImporter = DataImporterService();
+
   // Cache the awards future to prevent rebuilding on setState
   final Map<int, Future<List<dynamic>>> _awardsFutureCache = {};
 
-  Set<SeasonViewType> _viewType = {SeasonViewType.list};
+  late Set<SeasonViewType> _viewType;
 
   // Helper to get path segments that works with hash-based routing used by go_router on web.
   List<String> _getPathSegments() {
@@ -84,6 +99,7 @@ class _SeasonPageState extends State<SeasonPage> {
   @override
   void initState() {
     super.initState();
+    _viewType = {widget.initialViewType};
     _loadAwardsExpansionState();
   }
 
@@ -115,13 +131,7 @@ class _SeasonPageState extends State<SeasonPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Initialize the season future once so FutureBuilder doesn't restart it
-    if (_seasonFuture == null) {
-      if (widget.season != null) {
-        _seasonFuture = widget.season!.load().then((_) => widget.season!);
-      } else {
-        _startSeasonLoad();
-      }
-    }
+    _seasonFuture ??= widget.season.load().then((_) => widget.season);
   }
 
   void _startSeasonLoad() {
@@ -204,6 +214,21 @@ class _SeasonPageState extends State<SeasonPage> {
                               '/team/$databaseId/season/${season.id}/stats');
                         },
                         icon: const Icon(Icons.analytics)),
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        if (value == 'import_season_stats') {
+                          await _importMissingStats(season);
+                        }
+                      },
+                      itemBuilder: (BuildContext context) {
+                        return [
+                          const PopupMenuItem<String>(
+                            value: 'import_season_stats',
+                            child: Text('Import Missing Stats'),
+                          ),
+                        ];
+                      },
+                    ),
                   ]),
               floatingActionButton: kIsWeb
                   ? null
@@ -322,21 +347,72 @@ class _SeasonPageState extends State<SeasonPage> {
                             seasonId: season.id,
                           ),
                         ),
-                        Container(
-                          decoration: const BoxDecoration(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(25),
-                              bottomRight: Radius.circular(25),
-                            ),
-                          ),
-                          child: Container(
-                            color: Colors.transparent,
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Center(child: SeasonRecord([season])),
-                            ),
-                          ),
-                        ),
+                        season.logoUrl != null && season.logoUrl!.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () {
+                                  _showPhoto(context, season.logoUrl);
+                                },
+                                child: Container(
+                                  height: 200,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    image: DecorationImage(
+                                      image: NetworkImage(season.logoUrl!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black
+                                                  .withValues(alpha: 0.7),
+                                            ],
+                                            stops: const [0.5, 1.0],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10),
+                                          child: Center(
+                                              child: SeasonRecord(
+                                            [season],
+                                            isCompact: true,
+                                          )),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                decoration: const BoxDecoration(
+                                  borderRadius: BorderRadius.only(
+                                    bottomLeft: Radius.circular(25),
+                                    bottomRight: Radius.circular(25),
+                                  ),
+                                ),
+                                child: Container(
+                                  color: Colors.transparent,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(10),
+                                    child:
+                                        Center(child: SeasonRecord([season])),
+                                  ),
+                                ),
+                              ),
                       ],
                     ),
                   ),
@@ -370,7 +446,7 @@ class _SeasonPageState extends State<SeasonPage> {
                           games: games,
                           onGameTap: (game) {
                             if (!kIsWeb) {
-                              _showGame(game: game, season: season);
+                              _showGameOptions(game, season);
                             } else {
                               _goToGame(game, season);
                             }
@@ -390,7 +466,14 @@ class _SeasonPageState extends State<SeasonPage> {
                                   _buildAwardsSection(season),
                                   // Games list
                                   ...games.map((game) {
-                                    final linkWidget = game
+                                    final opponent =
+                                        game.isHomeTeam(season.teamId)
+                                            ? game.awayTeam
+                                            : game.homeTeam;
+                                    final hasLogo = opponent.logoUrl != null &&
+                                        opponent.logoUrl!.isNotEmpty;
+
+                                    final videoLink = game
                                                 .gameLinks?.isNotEmpty ??
                                             false
                                         ? GestureDetector(
@@ -403,6 +486,31 @@ class _SeasonPageState extends State<SeasonPage> {
                                                 height: 28),
                                           )
                                         : const SizedBox(width: 24);
+
+                                    final linkWidget = Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (hasLogo)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 8.0),
+                                            child: SizedBox(
+                                              width: 32,
+                                              height: 32,
+                                              child: ResponsiveAvatar(
+                                                imageUrl: opponent.logoUrl,
+                                                initials: opponent
+                                                        .shortName.isNotEmpty
+                                                    ? opponent.shortName[0]
+                                                    : '?',
+                                                backgroundColor: opponent.color1
+                                                    .withOpacity(0.2),
+                                              ),
+                                            ),
+                                          ),
+                                        videoLink,
+                                      ],
+                                    );
 
                                     final gameCard = Container(
                                       padding: const EdgeInsets.all(5),
@@ -449,9 +557,8 @@ class _SeasonPageState extends State<SeasonPage> {
                                                   ),
                                                   onTap: () {
                                                     if (!kIsWeb) {
-                                                      _showGame(
-                                                          game: game,
-                                                          season: season);
+                                                      _showGameOptions(
+                                                          game, season);
                                                     } else {
                                                       _goToGame(game, season);
                                                     }
@@ -634,13 +741,129 @@ class _SeasonPageState extends State<SeasonPage> {
     }
   }
 
-  Future<Season> _loadSeason(BuildContext context) async {
-    // If season was provided, just load it
-    if (widget.season != null) {
-      await widget.season!.load();
-      return widget.season!;
+  String? _getBoundUrl(Game game) {
+    final linksStr = game.gameLinks;
+    if (linksStr == null || linksStr.isEmpty) return null;
+    final links = linksStr.split(',');
+    for (final link in links) {
+      if (link.contains('gobound.com') || link.contains('quikstatsiowa.com')) {
+        return link.trim();
+      }
+    }
+    return null;
+  }
+
+  Future<void> _importMissingStats(Season season) async {
+    if (_isBulkImporting) return;
+
+    if (!kIsWeb &&
+        !season.team.isTeamAdmin(FirebaseAuth.instance.currentUser?.uid)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Only admins can import stats.')),
+        );
+      }
+      return;
     }
 
+    setState(() {
+      _isBulkImporting = true;
+      _bulkImportStatus = 'Analyzing games...';
+    });
+
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          return const AlertDialog(
+            title: Text('Importing Stats'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Processing missing stats...'),
+              ],
+            ),
+          );
+        });
+
+    int success = 0;
+    int skipped = 0;
+    int failed = 0;
+
+    try {
+      final gamesToProcess = season.games
+          .where((g) => g.isCompleted && (_getBoundUrl(g) != null))
+          .toList();
+
+      for (var i = 0; i < gamesToProcess.length; i++) {
+        final game = gamesToProcess[i];
+        final url = _getBoundUrl(game);
+
+        if (url == null) continue;
+
+        setState(() {
+          _bulkImportStatus =
+              'Processing ${i + 1}/${gamesToProcess.length}: ${game.displayName(season.teamId)}';
+        });
+
+        try {
+          // Check if ANY events exist for this game to avoid duplication
+          final existingEvents = await DatabaseService.instance
+              .query('GameEvents', orderByChild: 'gameId', equalTo: game.id);
+
+          if (existingEvents.isNotEmpty) {
+            skipped++;
+            continue;
+          }
+
+          final statsRows = await _statsImporter.parseGameStats(
+            url: url,
+            gameId: game.id,
+            teamId: season.teamId,
+            seasonId: season.id,
+          );
+
+          if (statsRows.isNotEmpty) {
+            await _dataImporter.importData(
+              rows: statsRows,
+              fileName: 'Auto Import ${game.id}',
+              entityType: 'GameEvent',
+            );
+            success++;
+          } else {
+            skipped++;
+          }
+        } catch (e) {
+          failed++;
+          debugPrint('Failed to import game ${game.id}: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Bulk import error: $e');
+    } finally {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        setState(() {
+          _isBulkImporting = false;
+          _bulkImportStatus = '';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Import Complete: $success imported, $skipped skipped, $failed failed.')),
+        );
+      }
+    }
+  }
+
+  Future<Season> _loadSeason(BuildContext context) async {
+    // If season was provided, just load it
+    await widget.season.load();
+    return widget.season;
+  
     // Try to extract seasonId from the current URL path (e.g. /team/:db/season/:seasonId)
     try {
       // Ensure the database is opened for the shared database id in the URL
@@ -707,15 +930,8 @@ class _SeasonPageState extends State<SeasonPage> {
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: GameEditor(
-            season: season ?? widget.season!,
+            season: season ?? widget.season,
             game: game,
-            onGoToGame: (g, s) async {
-              await _goToGame(g, s);
-              if (mounted) {
-                await _loadSeason(context);
-                setState(() {});
-              }
-            },
           ),
         );
       },
@@ -1782,7 +1998,7 @@ class _SeasonPageState extends State<SeasonPage> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<Season>(
-                    value: selectedSeason,
+                    initialValue: selectedSeason,
                     decoration: const InputDecoration(
                       labelText: 'Season',
                     ),
@@ -2280,6 +2496,66 @@ class _SeasonPageState extends State<SeasonPage> {
 
     return '$hour:$minute $period';
   }
-}
 
-enum SeasonViewType { list, calendar }
+  void _showGameOptions(Game game, Season season) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 5,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: Text(loc.editGame),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showGame(game: game, season: season);
+                },
+              ),
+              ListTile(
+                leading: Icon(SportStrategy.current.sportIcon),
+                title: Text(loc.goToGame),
+                onTap: () {
+                  Navigator.pop(context);
+                  _goToGame(game, season);
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showPhoto(BuildContext context, String? logoUrl) async {
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: PhotoView(
+            imageProvider: NetworkImage(logoUrl),
+          ),
+        );
+      },
+    );
+  }
+}

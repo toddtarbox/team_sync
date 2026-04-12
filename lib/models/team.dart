@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:team_sync/models/best_game_stats.dart';
 import 'package:team_sync/models/calculation_progress.dart';
+import 'package:team_sync/models/career_stat_entry.dart';
 import 'package:team_sync/models/career_stats.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/game_event.dart';
@@ -12,6 +13,7 @@ import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stat.dart';
 import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 class Team extends Equatable {
   final int id;
@@ -89,6 +91,10 @@ class Team extends Equatable {
     _teamCache.clear();
   }
 
+  static void invalidate(int id) {
+    _teamCache.remove(id);
+  }
+
   static Future<Team> fromId(int id) async {
     if (_teamCache.containsKey(id)) {
       return _teamCache[id]!;
@@ -105,19 +111,27 @@ class Team extends Equatable {
     return results.map((t) => Team.fromMap(t)).toList(growable: false);
   }
 
-  static Future<List<Team>> listFromSeasonId(int seasonId) async {
-    // Get all games for this season
-    final games = await DatabaseService.instance
-        .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
-
+  static Future<List<Team>> listFromSeasonId(int seasonId, {List<Game>? preloadedGames}) async {
     // Extract unique team IDs from homeTeamId and awayTeamId
     final teamIds = <int>{};
-    for (final game in games) {
-      if (game['homeTeamId'] != null) {
-        teamIds.add(game['homeTeamId'] as int);
+
+    if (preloadedGames != null) {
+      for (final game in preloadedGames) {
+        teamIds.add(game.homeTeam.id);
+        teamIds.add(game.awayTeam.id);
       }
-      if (game['awayTeamId'] != null) {
-        teamIds.add(game['awayTeamId'] as int);
+    } else {
+      // Get all games for this season
+      final games = await DatabaseService.instance
+          .query('Games', orderByChild: 'seasonId', equalTo: seasonId);
+
+      for (final game in games) {
+        if (game['homeTeamId'] != null) {
+          teamIds.add(game['homeTeamId'] as int);
+        }
+        if (game['awayTeamId'] != null) {
+          teamIds.add(game['awayTeamId'] as int);
+        }
       }
     }
 
@@ -159,25 +173,23 @@ class Team extends Equatable {
     };
   }
 
-  Future<Map<LeaderCategory, MapEntry<Player, int>>> calculateCareerStats(
-      dynamic data,
+  Future<Map<String, CareerStatEntry>> calculateCareerStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final events = data as List<Map<String, dynamic>>;
-    final stats = CareerStats.fromMap(id, events);
-    final careerStats = <LeaderCategory, MapEntry<Player, int>>{};
+    final stats = await CareerStats.fromMap(id, events);
+    final careerStats = <String, CareerStatEntry>{};
     int i = 0;
-    for (final category in LeaderCategory.values) {
+    for (final category in categories) {
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -185,26 +197,58 @@ class Team extends Equatable {
       if (statPlayers.isNotEmpty) {
         final sortedStats = List.from(statPlayers.entries);
         sortedStats.sort((a, b) => b.value.compareTo(a.value));
-        careerStats[category] = sortedStats.first;
+        final topEntry = sortedStats.first;
+
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            final madePlayers = await stats.getStatPlayers(madeKey);
+            final missedPlayers = await stats.getStatPlayers(missedKey);
+
+            final made = madePlayers[topEntry.key] ?? 0;
+            final missed = missedPlayers[topEntry.key] ?? 0;
+            final attempts = made + missed;
+            displayValue = '${topEntry.value}% ($made/$attempts)';
+          } else {
+            displayValue = '${topEntry.value}%';
+          }
+        }
+
+        careerStats[category] = CareerStatEntry(
+            player: topEntry.key,
+            value: topEntry.value,
+            displayValue: displayValue);
       }
       i++;
     }
     return careerStats;
   }
 
-  Future<Map<LeaderCategory, SeasonStat>> calculateBestSeasonStats(dynamic data,
+  Future<Map<String, SeasonStat>> calculateBestSeasonStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
-    final bestSeasonStats = <LeaderCategory, SeasonStat>{};
+    final bestSeasonStats = <String, SeasonStat>{};
 
     final eventsBySeason = <int, List<Map<String, dynamic>>>{};
     for (final event in events) {
@@ -215,16 +259,15 @@ class Team extends Equatable {
       eventsBySeason[seasonId]!.add(event);
     }
     int i = 0;
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned ||
-          category == LeaderCategory.corners) {
+    for (final category in categories) {
+      if (category == 'ownGoalsEarned' || category == 'corners') {
         i++;
         continue;
       }
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -250,8 +293,43 @@ class Team extends Equatable {
       }
 
       if (bestPlayer != null && bestSeason != null) {
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            // We need to re-fetch the season stats for the best season to get the made/missed counts
+            final seasonEvents = eventsBySeason[bestSeason.id] ?? [];
+            final seasonStats =
+                SeasonStats.fromMap(id, bestSeason.id, seasonEvents);
+            final madePlayers = await seasonStats.getStatPlayers(madeKey);
+            final missedPlayers = await seasonStats.getStatPlayers(missedKey);
+
+            final made = madePlayers[bestPlayer] ?? 0;
+            final missed = missedPlayers[bestPlayer] ?? 0;
+            final attempts = made + missed;
+            displayValue = '$bestValue% ($made/$attempts)';
+          } else {
+            displayValue = '$bestValue%';
+          }
+        }
+
         bestSeasonStats[category] = SeasonStat(
-            player: bestPlayer, season: bestSeason, value: bestValue);
+            player: bestPlayer,
+            season: bestSeason,
+            value: bestValue,
+            displayValue: displayValue);
       }
       i++;
     }
@@ -260,11 +338,10 @@ class Team extends Equatable {
 
   Future<BestGameStats> calculateBestGameStats(dynamic data,
       {StreamController<CalculationProgress>? progressController}) async {
+    final categories = SportStrategy.current.leaderCategories;
     // Emit initial progress
     progressController?.add(CalculationProgress(
-        total: LeaderCategory.values.length,
-        current: 0,
-        message: 'Starting...'));
+        total: categories.length, current: 0, message: 'Starting...'));
     await Future.delayed(Duration.zero);
 
     final games = data['games'] as List<Game>;
@@ -288,16 +365,15 @@ class Team extends Equatable {
     final totalGames = games.length;
 
     int i = 0;
-    for (final category in LeaderCategory.values) {
-      if (category == LeaderCategory.ownGoalsEarned ||
-          category == LeaderCategory.corners) {
+    for (final category in categories) {
+      if (category == 'ownGoalsEarned' || category == 'corners') {
         i++;
         continue;
       }
       progressController?.add(CalculationProgress(
-          total: LeaderCategory.values.length,
+          total: categories.length,
           current: i,
-          message: 'Calculating ${category.name}'));
+          message: 'Calculating $category'));
       // Allow the UI to update with progress
       await Future.delayed(Duration.zero);
 
@@ -340,14 +416,50 @@ class Team extends Equatable {
       }
 
       if (bestPlayer != null && bestGame != null && bestSeason != null) {
-        bestGameStats.setBestStat(
-            category, bestPlayer, bestGame, bestSeason, bestValue);
+        String? displayValue;
+        if (category.contains('percentage')) {
+          String madeKey = '';
+          String missedKey = '';
+          if (category == '3_point_percentage') {
+            madeKey = '3_pointers';
+            missedKey = '3_pointers_missed';
+          } else if (category == '2_point_percentage') {
+            madeKey = '2_pointers';
+            missedKey = '2_pointers_missed';
+          } else if (category == 'free_throw_percentage') {
+            madeKey = 'free_throws';
+            missedKey = 'free_throws_missed';
+          }
+
+          if (madeKey.isNotEmpty) {
+            // Re-calculate stats for the best game to get made/missed
+            final gameEvents = eventsByGame[bestGame.id] ?? [];
+            if (gameEvents.isNotEmpty) {
+              final gameStats = GameStats.fromEvents(id, gameEvents);
+              final madePlayers = await gameStats.getStatPlayers(madeKey);
+              final missedPlayers = await gameStats.getStatPlayers(missedKey);
+
+              final made = madePlayers[bestPlayer] ?? 0;
+              final missed = missedPlayers[bestPlayer] ?? 0;
+              final attempts = made + missed;
+              displayValue = '$bestValue% ($made/$attempts)';
+            }
+          }
+        }
+        if (displayValue == null && category.contains('percentage')) {
+          displayValue = '$bestValue%';
+        }
+
+        bestGameStats.setBestStat(category, bestPlayer, bestGame, bestSeason,
+            bestValue, displayValue);
       }
       i++;
     }
     return bestGameStats;
   }
 
+  /// Update best game stats for a specific completed game
+  /// This is called after a game is finalized to incrementally update cached stats
   /// Update best game stats for a specific completed game
   /// This is called after a game is finalized to incrementally update cached stats
   Future<void> updateBestGameStatsForGame(Game game) async {
@@ -368,9 +480,9 @@ class Team extends Equatable {
 
       // Check each category to see if this game has a new best
       bool hasUpdates = false;
-      for (final category in LeaderCategory.values) {
-        if (category == LeaderCategory.ownGoalsEarned ||
-            category == LeaderCategory.corners) {
+      final categories = SportStrategy.current.leaderCategories;
+      for (final category in categories) {
+        if (category == 'ownGoalsEarned' || category == 'corners') {
           continue;
         }
 
@@ -392,12 +504,41 @@ class Team extends Equatable {
         // Check if this beats the current best
         final currentBest = currentBestStats.getBestStat(category);
         if (currentBest == null || bestGameValue > currentBest.value) {
+          String? displayValue;
+          if (category.contains('percentage')) {
+            String madeKey = '';
+            String missedKey = '';
+            if (category == '3_point_percentage') {
+              madeKey = '3_pointers';
+              missedKey = '3_pointers_missed';
+            } else if (category == '2_point_percentage') {
+              madeKey = '2_pointers';
+              missedKey = '2_pointers_missed';
+            } else if (category == 'free_throw_percentage') {
+              madeKey = 'free_throws';
+              missedKey = 'free_throws_missed';
+            }
+
+            if (madeKey.isNotEmpty) {
+              final madePlayers = await gameStats.getStatPlayers(madeKey);
+              final missedPlayers = await gameStats.getStatPlayers(missedKey);
+
+              final made = madePlayers[bestGamePlayer] ?? 0;
+              final missed = missedPlayers[bestGamePlayer] ?? 0;
+              final attempts = made + missed;
+              displayValue = '$bestGameValue% ($made/$attempts)';
+            } else {
+              displayValue = '$bestGameValue%';
+            }
+          }
+
           currentBestStats.setBestStat(
             category,
             bestGamePlayer,
             game,
             season,
             bestGameValue,
+            displayValue,
           );
           hasUpdates = true;
         }
@@ -459,27 +600,60 @@ class Team extends Equatable {
         CalculationProgress(total: 1, current: 1, message: 'Cache rebuilt'));
   }
 
-  Future<List<MapEntry<Player, int>>> getCareerStatsForCategory(
-      LeaderCategory category) async {
+  Future<List<CareerStatEntry>> getCareerStatsForCategory(
+      String category) async {
     final results = await DatabaseService.instance
         .query('Events', orderByChild: 'teamId', equalTo: id);
-    final stats = CareerStats.fromMap(id, results);
+    final stats = await CareerStats.fromMap(id, results);
     final statPlayers = await stats.getStatPlayers(category);
     final sortedStats = List.from(statPlayers.entries);
     sortedStats.sort((a, b) => b.value.compareTo(a.value));
-    return sortedStats.cast<MapEntry<Player, int>>();
+
+    final careerStatEntries = <CareerStatEntry>[];
+    for (final entry in sortedStats) {
+      String? displayValue;
+      if (category.contains('percentage')) {
+        String madeKey = '';
+        String missedKey = '';
+        if (category == '3_point_percentage') {
+          madeKey = '3_pointers';
+          missedKey = '3_pointers_missed';
+        } else if (category == '2_point_percentage') {
+          madeKey = '2_pointers';
+          missedKey = '2_pointers_missed';
+        } else if (category == 'free_throw_percentage') {
+          madeKey = 'free_throws';
+          missedKey = 'free_throws_missed';
+        }
+
+        if (madeKey.isNotEmpty) {
+          final madePlayers = await stats.getStatPlayers(madeKey);
+          final missedPlayers = await stats.getStatPlayers(missedKey);
+
+          final made = madePlayers[entry.key] ?? 0;
+          final missed = missedPlayers[entry.key] ?? 0;
+          final attempts = made + missed;
+          displayValue = '${entry.value}% ($made/$attempts)';
+        } else {
+          displayValue = '${entry.value}%';
+        }
+      }
+
+      careerStatEntries.add(CareerStatEntry(
+          player: entry.key, value: entry.value, displayValue: displayValue));
+    }
+
+    return careerStatEntries;
   }
 
-  Future<List<SeasonStat>> getAllSeasonStatsForCategory(
-      LeaderCategory category) async {
+  Future<List<SeasonStat>> getAllSeasonStatsForCategory(String category) async {
     final data = await fetchAllDataForSeason();
     final allSeasonStats = await getAllSeasonStats(data);
     return allSeasonStats[category] ?? [];
   }
 
-  Future<Map<LeaderCategory, List<SeasonStat>>> getAllSeasonStats(
-      dynamic data) async {
-    final allSeasonStats = <LeaderCategory, List<SeasonStat>>{};
+  Future<Map<String, List<SeasonStat>>> getAllSeasonStats(dynamic data) async {
+    final allSeasonStats = <String, List<SeasonStat>>{};
     final seasons = data['seasons'] as List<Season>;
     final players = data['players'] as Map<int, Player>;
     final events = data['events'] as List<Map<String, dynamic>>;
@@ -493,7 +667,8 @@ class Team extends Equatable {
       eventsBySeason[seasonId]!.add(event);
     }
 
-    for (final category in LeaderCategory.values) {
+    final categories = SportStrategy.current.leaderCategories;
+    for (final category in categories) {
       allSeasonStats[category] = [];
       for (final season in seasons) {
         final seasonEvents = eventsBySeason[season.id] ?? [];
@@ -513,8 +688,7 @@ class Team extends Equatable {
     return allSeasonStats;
   }
 
-  Future<List<BestGameStat>> getAllGameStatsForCategory(
-      LeaderCategory category) async {
+  Future<List<BestGameStat>> getAllGameStatsForCategory(String category) async {
     final data = await fetchAllDataForGame();
     final games = data['games'] as List<Game>;
     final seasons = data['seasons'] as List<Season>;
@@ -562,6 +736,8 @@ class Team extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        fullName,
+        shortName,
         color1,
         color2,
         createdBy,

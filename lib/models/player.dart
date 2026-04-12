@@ -9,6 +9,7 @@ class Player {
   String firstName;
   String lastName;
   int number;
+  int? awayNumber;
   String? profileImage;
   String? actionPhoto; // Action photo for baseball-style player cards
   String? headshot; // Headshot photo for stats and lineups
@@ -16,6 +17,34 @@ class Player {
 
   String get displayName {
     return '$firstName $lastName';
+  }
+
+  /// Helper to get the correct number based on game context.
+  /// If game is provided and the player's team is not the home team, use awayNumber if present.
+  String getDisplayNumber(dynamic game) {
+    if (id == -2) return 'OG';
+    if (game != null) {
+      // Avoid circular dependency by using dynamic or checking isHomeTeam via duck typing
+      // Provide an easy check: if game.homeTeam == teamId, etc.
+      // Easiest is duck typing via `isHomeTeam` if available
+      try {
+        if (!game.isHomeTeam(teamId) && awayNumber != null) {
+          return awayNumber.toString();
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return number.toString();
+  }
+
+  /// Helper for roster and profile display
+  String get displayNumbers {
+    if (id == -2) return 'OG';
+    if (awayNumber != null) {
+      return '#$number (H) / #$awayNumber (A)';
+    }
+    return '#$number';
   }
 
   String? get _headshot => (headshot?.isEmpty ?? true) ? null : headshot;
@@ -65,6 +94,7 @@ class Player {
       required this.firstName,
       required this.lastName,
       required this.number,
+      this.awayNumber,
       this.profileImage,
       this.actionPhoto,
       this.headshot,
@@ -106,6 +136,11 @@ class Player {
         number: number != null
             ? (number is int ? number : int.parse(number.toString()))
             : 0,
+        awayNumber: map['awayNumber'] != null
+            ? (map['awayNumber'] is int
+                ? map['awayNumber']
+                : int.tryParse(map['awayNumber'].toString()))
+            : null,
         profileImage: map['profileImage'],
         actionPhoto: map['actionPhoto'],
         headshot: map['headshot'],
@@ -174,6 +209,16 @@ class Player {
   }
 
   static Future<Player?> singleFromIdSeasonId(int id, int seasonId) async {
+    if (id == -2) {
+      return Player(
+          id: -2,
+          teamId: -1,
+          seasonId: -1,
+          firstName: 'Own',
+          lastName: 'Goal',
+          number: -1);
+    }
+
     try {
       final results = await DatabaseService.instance.query('Players',
           orderByChild: 'id_seasonId', equalTo: '${id}_$seasonId');
@@ -226,6 +271,7 @@ class Player {
       'firstName': firstName,
       'lastName': lastName,
       'number': number,
+      'awayNumber': awayNumber,
       'profileImage': profileImage,
       'actionPhoto': actionPhoto,
       'headshot': headshot,
@@ -284,6 +330,7 @@ class Player {
           'firstName': firstName,
           'lastName': lastName,
           'number': number,
+          'awayNumber': awayNumber,
           if (editPin != null) 'editPin': editPin,
         },
       });

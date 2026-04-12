@@ -10,7 +10,6 @@ import 'package:team_sync/models/calculation_progress.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/season_stat.dart';
-import 'package:team_sync/models/season_stats.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/event_service.dart';
@@ -19,6 +18,8 @@ import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/stat_category_dialog.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
+import 'package:team_sync/services/sport_strategy.dart'; // Added import for SportStrategy
+import 'package:team_sync/models/career_stat_entry.dart';
 
 enum StatType {
   career,
@@ -48,6 +49,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   // Current future being displayed
   Future<dynamic>? _currentFuture;
 
+  dynamic _eventCreatedListener;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -57,7 +60,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     // Initialize the first future
     _careerStatsFuture = _loadAndCalculateStats();
     _currentFuture = _careerStatsFuture;
-    EventService().eventEmitter.on('eventCreated', context,
+    _eventCreatedListener = EventService().eventEmitter.on('eventCreated', context,
         (event, eventContext) {
       _clearCache();
     });
@@ -65,6 +68,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
 
   @override
   void dispose() {
+    _eventCreatedListener?.cancel();
     _progressController.close();
     super.dispose();
   }
@@ -296,19 +300,18 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
   Widget _buildLeaderList(dynamic stats) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: LeaderCategory.values.length,
+      itemCount: SportStrategy.current.leaderCategories.length,
       itemBuilder: (context, index) {
-        final category = LeaderCategory.values[index];
-        if (category == LeaderCategory.ownGoalsEarned ||
-            category == LeaderCategory.secondYellowReds ||
-            category == LeaderCategory.corners) {
+        final category = SportStrategy.current.leaderCategories[index];
+        if (category == 'ownGoalsEarned' ||
+            category == 'secondYellowReds' ||
+            category == 'corners') {
           return const SizedBox.shrink();
         }
 
         Widget tile;
         if (_selectedStatType == StatType.season) {
-          final categoryStats =
-              (stats as Map<LeaderCategory, SeasonStat>)[category];
+          final categoryStats = (stats as Map<String, SeasonStat>)[category];
           if (categoryStats == null) {
             return const SizedBox.shrink();
           }
@@ -321,7 +324,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
           tile = _buildGameStatTile(category, bestStat);
         } else {
           final categoryStats =
-              (stats as Map<LeaderCategory, MapEntry<Player, int>>)[category];
+              (stats as Map<String, CareerStatEntry>)[category];
           if (categoryStats == null) {
             return const SizedBox.shrink();
           }
@@ -341,7 +344,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  Widget _buildSeasonStatTile(LeaderCategory category, SeasonStat topEntry) {
+  Widget _buildSeasonStatTile(String category, SeasonStat topEntry) {
     return InkWell(
       onTap: () async {
         showDialog(
@@ -440,7 +443,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    category.name.toSentenceCase().toTitleCase(),
+                    category.toSentenceCase().toTitleCase(),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
@@ -487,8 +490,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  void _showSeasonStatsModal(BuildContext context, LeaderCategory category,
-      List<SeasonStat> categoryStats) {
+  void _showSeasonStatsModal(
+      BuildContext context, String category, List<SeasonStat> categoryStats) {
     // Sort by stat value in descending order and limit to top 25
     final sortedStats = List<SeasonStat>.from(categoryStats)
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -525,7 +528,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
+                      category.toSentenceCase().toTitleCase(),
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -660,7 +663,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  Widget _buildGameStatTile(LeaderCategory category, BestGameStat bestStat) {
+  Widget _buildGameStatTile(String category, BestGameStat bestStat) {
     return InkWell(
       onTap: () async {
         showDialog(
@@ -759,7 +762,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    category.name.toSentenceCase().toTitleCase(),
+                    category.toSentenceCase().toTitleCase(),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
@@ -795,7 +798,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                bestStat.value.toString(),
+                bestStat.displayValue ?? bestStat.value.toString(),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -808,8 +811,8 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  void _showGameStatsModal(BuildContext context, LeaderCategory category,
-      List<BestGameStat> categoryStats) {
+  void _showGameStatsModal(
+      BuildContext context, String category, List<BestGameStat> categoryStats) {
     // Sort by stat value in descending order and limit to top 25
     final sortedStats = List<BestGameStat>.from(categoryStats)
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -846,7 +849,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
+                      category.toSentenceCase().toTitleCase(),
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -982,8 +985,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  Widget _buildStatTile(
-      LeaderCategory category, MapEntry<Player, int> topEntry) {
+  Widget _buildStatTile(String category, CareerStatEntry topEntry) {
     return InkWell(
       onTap: () async {
         showDialog(
@@ -1110,7 +1112,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 final seasonResults = await DatabaseService.instance.query(
                     'Seasons',
                     orderByChild: 'id',
-                    equalTo: topEntry.key.seasonId);
+                    equalTo: topEntry.player.seasonId);
 
                 if (!mounted) return;
                 Navigator.pop(context);
@@ -1135,9 +1137,9 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   if (databaseId != null) {
                     NavigationHelper.navigateTo(
                       context,
-                      '/team/$databaseId/player/${topEntry.key.id}',
+                      '/team/$databaseId/player/${topEntry.player.id}',
                       extra: {
-                        'player': topEntry.key,
+                        'player': topEntry.player,
                         'season': season,
                       },
                     );
@@ -1156,7 +1158,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                 ),
                 child: ResponsivePlayerAvatar(
-                    player: topEntry.key,
+                    player: topEntry.player,
                     avatarSize: 48,
                     useLatestImages: true),
               ),
@@ -1167,7 +1169,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    category.name.toSentenceCase().toTitleCase(),
+                    category.toSentenceCase().toTitleCase(),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
@@ -1175,7 +1177,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    topEntry.key.displayName,
+                    topEntry.player.displayName,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -1190,7 +1192,7 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                topEntry.value.toString(),
+                topEntry.displayValue ?? topEntry.value.toString(),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
@@ -1203,18 +1205,25 @@ class _RecordHoldersViewState extends State<RecordHoldersView>
     );
   }
 
-  Future<void> _showCareerStatsModal(
-      BuildContext context,
-      LeaderCategory category,
-      List<MapEntry<Player, int>> categoryStats) async {
+  Future<void> _showCareerStatsModal(BuildContext context, String category,
+      List<CareerStatEntry> categoryStats) async {
     // Convert list to map for StatCategoryDialog
-    final playerStatsMap = Map<Player, int>.fromEntries(categoryStats);
+    final playerStatsMap = <Player, int>{};
+    final displayValues = <Player, String>{};
+
+    for (final entry in categoryStats) {
+      playerStatsMap[entry.player] = entry.value;
+      if (entry.displayValue != null) {
+        displayValues[entry.player] = entry.displayValue!;
+      }
+    }
 
     // Show dialog with navigation callback
     await StatCategoryDialog.show(
       context: context,
-      categoryName: category.name.toSentenceCase().toTitleCase(),
+      categoryName: category.toSentenceCase().toTitleCase(),
       playerStats: playerStatsMap,
+      displayValues: displayValues,
       showPlayerNumber: true,
       onPlayerTap: (player) => _showPlayerDetailsDialog(player, null),
       season: null,

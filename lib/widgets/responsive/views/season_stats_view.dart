@@ -9,6 +9,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/responsive_player_avatar.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
+import 'package:team_sync/services/sport_strategy.dart'; // Added import for SportStrategy
 
 class SeasonStatsView extends StatefulWidget {
   final Season season;
@@ -271,8 +272,16 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   List<Widget> _buildAllStatRows(
       AppLocalizations loc, SeasonStats stats, Color teamColor) {
     final statRows = <Widget>[];
+    // Use SportStrategy to get categories
+    for (final category in SportStrategy.current.leaderCategories) {
+      if (category == 'points') {
+        statRows.add(_buildCategoryHeader('Scoring'));
+      } else if (category == 'rebounds') {
+        statRows.add(_buildCategoryHeader('Rebounding'));
+      } else if (category == 'assists') {
+        statRows.add(_buildCategoryHeader('Other Stats'));
+      }
 
-    for (final category in LeaderCategory.values) {
       final teamTotal = stats.teamStat(category);
       final opponentTotal = stats.opponentStat(category);
 
@@ -282,7 +291,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
       }
 
       statRows.add(_buildStatRow(
-        category.name.toSentenceCase().toTitleCase(),
+        category.toSentenceCase().toTitleCase(),
         teamTotal,
         opponentTotal,
         category: category,
@@ -296,24 +305,84 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
     return statRows;
   }
 
+  Widget _buildCategoryHeader(String title) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      child: Row(
+        children: [
+          Expanded(child: Divider(color: colorScheme.outlineVariant)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              title.toUpperCase(),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.secondary,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          Expanded(child: Divider(color: colorScheme.outlineVariant)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStatRow(
     String label,
     int teamValue,
     int opponentValue, {
-    required LeaderCategory category,
+    required String category,
     required SeasonStats stats,
     required Color teamColor,
   }) {
+    String teamDisplay;
+    String opponentDisplay;
+
+    if (category.contains('percentage')) {
+      String madeKey = '';
+      String missedKey = '';
+      if (category == '3_point_percentage') {
+        madeKey = '3_pointers';
+        missedKey = '3_pointers_missed';
+      } else if (category == '2_point_percentage') {
+        madeKey = '2_pointers';
+        missedKey = '2_pointers_missed';
+      } else if (category == 'free_throw_percentage') {
+        madeKey = 'free_throws';
+        missedKey = 'free_throws_missed';
+      }
+
+      if (madeKey.isNotEmpty) {
+        final teamMade = stats.teamStat(madeKey);
+        final teamMissed = stats.teamStat(missedKey);
+        final teamAttempts = teamMade + teamMissed;
+        teamDisplay = '$teamValue% ($teamMade/$teamAttempts)';
+
+        final opponentMade = stats.opponentStat(madeKey);
+        final opponentMissed = stats.opponentStat(missedKey);
+        final opponentAttempts = opponentMade + opponentMissed;
+        opponentDisplay = '$opponentValue% ($opponentMade/$opponentAttempts)';
+      } else {
+        teamDisplay = '$teamValue%';
+        opponentDisplay = '$opponentValue%';
+      }
+    } else {
+      teamDisplay = teamValue.toString();
+      opponentDisplay = category == 'assists' ? '-' : opponentValue.toString();
+    }
+
     final total = teamValue + opponentValue;
     final teamPercentage = total > 0 ? teamValue / total : 0.5;
     final colorScheme = Theme.of(context).colorScheme;
 
     return InkWell(
-      onTap: teamValue > 0 &&
-              category.name != 'corners' &&
-              category != LeaderCategory.ownGoalsEarned
-          ? () => _showPlayerDetailsDialog(category, stats)
-          : null,
+      onTap:
+          teamValue > 0 && category != 'corners' && category != 'ownGoalsEarned'
+              ? () => _showPlayerDetailsDialog(category, stats)
+              : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -337,7 +406,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  teamValue.toString(),
+                  teamDisplay,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -356,7 +425,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   ),
                 ),
                 Text(
-                  category.name == 'assists' ? '-' : opponentValue.toString(),
+                  opponentDisplay,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -385,7 +454,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                         ),
                       ),
                     ),
-                  if (opponentValue > 0 && category.name != 'assists')
+                  if (opponentValue > 0 && category != 'assists')
                     Expanded(
                       flex: ((1 - teamPercentage) * 100).round().clamp(1, 100),
                       child: Container(
@@ -397,8 +466,8 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
               ),
             ),
             if (teamValue > 0 &&
-                category.name != 'corners' &&
-                category != LeaderCategory.ownGoalsEarned)
+                category != 'corners' &&
+                category != 'ownGoalsEarned')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
@@ -417,7 +486,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
   }
 
   Future<void> _showPlayerDetailsDialog(
-      LeaderCategory category, SeasonStats stats) async {
+      String category, SeasonStats stats) async {
     final loc = AppLocalizations.of(context)!;
 
     showDialog(
@@ -473,7 +542,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      category.name.toSentenceCase().toTitleCase(),
+                      category.toSentenceCase().toTitleCase(),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -493,6 +562,37 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                       itemBuilder: (context, index) {
                         final player = sortedStats[index].key;
                         final count = sortedStats[index].value;
+
+                        String displayValue = count.toString();
+                        if (category.contains('percentage')) {
+                          String madeKey = '';
+                          String missedKey = '';
+                          if (category == '3_point_percentage') {
+                            madeKey = '3_pointers';
+                            missedKey = '3_pointers_missed';
+                          } else if (category == '2_point_percentage') {
+                            madeKey = '2_pointers';
+                            missedKey = '2_pointers_missed';
+                          } else if (category == 'free_throw_percentage') {
+                            madeKey = 'free_throws';
+                            missedKey = 'free_throws_missed';
+                          }
+
+                          if (madeKey.isNotEmpty) {
+                            // Helper to safely get player stat
+                            int getPlayerStat(String key, int playerId) {
+                              return stats.playerStats[key]?[playerId] ?? 0;
+                            }
+
+                            final made = getPlayerStat(madeKey, player.id);
+                            final missed = getPlayerStat(missedKey, player.id);
+                            final attempts = made + missed;
+                            displayValue = '$count% ($made/$attempts)';
+                          } else {
+                            displayValue = '$count%';
+                          }
+                        }
+
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -567,11 +667,15 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      Text(
-                                        '#${player.number}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: colorScheme.onSurfaceVariant,
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Text(
+                                          player.displayNumbers,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -588,7 +692,7 @@ class _SeasonStatsViewState extends State<SeasonStatsView> {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    count.toString(),
+                                    displayValue,
                                     style: TextStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.bold,

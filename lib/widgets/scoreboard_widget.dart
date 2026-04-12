@@ -7,7 +7,10 @@ import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
+import 'package:eventify/eventify.dart' as eventify;
+import 'package:team_sync/services/event_service.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 
 class ScoreboardWidget extends StatefulWidget {
@@ -17,6 +20,7 @@ class ScoreboardWidget extends StatefulWidget {
   final bool compact;
   final EdgeInsets? margin;
   final EdgeInsets? padding;
+  final bool transparentBackground;
 
   const ScoreboardWidget({
     super.key,
@@ -26,6 +30,7 @@ class ScoreboardWidget extends StatefulWidget {
     this.compact = false,
     this.margin,
     this.padding,
+    this.transparentBackground = false,
   });
 
   @override
@@ -35,26 +40,47 @@ class ScoreboardWidget extends StatefulWidget {
 class _ScoreboardWidgetState extends State<ScoreboardWidget> {
   Timer? _updateTimer;
   Game? _currentGame;
+  late final eventify.Listener _eventListener;
 
   @override
   void initState() {
     super.initState();
     _currentGame = widget.game;
     _setupAutoUpdate();
+
+    _eventListener = EventService().eventEmitter.on('eventCreated', null,
+        (event, context) {
+      if (mounted) {
+        _reloadGameData();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(ScoreboardWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Always update _currentGame when widget.game changes, 
+    // even if the ID is the same, as properties like gameStatus may have changed.
+    _currentGame = widget.game;
+    
     if (oldWidget.game?.id != widget.game?.id) {
-      _currentGame = widget.game;
       _setupAutoUpdate();
+    } else {
+      bool timerIsActive = _updateTimer?.isActive ?? false;
+      if (isLiveGame && !timerIsActive) {
+        // Game changed to live, timer wasn't running
+        _setupAutoUpdate();
+      } else if (!isLiveGame && timerIsActive) {
+        // Game is no longer live, timer should be cancelled
+        _setupAutoUpdate();
+      }
     }
   }
 
   @override
   void dispose() {
     _updateTimer?.cancel();
+    _eventListener.cancel();
     super.dispose();
   }
 
@@ -193,18 +219,25 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF1a1a1a),
-                    const Color(0xFF2a2a2a),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: widget.transparentBackground
+                    ? null
+                    : LinearGradient(
+                        colors: [
+                          const Color(0xFF1a1a1a),
+                          const Color(0xFF2a2a2a),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                color: widget.transparentBackground
+                    ? Colors.black.withOpacity(0.6)
+                    : null,
                 border: Border.all(
                   color: isLiveGame
                       ? Colors.amber.withOpacity(0.6)
-                      : Colors.grey.withOpacity(0.3),
+                      : widget.transparentBackground
+                          ? Colors.transparent
+                          : Colors.grey.withOpacity(0.3),
                   width: isLiveGame ? 2 : 1,
                 ),
                 boxShadow: isLiveGame
@@ -235,61 +268,89 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          if (isLiveGame)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: isCompact ? 8 : 12,
-                                  vertical: isCompact ? 2 : 4),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius:
-                                    BorderRadius.circular(isCompact ? 8 : 12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.5),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isLiveGame)
                                   Container(
-                                    width: isCompact ? 6 : 8,
-                                    height: isCompact ? 6 : 8,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: isCompact ? 8 : 12,
+                                        vertical: isCompact ? 2 : 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(
+                                          isCompact ? 8 : 12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withOpacity(0.5),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(width: isCompact ? 4 : 6),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: isCompact ? 6 : 8,
+                                          height: isCompact ? 6 : 8,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.white,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        SizedBox(width: isCompact ? 4 : 6),
+                                        Text(
+                                          loc.live,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: isCompact ? 10 : 12,
+                                            letterSpacing: 1.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else
                                   Text(
-                                    loc.live,
+                                    DateFormat(
+                                            isCompact ? 'MMM d' : 'MMM d, yyyy')
+                                        .format(_currentGame!.date),
                                     style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: isCompact ? 10 : 12,
-                                      letterSpacing: 1.2,
+                                      fontSize: headerFontSize,
+                                      color: Colors.amber,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                if (_currentGame!.isScrimmage) ...[
+                                  SizedBox(width: isCompact ? 6 : 8),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: isCompact ? 4 : 6,
+                                        vertical: isCompact ? 2 : 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(
+                                          isCompact ? 4 : 6),
+                                    ),
+                                    child: Text(
+                                      'Scrimmage',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: isCompact ? 9 : 11,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
                                 ],
-                              ),
-                            )
-                          else
-                            Flexible(
-                              child: Text(
-                                DateFormat(isCompact ? 'MMM d' : 'MMM d, yyyy')
-                                    .format(_currentGame!.date),
-                                style: TextStyle(
-                                  fontSize: headerFontSize,
-                                  color: Colors.amber,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              ],
                             ),
+                          ),
                           Flexible(
                             child: Text(
                               _currentGame!.gameStatus.display,
@@ -395,7 +456,9 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                             vertical: isCompact ? 8.0 : 12.0,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black,
+                            color: widget.transparentBackground
+                                ? Colors.black.withOpacity(0.6)
+                                : Colors.black,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: Colors.amber.withOpacity(0.3),
@@ -540,7 +603,10 @@ class _ScoreboardWidgetState extends State<ScoreboardWidget> {
                                     child: Text(
                                       isWin
                                           ? loc.win
-                                          : isLoss
+                                          : (isLoss ||
+                                                  SportStrategy
+                                                          .current.sportId ==
+                                                      'basketball')
                                               ? loc.loss
                                               : loc.tie,
                                       style: TextStyle(

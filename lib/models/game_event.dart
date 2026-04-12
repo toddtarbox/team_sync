@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/player.dart';
 import 'package:team_sync/models/team.dart';
+
 import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 enum ShotResult {
   goal,
@@ -87,45 +89,6 @@ enum CornerResult {
 class Shot extends GameEvent {
   ShotResult get result => ShotResult.fromInt(eventData);
 
-  @override
-  String get imageAsset {
-    switch (result) {
-      case ShotResult.goal:
-        return 'assets/images/pngs/goal.png';
-
-      case ShotResult.onTargetSave:
-        return 'assets/images/pngs/saved.png';
-
-      case ShotResult.offTargetPost:
-        return 'assets/images/pngs/offpost.png';
-
-      case ShotResult.offTarget:
-        return 'assets/images/pngs/offtarget.png';
-
-      case ShotResult.onTargetBlock:
-        return 'assets/images/pngs/blocked.png';
-
-      case ShotResult.notInitialized:
-        return 'assets/images/pngs/empty.png';
-    }
-  }
-
-  @override
-  String get display {
-    if (player != null) {
-      if (result == ShotResult.goal) {
-        return 'Goal';
-      }
-      return 'Shot - ${result.display}';
-    }
-
-    if (result == ShotResult.goal) {
-      return 'Goal';
-    }
-
-    return 'Shot - ${result.display}';
-  }
-
   Shot(
       {required super.id,
       required super.index,
@@ -137,24 +100,11 @@ class Shot extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Assist extends GameEvent {
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_soccer, size: 24, color: Colors.lightGreen);
-  }
-
-  @override
-  String get display {
-    if (player != null) {
-      return 'Assist: ${player!.displayName}';
-    }
-
-    return 'Assist';
-  }
-
   Assist(
       {required super.id,
       required super.index,
@@ -166,24 +116,11 @@ class Assist extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Save extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Save by ${player!.displayName}';
-    }
-
-    return 'Save by ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_handball, size: 24, color: Colors.blue);
-  }
-
   Save(
       {required super.id,
       required super.index,
@@ -195,43 +132,12 @@ class Save extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class PenaltyKick extends GameEvent {
   ShotResult get result => ShotResult.fromInt(eventData);
-
-  @override
-  String get display {
-    if (player != null) {
-      return '${result.display} - ${player!.displayName} (PK)';
-    }
-
-    return '${result.display} - ${team.shortName} (PK)';
-  }
-
-  @override
-  String get imageAsset {
-    switch (result) {
-      case ShotResult.goal:
-        return 'assets/images/pngs/goal.png';
-
-      case ShotResult.onTargetSave:
-        return 'assets/images/pngs/saved.png';
-
-      case ShotResult.offTargetPost:
-        return 'assets/images/pngs/offpost.png';
-
-      case ShotResult.offTarget:
-        return 'assets/images/pngs/offtarget.png';
-
-      case ShotResult.onTargetBlock:
-        return 'assets/images/pngs/blocked.png';
-
-      case ShotResult.notInitialized:
-        return 'assets/images/pngs/empty.png';
-    }
-  }
 
   PenaltyKick(
       {required super.id,
@@ -244,21 +150,12 @@ class PenaltyKick extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Corner extends GameEvent {
   CornerResult get result => CornerResult.fromInt(eventData);
-
-  @override
-  String get display {
-    return 'Corner kick for ${team.shortName} ${result == CornerResult.none ? '' : ' - ${result.display}'}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.flag, size: 24, color: Colors.purple);
-  }
 
   Corner(
       {required super.id,
@@ -271,24 +168,11 @@ class Corner extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Foul extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Foul by ${player!.displayName}';
-    }
-
-    return 'Foul by ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.sports_kabaddi, size: 24, color: Colors.deepOrange);
-  }
-
   Foul(
       {required super.id,
       required super.index,
@@ -300,24 +184,11 @@ class Foul extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Offsides extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Offsides on ${player!.displayName}';
-    }
-
-    return 'Offsides on ${team.shortName}';
-  }
-
-  @override
-  Widget get image {
-    return const Icon(Icons.assistant_photo, size: 24, color: Colors.brown);
-  }
-
   Offsides(
       {required super.id,
       required super.index,
@@ -329,30 +200,11 @@ class Offsides extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class GameCard extends GameEvent {
-  @override
-  String get display {
-    if (player != null) {
-      return 'Card by ${player!.displayName}';
-    }
-
-    return 'Card for ${team.shortName}';
-  }
-
-  @override
-  String get imageAsset {
-    if (eventData == 0) {
-      return 'assets/images/pngs/yellow.png';
-    } else if (eventData == 1) {
-      return 'assets/images/pngs/second_yellow_red.png';
-    } else {
-      return 'assets/images/pngs/red.png';
-    }
-  }
-
   GameCard(
       {required super.id,
       required super.index,
@@ -364,46 +216,12 @@ class GameCard extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class Period extends GameEvent {
   GameStatus get status => GameStatus.fromString(eventData.toString());
-
-  @override
-  Widget get image {
-    return const Icon(Icons.schedule, size: 24, color: Colors.grey);
-  }
-
-  @override
-  String get display {
-    switch (status) {
-      case GameStatus.notStarted:
-        return '';
-      case GameStatus.firstHalf:
-        return 'Game Started';
-      case GameStatus.halftime:
-        return 'Halftime';
-      case GameStatus.secondHalf:
-        return '2nd Half Started';
-      case GameStatus.overtimeNotStarted:
-        return 'Headed to Overtime';
-      case GameStatus.firstHalfOvertime:
-        return 'Overtime Started';
-      case GameStatus.overtimeHalftime:
-        return 'Overtime Halftime';
-      case GameStatus.secondHalfOvertime:
-        return '2nd Half Overtime Started';
-      case GameStatus.shootout:
-        return 'Shootout';
-      case GameStatus.gameFinal:
-        return 'Game Over';
-      case GameStatus.gameFinalOT:
-        return 'Game Over - Overtime';
-      case GameStatus.gameFinalPKs:
-        return 'Game Over - PKs';
-    }
-  }
 
   Period(
       {required super.id,
@@ -416,11 +234,12 @@ class Period extends GameEvent {
       required super.eventMinute,
       required super.eventPeriod,
       required super.eventUrls,
-      required super.eventData});
+      required super.eventData,
+      super.isFromImport = false});
 }
 
 class GameEvent {
-  final int id;
+  int id;
   int index; // Added index field for ordering
   Player? player;
   Team team;
@@ -431,15 +250,16 @@ class GameEvent {
   int eventPeriod;
   int eventData;
   String? eventUrls;
+  final bool isFromImport;
 
   String get teamIdSeasonId => '${team.id}_$seasonId';
 
   String get display {
-    return eventType;
+    return SportStrategy.current.formatEventDisplay(this);
   }
 
   String get imageAsset {
-    return 'assets/images/pngs/empty.png';
+    return SportStrategy.current.getEventImageAsset(this);
   }
 
   Widget get image {
@@ -454,17 +274,33 @@ class GameEvent {
 
   /// Helper to check if this event is a goal (either a Shot or PenaltyKick that resulted in a goal)
   bool get isGoalEvent {
-    return (eventType == 'Shot' || eventType == 'PenaltyKick') &&
-        eventData == ShotResult.goal.index;
+    return SportStrategy.current.isGoalEvent(this);
   }
+
+  int get eventValue => SportStrategy.current.getEventValue(this);
 
   String tweetText(Game game) {
     if (eventType == 'Period') {
-      return (this as Period).display;
+      String tweetText = (this as Period).display;
+      if (tweetText == '1st Half' ||
+          tweetText == '2nd Half' ||
+          tweetText == '1st OT' ||
+          tweetText == '2nd OT' ||
+          tweetText == 'Overtime' ||
+          tweetText == 'Shootout') {
+        tweetText += ' Starting';
+      }
+      return '$tweetText\n\n${game.tweetStatusAtEvent(this)}';
     } else if (isGoalEvent) {
       String tweetText;
       if (player != null) {
-        tweetText = '($eventMinute\') Goal by ${player!.displayName}';
+        if (player!.id == -2) {
+          final isHomeTeam = game.homeTeam.id == team.id;
+          final opponentTeamName = isHomeTeam ? game.awayTeam.shortName : game.homeTeam.shortName;
+          tweetText = '($eventMinute\') Own Goal by $opponentTeamName';
+        } else {
+          tweetText = '($eventMinute\') Goal by ${player!.displayName}';
+        }
       } else {
         tweetText = '($eventMinute\') Goal by ${team.shortName}';
       }
@@ -488,7 +324,8 @@ class GameEvent {
       required this.eventMinute,
       required this.eventPeriod,
       required this.eventUrls,
-      required this.eventData});
+      required this.eventData,
+      this.isFromImport = false});
 
   static GameEvent initial(
       {required Team team,
@@ -510,7 +347,8 @@ class GameEvent {
         eventMinute: eventMinute,
         eventPeriod: eventPeriod,
         eventUrls: eventUrls,
-        eventData: eventData);
+        eventData: eventData,
+        isFromImport: false);
   }
 
   static Future<GameEvent?> fromMap(Map<String, dynamic> map) async {
@@ -521,6 +359,7 @@ class GameEvent {
     final eventPeriod = map['eventPeriod'] as int?;
     final eventData = map['eventData'] as int?;
     final eventType = map['eventType'] as String?;
+    final isFromImport = (map['isFromImport'] as bool?) ?? false;
 
     if (id == null ||
         gameId == null ||
@@ -552,11 +391,11 @@ class GameEvent {
     final team = await Team.fromId(teamId);
 
     final playerId = map['playerId'] as int?;
-    if (playerId == null) {
-      return null;
+    // Allow null player (for opponent stats or team stats)
+    Player? player;
+    if (playerId != null) {
+      player = await Player.singleFromIdSeasonId(playerId, game.seasonId);
     }
-
-    final player = await Player.singleFromIdSeasonId(playerId, game.seasonId);
 
     // Use game.seasonId as fallback if map['seasonId'] is null
     final seasonId = (map['seasonId'] as int?) ?? game.seasonId;
@@ -575,7 +414,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Shot') {
       return Shot(
           id: id,
@@ -588,7 +428,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Assist') {
       return Assist(
           id: id,
@@ -601,7 +442,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Save') {
       return Save(
           id: id,
@@ -614,7 +456,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'PenaltyKick') {
       return PenaltyKick(
           id: id,
@@ -627,7 +470,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Corner') {
       return Corner(
           id: id,
@@ -640,7 +484,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Foul') {
       return Foul(
           id: id,
@@ -653,7 +498,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Offsides') {
       return Offsides(
           id: id,
@@ -666,7 +512,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     } else if (eventType == 'Card') {
       return GameCard(
           id: id,
@@ -679,7 +526,8 @@ class GameEvent {
           eventMinute: eventMinute,
           eventPeriod: eventPeriod,
           eventUrls: eventUrls,
-          eventData: eventData);
+          eventData: eventData,
+          isFromImport: isFromImport);
     }
 
     return GameEvent(
@@ -693,7 +541,8 @@ class GameEvent {
         eventMinute: eventMinute,
         eventPeriod: eventPeriod,
         eventUrls: eventUrls,
-        eventData: eventData);
+        eventData: eventData,
+        isFromImport: isFromImport);
   }
 
   static Future<List<GameEvent>> listFromGameId(int gameId) async {

@@ -1,16 +1,17 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class SubscriptionService {
-  static final _apiKey = Platform.isIOS
-      ? 'appl_RIhGWUSTrVmkjXMJHOSNYJojaBg'
-      : 'goog_zNSKIOWAFyyBccMwxlziXRIRCwI';
+  static final _apiKey = kIsWeb
+      ? ''
+      : (defaultTargetPlatform == TargetPlatform.iOS
+          ? 'appl_RIhGWUSTrVmkjXMJHOSNYJojaBg'
+          : 'goog_zNSKIOWAFyyBccMwxlziXRIRCwI');
 
   static final SubscriptionService instance = SubscriptionService._internal();
 

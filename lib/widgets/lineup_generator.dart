@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -1016,7 +1016,7 @@ class _LineupDialogState extends State<LineupDialog> {
                           value: player,
                           enabled: !isAlreadySelected,
                           child: Text(
-                            '${player.number} - ${player.displayName}',
+                            '${player.displayNumbers} - ${player.displayName}',
                             style: TextStyle(
                               color: isAlreadySelected
                                   ? Theme.of(context)
@@ -1917,12 +1917,18 @@ class LineupWidget extends StatelessWidget {
                           return Container(
                             color: Colors.white,
                             child: Center(
-                              child: Text(
-                                player.number.toString(),
-                                style: TextStyle(
-                                  fontSize: 48, // Increased from 32
-                                  fontWeight: FontWeight.bold,
-                                  color: team.color1,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    player.displayNumbers,
+                                    style: TextStyle(
+                                      fontSize: 48, // Increased from 32
+                                      fontWeight: FontWeight.bold,
+                                      color: team.color1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1930,12 +1936,18 @@ class LineupWidget extends StatelessWidget {
                         },
                       )
                     : Center(
-                        child: Text(
-                          player.number.toString(),
-                          style: TextStyle(
-                            fontSize: 48, // Increased from 32
-                            fontWeight: FontWeight.bold,
-                            color: team.color1,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              player.displayNumbers,
+                              style: TextStyle(
+                                fontSize: 48, // Increased from 32
+                                fontWeight: FontWeight.bold,
+                                color: team.color1,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1962,14 +1974,20 @@ class LineupWidget extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    player.number.toString(),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 110),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        player.displayNumbers,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ),

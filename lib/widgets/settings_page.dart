@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/main.dart';
+import 'package:team_sync/main_common.dart';
 import 'package:team_sync/models/team.dart';
 import 'package:team_sync/services/auth_service.dart';
 import 'package:team_sync/services/database_service.dart';
@@ -16,6 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:team_sync/services/admin_service.dart';
 import 'package:team_sync/widgets/data_import_page.dart';
 import 'package:team_sync/widgets/twitter_settings_page.dart';
+import 'package:team_sync/widgets/team_management_page.dart';
 
 import 'markdown_viewer.dart';
 import 'migration_tool.dart';
@@ -162,6 +163,29 @@ class _SettingsPageState extends State<SettingsPage> {
                     additionalLabel: 'Settings',
                   ),
                 ),
+              ],
+              // Team Section
+              if (widget.team != null &&
+                  widget.team!
+                      .isTeamAdmin(FirebaseAuth.instance.currentUser?.uid)) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                  child: Text(
+                    'TEAM INFORMATION',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.edit),
+                  title: Text(loc.renameTeam),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () => _showEditNameDialog(context),
+                ),
+                const Divider(),
               ],
               // Account Section (hidden on web)
               Visibility(
@@ -434,6 +458,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ),
+              if (AdminService.instance.isAdmin && !kIsWeb)
+                ListTile(
+                  leading:
+                      const Icon(Icons.manage_accounts, color: Colors.purple),
+                  title: const Text('Manage Teams (Admin)'),
+                  subtitle: const Text('Edit, Merge, or Delete Teams'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const TeamManagementPage(),
+                      ),
+                    );
+                  },
+                ),
               if (AdminService.instance.isAdmin)
                 ListTile(
                   leading: const Icon(Icons.cloud_upload, color: Colors.blue),
@@ -459,5 +498,91 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
     );
+  }
+
+  Future<void> _showEditNameDialog(BuildContext context) async {
+    if (widget.team == null) return;
+
+    final loc = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: widget.team!.fullName);
+    final shortNameController =
+        TextEditingController(text: widget.team!.shortName);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(loc.renameTeam),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: loc.teamName,
+                hintText: loc.teamName,
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: shortNameController,
+              decoration: InputDecoration(
+                labelText: loc.teamShortName,
+                hintText: loc.teamShortName,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(loc.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(loc.save),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && context.mounted) {
+      if (nameController.text.isEmpty || shortNameController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter both names')),
+        );
+        return;
+      }
+
+      try {
+        await DatabaseService.instance.update(
+          'Teams',
+          {
+            'fullName': nameController.text,
+            'shortName': shortNameController.text,
+          },
+          key: widget.team!.id.toString(),
+        );
+        Team.clearCache();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(loc.teamNameUpdated)),
+          );
+          // Note: Since widget.team is final, it won't reflect the change immediately in this page's breadcrumbs
+          // but the change is saved in the database.
+          setState(() {});
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(loc.errorSaving(e.toString())),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
   }
 }

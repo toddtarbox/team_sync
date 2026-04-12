@@ -26,12 +26,12 @@ class ImportProgress {
 
 /// An abstract class that defines the interface for database operations.
 abstract class DatabaseProvider {
-  Future<bool> open(String path);
+  Future<bool> open(String path, {String? createWithSportId});
   Future<bool> openFromPath(String path);
   String get path;
   Future<bool> get isImporting;
   Future<void> close();
-  Future<List<String>> getAvailableDatabases();
+  Future<List<String>> getAvailableDatabases({String? sportFilter});
 
   /// Query rows under a path or table.
   ///
@@ -85,25 +85,17 @@ class FirebaseDBProvider implements DatabaseProvider {
   StreamSubscription<DatabaseEvent>? _dbValueSub;
 
   FirebaseDBProvider() {
-    // Enable offline persistence on platforms that support it (mobile/desktop).
-    // Web does not support setPersistenceEnabled, so guard with kIsWeb.
-    try {
-      if (!kIsWeb) {
-        _database.setPersistenceEnabled(true);
-        // Set a reasonable cache size (10 MB) — adjust if needed.
-        _database.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
-      }
-    } catch (e) {
-      debugPrint('Could not enable RTDB persistence: $e');
-    }
+    if (DatabaseService.isTest) return;
 
     // Listen to connection state from RTDB special location
     try {
-      if (!kIsWeb) {
+      if (!kIsWeb && !DatabaseService.isTest) {
         _database.ref('.info/connected').onValue.listen((event) {
           final connected = (event.snapshot.value == true);
           DatabaseService.instance._emitConnectionStateInternal(connected);
           if (connected) DatabaseService.instance._clearPendingOnReconnect();
+        }, onError: (e) {
+          debugPrint('Connection state stream error: $e');
         });
       }
     } catch (e) {
@@ -135,7 +127,11 @@ class FirebaseDBProvider implements DatabaseProvider {
     return table;
   }
 
+  String? _cachedPublicShareId;
+
   String? get publicShareId {
+    if (_cachedPublicShareId != null) return _cachedPublicShareId;
+
     final snap = dbDocumentSnapshot;
     if (snap == null || !snap.exists) return null;
     final data = snap.value as Map<dynamic, dynamic>?;
@@ -201,7 +197,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<List<String>> getAvailableDatabases() async {
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async {
     await _getSubscriptionId();
 
     // Validate that we have a valid subscription ID
@@ -222,7 +218,23 @@ class FirebaseDBProvider implements DatabaseProvider {
     final ownDatabases = <String>[];
     if (snapshot.exists && snapshot.value != null) {
       final data = snapshot.value as Map<dynamic, dynamic>;
-      ownDatabases.addAll(data.keys.map((k) => k.toString()));
+      data.forEach((key, value) {
+        // If we have a filter, check if the database matches
+        // If the database has no 'sportId', we assume it matches (compatibility)
+        // If it has a 'sportId', it must match the filter
+        bool include = true;
+        if (sportFilter != null && value is Map) {
+          // Treat databases with no sportId as 'soccer' (legacy databases)
+          final dbSportId = value['sportId'] ?? 'soccer';
+          if (dbSportId != sportFilter) {
+            include = false;
+          }
+        }
+
+        if (include) {
+          ownDatabases.add(key.toString());
+        }
+      });
     }
 
     // Get shared databases (for Pro users only)
@@ -230,6 +242,10 @@ class FirebaseDBProvider implements DatabaseProvider {
     try {
       final shared = await DatabaseSharingService.instance.getSharedDatabases();
       for (final sharedDb in shared) {
+        // For shared databases, we might not have sport metadata readily available
+        // in the list unless we fetch it or it's included in the share record.
+        // For now, let's include them. Optimization would be to store sportId in share record.
+
         // Add with prefix to distinguish from own databases
         final displayName =
             '${sharedDb['ownerEmail']} - ${sharedDb['databaseName']}';
@@ -243,7 +259,7 @@ class FirebaseDBProvider implements DatabaseProvider {
   }
 
   @override
-  Future<bool> open(String path) async {
+  Future<bool> open(String path, {String? createWithSportId}) async {
     await _getSubscriptionId();
 
     // Validate that we have a valid subscription ID
@@ -252,9 +268,12 @@ class FirebaseDBProvider implements DatabaseProvider {
       return false;
     }
 
-    _path = path;
+    // Construct the full path
+    final dbPath = 'subscriptionIds/$_subscriptionId/databases/$path';
 
-    final dbPath = 'subscriptionIds/$_subscriptionId/databases/$_path';
+    // Set _path to the full path so that queries use the correct location
+    _path = dbPath;
+
     if (!_isValidFirebasePath(dbPath)) {
       debugPrint('open: Invalid Firebase path: $dbPath');
       return false;
@@ -263,8 +282,22 @@ class FirebaseDBProvider implements DatabaseProvider {
     final ref = _database.ref(dbPath);
     _dbEvent = await ref.once();
     if (_dbEvent?.snapshot.exists == false) {
-      await ref.set({'version': 1});
+      final initData = <String, dynamic>{'version': 1};
+      if (createWithSportId != null) {
+        initData['sportId'] = createWithSportId;
+      }
+      await ref.set(initData);
       _dbEvent = await ref.once();
+    }
+
+    // Ensure publicShareId exists, generating it if necessary.
+    _cachedPublicShareId = null; // Clear cache on open
+    if (publicShareId == null) {
+      // Auto-generate public share ID if missing
+      _cachedPublicShareId = await shareDatabase();
+    } else {
+      // Cache existing ID
+      _cachedPublicShareId = publicShareId;
     }
 
     // Listen for value events on the opened database node and emit update times.
@@ -291,6 +324,8 @@ class FirebaseDBProvider implements DatabaseProvider {
         }
         // Fall back to local observed time
         _updateController.add(DateTime.now().toUtc());
+      }, onError: (e) {
+        debugPrint('DB value stream error: $e');
       });
     } catch (e) {
       debugPrint('Failed to subscribe to database value events: $e');
@@ -315,10 +350,16 @@ class FirebaseDBProvider implements DatabaseProvider {
 
     final parts = path.split('/');
 
-    // For subscription-based databases, parse and validate the path
+    // Store the full path. This is critical for shared databases which use absolute paths.
+    // We do NOT want to truncate this to just the last segment.
+    _path = path;
+    _cachedPublicShareId = null; // Clear cache on new open
+
+    // Try to extract subscription ID if relevant, but don't depend on it for pathing
     // Expected format: subscriptionIds/{uid}/databases/{dbName}
-    _path = parts.isNotEmpty ? parts.last : path;
-    _subscriptionId = parts.length > 1 ? parts[1] : '';
+    if (parts.length > 1 && parts[0] == 'subscriptionIds') {
+      _subscriptionId = parts[1];
+    }
 
     // Validate subscription ID is not empty for subscription-based paths
     if (_subscriptionId.isEmpty &&
@@ -326,16 +367,42 @@ class FirebaseDBProvider implements DatabaseProvider {
         parts[0] == 'subscriptionIds') {
       debugPrint(
           'openFromPath: Invalid subscription path - missing subscription ID: $path');
-      return false;
+      // We continue anyway as it might be a different structure, but log the warning
     }
 
     try {
       final ref = _database.ref(path);
-      _dbEvent = await ref.once();
 
-      if (_dbEvent?.snapshot.exists == false) {
-        debugPrint('openFromPath: Database not found at path: $path');
-        return false;
+      // Check for public share ID first to verify access without reading entire DB
+      try {
+        debugPrint(
+            '[DatabaseService] Checking publicShareId at $path/publicShareId');
+        final publicShareSnap = await ref.child('publicShareId').get();
+        if (publicShareSnap.exists) {
+          debugPrint('openFromPath: Valid public share ID found at $path');
+          _cachedPublicShareId = publicShareSnap.value?.toString();
+        } else {
+          debugPrint('[DatabaseService] publicShareId not found at $path');
+          // Fallback to checking full db existence if publicShareId is missing/not readable
+          // This might fail if we don't have root read access
+          _dbEvent = await ref.once();
+          if (_dbEvent?.snapshot.exists == false) {
+            debugPrint('openFromPath: Database not found at path: $path');
+            return false;
+          }
+
+          // Database exists but publicShareId is missing. Generate it.
+          _cachedPublicShareId = await shareDatabase();
+        }
+      } catch (e) {
+        if (e is FirebaseException && e.code == 'permission-denied') {
+          debugPrint(
+              'openFromPath: Permission denied reading publicShareId. Attempting to proceed blindly in case rules allow specific child access. Error: ${e.message}');
+          // We return true here to allow specific table queries (like Teams) to attempt their own reads, which might succeed if rules are granular.
+        } else {
+          debugPrint('openFromPath: Error checking database existence: $e');
+          return false;
+        }
       }
 
       // Subscribe to value events for this database path
@@ -360,6 +427,8 @@ class FirebaseDBProvider implements DatabaseProvider {
                 'updateStream: failed to read lastUpdated from snapshot: $e');
           }
           _updateController.add(DateTime.now().toUtc());
+        }, onError: (e) {
+          debugPrint('DB value stream error (from path): $e');
         });
       } catch (e) {
         debugPrint('Failed to subscribe to database value events: $e');
@@ -399,15 +468,27 @@ class FirebaseDBProvider implements DatabaseProvider {
       dynamic endAt,
       int? limitToFirst,
       int? limitToLast}) async {
-    final snap = dbDocumentSnapshot;
-    if (snap == null || !snap.exists) return [];
-
     // Get table name
     final translatedTable = _getTableName(table);
 
-    final String nodePath = (path != null && path.isNotEmpty)
-        ? path
-        : '${snap.ref.path}/$translatedTable'; // Use nested path
+    // Determine the base path for this query
+    String nodePath;
+    if (path != null && path.isNotEmpty) {
+      nodePath = path;
+    } else if (_path.isNotEmpty) {
+      // Use the open database path
+      nodePath = '$_path/$translatedTable';
+    } else {
+      // Fallback to snapshot path if available (old behavior)
+      final snap = dbDocumentSnapshot;
+      if (snap != null && snap.exists) {
+        nodePath = '${snap.ref.path}/$translatedTable';
+      } else {
+        // No path context available
+        return [];
+      }
+    }
+
     final ref = _database.ref(nodePath);
 
     // If caller provided RTDB-style args, build a native Query
@@ -475,7 +556,7 @@ class FirebaseDBProvider implements DatabaseProvider {
         return rows;
       } catch (e, st) {
         debugPrint(
-            'RTDB native query failed, falling back to full read: $e\n$st');
+            'RTDB native query failed for $nodePath, falling back to full read: $e\n$st');
         // fall through
       }
     }
@@ -866,7 +947,7 @@ class FirebaseDBProvider implements DatabaseProvider {
       debugPrint('shareDatabase: could not obtain a unique publicShareId');
       return null;
     }
-    return publicId;
+    return _cachedPublicShareId = publicId;
   }
 
   /// Open a database by a public share id. Since we store `publicShareId` on the
@@ -878,13 +959,26 @@ class FirebaseDBProvider implements DatabaseProvider {
     // Resolve the public id using the top-level mapping maintained by Cloud Functions:
     // /shared_databases/<id> => { databasePath }
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      debugPrint(
+          '[DatabaseService] openFromId: $id. User: ${currentUser?.uid}, IsAnon: ${currentUser?.isAnonymous}');
+
       final mapSnap = await rt.ref('shared_databases/$id').get();
       if (mapSnap.exists && mapSnap.value != null) {
         final mapVal = mapSnap.value;
         if (mapVal is Map && mapVal['databasePath'] != null) {
           final path = mapVal['databasePath'].toString();
+          debugPrint('openFromId: resolved publicId $id to path $path');
+          // For public shares, the path is usually absolute (subscriptionIds/uid/databases/dbName)
+          // We need to use openFromPath to handle this correctly as 'open' expects a relative path.
           return await openFromPath(path);
+        } else {
+          debugPrint(
+              '[DatabaseService] openFromId: mapVal is invalid or missing databasePath: $mapVal');
         }
+      } else {
+        debugPrint(
+            '[DatabaseService] openFromId: mapSnap does not exist for id $id');
       }
     } catch (e) {
       debugPrint('openFromId: failed to read shared_databases/$id: $e');
@@ -897,7 +991,10 @@ class FirebaseDBProvider implements DatabaseProvider {
 
 /// Singleton service that delegates to a DatabaseProvider.
 class DatabaseService {
-  static final DatabaseService instance = DatabaseService._internal();
+  static bool isTest = false;
+  static DatabaseService? _instance;
+  static DatabaseService get instance =>
+      _instance ??= DatabaseService._internal();
   late DatabaseProvider _provider;
 
   // Connection status stream: true = connected, false = disconnected
@@ -1043,10 +1140,13 @@ class DatabaseService {
     debugPrint('Importing complete');
   }
 
-  Future<bool> open(String path) async => await _provider.open(path);
+  Future<bool> open(String path, {String? createWithSportId}) async =>
+      await _provider.open(path, createWithSportId: createWithSportId);
 
   Future<bool> openFromPath(String path) async {
-    if (_provider is! FirebaseDBProvider) setProvider(FirebaseDBProvider());
+    if (_provider is! FirebaseDBProvider && !DatabaseService.isTest) {
+      setProvider(FirebaseDBProvider());
+    }
     return await _provider.openFromPath(path);
   }
 
@@ -1074,8 +1174,8 @@ class DatabaseService {
 
   Future<void> close() async => await _provider.close();
 
-  Future<List<String>> getAvailableDatabases() async =>
-      await _provider.getAvailableDatabases();
+  Future<List<String>> getAvailableDatabases({String? sportFilter}) async =>
+      await _provider.getAvailableDatabases(sportFilter: sportFilter);
 
   Future<List<Map<String, dynamic>>> query(String table,
           {String? path,

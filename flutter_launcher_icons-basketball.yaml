@@ -1,0 +1,6 @@
+flutter_launcher_icons:
+  android: "basketball"
+  ios: "AppIcon-Basketball"
+  image_path: "assets/images/pngs/basketball_icon_no_background.png"
+  remove_alpha_ios: true
+  min_sdk_android: 21 # Set min SDK if needed, usually good to be explicit

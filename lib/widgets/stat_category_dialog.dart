@@ -18,14 +18,34 @@ class StatCategoryDialog {
     required BuildContext context,
     required String categoryName,
     required Map<Player, int> playerStats,
+    Map<Player, int>? playerAttempts,
+    Map<Player, String>? displayValues,
     bool showPlayerNumber = false,
     Function(Player)? onPlayerTap,
     int? maxPlayers,
     Season? season,
   }) async {
-    // Sort players by stat value (highest first)
-    final sortedStats = List<MapEntry<Player, int>>.from(playerStats.entries);
-    sortedStats.sort((a, b) => b.value.compareTo(a.value));
+    // Create a combined list of players from both maps
+    final allPlayers = {...playerStats.keys, ...?playerAttempts?.keys};
+    final sortedStats = allPlayers.map((player) {
+      final made = playerStats[player] ?? 0;
+      return MapEntry(player, made);
+    }).toList();
+
+    // Sort players: primary by made value (highest first), secondary by attempts (highest first)
+    sortedStats.sort((a, b) {
+      final aMade = a.value;
+      final bMade = b.value;
+      if (aMade != bMade) {
+        return bMade.compareTo(aMade);
+      }
+      if (playerAttempts != null) {
+        final aAttempts = playerAttempts[a.key] ?? 0;
+        final bAttempts = playerAttempts[b.key] ?? 0;
+        return bAttempts.compareTo(aAttempts);
+      }
+      return 0;
+    });
 
     // Limit to maxPlayers if specified
     final displayStats = maxPlayers != null
@@ -43,6 +63,8 @@ class StatCategoryDialog {
           context,
           categoryName,
           displayStats,
+          playerAttempts,
+          displayValues,
           showPlayerNumber,
           onPlayerTap,
           season,
@@ -56,6 +78,8 @@ class StatCategoryDialog {
     BuildContext context,
     String categoryName,
     List<MapEntry<Player, int>> sortedStats,
+    Map<Player, int>? playerAttempts,
+    Map<Player, String>? displayValues,
     bool showPlayerNumber,
     Function(Player)? onPlayerTap,
     Season? season,
@@ -161,7 +185,7 @@ class StatCategoryDialog {
                                       ),
                                       if (showPlayerNumber)
                                         Text(
-                                          '#${player.number}',
+                                        player.displayNumbers,
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Theme.of(context)
@@ -185,16 +209,8 @@ class StatCategoryDialog {
                                         .primaryContainer,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Text(
-                                    count.toString(),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer,
-                                    ),
-                                  ),
+                                  child: _buildBadgeContent(context, player,
+                                      count, playerAttempts, displayValues),
                                 ),
                               ],
                             ),
@@ -217,6 +233,60 @@ class StatCategoryDialog {
           ),
         );
       },
+    );
+  }
+
+  static Widget _buildBadgeContent(
+      BuildContext context,
+      Player player,
+      int count,
+      Map<Player, int>? playerAttempts,
+      Map<Player, String>? displayValues) {
+    if (displayValues != null && displayValues.containsKey(player)) {
+      final value = displayValues[player]!;
+      return Text(
+        value,
+        style: TextStyle(
+          fontSize: 14, // Slightly smaller font for longer text
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      );
+    }
+
+    if (playerAttempts != null && playerAttempts.containsKey(player)) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$count / ${playerAttempts[player]}',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
+          Text(
+            '${(playerAttempts[player]! > 0 ? (count / playerAttempts[player]! * 100) : 0).toStringAsFixed(1)}%',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onPrimaryContainer
+                  .withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      count.toString(),
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.onPrimaryContainer,
+      ),
     );
   }
 }

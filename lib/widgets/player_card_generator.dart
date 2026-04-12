@@ -1,5 +1,6 @@
 // Web-specific imports
-import 'dart:io';
+import 'package:universal_io/io.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -189,6 +190,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
   late AnimationController _flipController;
   late Animation<double> _flipAnimation;
   bool _showingBack = false;
+  bool _hasTwitterConfig = false;
 
   @override
   void initState() {
@@ -200,6 +202,17 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     _flipAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
     );
+    _checkTwitterConfig();
+  }
+
+  Future<void> _checkTwitterConfig() async {
+    final hasConfig =
+        await TwitterService.instance.isConfigured(teamId: widget.team.id);
+    if (mounted) {
+      setState(() {
+        _hasTwitterConfig = hasConfig;
+      });
+    }
   }
 
   @override
@@ -481,31 +494,33 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _isGenerating
-                                ? null
-                                : () => _captureAndShare(true),
-                            icon: _isGenerating
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.send, size: 18),
-                            label: Text(_isGenerating
-                                ? 'Generating...'
-                                : _showingBack
-                                    ? 'Tweet Stats'
-                                    : 'Tweet Card'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1DA1F2),
-                              foregroundColor: Colors.white,
+                        if (_hasTwitterConfig) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isGenerating
+                                  ? null
+                                  : () => _captureAndShare(true),
+                              icon: _isGenerating
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.send, size: 18),
+                              label: Text(_isGenerating
+                                  ? 'Generating...'
+                                  : _showingBack
+                                      ? 'Tweet Stats'
+                                      : 'Tweet Card'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1DA1F2),
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
             ),
@@ -626,7 +641,7 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
           await Share.shareXFiles(
             [XFile(file.path)],
             text:
-                '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}',
+                '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}',
           );
 
           if (mounted) {
@@ -669,10 +684,10 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     String tweetText = '';
     if (widget.eventContext != null) {
       tweetText =
-          '${widget.eventContext} ${widget.player.displayName} #${widget.player.number}';
+          '${widget.eventContext} ${widget.player.displayName} ${widget.player.displayNumbers}';
     } else {
       tweetText =
-          '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}';
+          '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}';
     }
 
     // Use common tweet preview dialog
@@ -704,10 +719,10 @@ class _PlayerCardDialogState extends State<_PlayerCardDialog>
     String tweetText = '';
     if (widget.eventContext != null) {
       tweetText =
-          '${widget.eventContext} ${widget.player.displayName} #${widget.player.number}';
+          '${widget.eventContext} ${widget.player.displayName} ${widget.player.displayNumbers}';
     } else {
       tweetText =
-          '${widget.player.displayName} #${widget.player.number} - ${widget.team.shortName}';
+          '${widget.player.displayName} ${widget.player.displayNumbers} - ${widget.team.shortName}';
     }
 
     // Note: Twitter API v1.1 image upload would go here
@@ -860,13 +875,16 @@ class _PlayerCardWidget extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Player number (large)
-                  Text(
-                    '#${player.number}',
-                    style: TextStyle(
-                      color: config.accentColor,
-                      fontSize: 110,
-                      fontWeight: FontWeight.bold,
-                      height: 1,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      player.displayNumbers,
+                      style: TextStyle(
+                        color: config.accentColor,
+                        fontSize: 110,
+                        fontWeight: FontWeight.bold,
+                        height: 1,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1196,12 +1214,18 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
                     color: config.accentColor,
                   ),
                   child: Center(
-                    child: Text(
-                      '#${widget.player.number}',
-                      style: TextStyle(
-                        color: config.backgroundColor,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          widget.player.displayNumbers,
+                          style: TextStyle(
+                            color: config.backgroundColor,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1476,7 +1500,7 @@ class _PlayerCardBackWidgetState extends State<_PlayerCardBackWidget> {
   // Generate the web URL for this player
   String _getPlayerWebUrl() {
     final databaseId = DatabaseService.instance.publicShareId ?? '';
-    final baseUrl = 'https://team-sync-soccer.web.app';
+    final baseUrl = SportStrategy.current.webUrl;
     // Use global player route (not season-specific)
     return '$baseUrl/#/team/$databaseId/player/${widget.player.id}';
   }

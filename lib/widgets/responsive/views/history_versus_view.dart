@@ -7,6 +7,7 @@ import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/models/team.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 
 class HistoryVersusView extends StatefulWidget {
   final Team team;
@@ -40,6 +41,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
   TimeFilter _timeFilter = TimeFilter.allTime;
   final Set<int> _expandedTeams =
       {}; // Track which team analytics are expanded (by team ID)
+  Map<String, num> _asyncOverallStats = {};
 
   @override
   void initState() {
@@ -218,6 +220,91 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     return filtered;
   }
 
+  /// Calculates detailed stats (e.g. percentages) asynchronously for a specific list of games
+  Future<void> _updateOverallStats(List<Game> games) async {
+    // Only verify/run for basketball
+    if (SportStrategy.current.sportId != 'basketball') return;
+
+    // Filter to valid games for stats (completed, past)
+    final now = DateTime.now();
+    final validGames = games
+        .where((g) => g.gameStatus.index >= 9 && g.date.isBefore(now))
+        .toList();
+    if (validGames.isEmpty) return;
+
+    final stats = <String, num>{};
+
+    int total3PM = 0;
+    int total3PMissed = 0;
+    int total2PM = 0;
+    int total2PMissed = 0;
+    int totalFTM = 0;
+    int totalFTMissed = 0;
+
+    // Load events for stats calculation
+    await Future.wait(validGames.map((g) async {
+      // This ensures GameEvents are loaded.
+      // If already loaded, it's fast. If not, it fetches.
+      // Note: getStats() inside Game usually aggregates from events.
+      // We need to ensure we have the stats.
+      // The most reliable way is to iterate events directly if loaded,
+      // or call game.getStats().
+      // Let's use game.loadGameEvents() first.
+      await g.loadGameEvents();
+
+      // Now Aggregate
+      for (final event in g.gameEvents) {
+        if (event.team.id != widget.team.id) continue;
+
+        // Check event types based on BasketballStrategy
+        if (event.eventType == 'Point') {
+          final pointValue = event.eventData;
+          if (pointValue == 3) {
+            total3PM++;
+          } else if (pointValue == 2) {
+            total2PM++;
+          } else if (pointValue == 1) {
+            totalFTM++;
+          }
+        } else if (event.eventType == 'Miss') {
+          final missType = event.eventData;
+          if (missType == 3) {
+            total3PMissed++;
+          } else if (missType == 2) {
+            total2PMissed++;
+          } else if (missType == 1) {
+            totalFTMissed++;
+          }
+        }
+      }
+    }));
+
+    // Calculate Pcts
+    final total3PAttempts = total3PM + total3PMissed;
+    if (total3PAttempts > 0) {
+      stats['3_point_percentage'] =
+          ((total3PM / total3PAttempts) * 100).round();
+    }
+
+    final total2PAttempts = total2PM + total2PMissed;
+    if (total2PAttempts > 0) {
+      stats['2_point_percentage'] =
+          ((total2PM / total2PAttempts) * 100).round();
+    }
+
+    final totalFTAttempts = totalFTM + totalFTMissed;
+    if (totalFTAttempts > 0) {
+      stats['free_throw_percentage'] =
+          ((totalFTM / totalFTAttempts) * 100).round();
+    }
+
+    if (mounted) {
+      setState(() {
+        _asyncOverallStats = stats;
+      });
+    }
+  }
+
   /// Build overall analytics section showing aggregate stats for filtered period
   Widget _buildOverallAnalytics(Map<Team, List<Game>> history) {
     final loc = AppLocalizations.of(context)!;
@@ -233,6 +320,10 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
 
     if (stats.isEmpty) {
       return const SizedBox.shrink();
+    }
+
+    if (SportStrategy.current.sportId == 'basketball') {
+      stats.addAll(_asyncOverallStats);
     }
 
     return Column(
@@ -288,104 +379,153 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
               // 2x2 grid for wider screens
               return Column(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildAnalyticsSummaryCard(
-                          loc.recordSummary,
-                          Icons.emoji_events,
-                          Colors.amber,
-                          [
-                            _buildStatRow2(loc.totalGames,
-                                '${stats['totalGames']}', Icons.sports_soccer),
-                            _buildStatRow2(loc.wins, '${stats['wins']}',
-                                Icons.trending_up),
-                            _buildStatRow2(loc.losses, '${stats['losses']}',
-                                Icons.trending_down),
-                            _buildStatRow2(
-                                loc.ties, '${stats['ties']}', Icons.remove),
-                          ],
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _buildAnalyticsSummaryCard(
+                            loc.recordSummary,
+                            Icons.emoji_events,
+                            Colors.amber,
+                            [
+                              _buildStatRow2(
+                                  loc.totalGames,
+                                  '${stats['totalGames']}',
+                                  Icons.sports_soccer),
+                              _buildStatRow2(loc.wins, '${stats['wins']}',
+                                  Icons.trending_up),
+                              _buildStatRow2(loc.losses, '${stats['losses']}',
+                                  Icons.trending_down),
+                              if (SportStrategy.current.sportId != 'basketball')
+                                _buildStatRow2(
+                                    loc.ties, '${stats['ties']}', Icons.remove),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAnalyticsSummaryCard(
-                          loc.goalAnalytics,
-                          Icons.sports_score,
-                          Colors.green,
-                          [
-                            _buildStatRow2(loc.totalGoalsScored,
-                                '${stats['totalGoalsScored']}', Icons.north),
-                            _buildStatRow2(loc.totalGoalsConceded,
-                                '${stats['totalGoalsConceded']}', Icons.south),
-                            _buildStatRow2(
-                                loc.avgGoalsPerGame,
-                                stats['avgGoalsPerGame']!.toStringAsFixed(2),
-                                Icons.functions),
-                            _buildStatRow2(
-                                loc.goalDifferential,
-                                stats['goalDifferential']! >= 0
-                                    ? '+${stats['goalDifferential']}'
-                                    : '${stats['goalDifferential']}',
-                                Icons.compare_arrows),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildAnalyticsSummaryCard(
+                            SportStrategy.current.sportId == 'basketball'
+                                ? 'Scoring Analytics'
+                                : loc.goalAnalytics,
+                            Icons.sports_score,
+                            Colors.green,
+                            [
+                              _buildStatRow2(
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? 'Total Points'
+                                      : loc.totalGoalsScored,
+                                  '${stats['totalGoalsScored']}',
+                                  Icons.north),
+                              _buildStatRow2(
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? 'Points Allowed'
+                                      : loc.totalGoalsConceded,
+                                  '${stats['totalGoalsConceded']}',
+                                  Icons.south),
+                              _buildStatRow2(
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? 'Points Per Game'
+                                      : loc.avgGoalsPerGame,
+                                  stats['avgGoalsPerGame']!.toStringAsFixed(2),
+                                  Icons.functions),
+                              _buildStatRow2(
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? 'Point Diff'
+                                      : loc.goalDifferential,
+                                  stats['goalDifferential']! >= 0
+                                      ? '+${stats['goalDifferential']}'
+                                      : '${stats['goalDifferential']}',
+                                  Icons.compare_arrows),
+                              if (SportStrategy.current.sportId ==
+                                      'basketball' &&
+                                  stats.containsKey('2_point_percentage'))
+                                _buildStatRow2(
+                                    'FG %',
+                                    '${stats['2_point_percentage']}%',
+                                    Icons.data_usage),
+                              if (SportStrategy.current.sportId ==
+                                      'basketball' &&
+                                  stats.containsKey('3_point_percentage'))
+                                _buildStatRow2(
+                                    '3PT %',
+                                    '${stats['3_point_percentage']}%',
+                                    Icons.data_usage),
+                              if (SportStrategy.current.sportId ==
+                                      'basketball' &&
+                                  stats.containsKey('free_throw_percentage'))
+                                _buildStatRow2(
+                                    'FT %',
+                                    '${stats['free_throw_percentage']}%',
+                                    Icons.data_usage),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildAnalyticsSummaryCard(
-                          loc.streaksRecords,
-                          Icons.flash_on,
-                          Colors.purple,
-                          [
-                            _buildStatRow2(
-                                loc.longestWinStreak,
-                                '${stats['longestWinStreak']}W',
-                                Icons.trending_up),
-                            _buildStatRow2(
-                                loc.biggestVictory,
-                                '+${stats['biggestVictory']}',
-                                Icons.celebration),
-                            _buildStatRow2(loc.cleanSheets,
-                                '${stats['cleanSheets']}', Icons.shield),
-                            _buildStatRow2(
-                                loc.winPercentage,
-                                '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
-                                Icons.percent),
-                          ],
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _buildAnalyticsSummaryCard(
+                            loc.streaksRecords,
+                            Icons.flash_on,
+                            Colors.purple,
+                            [
+                              _buildStatRow2(
+                                  loc.longestWinStreak,
+                                  '${stats['longestWinStreak']}W',
+                                  Icons.trending_up),
+                              _buildStatRow2(
+                                  loc.biggestVictory,
+                                  '+${stats['biggestVictory']}',
+                                  Icons.celebration),
+                              if (SportStrategy.current.sportId != 'basketball')
+                                _buildStatRow2(loc.cleanSheets,
+                                    '${stats['cleanSheets']}', Icons.shield),
+                              _buildStatRow2(
+                                  loc.winPercentage,
+                                  '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
+                                  Icons.percent),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildAnalyticsSummaryCard(
-                          loc.homeAwayAnalysis,
-                          Icons.home,
-                          Colors.blue,
-                          [
-                            _buildStatRow2(
-                                loc.homeRecord,
-                                '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
-                                Icons.home),
-                            _buildStatRow2(
-                                loc.awayRecord,
-                                '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
-                                Icons.flight_takeoff),
-                            _buildStatRow2(
-                                loc.homeWinPercentage,
-                                '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
-                                Icons.home_outlined),
-                            _buildStatRow2(
-                                loc.awayWinPercentage,
-                                '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
-                                Icons.flight_outlined),
-                          ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildAnalyticsSummaryCard(
+                            loc.homeAwayAnalysis,
+                            Icons.home,
+                            Colors.blue,
+                            [
+                              _buildStatRow2(
+                                  loc.homeRecord,
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? '${stats['homeWins']}-${stats['homeLosses']}'
+                                      : '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
+                                  Icons.home),
+                              _buildStatRow2(
+                                  loc.awayRecord,
+                                  SportStrategy.current.sportId == 'basketball'
+                                      ? '${stats['awayWins']}-${stats['awayLosses']}'
+                                      : '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
+                                  Icons.flight_takeoff),
+                              _buildStatRow2(
+                                  loc.homeWinPercentage,
+                                  '${(stats['homeWinPct']! * 100).toStringAsFixed(0)}%',
+                                  Icons.home_outlined),
+                              _buildStatRow2(
+                                  loc.awayWinPercentage,
+                                  '${(stats['awayWinPct']! * 100).toStringAsFixed(0)}%',
+                                  Icons.flight_outlined),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               );
@@ -398,33 +538,63 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                   Colors.amber,
                   [
                     _buildStatRow2(loc.totalGames, '${stats['totalGames']}',
-                        Icons.sports_soccer),
+                        SportStrategy.current.sportIcon),
                     _buildStatRow2(
                         loc.wins, '${stats['wins']}', Icons.trending_up),
                     _buildStatRow2(
                         loc.losses, '${stats['losses']}', Icons.trending_down),
-                    _buildStatRow2(loc.ties, '${stats['ties']}', Icons.remove),
+                    if (SportStrategy.current.sportId != 'basketball')
+                      _buildStatRow2(
+                          loc.ties, '${stats['ties']}', Icons.remove),
                   ],
                 ),
                 _buildAnalyticsSummaryCard(
-                  loc.goalAnalytics,
+                  SportStrategy.current.sportId == 'basketball'
+                      ? 'Scoring Analytics'
+                      : loc.goalAnalytics,
                   Icons.sports_score,
                   Colors.green,
                   [
-                    _buildStatRow2(loc.totalGoalsScored,
-                        '${stats['totalGoalsScored']}', Icons.north),
-                    _buildStatRow2(loc.totalGoalsConceded,
-                        '${stats['totalGoalsConceded']}', Icons.south),
                     _buildStatRow2(
-                        loc.avgGoalsPerGame,
+                        SportStrategy.current.sportId == 'basketball'
+                            ? 'Total Points'
+                            : loc.totalGoalsScored,
+                        '${stats['totalGoalsScored']}',
+                        Icons.north),
+                    _buildStatRow2(
+                        SportStrategy.current.sportId == 'basketball'
+                            ? 'Points Allowed'
+                            : loc.totalGoalsConceded,
+                        '${stats['totalGoalsConceded']}',
+                        Icons.south),
+                    _buildStatRow2(
+                        SportStrategy.current.sportId == 'basketball'
+                            ? 'Points Per Game'
+                            : loc.avgGoalsPerGame,
                         stats['avgGoalsPerGame']!.toStringAsFixed(2),
                         Icons.functions),
                     _buildStatRow2(
-                        loc.goalDifferential,
+                        SportStrategy.current.sportId == 'basketball'
+                            ? 'Point Diff'
+                            : loc.goalDifferential,
                         stats['goalDifferential']! >= 0
                             ? '+${stats['goalDifferential']}'
                             : '${stats['goalDifferential']}',
                         Icons.compare_arrows),
+                    if (SportStrategy.current.sportId == 'basketball' &&
+                        stats.containsKey('2_point_percentage'))
+                      _buildStatRow2('FG %', '${stats['2_point_percentage']}%',
+                          Icons.data_usage),
+                    if (SportStrategy.current.sportId == 'basketball' &&
+                        stats.containsKey('3_point_percentage'))
+                      _buildStatRow2('3PT %', '${stats['3_point_percentage']}%',
+                          Icons.data_usage),
+                    if (SportStrategy.current.sportId == 'basketball' &&
+                        stats.containsKey('free_throw_percentage'))
+                      _buildStatRow2(
+                          'FT %',
+                          '${stats['free_throw_percentage']}%',
+                          Icons.data_usage),
                   ],
                 ),
                 _buildAnalyticsSummaryCard(
@@ -436,8 +606,9 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                         '${stats['longestWinStreak']}W', Icons.trending_up),
                     _buildStatRow2(loc.biggestVictory,
                         '+${stats['biggestVictory']}', Icons.celebration),
-                    _buildStatRow2(loc.cleanSheets, '${stats['cleanSheets']}',
-                        Icons.shield),
+                    if (SportStrategy.current.sportId != 'basketball')
+                      _buildStatRow2(loc.cleanSheets, '${stats['cleanSheets']}',
+                          Icons.shield),
                     _buildStatRow2(
                         loc.winPercentage,
                         '${(stats['winPercentage']! * 100).toStringAsFixed(1)}%',
@@ -451,11 +622,15 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                   [
                     _buildStatRow2(
                         loc.homeRecord,
-                        '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
+                        SportStrategy.current.sportId == 'basketball'
+                            ? '${stats['homeWins']}-${stats['homeLosses']}'
+                            : '${stats['homeWins']}-${stats['homeLosses']}-${stats['homeTies']}',
                         Icons.home),
                     _buildStatRow2(
                         loc.awayRecord,
-                        '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
+                        SportStrategy.current.sportId == 'basketball'
+                            ? '${stats['awayWins']}-${stats['awayLosses']}'
+                            : '${stats['awayWins']}-${stats['awayLosses']}-${stats['awayTies']}',
                         Icons.flight_takeoff),
                     _buildStatRow2(
                         loc.homeWinPercentage,
@@ -527,7 +702,14 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
               ],
             ),
             const SizedBox(height: 12),
-            ...stats,
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: stats,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -686,6 +868,18 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
           if (snapshot.hasData) {
             // Apply time filter first
             final filteredHistory = _applyTimeFilter(snapshot.data ?? {});
+
+            // Collect all games for async stats calculation if needed
+            if (SportStrategy.current.sportId == 'basketball') {
+              final allGames = <Game>[];
+              for (final games in filteredHistory.values) {
+                allGames.addAll(games);
+              }
+              // Only update if games changed significantly or empty
+              // Simple debounce/check could be added, but for now just call it
+              // We wrap in microptask to avoid build-phase setState
+              Future.microtask(() => _updateOverallStats(allGames));
+            }
 
             final sortedEntries = _sortTeams(
               filteredHistory,
@@ -1013,15 +1207,17 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                             ),
                                             const SizedBox(width: 12),
                                             // Ties
-                                            _buildRecordStat(
-                                              context,
-                                              loc.tieAbbreviation,
-                                              ties,
-                                              Colors.grey,
-                                              totalGames > 0
-                                                  ? (ties / totalGames)
-                                                  : 0.0,
-                                            ),
+                                            if (SportStrategy.current.sportId !=
+                                                'basketball')
+                                              _buildRecordStat(
+                                                context,
+                                                loc.tieAbbreviation,
+                                                ties,
+                                                Colors.grey,
+                                                totalGames > 0
+                                                    ? (ties / totalGames)
+                                                    : 0.0,
+                                              ),
                                           ],
                                         ),
                                         const SizedBox(height: 12),
@@ -1045,7 +1241,10 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                     child: Container(
                                                         color: Colors.red),
                                                   ),
-                                                if (ties > 0)
+                                                if (ties > 0 &&
+                                                    SportStrategy
+                                                            .current.sportId !=
+                                                        'basketball')
                                                   Expanded(
                                                     flex: ties,
                                                     child: Container(
@@ -1151,19 +1350,27 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    // Goals and streaks
+                                                    // Goals/Points and streaks
                                                     Row(
                                                       children: [
                                                         Expanded(
                                                           child:
                                                               _buildAnalyticItem(
                                                             context,
-                                                            loc.avgGoalsFor,
+                                                            SportStrategy
+                                                                        .current
+                                                                        .sportId ==
+                                                                    'basketball'
+                                                                ? 'Avg Points For'
+                                                                : loc
+                                                                    .avgGoalsFor,
                                                             _calculateAvgGoalsFor(
                                                                     games)
                                                                 .toStringAsFixed(
                                                                     1),
-                                                            Icons.sports_soccer,
+                                                            SportStrategy
+                                                                .current
+                                                                .sportIcon,
                                                             Colors.green,
                                                           ),
                                                         ),
@@ -1173,7 +1380,13 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                           child:
                                                               _buildAnalyticItem(
                                                             context,
-                                                            loc.avgGoalsAgainst,
+                                                            SportStrategy
+                                                                        .current
+                                                                        .sportId ==
+                                                                    'basketball'
+                                                                ? 'Avg Points Against'
+                                                                : loc
+                                                                    .avgGoalsAgainst,
                                                             _calculateAvgGoalsAgainst(
                                                                     games)
                                                                 .toStringAsFixed(
@@ -1243,23 +1456,38 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                     // Tier 1 Analytics Row 1
                                                     Row(
                                                       children: [
-                                                        Expanded(
-                                                          child:
-                                                              _buildAnalyticItem(
-                                                            context,
-                                                            loc.cleanSheets,
-                                                            '${(_calculateCleanSheetPercentage(games) * 100).toStringAsFixed(0)}%',
-                                                            Icons.block,
-                                                            Colors.blue,
+                                                        // Only show clean sheets for soccer
+                                                        if (SportStrategy
+                                                                .current
+                                                                .sportId !=
+                                                            'basketball')
+                                                          Expanded(
+                                                            child:
+                                                                _buildAnalyticItem(
+                                                              context,
+                                                              loc.cleanSheets,
+                                                              '${(_calculateCleanSheetPercentage(games) * 100).toStringAsFixed(0)}%',
+                                                              Icons.block,
+                                                              Colors.blue,
+                                                            ),
                                                           ),
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 8),
+                                                        if (SportStrategy
+                                                                .current
+                                                                .sportId !=
+                                                            'basketball')
+                                                          const SizedBox(
+                                                              width: 8),
                                                         Expanded(
                                                           child:
                                                               _buildAnalyticItem(
                                                             context,
-                                                            loc.goalDifferential,
+                                                            SportStrategy
+                                                                        .current
+                                                                        .sportId ==
+                                                                    'basketball'
+                                                                ? 'Point Diff'
+                                                                : loc
+                                                                    .goalDifferential,
                                                             _calculateGoalDifferential(
                                                                         games) >=
                                                                     0
@@ -1309,81 +1537,7 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                                                         ),
                                                       ],
                                                     ),
-                                                    const SizedBox(height: 8),
-                                                    // Points Per Game
-                                                    _buildAnalyticItem(
-                                                      context,
-                                                      loc.pointsPerGame,
-                                                      _calculatePointsPerGame(
-                                                              games)
-                                                          .toStringAsFixed(2),
-                                                      Icons.grade,
-                                                      Colors.indigo,
-                                                    ),
-                                                    // Tier 2 Analytics - Only show if data exists
-                                                    if (_hasTier2Analytics(
-                                                        games)) ...[
-                                                      const SizedBox(height: 8),
-                                                      // Tier 2 Analytics Row 1
-                                                      Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child:
-                                                                _buildAnalyticItem(
-                                                              context,
-                                                              loc.shootingAccuracy,
-                                                              '${(_calculateShootingAccuracy(games) * 100).toStringAsFixed(0)}%',
-                                                              Icons.gps_fixed,
-                                                              Colors.deepOrange,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                              width: 8),
-                                                          Expanded(
-                                                            child:
-                                                                _buildAnalyticItem(
-                                                              context,
-                                                              loc.comebackWins,
-                                                              '${_calculateComebackWins(games)}',
-                                                              Icons.trending_up,
-                                                              Colors.lightGreen,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      // Tier 2 Analytics Row 2
-                                                      Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child:
-                                                                _buildAnalyticItem(
-                                                              context,
-                                                              loc.lateGoals,
-                                                              '${_calculateLateGoals(games)}',
-                                                              Icons.access_time,
-                                                              Colors.deepPurple,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                              width: 8),
-                                                          Expanded(
-                                                            child:
-                                                                _buildAnalyticItem(
-                                                              context,
-                                                              loc.cardsPerGame,
-                                                              _calculateCardsPerGame(
-                                                                      games)
-                                                                  .toStringAsFixed(
-                                                                      2),
-                                                              Icons.style,
-                                                              Colors.yellow
-                                                                  .shade700,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
+
                                                     const SizedBox(height: 12),
                                                     // Recent form
                                                     Column(
@@ -1814,7 +1968,8 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
                       final loc = AppLocalizations.of(context)!;
                       final resultText = isWin
                           ? loc.winAbbreviation
-                          : isLoss
+                          : (isLoss ||
+                                  SportStrategy.current.sportId == 'basketball')
                               ? loc.lossAbbreviation
                               : isTie
                                   ? loc.tieAbbreviation
@@ -2171,148 +2326,13 @@ class _HistoryVersusViewState extends State<HistoryVersusView> {
     };
   }
 
-  // Calculate points per game (3 for win, 1 for tie, 0 for loss)
-  double _calculatePointsPerGame(List<Game> games) {
-    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
-    if (completedGames.isEmpty) return 0.0;
-
-    int totalPoints = 0;
-    for (var game in completedGames) {
-      if (game.isWin(widget.team.id)) {
-        totalPoints += 3;
-      } else if (game.isTie) {
-        totalPoints += 1;
-      }
-    }
-
-    return totalPoints / completedGames.length;
-  }
-
   // Format record as W-L-T
   String _formatRecord(Map<String, int> record) {
     if (record['total'] == 0) return '-';
+    if (SportStrategy.current.sportId == 'basketball') {
+      return '${record['wins']}-${record['losses']}';
+    }
     return '${record['wins']}-${record['losses']}-${record['ties']}';
-  }
-
-  // Calculate shooting accuracy percentage (shots on goal / total shots)
-  double _calculateShootingAccuracy(List<Game> games) {
-    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
-    if (completedGames.isEmpty) return 0.0;
-
-    int totalShots = 0;
-    int shotsOnGoal = 0;
-
-    for (var game in completedGames) {
-      final events = game.gameEvents
-          .where((e) => e.team.id == widget.team.id && e.eventType == 'Shot')
-          .toList();
-
-      totalShots += events.length;
-
-      // Count shots on goal (saved or scored)
-      for (var event in events) {
-        // eventData: 0=goal, 1=saved, 2=post, 3=off target, 4=blocked
-        if (event.eventData == 0 || event.eventData == 1) {
-          shotsOnGoal++;
-        }
-      }
-    }
-
-    if (totalShots == 0) return 0.0;
-    return shotsOnGoal / totalShots;
-  }
-
-  // Calculate comeback wins (wins where team was losing at some point)
-  int _calculateComebackWins(List<Game> games) {
-    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
-    if (completedGames.isEmpty) return 0;
-
-    int comebackWins = 0;
-
-    for (var game in completedGames) {
-      if (!game.isWin(widget.team.id)) continue;
-
-      // Check if team was ever losing during the game
-      final scoringEvents = game.scoringEvents;
-      int teamScore = 0;
-      int opponentScore = 0;
-      bool wasLosing = false;
-
-      for (var event in scoringEvents) {
-        if (event.team.id == widget.team.id) {
-          teamScore++;
-        } else {
-          opponentScore++;
-        }
-
-        if (teamScore < opponentScore) {
-          wasLosing = true;
-        }
-      }
-
-      if (wasLosing) comebackWins++;
-    }
-
-    return comebackWins;
-  }
-
-  // Calculate late goals (goals scored in 80+ minute)
-  int _calculateLateGoals(List<Game> games) {
-    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
-    if (completedGames.isEmpty) return 0;
-
-    int lateGoals = 0;
-
-    for (var game in completedGames) {
-      final teamGoals = game.scoringEvents
-          .where((e) => e.team.id == widget.team.id && e.eventMinute >= 80)
-          .toList();
-      lateGoals += teamGoals.length;
-    }
-
-    return lateGoals;
-  }
-
-  // Calculate cards per game (yellows + reds)
-  double _calculateCardsPerGame(List<Game> games) {
-    final completedGames = games.where((g) => g.gameStatus.index >= 9).toList();
-    if (completedGames.isEmpty) return 0.0;
-
-    int totalCards = 0;
-
-    for (var game in completedGames) {
-      final cardEvents = game.gameEvents
-          .where((e) => e.team.id == widget.team.id && e.eventType == 'Card')
-          .toList();
-      totalCards += cardEvents.length;
-    }
-
-    return totalCards / completedGames.length;
-  }
-
-  // Check if Tier 2 analytics have any meaningful data
-  bool _hasTier2Analytics(List<Game> games) {
-    // Check if there are any shots (needed for shooting accuracy)
-    bool hasShots = false;
-    for (var game in games.where((g) => g.gameStatus.index >= 9)) {
-      if (game.gameEvents
-          .any((e) => e.team.id == widget.team.id && e.eventType == 'Shot')) {
-        hasShots = true;
-        break;
-      }
-    }
-
-    // Check for comeback wins
-    final comebackWins = _calculateComebackWins(games);
-
-    // Check for late goals
-    final lateGoals = _calculateLateGoals(games);
-
-    // Check for cards
-    final cardsPerGame = _calculateCardsPerGame(games);
-
-    // Show Tier 2 if any of these have data
-    return hasShots || comebackWins > 0 || lateGoals > 0 || cardsPerGame > 0;
   }
 }
 
@@ -2335,7 +2355,7 @@ class _AnalyticsCarouselState extends State<_AnalyticsCarousel> {
       children: [
         CarouselSlider.builder(
           options: CarouselOptions(
-            height: 220,
+            height: 260,
             viewportFraction: 0.9,
             enlargeCenterPage: true,
             enableInfiniteScroll: false,

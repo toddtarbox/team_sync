@@ -45,10 +45,12 @@ class VideoThumbnail extends StatelessWidget {
         }
       }
 
-      // Fallback heuristic: regex for 11-char id
-      final reg = RegExp(r'([0-9A-Za-z_-]{11})');
-      final m = reg.firstMatch(url);
-      if (m != null) return m.group(1);
+      // Fallback heuristic: regex for 11-char id, but ONLY if it looks like a youtube link
+      if (url.contains('youtube.com') || url.contains('youtu.be')) {
+        final reg = RegExp(r'([0-9A-Za-z_-]{11})');
+        final m = reg.firstMatch(url);
+        if (m != null) return m.group(1);
+      }
     } catch (_) {}
     return null;
   }

@@ -19,6 +19,7 @@ echo "================================================"
 
 # Determine what to deploy (default to both)
 DEPLOY_TARGET=${1:-"all"}
+FLAVOR=${2:-"soccer"}
 
 # Function to deploy to TestFlight
 deploy_testflight() {
@@ -28,7 +29,7 @@ deploy_testflight() {
   IPA_PATH="$PROJECT_ROOT/build/ios/ipa/team_sync.ipa"
   if [ ! -f "$IPA_PATH" ]; then
     echo -e "${RED}❌ Error: IPA file not found at $IPA_PATH${NC}"
-    echo "   Run a build first with: ./scripts/build-team-sync.sh ios"
+    echo "   Run a build first with: ./scripts/build.sh ios $FLAVOR"
     return 1
   fi
 
@@ -77,10 +78,10 @@ deploy_google_play() {
   echo -e "${BLUE}🤖 Deploying to Google Play Internal Test Track...${NC}"
 
   # Check if AAB exists
-  AAB_PATH="$PROJECT_ROOT/build/app/outputs/bundle/teamSyncRelease/app-teamSync-release.aab"
+  AAB_PATH="$PROJECT_ROOT/build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab"
   if [ ! -f "$AAB_PATH" ]; then
     echo -e "${RED}❌ Error: AAB file not found at $AAB_PATH${NC}"
-    echo "   Run a build first with: ./scripts/build-team-sync.sh android"
+    echo "   Run a build first with: ./scripts/build.sh android $FLAVOR"
     return 1
   fi
 
@@ -144,7 +145,7 @@ deploy_google_play() {
 
   # Upload using the Python script
   if python3 "$UPLOAD_SCRIPT" \
-    --package_name "com.tsquared.team_sync.soccer" \
+    --package_name "com.tsquared.team_sync.$FLAVOR" \
     --aab_file "$AAB_PATH" \
     --service_account_json "$SERVICE_ACCOUNT_JSON" \
     --track "internal"; then

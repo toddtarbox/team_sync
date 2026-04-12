@@ -6,5 +6,11 @@ class SeasonStat {
   final Season season;
   final int value;
 
-  SeasonStat({required this.player, required this.season, required this.value});
+  final String? displayValue;
+
+  SeasonStat(
+      {required this.player,
+      required this.season,
+      required this.value,
+      this.displayValue});
 }

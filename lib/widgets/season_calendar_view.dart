@@ -4,8 +4,7 @@ import 'package:team_sync/models/game.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:intl/intl.dart';
 import 'package:team_sync/widgets/game_result.dart'; // Assuming this is where GameResult is
-import 'package:team_sync/widgets/common/tappable_image.dart'; // If needed for avatars or similar
-import 'package:team_sync/l10n/app_localizations.dart';
+// If needed for avatars or similar
 
 class SeasonCalendarView extends StatefulWidget {
   final Season season;
@@ -31,7 +30,13 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
   @override
   void initState() {
     super.initState();
-    _focusedDay = DateTime.now();
+    if (widget.games.isNotEmpty) {
+      final firstGame =
+          widget.games.reduce((a, b) => a.date.isBefore(b.date) ? a : b);
+      _focusedDay = firstGame.date;
+    } else {
+      _focusedDay = DateTime.now();
+    }
     _selectedDay = _focusedDay;
     _groupGames();
   }
@@ -52,6 +57,14 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
     super.didUpdateWidget(oldWidget);
     if (widget.games != oldWidget.games) {
       _groupGames();
+      if (oldWidget.games.isEmpty && widget.games.isNotEmpty) {
+        final firstGame =
+            widget.games.reduce((a, b) => a.date.isBefore(b.date) ? a : b);
+        setState(() {
+          _focusedDay = firstGame.date;
+          _selectedDay = _focusedDay;
+        });
+      }
     }
   }
 
@@ -73,9 +86,19 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
           focusedDay: _focusedDay,
           selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
           eventLoader: _getGamesForDay,
-          startingDayOfWeek: StartingDayOfWeek.monday,
-          calendarStyle: const CalendarStyle(
+          startingDayOfWeek: StartingDayOfWeek.sunday,
+          calendarStyle: CalendarStyle(
             outsideDaysVisible: false,
+            markerDecoration: BoxDecoration(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Theme.of(context).primaryColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
           ),
           onDaySelected: (selectedDay, focusedDay) {
             setState(() {
@@ -84,10 +107,36 @@ class _SeasonCalendarViewState extends State<SeasonCalendarView> {
             });
           },
           onPageChanged: (focusedDay) {
-            _focusedDay = focusedDay;
+            final gamesInMonth = widget.games
+                .where((g) =>
+                    g.date.year == focusedDay.year &&
+                    g.date.month == focusedDay.month)
+                .toList();
+
+            setState(() {
+              _focusedDay = focusedDay;
+              if (gamesInMonth.isNotEmpty) {
+                gamesInMonth.sort((a, b) => a.date.compareTo(b.date));
+                _selectedDay = gamesInMonth.first.date;
+              } else {
+                _selectedDay = null;
+              }
+            });
           },
         ),
         const SizedBox(height: 8.0),
+        if (_selectedDay != null)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                DateFormat('E, MMM d').format(_selectedDay!),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ),
         Expanded(
           child: ListView.builder(
             itemCount: selectedGames.length,

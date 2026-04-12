@@ -1,15 +1,17 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:team_sync/services/sport_strategy.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'dart:math';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -37,6 +39,7 @@ import 'package:team_sync/widgets/team_summary_section.dart';
 
 import 'package:team_sync/widgets/event_stream_widget.dart';
 
+import 'package:team_sync/widgets/season_page.dart';
 import 'package:team_sync/widgets/responsive_avatar.dart';
 import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/season_record.dart';
@@ -95,6 +98,8 @@ class _TeamHomePageState extends State<TeamHomePage>
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
+  bool _hasTwitterConfig = false;
+  Map<String, num> _asyncOverallStats = {};
 
   final _welcomeKey = GlobalKey();
   final _fabKeyOnly = GlobalKey();
@@ -121,10 +126,23 @@ class _TeamHomePageState extends State<TeamHomePage>
     });
     _isSubscribed = SubscriptionService.instance.isSubscribed;
 
-    DatabaseService.instance.setProvider(FirebaseDBProvider());
+    if (!DatabaseService.isTest) {
+      DatabaseService.instance.setProvider(FirebaseDBProvider());
+    }
 
     // Initialize the load future once
-    _loadFuture = _load();
+    _loadFuture = _load().then((success) async {
+      if (success && _team != null) {
+        final hasConfig =
+            await TwitterService.instance.isConfigured(teamId: _team!.id);
+        if (mounted) {
+          setState(() {
+            _hasTwitterConfig = hasConfig;
+          });
+        }
+      }
+      return success;
+    });
 
     if (!kIsWeb) {
       _setupShowcase();
@@ -394,8 +412,12 @@ class _TeamHomePageState extends State<TeamHomePage>
       appBar: buildStandardAppBar(
         context: context,
         team: _team,
-        title: Text(loc.teamSync,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(SportStrategy.current.appTitle,
+              style:
+                  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        ),
         actions: _buildAppBarActions(),
       ),
       floatingActionButton: _buildFloatingActionButton(),
@@ -492,26 +514,19 @@ class _TeamHomePageState extends State<TeamHomePage>
                   await _shareDatabase();
                   break;
                 case 'records':
-                  final databaseId = DatabaseService.instance.publicShareId;
-                  if (databaseId != null) {
-                    NavigationHelper.navigateTo(
-                        context, '/team/$databaseId/records',
-                        extra: _team);
-                  }
+                  final databaseId = DatabaseService.instance.publicShareId!;
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/records',
+                      extra: _team);
                   break;
                 case 'history':
-                  final databaseId = DatabaseService.instance.publicShareId;
-                  if (databaseId != null) {
-                    NavigationHelper.navigateTo(
-                        context, '/team/$databaseId/history',
-                        extra: _team);
-                  }
+                  final databaseId = DatabaseService.instance.publicShareId!;
+                  NavigationHelper.navigateTo(
+                      context, '/team/$databaseId/history',
+                      extra: _team);
                   break;
                 case 'settings':
-                  // For settings, use publicShareId if available, otherwise use 'local'
-                  // Settings should work even when not signed in for local databases
-                  final databaseId =
-                      DatabaseService.instance.publicShareId ?? 'local';
+                  final databaseId = DatabaseService.instance.publicShareId!;
                   NavigationHelper.navigateTo(
                       context, '/team/$databaseId/settings',
                       extra: _team);
@@ -521,8 +536,8 @@ class _TeamHomePageState extends State<TeamHomePage>
             itemBuilder: (BuildContext context) {
               final loc = AppLocalizations.of(context)!;
               return [
-                // Tweet option - show on mobile when team exists
-                if (!kIsWeb && _team != null)
+                // Tweet option - show on mobile when team exists AND twitter is configured
+                if (!kIsWeb && _team != null && _hasTwitterConfig)
                   PopupMenuItem<String>(
                     value: 'tweet',
                     child: Row(
@@ -596,25 +611,22 @@ class _TeamHomePageState extends State<TeamHomePage>
                 onSelected: (value) async {
                   switch (value) {
                     case 'records':
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/records',
-                            extra: _team);
-                      }
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/records',
+                          extra: _team);
                       break;
                     case 'history':
-                      final databaseId = DatabaseService.instance.publicShareId;
-                      if (databaseId != null) {
-                        NavigationHelper.navigateTo(
-                            context, '/team/$databaseId/history',
-                            extra: _team);
-                      }
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
+                      NavigationHelper.navigateTo(
+                          context, '/team/$databaseId/history',
+                          extra: _team);
                       break;
                     case 'settings':
-                      // For settings on web, use publicShareId if available, otherwise use 'local'
                       final databaseId =
-                          DatabaseService.instance.publicShareId ?? 'local';
+                          DatabaseService.instance.publicShareId!;
                       NavigationHelper.navigateTo(
                           context, '/team/$databaseId/settings',
                           extra: _team);
@@ -768,28 +780,12 @@ class _TeamHomePageState extends State<TeamHomePage>
   }
 
   Widget _buildMainContent() {
-    if (!kIsWeb && DatabaseService.instance.path.isEmpty) {
+    if (!kIsWeb && (DatabaseService.instance.path.isEmpty || _team == null)) {
       return Showcase(
           key: _welcomeKey,
           description:
               'Welcome to TeamSync! Let\'s take a look around and get you started managing your team!',
           child: _buildWelcomeView());
-    }
-
-    if (!kIsWeb && _team == null) {
-      return Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(AppLocalizations.of(context)!.noTeamFound,
-            style: const TextStyle(fontSize: 24)),
-        GestureDetector(
-            onTap: () {
-              _handleSelection(context, 'team');
-            },
-            child: Text(AppLocalizations.of(context)!.createNewTeamToStart,
-                style: TextStyle(
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.secondary))),
-      ]));
     }
 
     if (!kIsWeb && _seasons.isEmpty) {
@@ -1378,18 +1374,17 @@ class _TeamHomePageState extends State<TeamHomePage>
                     ),
                   ],
                   const SizedBox(height: 24),
-                  // Enhanced Overall Record Card - Only show when all seasons are loaded
-                  if (_allSeasonsLoaded)
+                  // Enhanced Overall Record Card - Only show when all seasons are loaded AND there are seasons
+                  if (_allSeasonsLoaded &&
+                      (_seasons.isNotEmpty || _importedSeasons.isNotEmpty))
                     InkWell(
                       onTap: () {
                         final databaseId =
-                            DatabaseService.instance.publicShareId;
-                        if (databaseId != null) {
-                          NavigationHelper.navigateTo(
-                            context,
-                            '/team/$databaseId/history',
-                          );
-                        }
+                            DatabaseService.instance.publicShareId!;
+                        NavigationHelper.navigateTo(
+                          context,
+                          '/team/$databaseId/history',
+                        );
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: HoverBuilder(
@@ -1632,15 +1627,13 @@ class _TeamHomePageState extends State<TeamHomePage>
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final season = _seasons[index];
-                    final databaseId = DatabaseService.instance.publicShareId;
+                    final databaseId = DatabaseService.instance.publicShareId!;
 
                     return GestureDetector(
                       onTap: () {
-                        if (databaseId != null) {
-                          NavigationHelper.navigateTo(
-                              context, '/team/$databaseId/season/${season.id}',
-                              extra: season);
-                        }
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/season/${season.id}',
+                            extra: season);
                       },
                       child: HoverBuilder(
                         builder: (context, isHovered) {
@@ -1736,7 +1729,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                                       ],
                                     ),
                                   ),
-                                  // Season image banner (if available)
+                                  // Season content
                                   if (season.logoUrl != null &&
                                       season.logoUrl!.isNotEmpty)
                                     GestureDetector(
@@ -1744,32 +1737,69 @@ class _TeamHomePageState extends State<TeamHomePage>
                                         _showSeasonPhoto(
                                             context, season.logoUrl);
                                       },
-                                      child: Container(
+                                      child: SizedBox(
                                         height: 180,
-                                        color: Colors.transparent,
-                                        child: Image.network(
-                                          season.logoUrl!,
-                                          fit: BoxFit.contain,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return Center(
-                                              child: Icon(
-                                                Icons.image_not_supported,
-                                                size: 48,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .outline,
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            // Image
+                                            Image.network(
+                                              season.logoUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                return Center(
+                                                  child: Icon(
+                                                    Icons.image_not_supported,
+                                                    size: 48,
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .outline,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            // Gradient Overlay
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.topCenter,
+                                                  end: Alignment.bottomCenter,
+                                                  colors: [
+                                                    Colors.transparent,
+                                                    Colors.black
+                                                        .withValues(alpha: 0.7),
+                                                  ],
+                                                  stops: const [0.5, 1.0],
+                                                ),
                                               ),
-                                            );
-                                          },
+                                            ),
+                                            // Overlaid Record
+                                            Positioned(
+                                              bottom: 0,
+                                              left: 0,
+                                              right: 0,
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(10),
+                                                child: Center(
+                                                  child: SeasonRecord(
+                                                    [season],
+                                                    isCompact: true,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
+                                    )
+                                  else
+                                    // Fallback: Stats section (no image)
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: SeasonRecord([season]),
                                     ),
-                                  // Stats section
-                                  Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: SeasonRecord([season]),
-                                  ),
                                 ],
                               ),
                             ),
@@ -1842,15 +1872,14 @@ class _TeamHomePageState extends State<TeamHomePage>
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final season = _importedSeasons[index];
-                      final databaseId = DatabaseService.instance.publicShareId;
+                      final databaseId =
+                          DatabaseService.instance.publicShareId!;
 
                       return GestureDetector(
                         onTap: () {
-                          if (databaseId != null) {
-                            NavigationHelper.navigateTo(context,
-                                '/team/$databaseId/season/${season.id}',
-                                extra: season);
-                          }
+                          NavigationHelper.navigateTo(
+                              context, '/team/$databaseId/season/${season.id}',
+                              extra: season);
                         },
                         child: HoverBuilder(
                           builder: (context, isHovered) {
@@ -1993,6 +2022,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
   Widget _buildWelcomeView() {
     final loc = AppLocalizations.of(context)!;
+    final isDatabaseConnected = DatabaseService.instance.path.isNotEmpty;
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
@@ -2009,14 +2040,18 @@ class _TeamHomePageState extends State<TeamHomePage>
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                Icons.sports_soccer_rounded,
+                isDatabaseConnected
+                    ? Icons.storage_rounded
+                    : SportStrategy.current.sportIcon,
                 size: 64,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 32),
             Text(
-              loc.welcomeToTeamSync,
+              isDatabaseConnected
+                  ? 'Database Connected!'
+                  : loc.welcomeToTeamSync,
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -2028,7 +2063,9 @@ class _TeamHomePageState extends State<TeamHomePage>
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Text(
-                'Manage your soccer team like a pro. Track games, stats, and player performance all in one place.',
+                isDatabaseConnected
+                    ? 'Your cloud database is ready. Now let\'s create your team to start tracking games and stats!'
+                    : 'Manage your team like a pro. Track games, stats, and player performance all in one place.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -2039,10 +2076,18 @@ class _TeamHomePageState extends State<TeamHomePage>
             ),
             const SizedBox(height: 48),
             ElevatedButton.icon(
-              onPressed: () => _showCreateOptions(context),
-              icon: const Icon(Icons.add_rounded),
+              onPressed: () {
+                if (isDatabaseConnected) {
+                  _handleSelection(context, 'team');
+                } else {
+                  _showCreateOptions(context);
+                }
+              },
+              icon: Icon(isDatabaseConnected
+                  ? Icons.group_add_rounded
+                  : Icons.add_rounded),
               label: Text(
-                loc.getStarted,
+                isDatabaseConnected ? 'Create New Team' : loc.getStarted,
                 style:
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -2060,11 +2105,16 @@ class _TeamHomePageState extends State<TeamHomePage>
             const SizedBox(height: 24),
             TextButton(
               onPressed: () {
-                // If they have a shared link or file, they might want to import
-                _handleSelection(context, 'existingCloudDatabase');
+                if (isDatabaseConnected) {
+                  _showCreateOptions(context);
+                } else {
+                  _handleSelection(context, 'existingCloudDatabase');
+                }
               },
               child: Text(
-                loc.openExistingDatabase,
+                isDatabaseConnected
+                    ? 'Switch Database'
+                    : loc.openExistingDatabase,
                 style: TextStyle(
                   fontSize: 16,
                   color: Theme.of(context).colorScheme.primary,
@@ -2102,14 +2152,35 @@ class _TeamHomePageState extends State<TeamHomePage>
   // Data loading methods
   Future<bool> _load() async {
     try {
+      if (kIsWeb) {
+        // Ensure we are authenticated (even anonymously) before trying to load
+        if (FirebaseAuth.instance.currentUser == null) {
+          // Wait a brief moment ensuring auth state might still be initializing
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (FirebaseAuth.instance.currentUser == null) {
+            throw 'Authentication failed. Please refresh the page. If the issue persists, ensure Anonymous Authentication is enabled in the Firebase Console.';
+          }
+        }
+      }
+
       if (widget.databaseId != null) {
         final result = await _loadFromDatabaseId();
+        if (!result) {
+          throw 'Unable to load team data. The link may be invalid or you do not have permission to view this team.';
+        }
         return result;
-      } else if (!kIsWeb) {
+      } else if (!kIsWeb && !DatabaseService.isTest) {
         final result = await _loadLocalDatabase();
         return result;
       }
       return true;
+    } on FirebaseException catch (e) {
+      debugPrint(
+          '[TeamHomePage] Firebase Error in _load: ${e.code} - ${e.message}');
+      if (e.code == 'permission-denied') {
+        throw 'Access denied. The database link may be invalid, or public access is not enabled for this team.';
+      }
+      rethrow;
     } catch (e, stackTrace) {
       debugPrint('[TeamHomePage] Error in _load: $e');
       debugPrint('[TeamHomePage] Stack trace: $stackTrace');
@@ -2127,24 +2198,31 @@ class _TeamHomePageState extends State<TeamHomePage>
     _team = widget.initialTeam; // For testing only!!!
 
     if (_team == null) {
-      final teamResult = await DatabaseService.instance
+      // Try finding team with id=1 first (most common)
+      var teamResult = await DatabaseService.instance
           .query('Teams', orderBy: 'id', equalTo: 1);
-      if (teamResult.isNotEmpty) {
-        // First try team with id=1
-        var teamMap = teamResult.firstWhere(
-          (t) => t['id'] == 1,
-          orElse: () => teamResult.first,
-        );
 
+      // If not found, try finding ANY team
+      if (teamResult.isEmpty) {
+        debugPrint(
+            '[TeamHomePage] Team with id=1 not found. Fetching any team...');
+        teamResult =
+            await DatabaseService.instance.query('Teams', limitToFirst: 1);
+      }
+
+      if (teamResult.isNotEmpty) {
+        // Use the first team found
+        final teamMap = teamResult.first;
         final team = Team.fromMap(teamMap);
-        if (_team == null) {
-          setState(() {
-            _team = team;
-          });
-        } else {
+
+        setState(() {
           _team = team;
-        }
+        });
+
         await _loadSeasons();
+      } else {
+        debugPrint('[TeamHomePage] No teams found in database.');
+        return false;
       }
     }
     return true;
@@ -2153,7 +2231,30 @@ class _TeamHomePageState extends State<TeamHomePage>
   Future<bool> _loadLocalDatabase() async {
     try {
       const storage = FlutterSecureStorage();
-      final lastDBUsed = await storage.read(key: 'last_db_used');
+      var lastDBUsed = await storage.read(key: 'last_db_used');
+
+      if (FirebaseAuth.instance.currentUser != null &&
+          lastDBUsed != null &&
+          lastDBUsed.isNotEmpty) {
+        try {
+          final availableDBs = await DatabaseService.instance
+              .getAvailableDatabases(
+                  sportFilter: SportStrategy.current.sportId);
+          if (!availableDBs.contains(lastDBUsed)) {
+            debugPrint(
+                'Last DB $lastDBUsed not valid for sport ${SportStrategy.current.sportId}');
+            if (availableDBs.isNotEmpty) {
+              lastDBUsed = availableDBs.first;
+              await storage.write(key: 'last_db_used', value: lastDBUsed);
+            } else {
+              lastDBUsed = null;
+              await storage.delete(key: 'last_db_used');
+            }
+          }
+        } catch (e) {
+          debugPrint('Error validating last DB: $e');
+        }
+      }
 
       if (lastDBUsed != null && lastDBUsed.isNotEmpty) {
         await DatabaseService.instance.open(lastDBUsed);
@@ -2241,6 +2342,64 @@ class _TeamHomePageState extends State<TeamHomePage>
     if (importedSeasons.isNotEmpty) {
       _loadImportedSeasonsAsync(importedSeasons);
     }
+
+    // Trigger async stats update (for percentages)
+    _updateOverallStats();
+  }
+
+  /// Calculates detailed stats (e.g. percentages) asynchronously
+  Future<void> _updateOverallStats() async {
+    final allSeasons = [..._seasons, ..._importedSeasons];
+    if (allSeasons.isEmpty) return;
+
+    final stats = <String, num>{};
+
+    // Calculate percentages for basketball
+    if (SportStrategy.current.sportId == 'basketball') {
+      int total3PM = 0;
+      int total3PMissed = 0;
+      int total2PM = 0;
+      int total2PMissed = 0;
+      int totalFTM = 0;
+      int totalFTMissed = 0;
+
+      for (final season in allSeasons) {
+        // Fetch SeasonStats (this loads events which might be expensive, so we do it async)
+        final sStats = await season.getStats();
+        if (sStats != null) {
+          total3PM += sStats.teamStat('3_pointers');
+          total3PMissed += sStats.teamStat('3_pointers_missed');
+          total2PM += sStats.teamStat('2_pointers');
+          total2PMissed += sStats.teamStat('2_pointers_missed');
+          totalFTM += sStats.teamStat('free_throws');
+          totalFTMissed += sStats.teamStat('free_throws_missed');
+        }
+      }
+
+      final total3PAttempts = total3PM + total3PMissed;
+      if (total3PAttempts > 0) {
+        stats['3_point_percentage'] =
+            ((total3PM / total3PAttempts) * 100).round();
+      }
+
+      final total2PAttempts = total2PM + total2PMissed;
+      if (total2PAttempts > 0) {
+        stats['2_point_percentage'] =
+            ((total2PM / total2PAttempts) * 100).round();
+      }
+
+      final totalFTAttempts = totalFTM + totalFTMissed;
+      if (totalFTAttempts > 0) {
+        stats['free_throw_percentage'] =
+            ((totalFTM / totalFTAttempts) * 100).round();
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _asyncOverallStats = stats;
+      });
+    }
   }
 
   /// Load remaining regular seasons asynchronously in the background
@@ -2254,6 +2413,8 @@ class _TeamHomePageState extends State<TeamHomePage>
           setState(() {
             _seasons.add(season);
           });
+          _loadCurrentOrLastGame();
+          _updateOverallStats();
         }
       }
 
@@ -2284,6 +2445,7 @@ class _TeamHomePageState extends State<TeamHomePage>
           setState(() {
             _importedSeasons.add(season);
           });
+          _updateOverallStats();
         }
       }
     } catch (e) {
@@ -2345,30 +2507,57 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     // Calculate overall statistics
     final stats = _calculateOverallStats(allSeasons);
+    stats.addAll(_asyncOverallStats);
 
     // Build items list first to get count
     final items = [
-      // Goals Analytics Card
+      // Goals/Points Analytics Card
       if (stats.containsKey('totalGoalsScored'))
         _buildAnalyticsCard(
-          title: loc.goalAnalytics,
-          icon: Icons.sports_soccer,
+          title: SportStrategy.current.sportId == 'basketball'
+              ? 'Scoring Analytics'
+              : loc.goalAnalytics,
+          icon: SportStrategy.current.sportIcon,
           iconColor: Colors.green,
           stats: [
-            _buildStatRow(loc.totalGoalsScored, '${stats['totalGoalsScored']}',
-                Icons.sports_score),
-            _buildStatRow(loc.totalGoalsConceded,
-                '${stats['totalGoalsConceded']}', Icons.shield),
             _buildStatRow(
-                loc.avgGoalsPerGame,
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Total Points'
+                    : loc.totalGoalsScored,
+                '${stats['totalGoalsScored']}',
+                Icons.sports_score),
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Points Allowed'
+                    : loc.totalGoalsConceded,
+                '${stats['totalGoalsConceded']}',
+                Icons.shield),
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Points Per Game'
+                    : loc.avgGoalsPerGame,
                 stats['avgGoalsPerGame']!.toStringAsFixed(2),
                 Icons.trending_up),
             _buildStatRow(
-                loc.goalDifferential,
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Point Diff'
+                    : loc.goalDifferential,
                 stats['goalDifferential']! >= 0
                     ? '+${stats['goalDifferential']}'
                     : '${stats['goalDifferential']}',
                 Icons.compare_arrows),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('2_point_percentage'))
+              _buildStatRow(
+                  'FG %', '${stats['2_point_percentage']}%', Icons.data_usage),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('3_point_percentage'))
+              _buildStatRow(
+                  '3PT %', '${stats['3_point_percentage']}%', Icons.data_usage),
+            if (SportStrategy.current.sportId == 'basketball' &&
+                stats.containsKey('free_throw_percentage'))
+              _buildStatRow('FT %', '${stats['free_throw_percentage']}%',
+                  Icons.data_usage),
           ],
         ),
       // Win Streaks Card
@@ -2384,7 +2573,11 @@ class _TeamHomePageState extends State<TeamHomePage>
                 loc.longestUnbeatenStreak,
                 '${stats['longestUnbeatenStreak']} ${loc.games}',
                 Icons.shield_outlined),
-            _buildStatRow(loc.mostGoalsInGame, '${stats['mostGoalsInGame']}',
+            _buildStatRow(
+                SportStrategy.current.sportId == 'basketball'
+                    ? 'Most Points in Game'
+                    : loc.mostGoalsInGame,
+                '${stats['mostGoalsInGame']}',
                 Icons.sports_score),
             _buildStatRow(loc.biggestVictory, '+${stats['biggestVictory']}',
                 Icons.celebration),
@@ -2415,8 +2608,9 @@ class _TeamHomePageState extends State<TeamHomePage>
                 Icons.percent),
           ],
         ),
-      // Clean Sheets & Defense Card
-      if (stats.containsKey('cleanSheets'))
+      // Clean Sheets & Defense Card (Soccer Only)
+      if (stats.containsKey('cleanSheets') &&
+          SportStrategy.current.sportId != 'basketball')
         _buildAnalyticsCard(
           title: loc.defensiveStats,
           icon: Icons.shield,
@@ -2443,7 +2637,7 @@ class _TeamHomePageState extends State<TeamHomePage>
         // Analytics cards carousel
         CarouselSlider(
           options: CarouselOptions(
-            height: 200,
+            height: 240,
             viewportFraction: 0.85,
             enlargeCenterPage: true,
             enableInfiniteScroll: stats.isNotEmpty,
@@ -2484,7 +2678,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
   Widget _buildAnalyticsSkeleton() {
     return SizedBox(
-      height: 200,
+      height: 240,
       child: Card(
         elevation: 0,
         margin: const EdgeInsets.symmetric(
@@ -2555,13 +2749,11 @@ class _TeamHomePageState extends State<TeamHomePage>
           child: InkWell(
             onTap: () {
               // Navigate to Analytics (History Versus) page
-              final databaseId = DatabaseService.instance.publicShareId;
-              if (databaseId != null) {
-                NavigationHelper.navigateTo(
-                  context,
-                  '/team/$databaseId/history',
-                );
-              }
+              final databaseId = DatabaseService.instance.publicShareId!;
+              NavigationHelper.navigateTo(
+                context,
+                '/team/$databaseId/history',
+              );
             },
             borderRadius: BorderRadius.circular(16),
             child: Card(
@@ -2620,9 +2812,17 @@ class _TeamHomePageState extends State<TeamHomePage>
                     const SizedBox(height: 12),
                     // Stats rows
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: stats,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < stats.length; i++) ...[
+                              stats[i],
+                              if (i < stats.length - 1)
+                                const SizedBox(height: 8),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -2808,8 +3008,8 @@ class _TeamHomePageState extends State<TeamHomePage>
     if (_team == null) return;
 
     try {
-      // Get all games for this team
-      final games = await Game.listFromTeamId(_team!.id);
+      // Get all games incrementally from loaded seasons
+      final games = _seasons.expand((s) => s.games).toList();
 
       if (games.isEmpty) {
         _currentOrLastGame = null;
@@ -2871,6 +3071,18 @@ class _TeamHomePageState extends State<TeamHomePage>
       if (_currentOrLastGame != null) {
         await _currentOrLastGame!.loadGameEvents();
       }
+
+      // Cancel the update timer if game is no longer live
+      if (_liveGameUpdateTimer != null) {
+        final isLiveGame = _currentOrLastGame != null && 
+                           _currentOrLastGame!.gameStatus.index > 0 && 
+                           _currentOrLastGame!.gameStatus.index < 9;
+        if (!isLiveGame) {
+          _liveGameUpdateTimer?.cancel();
+          _liveGameUpdateTimer = null;
+        }
+      }
+
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading current/last game: $e');
@@ -3137,7 +3349,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     List<String> entries = [];
     try {
-      entries = await DatabaseService.instance.getAvailableDatabases();
+      entries = await DatabaseService.instance
+          .getAvailableDatabases(sportFilter: SportStrategy.current.sportId);
     } finally {
       if (mounted) {
         Navigator.of(context).pop(); // Dismiss loading
@@ -3403,7 +3616,8 @@ class _TeamHomePageState extends State<TeamHomePage>
 
       DatabaseService.instance.setProvider(FirebaseDBProvider());
 
-      await DatabaseService.instance.open(databaseName);
+      await DatabaseService.instance
+          .open(databaseName, createWithSportId: SportStrategy.current.sportId);
 
       const storage = FlutterSecureStorage();
       await storage.write(key: 'last_db_used', value: databaseName);
@@ -3474,7 +3688,12 @@ class _TeamHomePageState extends State<TeamHomePage>
               builder: (BuildContext context, StateSetter setModalState) {
             return Card(
               child: Padding(
-                padding: const EdgeInsets.all(50),
+                padding: EdgeInsets.only(
+                  top: 50,
+                  left: 50,
+                  right: 50,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+                ),
                 child: SingleChildScrollView(
                   child: Column(children: [
                     Text(AppLocalizations.of(context)!.newTeam),
@@ -3544,9 +3763,8 @@ class _TeamHomePageState extends State<TeamHomePage>
       {Color? color1 = Colors.green,
       Color? color2 = Colors.green,
       String? logoUrl}) async {
-    final teamId = DateTime.now().millisecondsSinceEpoch;
     await DatabaseService.instance.insert('Teams', {
-      'id': teamId,
+      'id': 1,
       'fullName': teamName,
       'shortName': teamShortName,
       'color1': color1?.toARGB32(),
@@ -3556,7 +3774,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     // Load the new team
     final teamResult = await DatabaseService.instance
-        .query('Teams', orderByChild: 'id', equalTo: teamId);
+        .query('Teams', orderByChild: 'id', equalTo: 1);
     if (teamResult.isNotEmpty) {
       _team = Team.fromMap(teamResult.first);
       await _loadSeasons();
@@ -3573,7 +3791,12 @@ class _TeamHomePageState extends State<TeamHomePage>
         builder: (context) {
           return Card(
             child: Padding(
-              padding: const EdgeInsets.all(50),
+              padding: EdgeInsets.only(
+                top: 50,
+                left: 50,
+                right: 50,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 50,
+              ),
               child: SingleChildScrollView(
                 child: Column(children: [
                   Text(AppLocalizations.of(context)!.newSeason),
@@ -3683,7 +3906,8 @@ class _TeamHomePageState extends State<TeamHomePage>
     });
     try {
       final id = await DatabaseService.instance.shareDatabase();
-      final url = 'https://team-sync-soccer.web.app/#/team/$id';
+      final baseUrl = SportStrategy.current.webUrl;
+      final url = '$baseUrl/team/$id';
       final databaseName = DatabaseService.instance.path;
 
       if (mounted) {
@@ -3763,7 +3987,7 @@ class _TeamHomePageState extends State<TeamHomePage>
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.sports_soccer,
+                        Icon(SportStrategy.current.sportIcon,
                             color: _team!.color1, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
@@ -4073,6 +4297,10 @@ class _TeamHomePageState extends State<TeamHomePage>
 
     final teamName = _team!.shortName;
     final now = DateTime.now();
+    
+    final watchText = liveLink.isNotEmpty 
+        ? 'Watch LIVE: $liveLink'
+        : 'Live streaming link will be shared once the game starts!';
 
     if (game != null) {
       final gameDate = game.date;
@@ -4100,7 +4328,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
 $teamName takes on $opponent $location TODAY at $timeStr!
 
-Watch LIVE: $liveLink
+$watchText
 
 #$teamName #GameDay #Soccer ⚽🔥''';
       } else {
@@ -4126,7 +4354,7 @@ $teamName vs $opponent
 📅 $dateStr at $timeStr
 🏟️ ${isHome ? 'Home' : 'Away'} game
 
-Watch LIVE: $liveLink
+$watchText
 
 #$teamName #Soccer''';
       }
@@ -4163,12 +4391,14 @@ $liveLink
     if (_team != null &&
         _currentOrLastGame != null &&
         _currentOrLastGame!.gameLinks != null &&
-        _currentOrLastGame!.gameLinks!.isNotEmpty) {
+        _currentOrLastGame!.gameLinks!.trim().isNotEmpty) {
       try {
         final g = _currentOrLastGame!.date.toLocal();
         isLive = g.year == nowLocal.year &&
             g.month == nowLocal.month &&
-            g.day == nowLocal.day;
+            g.day == nowLocal.day &&
+            _currentOrLastGame!.gameStatus.index > 0 &&
+            _currentOrLastGame!.gameStatus.index < 9;
       } catch (e) {
         debugPrint('Error checking live game date: $e');
         isLive = false;
@@ -4181,58 +4411,66 @@ $liveLink
 
       final loc = AppLocalizations.of(context)!;
 
-      return HoverBuilder(
-        builder: (context, isHovered) {
-          return Transform.scale(
-            scale: isHovered && kIsWeb ? 1.02 : 1.0,
-            child: GestureDetector(
-              onTap: () async {
-                try {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.unableToOpenLiveLink)));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoverBuilder(
+            builder: (context, isHovered) {
+              return Transform.scale(
+                scale: isHovered && kIsWeb ? 1.02 : 1.0,
+                child: GestureDetector(
+                  onTap: () async {
+                    try {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(loc.unableToOpenLiveLink)));
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(loc.unableToOpenLiveLink)));
+                      }
                     }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.unableToOpenLiveLink)));
-                  }
-                }
-              },
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_team!.color1, _team!.color2],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.videocam, color: Colors.white),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        loc.liveBannerTapToWatch,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_team!.color1, _team!.color2],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                       ),
                     ),
-                    const Icon(Icons.open_in_new, color: Colors.white),
-                  ],
+                    child: Row(
+                      children: [
+                        const Icon(Icons.videocam, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            loc.liveBannerTapToWatch,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const Icon(Icons.open_in_new, color: Colors.white),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          );
-        },
+              );
+            },
+          ),
+          _buildViewScheduleLink(),
+        ],
       );
     }
 
@@ -4252,7 +4490,7 @@ $liveLink
 
       final opponent = _nextUpcomingGame!.displayName(_team!.id);
       final hasLiveLink = _nextUpcomingGame!.gameLinks != null &&
-          _nextUpcomingGame!.gameLinks!.isNotEmpty;
+          _nextUpcomingGame!.gameLinks!.trim().isNotEmpty;
 
       // Check if time is set (not midnight/00:00)
       final hasTime = gameDate.hour != 0 || gameDate.minute != 0;
@@ -4272,92 +4510,174 @@ $liveLink
         whenText = '$dateStr at $hour:$minute $period';
       }
 
-      return HoverBuilder(
-        builder: (context, isHovered) {
-          return Transform.scale(
-            scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
-            child: GestureDetector(
-              // Make banner tappable if live link exists
-              onTap: hasLiveLink
-                  ? () async {
-                      final url = _nextUpcomingGame!.gameLinks!;
-                      try {
-                        final uri = Uri.parse(url);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
-                        } else {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(loc.unableToOpenLiveLink)));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          HoverBuilder(
+            builder: (context, isHovered) {
+              return Transform.scale(
+                scale: isHovered && kIsWeb && hasLiveLink ? 1.02 : 1.0,
+                child: GestureDetector(
+                  // Make banner tappable if live link exists
+                  onTap: hasLiveLink
+                      ? () async {
+                          final url = _nextUpcomingGame!.gameLinks!;
+                          try {
+                            final uri = Uri.parse(url);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri,
+                                  mode: LaunchMode.externalApplication);
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text(loc.unableToOpenLiveLink)));
+                              }
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(loc.unableToOpenLiveLink)));
+                            }
                           }
                         }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(loc.unableToOpenLiveLink)));
-                        }
-                      }
-                    }
-                  : null,
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_team!.color1, _team!.color2],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
+                      : null,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_team!.color1, _team!.color2],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Opponent Logo or Schedule Icon
+                        SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: ResponsiveAvatar(
+                            imageUrl: _nextUpcomingGame!.isHomeTeam(_team!.id)
+                                ? _nextUpcomingGame!.awayTeam.logoUrl
+                                : _nextUpcomingGame!.homeTeam.logoUrl,
+                            initials: (_nextUpcomingGame!.isHomeTeam(_team!.id)
+                                        ? _nextUpcomingGame!.awayTeam.shortName
+                                        : _nextUpcomingGame!.homeTeam.shortName)
+                                    .isNotEmpty
+                                ? (_nextUpcomingGame!.isHomeTeam(_team!.id)
+                                    ? _nextUpcomingGame!.awayTeam.shortName
+                                    : _nextUpcomingGame!.homeTeam.shortName)
+                                : opponent.substring(
+                                    0, min(2, opponent.length)),
+                            backgroundColor: Colors.white24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${loc.nextGamePrefix} $opponent',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                hasLiveLink
+                                    ? '$whenText — Tap to watch live! 📺'
+                                    : '$whenText — ${loc.nextGameStayTuned}',
+                                style: const TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Live Link Icon
+                        if (hasLiveLink)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Icon(
+                              Icons.videocam,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                        // Tweet button - show on mobile to promote upcoming game
+                        if (!kIsWeb)
+                          IconButton(
+                            icon: const Icon(Icons.send, color: Colors.white),
+                            tooltip: 'Promote game on Twitter',
+                            onPressed: () => _tweetUpcomingGame(),
+                          ),
+                        // Show external link icon if live link exists
+                        if (hasLiveLink)
+                          const Icon(Icons.open_in_new, color: Colors.white),
+                      ],
+                    ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      hasLiveLink ? Icons.videocam : Icons.schedule,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${loc.nextGamePrefix} $opponent',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hasLiveLink
-                                ? '$whenText — Tap to watch live! 📺'
-                                : '$whenText — ${loc.nextGameStayTuned}',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Tweet button - show on mobile to promote upcoming game
-                    if (!kIsWeb)
-                      IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        tooltip: 'Promote game on Twitter',
-                        onPressed: () => _tweetUpcomingGame(),
-                      ),
-                    // Show external link icon if live link exists
-                    if (hasLiveLink)
-                      const Icon(Icons.open_in_new, color: Colors.white),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+              );
+            },
+          ),
+          _buildViewScheduleLink(),
+        ],
       );
     }
 
-    return const SizedBox.shrink();
+    return _buildViewScheduleLink();
+  }
+
+  Widget _buildViewScheduleLink() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+      child: InkWell(
+        onTap: () {
+          if (_currentSeason != null) {
+            final databaseId = DatabaseService.instance.publicShareId!;
+            NavigationHelper.navigateTo(
+              context,
+              '/team/$databaseId/season/${_currentSeason!.id}',
+              extra: {
+                'season': _currentSeason!,
+                'viewType': SeasonViewType.calendar
+              },
+            );
+          }
+        },
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.calendar_month,
+                  size: 16,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.lightBlueAccent
+                      : Theme.of(context).primaryColor),
+              const SizedBox(width: 6),
+              Text(
+                'View Season Schedule',
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.lightBlueAccent
+                      : Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// Shows recent highlights (events with non-empty eventUrls) from the

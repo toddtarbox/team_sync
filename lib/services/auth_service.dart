@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
@@ -25,7 +23,7 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Check if Apple sign-in is available on current platform
-  bool get isAppleSignInAvailable => kIsWeb || Platform.isIOS;
+  bool get isAppleSignInAvailable => kIsWeb || defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
@@ -59,7 +57,7 @@ class AuthService {
   /// Sign in with Apple
   Future<UserCredential?> signInWithApple() async {
     // Apple sign-in is only supported on iOS and web
-    if (!kIsWeb && !Platform.isIOS) {
+    if (!kIsWeb && defaultTargetPlatform != TargetPlatform.iOS) {
       throw UnsupportedError('Apple sign-in is not supported on this platform');
     }
 
@@ -134,6 +132,25 @@ class AuthService {
     } catch (e) {
       debugPrint('Error signing out: $e');
       rethrow;
+    }
+  }
+
+  /// Ensure the user is signed in (anonymously if needed)
+  /// This is particularly important for web viewers.
+  Future<void> ensureAnonymousSignIn() async {
+    if (_auth.currentUser == null) {
+      try {
+        await _auth.signInAnonymously();
+        debugPrint('Signed in anonymously');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'admin-restricted-operation') {
+          debugPrint(
+              'WARNING: Anonymous authentication is disabled in Firebase Console. Please enable it in Authentication > Sign-in method.');
+        }
+        debugPrint('Error signing in anonymously: ${e.code} - ${e.message}');
+      } catch (e) {
+        debugPrint('Error signing in anonymously: $e');
+      }
     }
   }
 

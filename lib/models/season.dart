@@ -56,7 +56,7 @@ class Season {
     team = await Team.fromId(teamId);
     games = await Game.listFromSeasonId(id);
     players = await Player.listFromTeamIdSeasonId(team.id, id);
-    teams = await Team.listFromSeasonId(id);
+    teams = await Team.listFromSeasonId(id, preloadedGames: games);
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }
 
@@ -64,7 +64,17 @@ class Season {
     try {
       final results = await DatabaseService.instance
           .query('Events', orderByChild: 'seasonId', equalTo: id);
-      return SeasonStats.fromMap(teamId, id, results);
+
+      // Filter out events from scrimmage games
+      final seasonGames = this.games.isNotEmpty ? this.games : await Game.listFromSeasonId(id);
+      final scrimmageGameIds =
+          seasonGames.where((g) => g.isScrimmage).map((g) => g.id).toSet();
+
+      final filteredResults = results
+          .where((event) => !scrimmageGameIds.contains(event['gameId']))
+          .toList();
+
+      return SeasonStats.fromMap(teamId, id, filteredResults);
     } catch (ex) {
       return null;
     }
