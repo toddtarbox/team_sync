@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:eventify/eventify.dart';
 import 'package:photo_view/photo_view.dart';
 
@@ -7,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:responsive_framework/responsive_framework.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 import 'package:team_sync/models/game.dart';
+import 'package:team_sync/models/game_event.dart';
 import 'package:team_sync/models/season.dart';
 import 'package:team_sync/services/database_service.dart';
 import 'package:team_sync/services/bound_game_stats_importer_service.dart';
@@ -21,6 +23,7 @@ import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
 import 'package:team_sync/widgets/box_score_widget.dart';
+import 'package:team_sync/services/speech_event_service.dart';
 
 /// Unified responsive game page that works for mobile, tablet, and desktop
 class GamePage extends StatefulWidget {
@@ -42,6 +45,9 @@ class _GamePageState extends State<GamePage> {
   Season? _loadedSeason;
   bool _isStatsPanelOpen = false;
   bool _showBoxScore = true;
+  bool _isListening = false;
+  String _speechText = '';
+  Completer<GameEvent?>? _speechCompleter;
 
   @override
   void initState() {
@@ -246,6 +252,78 @@ class _GamePageState extends State<GamePage> {
           child: PhotoView(
             imageProvider: NetworkImage(imageUrl),
           ),
+        );
+      },
+    );
+  }
+
+  Future<void> _processVoiceEvent(String text, Season resolvedSeason) async {
+    setState(() {
+      _isListening = false;
+    });
+    ScaffoldMessenger.of(context).clearSnackBars();
+
+    if (text.isEmpty || text == 'Listening...') {
+      if (_speechCompleter != null && !_speechCompleter!.isCompleted) {
+        _speechCompleter!.complete(null);
+      }
+      return;
+    }
+
+    if (_speechCompleter != null && !_speechCompleter!.isCompleted) {
+      _eventEmitter.emit('createEventSpeech', null, _speechCompleter!.future);
+      
+      // small delay so UI can show the spinner for at least a fraction of a second
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      final event = await SpeechEventService.instance.parseEventTranscript(text, _game, resolvedSeason.id);
+      _speechCompleter!.complete(event);
+      
+      if (event == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not understand event. Try again.')),
+        );
+      }
+    }
+    
+    _speechText = '';
+  }
+
+  Future<void> _startVoiceEventMode(Season resolvedSeason) async {
+    setState(() {
+      _isListening = true;
+      _speechText = 'Listening...';
+    });
+
+    _speechCompleter = Completer<GameEvent?>();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Listening for game event... (e.g. "Goal Todd Tarbox")'),
+        duration: Duration(seconds: 15),
+      ),
+    );
+
+    await SpeechEventService.instance.startListening(
+      onResult: (text, isFinal) async {
+        setState(() {
+          _speechText = text;
+        });
+
+        if (isFinal) {
+          await _processVoiceEvent(text, resolvedSeason);
+        }
+      },
+      onError: (error) {
+        setState(() {
+          _isListening = false;
+        });
+        if (_speechCompleter != null && !_speechCompleter!.isCompleted) {
+          _speechCompleter!.complete(null);
+        }
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech Error: $error')),
         );
       },
     );
@@ -502,22 +580,41 @@ class _GamePageState extends State<GamePage> {
               ),
             ],
           ),
-          floatingActionButton: (_game.gameStatus.index < 9)
-              ? FloatingActionButton(
-                  heroTag: 'addEventButton',
-                  child: const Icon(Icons.add),
-                  onPressed: () async {
-                    if (_game.gameStatus == GameStatus.notStarted ||
-                        _game.gameStatus == GameStatus.halftime ||
-                        _game.gameStatus == GameStatus.overtimeNotStarted ||
-                        _game.gameStatus == GameStatus.overtimeHalftime) {
-                      await _game.advanceGame();
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    }
-                    _eventEmitter.emit('createEvent');
-                  },
+          floatingActionButton: (!kIsWeb || _game.gameStatus.index < 9)
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    FloatingActionButton(
+                      heroTag: 'voiceEventButton',
+                      backgroundColor: _isListening ? Colors.red : Theme.of(context).colorScheme.primary,
+                      onPressed: () async {
+                        if (_isListening) {
+                          SpeechEventService.instance.stopListening();
+                          await _processVoiceEvent(_speechText, resolvedSeason);
+                        } else {
+                          await _startVoiceEventMode(resolvedSeason);
+                        }
+                      },
+                      child: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                    ),
+                    const SizedBox(height: 16),
+                    FloatingActionButton(
+                      heroTag: 'addEventButton',
+                      child: const Icon(Icons.add),
+                      onPressed: () async {
+                        if (_game.gameStatus == GameStatus.notStarted ||
+                            _game.gameStatus == GameStatus.halftime ||
+                            _game.gameStatus == GameStatus.overtimeNotStarted ||
+                            _game.gameStatus == GameStatus.overtimeHalftime) {
+                          await _game.advanceGame();
+                          if (mounted) {
+                            setState(() {});
+                          }
+                        }
+                        _eventEmitter.emit('createEvent');
+                      },
+                    ),
+                  ],
                 )
               : null,
         );

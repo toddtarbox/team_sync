@@ -75,7 +75,14 @@ class _GameViewState extends State<GameView>
 
     _createEventListener = widget.eventEmitter.on('createEvent', context,
         (event, eventContext) async {
-      await _editEvent();
+      final parsedEvent = event.eventData as GameEvent?;
+      await _editEvent(event: parsedEvent);
+    });
+
+    widget.eventEmitter.on('createEventSpeech', context,
+        (event, eventContext) async {
+      final future = event.eventData as Future<GameEvent?>;
+      await _editEvent(speechFuture: future);
     });
 
     _advanceGameListener = widget.eventEmitter.on('advanceGame', context,
@@ -1378,12 +1385,55 @@ class _GameViewState extends State<GameView>
     }
   }
 
-  Future<void> _editEvent({GameEvent? event, bool showGeneric = false}) async {
+  Future<void> _editEvent({GameEvent? event, bool showGeneric = false, Future<GameEvent?>? speechFuture}) async {
     if (kIsWeb) {
       return;
     }
 
     if (event?.eventType == 'Period') {
+      return;
+    }
+
+    if (speechFuture != null) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        isDismissible: false,
+        enableDrag: false,
+        builder: (context) {
+          return FutureBuilder<GameEvent?>(
+            future: speechFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Padding(
+                  padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                  child: Container(
+                    height: 300,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircularProgressIndicator(),
+                        const SizedBox(height: 24),
+                        const Text('Processing...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                 Navigator.of(context).pop();
+                 if (snapshot.data != null) {
+                   _editEvent(event: snapshot.data);
+                 }
+              });
+              
+              return Container(height: 100);
+            }
+          );
+        }
+      );
       return;
     }
 
@@ -1432,13 +1482,17 @@ class _GameViewState extends State<GameView>
     List<Player> homeTeamPlayers =
         await Player.listFromTeamIdSeasonId(_game.homeTeam.id, _game.seasonId);
 
+    int defaultPeriod = _game.gameEvents.isNotEmpty 
+        ? _game.gameEvents.last.eventPeriod 
+        : _game.gameStatus.index;
+
     event ??= GameEvent.initial(
         team: event?.team ?? _game.awayTeam,
         game: _game,
         seasonId: _game.seasonId,
         eventType: event?.eventType ?? 'Shot',
         eventMinute: event?.eventMinute ?? -1,
-        eventPeriod: event?.eventPeriod ?? -1,
+        eventPeriod: event?.eventPeriod == null || event?.eventPeriod == -1 ? defaultPeriod : event!.eventPeriod,
         eventUrls: event?.eventUrls ?? '',
         eventData: event?.eventData ?? 0);
 

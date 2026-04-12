@@ -58,6 +58,8 @@ dependencies:
   purchases_flutter: ^9.8.0
   purchases_ui_flutter: ^9.8.0
 
+  speech_to_text: ^7.3.0
+
   twitter_webview_auth: ^0.2.0
   dart_twitter_api: ^0.6.0
   firebase_analytics: ^12.0.3
