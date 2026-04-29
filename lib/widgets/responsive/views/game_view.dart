@@ -94,6 +94,27 @@ class _GameViewState extends State<GameView>
         widget.eventEmitter.on('endGame', context, (event, eventContext) async {
       final status = event.eventData as int;
       await _game.endGame(status);
+
+      // Ensure we record the actual end-of-game period event
+      final bool existingPeriod = _game.allGameEvents.any((e) =>
+          e.eventType == 'Period' && e.eventPeriod == _game.gameStatus.index);
+
+      if (!existingPeriod) {
+        final periodEvent = Period(
+            id: -1,
+            index: -1,
+            player: null,
+            team: _game.homeTeam,
+            game: _game,
+            seasonId: _game.seasonId,
+            eventType: 'Period',
+            eventMinute: -1,
+            eventPeriod: _game.gameStatus.index,
+            eventUrls: '',
+            eventData: _game.gameStatus.index);
+        await _saveEvent(periodEvent);
+      }
+
       if (mounted) {
         setState(() {});
       }
@@ -1494,7 +1515,7 @@ class _GameViewState extends State<GameView>
         eventMinute: event?.eventMinute ?? -1,
         eventPeriod: event?.eventPeriod == null || event?.eventPeriod == -1 ? defaultPeriod : event!.eventPeriod,
         eventUrls: event?.eventUrls ?? '',
-        eventData: event?.eventData ?? 0);
+        eventData: event?.eventData ?? ShotResult.offTarget.index);
 
     if (event.eventType == 'Save' && event.player == null) {
       event.player = _getLastSavePlayer(event.team.id);
@@ -1985,8 +2006,15 @@ class _GameViewState extends State<GameView>
           _game.gameStatus != GameStatus.gameFinalOT &&
           _game.gameStatus != GameStatus.gameFinalPKs;
 
+      final isEndGamePeriodEvent = event.eventType == 'Period' &&
+          (event.eventData == GameStatus.gameFinal.index ||
+           event.eventData == GameStatus.gameFinalOT.index ||
+           event.eventData == GameStatus.gameFinalPKs.index);
+
+      final shouldAttemptTweet = gameInProgress || isEndGamePeriodEvent;
+
       // Don't tweet here if it will be handled by the assist dialog flow
-      if (event.shouldTweet && !showAssistDialog && gameInProgress) {
+      if (event.shouldTweet && !showAssistDialog && shouldAttemptTweet) {
         final tweetText = event.tweetText(_game);
         if (tweetText.isNotEmpty) {
           if (mounted) {

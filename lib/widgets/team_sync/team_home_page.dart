@@ -31,6 +31,7 @@ import 'package:team_sync/services/subscription_service.dart';
 import 'package:team_sync/services/twitter_service.dart';
 import 'package:team_sync/utils/navigation_helper.dart';
 import 'package:team_sync/widgets/adhoc_tweet_dialog.dart';
+import 'package:team_sync/utils/game_action_helpers.dart';
 import 'package:team_sync/widgets/common/award_card.dart';
 import 'package:team_sync/widgets/common/skeleton_container.dart';
 import 'package:team_sync/widgets/common/award_detail_dialog.dart';
@@ -98,6 +99,8 @@ class _TeamHomePageState extends State<TeamHomePage>
   late Future<bool> _loadFuture;
   Timer? _liveGameUpdateTimer;
   StreamSubscription<bool>? _subscriptionListener;
+  StreamSubscription<User?>? _authListener;
+  bool _isShowingSignInDialog = false;
   bool _hasTwitterConfig = false;
   Map<String, num> _asyncOverallStats = {};
 
@@ -149,15 +152,53 @@ class _TeamHomePageState extends State<TeamHomePage>
       _checkIfFirstLaunch();
     }
 
-    // Check authentication status after load completes (for mobile only)
+    // Listen to authentication status and continuously require sign-in on mobile
     if (!kIsWeb) {
-      _loadFuture.then((_) {
-        // Check if user is signed in after a short delay to let the UI settle
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted && FirebaseAuth.instance.currentUser == null) {
-            _ensureUserSignedIn();
+      _authListener = FirebaseAuth.instance.authStateChanges().listen((user) async {
+        if (mounted && user == null) {
+          // Clear active database state on logout
+          try {
+            await DatabaseService.instance.close();
+            const storage = FlutterSecureStorage();
+            await storage.delete(key: 'last_db_used');
+          } catch (e) {
+            debugPrint('Error clearing database after logout: $e');
           }
-        });
+
+          if (mounted) {
+            setState(() {
+              _team = null;
+              _seasons = [];
+            });
+
+            _ensureUserSignedIn().then((isSignedIn) {
+              if (isSignedIn && mounted) {
+                // Register user in lookup table now that they are signed in
+                try {
+                  DatabaseSharingService.instance.registerUserInLookup();
+                } catch (e) {
+                  debugPrint('Failed to register user in lookup: $e');
+                }
+
+                // Reload the database
+                setState(() {
+                  _loadFuture = _load().then((success) async {
+                    if (success && _team != null) {
+                      final hasConfig = await TwitterService.instance
+                          .isConfigured(teamId: _team!.id);
+                      if (mounted) {
+                        setState(() {
+                          _hasTwitterConfig = hasConfig;
+                        });
+                      }
+                    }
+                    return success;
+                  });
+                });
+              }
+            });
+          }
+        }
       });
     }
 
@@ -282,9 +323,14 @@ class _TeamHomePageState extends State<TeamHomePage>
           prefs.setBool('hasSeenNoDatabasePrompt', true);
         }
 
-        ShowcaseView.get().startShowCase(
-          [_welcomeKey, _goProKey, _settingsKey],
-        );
+        final keysToShow = [_welcomeKey];
+        // Only include _goProKey if it exists in the tree (user not subscribed)
+        if (!_isSubscribed) {
+          keysToShow.add(_goProKey);
+        }
+        keysToShow.add(_settingsKey);
+
+        ShowcaseView.get().startShowCase(keysToShow);
       });
     } else if (!hasSeenNoDatabasePrompt) {
       // Check if user has no database after first launch
@@ -352,6 +398,7 @@ class _TeamHomePageState extends State<TeamHomePage>
   @override
   void dispose() {
     _subscriptionListener?.cancel();
+    _authListener?.cancel();
     _liveGameUpdateTimer?.cancel();
     _accomplishmentsPageController.dispose();
     _scrollController.removeListener(_onScroll);
@@ -471,10 +518,6 @@ class _TeamHomePageState extends State<TeamHomePage>
   }
 
   List<Widget> _buildAppBarActions() {
-    if (!kIsWeb && FirebaseAuth.instance.currentUser == null) {
-      return [];
-    }
-
     return [
       // Show "Go Pro" button only if not subscribed and not on web
       if (!kIsWeb && !_isSubscribed)
@@ -526,10 +569,15 @@ class _TeamHomePageState extends State<TeamHomePage>
                       extra: _team);
                   break;
                 case 'settings':
-                  final databaseId = DatabaseService.instance.publicShareId!;
-                  NavigationHelper.navigateTo(
-                      context, '/team/$databaseId/settings',
-                      extra: _team);
+                  final databaseId = DatabaseService.instance.publicShareId;
+                  if (databaseId != null && databaseId.isNotEmpty) {
+                    NavigationHelper.navigateTo(
+                        context, '/team/$databaseId/settings',
+                        extra: _team);
+                  } else {
+                    NavigationHelper.navigateTo(context, '/settings',
+                        extra: _team);
+                  }
                   break;
               }
             },
@@ -625,11 +673,15 @@ class _TeamHomePageState extends State<TeamHomePage>
                           extra: _team);
                       break;
                     case 'settings':
-                      final databaseId =
-                          DatabaseService.instance.publicShareId!;
-                      NavigationHelper.navigateTo(
-                          context, '/team/$databaseId/settings',
-                          extra: _team);
+                      final databaseId = DatabaseService.instance.publicShareId;
+                      if (databaseId != null && databaseId.isNotEmpty) {
+                        NavigationHelper.navigateTo(
+                            context, '/team/$databaseId/settings',
+                            extra: _team);
+                      } else {
+                        NavigationHelper.navigateTo(context, '/settings',
+                            extra: _team);
+                      }
                       break;
                   }
                 },
@@ -2198,31 +2250,38 @@ class _TeamHomePageState extends State<TeamHomePage>
     _team = widget.initialTeam; // For testing only!!!
 
     if (_team == null) {
-      // Try finding team with id=1 first (most common)
-      var teamResult = await DatabaseService.instance
-          .query('Teams', orderBy: 'id', equalTo: 1);
-
-      // If not found, try finding ANY team
-      if (teamResult.isEmpty) {
-        debugPrint(
-            '[TeamHomePage] Team with id=1 not found. Fetching any team...');
-        teamResult =
-            await DatabaseService.instance.query('Teams', limitToFirst: 1);
-      }
-
-      if (teamResult.isNotEmpty) {
-        // Use the first team found
-        final teamMap = teamResult.first;
-        final team = Team.fromMap(teamMap);
+      try {
+        // Assume team id=1 and fetch team and seasons simultaneously
+        final results = await Future.wait([
+          Team.fromId(1),
+          Season.fromTeamId(1),
+        ]);
 
         setState(() {
-          _team = team;
+          _team = results[0] as Team;
         });
 
-        await _loadSeasons();
-      } else {
-        debugPrint('[TeamHomePage] No teams found in database.');
-        return false;
+        await _loadSeasons(preloadedSeasons: results[1] as List<Season>);
+      } catch (e) {
+        debugPrint(
+            '[TeamHomePage] Team with id=1 not found. Fetching any team...');
+        final teamResult =
+            await DatabaseService.instance.query('Teams', limitToFirst: 1);
+
+        if (teamResult.isNotEmpty) {
+          // Use the first team found
+          final teamMap = teamResult.first;
+          final team = Team.fromMap(teamMap);
+
+          setState(() {
+            _team = team;
+          });
+
+          await _loadSeasons();
+        } else {
+          debugPrint('[TeamHomePage] No teams found in database.');
+          return false;
+        }
       }
     }
     return true;
@@ -2233,39 +2292,56 @@ class _TeamHomePageState extends State<TeamHomePage>
       const storage = FlutterSecureStorage();
       var lastDBUsed = await storage.read(key: 'last_db_used');
 
+      var dbOpened = false;
+
       if (FirebaseAuth.instance.currentUser != null &&
           lastDBUsed != null &&
           lastDBUsed.isNotEmpty) {
         try {
-          final availableDBs = await DatabaseService.instance
-              .getAvailableDatabases(
-                  sportFilter: SportStrategy.current.sportId);
-          if (!availableDBs.contains(lastDBUsed)) {
-            debugPrint(
-                'Last DB $lastDBUsed not valid for sport ${SportStrategy.current.sportId}');
-            if (availableDBs.isNotEmpty) {
-              lastDBUsed = availableDBs.first;
-              await storage.write(key: 'last_db_used', value: lastDBUsed);
-            } else {
-              lastDBUsed = null;
-              await storage.delete(key: 'last_db_used');
-            }
-          }
+          dbOpened = await DatabaseService.instance.open(lastDBUsed);
         } catch (e) {
-          debugPrint('Error validating last DB: $e');
+          debugPrint('[TeamHomePage] Error opening database: $e');
+        }
+
+        if (!dbOpened) {
+          try {
+            final availableDBs = await DatabaseService.instance
+                .getAvailableDatabases(
+                    sportFilter: SportStrategy.current.sportId);
+            if (!availableDBs.contains(lastDBUsed)) {
+              debugPrint(
+                  'Last DB $lastDBUsed not valid for sport ${SportStrategy.current.sportId}');
+              if (availableDBs.isNotEmpty) {
+                lastDBUsed = availableDBs.first;
+                await storage.write(key: 'last_db_used', value: lastDBUsed);
+              } else {
+                lastDBUsed = null;
+                await storage.delete(key: 'last_db_used');
+              }
+            }
+          } catch (e) {
+            debugPrint('Error validating last DB: $e');
+          }
         }
       }
 
-      if (lastDBUsed != null && lastDBUsed.isNotEmpty) {
-        await DatabaseService.instance.open(lastDBUsed);
-      }
-
       if (DatabaseService.instance.path.isNotEmpty) {
-        final teamResult = await DatabaseService.instance
-            .query('Teams', orderBy: 'id', equalTo: 1);
-        if (teamResult.isNotEmpty) {
-          _team = Team.fromMap(teamResult.first);
-          await _loadSeasons();
+        try {
+          // Attempt to parallel-load Team 1 and Seasons
+          final results = await Future.wait([
+            Team.fromId(1),
+            Season.fromTeamId(1),
+          ]);
+          _team = results[0] as Team;
+          await _loadSeasons(preloadedSeasons: results[1] as List<Season>);
+        } catch (e) {
+          // Fallback if Team id 1 doesn't exist
+          final teamResult = await DatabaseService.instance
+              .query('Teams', limitToFirst: 1);
+          if (teamResult.isNotEmpty) {
+            _team = Team.fromMap(teamResult.first);
+            await _loadSeasons();
+          }
         }
       }
 
@@ -2277,13 +2353,13 @@ class _TeamHomePageState extends State<TeamHomePage>
     }
   }
 
-  Future<void> _loadSeasons() async {
+  Future<void> _loadSeasons({List<Season>? preloadedSeasons}) async {
     if (_team == null) {
       return;
     }
 
     final teamId = _team!.id;
-    final allSeasons = await Season.fromTeamId(teamId);
+    final allSeasons = preloadedSeasons ?? await Season.fromTeamId(teamId);
 
     // Separate seasons into regular and imported FIRST (before loading data)
     final regularSeasons =
@@ -3027,11 +3103,7 @@ class _TeamHomePageState extends State<TeamHomePage>
 
       // Filter to only games that have started or completed
       final startedOrCompletedGames = games.where((game) {
-        final isStarted = game.gameStatus.index > 0;
-        return isStarted ||
-            (game.date.year == now.year &&
-                game.date.month == now.month &&
-                game.date.day == now.day);
+        return game.gameStatus.index > 0;
       }).toList();
 
       if (startedOrCompletedGames.isEmpty) {
@@ -3074,9 +3146,9 @@ class _TeamHomePageState extends State<TeamHomePage>
 
       // Cancel the update timer if game is no longer live
       if (_liveGameUpdateTimer != null) {
-        final isLiveGame = _currentOrLastGame != null && 
-                           _currentOrLastGame!.gameStatus.index > 0 && 
-                           _currentOrLastGame!.gameStatus.index < 9;
+        final isLiveGame = _currentOrLastGame != null &&
+            _currentOrLastGame!.gameStatus.index > 0 &&
+            _currentOrLastGame!.gameStatus.index < 9;
         if (!isLiveGame) {
           _liveGameUpdateTimer?.cancel();
           _liveGameUpdateTimer = null;
@@ -3122,12 +3194,14 @@ class _TeamHomePageState extends State<TeamHomePage>
   /// Shows sign-in dialog if not signed in.
   /// Returns true if user is signed in, false otherwise.
   Future<bool> _ensureUserSignedIn() async {
-    if (FirebaseAuth.instance.currentUser != null) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && !user.isAnonymous) {
       return true;
     }
 
-    if (!mounted) return false;
+    if (!mounted || _isShowingSignInDialog) return false;
 
+    _isShowingSignInDialog = true;
     // Show sign-in dialog
     final result = await showDialog<bool>(
       context: context,
@@ -3216,6 +3290,7 @@ class _TeamHomePageState extends State<TeamHomePage>
       },
     );
 
+    _isShowingSignInDialog = false;
     return result == true;
   }
 
@@ -3514,7 +3589,14 @@ class _TeamHomePageState extends State<TeamHomePage>
         await _pickTeamColors();
         break;
       case 'setLiveLink':
-        await _editLiveLink();
+        await GameActionHelpers.editLiveLink(
+          context: context,
+          game: _nextUpcomingGame ?? _currentOrLastGame,
+          team: _team,
+          onUpdate: () {
+            if (mounted) setState(() {});
+          },
+        );
         break;
     }
   }
@@ -3936,439 +4018,7 @@ class _TeamHomePageState extends State<TeamHomePage>
     }
   }
 
-  Future<void> _editLiveLink({Game? game}) async {
-    if (_team == null) return;
 
-    // Use provided game or default to next upcoming game
-    final targetGame = game ?? _nextUpcomingGame ?? _currentOrLastGame;
-
-    if (targetGame == null) {
-      if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.noGameAvailableToSetLiveLink),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
-    String liveLink = targetGame.gameLinks ?? '';
-    final hasLiveLink = liveLink.isNotEmpty;
-
-    await showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) {
-          final loc = AppLocalizations.of(context)!;
-          return StatefulBuilder(
-              builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                top: 20,
-                left: 20,
-                right: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  // Show which game this link is for
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: _team!.color1.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _team!.color1.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(SportStrategy.current.sportIcon,
-                            color: _team!.color1, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            targetGame.displayName(_team!.id),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(AppLocalizations.of(context)!.setLiveLink,
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context)!.liveUrlLabel),
-                    controller: TextEditingController(text: liveLink),
-                    onChanged: (v) => liveLink = v,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        TextButton(
-                            onPressed: () async {
-                              // Save to game
-                              await DatabaseService.instance.update(
-                                'Games',
-                                {'gameLinks': liveLink},
-                                key: targetGame.id.toString(),
-                              );
-
-                              // Update local game object
-                              targetGame.gameLinks = liveLink;
-
-                              // Refresh state
-                              setState(() {});
-
-                              if (mounted) Navigator.pop(context);
-
-                              // After saving, offer to tweet if link is not empty
-                              if (liveLink.isNotEmpty && mounted) {
-                                _promptTweetGameDay(liveLink, targetGame);
-                              }
-                            },
-                            child: Text(AppLocalizations.of(context)!.save)),
-                        TextButton(
-                            onPressed: () async {
-                              // Remove from game
-                              await DatabaseService.instance.update(
-                                'Games',
-                                {'gameLinks': ''},
-                                key: targetGame.id.toString(),
-                              );
-
-                              // Update local game object
-                              targetGame.gameLinks = '';
-
-                              // Refresh state
-                              setState(() {});
-
-                              if (mounted) Navigator.pop(context);
-                            },
-                            child: Text(
-                                AppLocalizations.of(context)!.removeButton)),
-                      ]),
-                  // Show "Tweet Game Day" button if link already exists
-                  if (hasLiveLink) ...[
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _promptTweetGameDay(liveLink, targetGame);
-                        },
-                        icon: const Icon(Icons.send, size: 18),
-                        label: Text(loc.tweetGameDay),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1DA1F2),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ]),
-              ),
-            );
-          });
-        });
-  }
-
-  /// Public method to initiate game day tweet flow
-  /// Reuses live link logic: prompts to set link if missing, checks game time, then tweets
-  Future<void> _tweetGameDay() async {
-    if (_team == null) return;
-
-    final gameForTweet = _nextUpcomingGame ?? _currentOrLastGame;
-
-    if (gameForTweet == null) {
-      if (mounted) {
-        final loc = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.noGameAvailableToTweetAbout),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-      return;
-    }
-
-    final liveLink = gameForTweet.gameLinks ?? '';
-
-    if (liveLink.isEmpty) {
-      // Prompt to set live link first
-      final shouldSetLink = await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          final loc = AppLocalizations.of(context)!;
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.link, color: Colors.blue),
-                const SizedBox(width: 12),
-                Expanded(child: Text(loc.setLiveStreamLink)),
-              ],
-            ),
-            content: Text(
-              'Would you like to add a live stream link for ${gameForTweet.displayName(_team!.id)}?\n\n'
-              'This helps fans find where to watch the game.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(loc.skip),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.addLink),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (shouldSetLink == true && mounted) {
-        // Show live link dialog for this specific game
-        await _editLiveLink(game: gameForTweet);
-        // After setting link, the dialog will automatically proceed with tweet
-      } else if (shouldSetLink == false && mounted) {
-        // User chose to skip, proceed without link (will generate generic tweet)
-        await _promptTweetGameDay('', gameForTweet);
-      }
-      // If null (cancelled), do nothing
-    } else {
-      // Live link exists on this game, proceed with game day tweet
-      await _promptTweetGameDay(liveLink, gameForTweet);
-    }
-  }
-
-  Future<void> _promptTweetGameDay(String liveLink, Game? game) async {
-    if (_team == null) return;
-
-    // Check if Twitter is configured
-    final isConfigured =
-        await TwitterService.instance.isConfigured(teamId: _team!.id);
-
-    if (!isConfigured) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Twitter is not configured. Please set up Twitter credentials in Settings.'),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-      return;
-    }
-
-    // Check if game time is not set (midnight/00:00)
-    if (game != null && game.date.hour == 0 && game.date.minute == 0) {
-      // Prompt user to set game time first
-      final shouldSetTime = await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          final loc = AppLocalizations.of(context)!;
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Icon(Icons.access_time, color: Colors.orange),
-                const SizedBox(width: 12),
-                Expanded(child: Text(loc.setGameTime)),
-              ],
-            ),
-            content: Text(
-              loc.noTimeSetPrompt,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(loc.skip),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(loc.setTime),
-              ),
-            ],
-          );
-        },
-      );
-
-      if (shouldSetTime == true && mounted) {
-        // Show time picker
-        final selectedTime = await showTimePicker(
-          context: context,
-          initialTime: const TimeOfDay(hour: 19, minute: 0), // Default 7:00 PM
-          helpText: 'Select game time',
-        );
-
-        if (selectedTime != null && mounted) {
-          // Update game with new time
-          final updatedGameDate = DateTime(
-            game.date.year,
-            game.date.month,
-            game.date.day,
-            selectedTime.hour,
-            selectedTime.minute,
-          );
-
-          // Save to database in ISO8601 format (Game.fromMap now handles this)
-          try {
-            await DatabaseService.instance.update(
-              'Games',
-              {'date': updatedGameDate.toIso8601String()},
-              key: game.id.toString(),
-            );
-
-            // Update the game object's date directly
-            game.date = updatedGameDate;
-
-            if (mounted) {
-              final loc = AppLocalizations.of(context)!;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      const Icon(Icons.check_circle,
-                          color: Colors.white, size: 20),
-                      const SizedBox(width: 12),
-                      Text(
-                        loc.gameTimeSet(selectedTime.format(context)),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              final loc = AppLocalizations.of(context)!;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(loc.errorUpdatingGameTime(e.toString())),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        } else {
-          // User cancelled time picker
-          return;
-        }
-      } else if (shouldSetTime == false) {
-        // User chose to skip, continue with tweet
-      } else {
-        // User cancelled dialog
-        return;
-      }
-    }
-
-    // Generate tweet text
-    String tweetText = _generateGameDayTweet(game, liveLink);
-
-    // Show preview dialog - it handles initialization, sending, and feedback internally
-    await TweetPreviewDialog.show(
-      context,
-      initialText: tweetText,
-      teamId: _team!.id,
-      team: _team!,
-    );
-    // Dialog handles all success/error feedback
-  }
-
-  String _generateGameDayTweet(Game? game, String liveLink) {
-    if (_team == null) return '';
-
-    final teamName = _team!.shortName;
-    final now = DateTime.now();
-    
-    final watchText = liveLink.isNotEmpty 
-        ? 'Watch LIVE: $liveLink'
-        : 'Live streaming link will be shared once the game starts!';
-
-    if (game != null) {
-      final gameDate = game.date;
-      final isToday = gameDate.year == now.year &&
-          gameDate.month == now.month &&
-          gameDate.day == now.day;
-
-      final opponent = game
-          .displayName(_team!.id)
-          .replaceAll('vs ', '')
-          .replaceAll('@ ', '');
-      final isHome = game.displayName(_team!.id).startsWith('vs');
-      final location = isHome ? 'home' : 'away';
-
-      // Format time in 12-hour format
-      final hour = gameDate.hour == 0
-          ? 12
-          : (gameDate.hour > 12 ? gameDate.hour - 12 : gameDate.hour);
-      final period = gameDate.hour >= 12 ? 'PM' : 'AM';
-      final minute = gameDate.minute.toString().padLeft(2, '0');
-      final timeStr = '$hour:$minute $period';
-
-      if (isToday) {
-        return '''🚨 GAME DAY! 🚨
-
-$teamName takes on $opponent $location TODAY at $timeStr!
-
-$watchText
-
-#$teamName #GameDay #Soccer ⚽🔥''';
-      } else {
-        final month = [
-          'Jan',
-          'Feb',
-          'Mar',
-          'Apr',
-          'May',
-          'Jun',
-          'Jul',
-          'Aug',
-          'Sep',
-          'Oct',
-          'Nov',
-          'Dec'
-        ][gameDate.month - 1];
-        final dateStr = '$month ${gameDate.day}';
-
-        return '''🚨 GAME DAY! 🚨
-
-$teamName vs $opponent
-📅 $dateStr at $timeStr
-🏟️ ${isHome ? 'Home' : 'Away'} game
-
-$watchText
-
-#$teamName #Soccer''';
-      }
-    } else {
-      // No game info, just generic announcement
-      return '''🔴 LIVE STREAM AVAILABLE! 🔴
-
-Watch $teamName in action!
-
-$liveLink
-
-#$teamName #LiveSoccer ⚽''';
-    }
-  }
 
   /// Generate and send a promotional tweet for the upcoming game
   /// Now uses the unified Tweet Game Day dialog
@@ -4378,7 +4028,14 @@ $liveLink
     // - Game time validation
     // - Smart tweet generation
     // - Professional tweet dialog
-    await _tweetGameDay();
+    await GameActionHelpers.tweetGameDay(
+      context: context,
+      game: _nextUpcomingGame ?? _currentOrLastGame,
+      team: _team,
+      onUpdate: () {
+        if (mounted) setState(() {});
+      },
+    );
   }
 
   /// Top banner shown on all platforms when a live game is in progress and the game has a live link.

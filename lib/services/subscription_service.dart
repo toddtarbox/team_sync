@@ -43,6 +43,29 @@ class SubscriptionService {
         });
       }
 
+      // Listen for auth state changes to re-login to RevenueCat if the user signs in or out
+      FirebaseAuth.instance.authStateChanges().listen((user) async {
+        if (user != null) {
+          try {
+            final loginResult = await Purchases.logIn(user.uid);
+            _customerInfo = loginResult.customerInfo;
+            _updateSubscriptionStatus();
+          } catch (e) {
+            debugPrint('RevenueCat login error: $e');
+          }
+        } else {
+          try {
+            final isAnon = await Purchases.isAnonymous;
+            if (!isAnon) {
+              _customerInfo = await Purchases.logOut();
+              _updateSubscriptionStatus();
+            }
+          } catch (e) {
+            debugPrint('RevenueCat logout error: $e');
+          }
+        }
+      });
+
       Purchases.addCustomerInfoUpdateListener(_onCustomerInfoUpdated);
       Purchases.getCustomerInfo().then((customerInfo) {
         _customerInfo = customerInfo;

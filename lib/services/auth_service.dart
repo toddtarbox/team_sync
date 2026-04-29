@@ -23,7 +23,8 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Check if Apple sign-in is available on current platform
-  bool get isAppleSignInAvailable => kIsWeb || defaultTargetPlatform == TargetPlatform.iOS;
+  bool get isAppleSignInAvailable =>
+      kIsWeb || defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {

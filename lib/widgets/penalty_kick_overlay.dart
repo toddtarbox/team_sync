@@ -47,38 +47,40 @@ class PenaltyKickPlayerStats {
 
   /// Computes PK save stats for a goalkeeper from already-loaded events.
   static Future<PenaltyKickPlayerStats> fetchForKeeper(
-      int keeperId, int teamId, int seasonId) async {
-    final seasonEvents =
-        await GameEvent.listFromTeamIdSeasonId(teamId, seasonId);
+      int keeperId, int keeperTeamId, int seasonId) async {
+    final keeperEvents =
+        await GameEvent.listFromTeamIdSeasonId(keeperTeamId, seasonId);
+
+    final keeperSaves = keeperEvents
+        .where((e) => e.eventType == 'Save' && e.player?.id == keeperId)
+        .toList();
+
+    if (keeperSaves.isEmpty) {
+      return const PenaltyKickPlayerStats(seasonTaken: 0, seasonGoals: 0);
+    }
+
+    final saveGameIds = keeperSaves.map((e) => e.game.id).toSet();
+    final gameEventsFutures =
+        saveGameIds.map((id) => GameEvent.listFromGameId(id));
+    final gameEventsLists = await Future.wait(gameEventsFutures);
+    final allEvents = gameEventsLists.expand((l) => l).toList();
+
+    final pks = allEvents.where((e) => e.eventType == 'PenaltyKick').toList();
 
     int seasonSaved = 0;
-    int seasonFaced = 0;
 
-    void countForEvents(List<GameEvent> events) {
-      final opponentPKs = events
-          .where((e) => e.eventType == 'PenaltyKick' && e.team.id == teamId)
-          .toList();
-      final keeperSaves = events
-          .where((e) => e.eventType == 'Save' && e.player?.id == keeperId)
-          .toList();
-
-      for (final save in keeperSaves) {
-        final saveFacesAPK = opponentPKs.isEmpty
-            ? true
-            : opponentPKs.any((pk) =>
-                pk.game.id == save.game.id &&
-                (pk.eventMinute - save.eventMinute).abs() <= 1);
-        if (saveFacesAPK) {
-          seasonSaved++;
-          seasonFaced++;
-        }
+    for (final save in keeperSaves) {
+      final isPkSave = pks.any((pk) =>
+          pk.team.id != save.team.id &&
+          pk.game.id == save.game.id &&
+          (pk.eventMinute - save.eventMinute).abs() <= 1);
+      if (isPkSave) {
+        seasonSaved++;
       }
     }
 
-    countForEvents(seasonEvents);
-
     return PenaltyKickPlayerStats(
-      seasonTaken: seasonFaced,
+      seasonTaken: seasonSaved,
       seasonGoals: seasonSaved,
     );
   }
@@ -255,15 +257,11 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
 
     if (keeper != null && keeper.id > 0) {
       try {
-        final seasonEvents =
-            await GameEvent.listFromTeamIdSeasonId(teamId, seasonId);
-        final keeperSaves = seasonEvents
-            .where((e) => e.eventType == 'Save' && e.player?.id == keeper!.id)
-            .toList();
-        keeperSeason = PenaltyKickPlayerStats(
-          seasonTaken: keeperSaves.length,
-          seasonGoals: keeperSaves.length,
-        );
+        int keeperTeamId = widget.pkEvent.team.id == widget.game.homeTeam.id
+            ? widget.game.awayTeam.id
+            : widget.game.homeTeam.id;
+        keeperSeason = await PenaltyKickPlayerStats.fetchForKeeper(
+            keeper.id, keeperTeamId, seasonId);
       } catch (_) {
         keeperSeason = PenaltyKickPlayerStats.empty;
       }
@@ -341,6 +339,7 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
                     ),
                   ),
                   _buildResult(context),
+                  _buildSaveButton(context),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -414,51 +413,30 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: AnimatedBuilder(
-                  animation: _pulseAnim,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _pulseAnim.value,
-                      child: child,
-                    );
-                  },
-                  child: ElevatedButton(
-                    onPressed: _saveChanges,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFCC00),
-                      foregroundColor: Colors.black,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Penalty Kick',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        letterSpacing: -0.5,
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Penalty Kick',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
-                            letterSpacing: -0.5,
-                          ),
+                    if (!isUnknownPlayer || _shooterTeam.id > 0)
+                      Text(
+                        _shooterTeam.fullName,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
-                        if (!isUnknownPlayer || _shooterTeam.id > 0)
-                          Text(
-                            _shooterTeam.fullName,
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
               ),
               if (widget.onEditDetails != null) ...[
@@ -678,7 +656,7 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
                   isShooter ? 'Season PKs' : 'Season PK Saves',
                   isShooter
                       ? seasonStats.seasonDisplay
-                      : '${seasonStats.seasonGoals} / ${seasonStats.seasonTaken}',
+                      : seasonStats.seasonGoals.toString(),
                   seasonStats.seasonPct,
                   accentColor,
                 ),
@@ -783,6 +761,44 @@ class _PenaltyKickOverlayState extends State<PenaltyKickOverlay>
               fontWeight: FontWeight.w900,
               fontSize: 22,
               letterSpacing: 2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: AnimatedBuilder(
+          animation: _pulseAnim,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _pulseAnim.value,
+              child: child,
+            );
+          },
+          child: ElevatedButton(
+            onPressed: _saveChanges,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFCC00),
+              foregroundColor: Colors.black,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'SAVE RESULT',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                letterSpacing: 1.5,
+              ),
             ),
           ),
         ),

@@ -26,6 +26,10 @@ import 'package:team_sync/widgets/common/page_skeleton.dart';
 /// The router only provides IDs via path parameters.
 final router = GoRouter(
   initialLocation: '/',
+  errorBuilder: (context, state) {
+    debugPrint('Router error (usually OAuth redirect): ${state.error}');
+    return const TeamHomePage();
+  },
   routes: [
     // ==================== TEAM ROUTES ====================
 

@@ -53,9 +53,14 @@ class Season {
   }
 
   Future<void> load() async {
-    team = await Team.fromId(teamId);
-    games = await Game.listFromSeasonId(id);
-    players = await Player.listFromTeamIdSeasonId(team.id, id);
+    final teamFuture = Team.fromId(teamId);
+    final gamesFuture = Game.listFromSeasonId(id);
+    final playersFuture = Player.listFromTeamIdSeasonId(teamId, id);
+
+    team = await teamFuture;
+    games = await gamesFuture;
+    players = await playersFuture;
+
     teams = await Team.listFromSeasonId(id, preloadedGames: games);
     teams.sort((a, b) => a.fullName.compareTo(b.fullName));
   }

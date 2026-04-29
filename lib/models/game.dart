@@ -659,7 +659,7 @@ class Game {
 
     scoringEvents = allGameEvents
         .where((e) => e.eventMinute > -2 && e.isGoalEvent)
-        .toList(growable: false);
+        .toList(growable: true);
     scoringEvents.sort((a, b) => a.eventMinute.compareTo(b.eventMinute));
 
     gameEvents =
@@ -668,7 +668,7 @@ class Game {
     gameEvents.sort((a, b) => a.index.compareTo(b.index));
 
     shootoutEvents =
-        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: false);
+        allGameEvents.where((e) => e.eventMinute == -2).toList(growable: true);
 
     return allGameEvents;
   }

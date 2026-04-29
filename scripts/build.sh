@@ -81,7 +81,7 @@ case $PLATFORM in
     flutter build ipa \
       --target=$TARGET \
       --release \
-      --flavor $FLAVOR \
+      --flavor TeamSync \
       --export-options-plist=ios/ExportOptions.plist
 
     BUILD_EXIT_CODE=$?

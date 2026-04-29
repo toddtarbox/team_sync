@@ -161,7 +161,7 @@ build_android() {
   echo -e "${BLUE}🤖 Starting Android build...${NC}" | tee "$ANDROID_LOG"
   cd "$PROJECT_ROOT"
 
-  if "$SCRIPT_DIR/build-team-sync.sh" android >> "$ANDROID_LOG" 2>&1; then
+  if "$SCRIPT_DIR/build.sh" android soccer >> "$ANDROID_LOG" 2>&1; then
     echo -e "${GREEN}✅ Android build completed successfully${NC}"
     echo -e "   Log: $ANDROID_LOG"
 
@@ -186,7 +186,7 @@ build_ios() {
   echo -e "${BLUE}📱 Starting iOS build...${NC}" | tee "$IOS_LOG"
   cd "$PROJECT_ROOT"
 
-  if "$SCRIPT_DIR/build-team-sync.sh" ios >> "$IOS_LOG" 2>&1; then
+  if "$SCRIPT_DIR/build.sh" ios soccer >> "$IOS_LOG" 2>&1; then
     echo -e "${GREEN}✅ iOS build completed successfully${NC}"
     echo -e "   Log: $IOS_LOG"
 

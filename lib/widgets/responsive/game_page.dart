@@ -23,6 +23,7 @@ import 'package:team_sync/widgets/scoreboard_widget.dart';
 import 'package:team_sync/widgets/standard_appbar.dart';
 import 'package:team_sync/widgets/lineup_generator.dart';
 import 'package:team_sync/widgets/box_score_widget.dart';
+import 'package:team_sync/utils/game_action_helpers.dart';
 import 'package:team_sync/services/speech_event_service.dart';
 
 /// Unified responsive game page that works for mobile, tablet, and desktop
@@ -272,20 +273,22 @@ class _GamePageState extends State<GamePage> {
 
     if (_speechCompleter != null && !_speechCompleter!.isCompleted) {
       _eventEmitter.emit('createEventSpeech', null, _speechCompleter!.future);
-      
+
       // small delay so UI can show the spinner for at least a fraction of a second
       await Future.delayed(const Duration(milliseconds: 300));
-      
-      final event = await SpeechEventService.instance.parseEventTranscript(text, _game, resolvedSeason.id);
+
+      final event = await SpeechEventService.instance
+          .parseEventTranscript(text, _game, resolvedSeason.id);
       _speechCompleter!.complete(event);
-      
+
       if (event == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not understand event. Try again.')),
+          const SnackBar(
+              content: Text('Could not understand event. Try again.')),
         );
       }
     }
-    
+
     _speechText = '';
   }
 
@@ -469,6 +472,16 @@ class _GamePageState extends State<GamePage> {
           ),
           body: Column(
             children: [
+              if (kIsWeb)
+                Breadcrumbs(
+                  items: buildTeamBreadcrumbs(
+                    databaseId: DatabaseService.instance.publicShareId ?? '',
+                    teamName: resolvedSeason.team.fullName,
+                    seasonName: resolvedSeason.name,
+                    seasonId: resolvedSeason.id,
+                    gameName: _game.displayName(resolvedSeason.teamId),
+                  ),
+                ),
               // Game Header Area: Overlay Scoreboard on Image if available
               if (_game.imageUrl != null && _game.imageUrl!.isNotEmpty)
                 GestureDetector(
@@ -516,7 +529,8 @@ class _GamePageState extends State<GamePage> {
                                     game: _game,
                                     season: resolvedSeason,
                                   )
-                                : const SizedBox(width: double.infinity, height: 0),
+                                : const SizedBox(
+                                    width: double.infinity, height: 0),
                           ),
                         ],
                       ),
@@ -544,16 +558,6 @@ class _GamePageState extends State<GamePage> {
                     ),
                   ],
                 ),
-              if (kIsWeb)
-                Breadcrumbs(
-                  items: buildTeamBreadcrumbs(
-                    databaseId: DatabaseService.instance.publicShareId ?? '',
-                    teamName: resolvedSeason.team.fullName,
-                    seasonName: resolvedSeason.name,
-                    seasonId: resolvedSeason.id,
-                    gameName: _game.displayName(resolvedSeason.teamId),
-                  ),
-                ),
               // Responsive layout
               Expanded(
                 child: NotificationListener<ScrollNotification>(
@@ -561,9 +565,12 @@ class _GamePageState extends State<GamePage> {
                     if (notification.metrics.axis == Axis.vertical) {
                       if (notification is UserScrollNotification) {
                         if (notification.direction == ScrollDirection.reverse) {
-                          if (_showBoxScore) setState(() => _showBoxScore = false);
-                        } else if (notification.direction == ScrollDirection.forward) {
-                          if (!_showBoxScore) setState(() => _showBoxScore = true);
+                          if (_showBoxScore)
+                            setState(() => _showBoxScore = false);
+                        } else if (notification.direction ==
+                            ScrollDirection.forward) {
+                          if (!_showBoxScore)
+                            setState(() => _showBoxScore = true);
                         }
                       }
                       if (notification.metrics.pixels <= 0 && !_showBoxScore) {
@@ -580,13 +587,15 @@ class _GamePageState extends State<GamePage> {
               ),
             ],
           ),
-          floatingActionButton: (!kIsWeb || _game.gameStatus.index < 9)
+          floatingActionButton: !kIsWeb
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     FloatingActionButton(
                       heroTag: 'voiceEventButton',
-                      backgroundColor: _isListening ? Colors.red : Theme.of(context).colorScheme.primary,
+                      backgroundColor: _isListening
+                          ? Colors.red
+                          : Theme.of(context).colorScheme.primary,
                       onPressed: () async {
                         if (_isListening) {
                           SpeechEventService.instance.stopListening();
@@ -957,6 +966,26 @@ class _GamePageState extends State<GamePage> {
                   game: _game,
                 );
                 break;
+              case 'live_link':
+                GameActionHelpers.editLiveLink(
+                  context: context,
+                  game: _game,
+                  team: season.team,
+                  onUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                );
+                break;
+              case 'tweet_preview':
+                GameActionHelpers.tweetGameDay(
+                  context: context,
+                  game: _game,
+                  team: season.team,
+                  onUpdate: () {
+                    if (mounted) setState(() {});
+                  },
+                );
+                break;
               case 'tweet':
                 AdhocTweetDialog.show(context,
                     teamId: season.teamId, team: season.team);
@@ -1007,6 +1036,22 @@ class _GamePageState extends State<GamePage> {
               child: ListTile(
                 leading: const Icon(Icons.sports_soccer),
                 title: const Text('Generate Lineup'),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'live_link',
+              child: ListTile(
+                leading: const Icon(Icons.link),
+                title: Text(loc.setLiveLink),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            PopupMenuItem<String>(
+              value: 'tweet_preview',
+              child: ListTile(
+                leading: const Icon(Icons.send_time_extension),
+                title: Text(loc.tweetGameDay),
                 contentPadding: EdgeInsets.zero,
               ),
             ),
