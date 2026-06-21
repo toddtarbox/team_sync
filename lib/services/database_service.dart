@@ -902,7 +902,7 @@ class FirebaseDBProvider implements DatabaseProvider {
     // that the top-level mapping (/shared_databases/<id>) points to our
     // databasePath. If a collision is detected (mapping points elsewhere),
     // remove the written publicShareId and retry.
-    final databasePath = 'subscriptionIds/$_subscriptionId/databases/$_path';
+    final databasePath = _path;
     const int verifyAttempts = 5;
     for (int verify = 0; verify < verifyAttempts; verify++) {
       try {

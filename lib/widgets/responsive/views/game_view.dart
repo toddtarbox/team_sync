@@ -1857,7 +1857,6 @@ class _GameViewState extends State<GameView>
       season: widget.season,
       game: _game,
       onSaved: (pk, keeper) async {
-        Navigator.of(context).pop(); // Close overlay
         await _saveEvent(pk);
 
         if (pk.eventData == ShotResult.onTargetSave.index && keeper != null) {

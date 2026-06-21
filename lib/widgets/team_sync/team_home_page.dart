@@ -596,9 +596,8 @@ class _TeamHomePageState extends State<TeamHomePage>
                       ],
                     ),
                   ),
-                // Share option - show on mobile when subscribed AND signed in
+                // Share option - show on mobile when signed in (non-Pro users will see an upgrade dialog when clicked)
                 if (!kIsWeb &&
-                    _isSubscribed &&
                     FirebaseAuth.instance.currentUser != null)
                   PopupMenuItem<String>(
                     value: 'share',
@@ -3983,6 +3982,34 @@ class _TeamHomePageState extends State<TeamHomePage>
   }
 
   Future<void> _shareDatabase() async {
+    final isPro = SubscriptionService.instance.isSubscribed;
+    if (!isPro) {
+      final loc = AppLocalizations.of(context)!;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pro Feature'),
+          content: const Text(
+            'Database sharing is a Pro feature. Upgrade to TeamSync Pro to share databases or get a public link.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(loc.close),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await SubscriptionService.instance.purchaseSubscription();
+              },
+              child: Text(loc.upgradeToPro),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isSharing = true;
     });
@@ -5581,6 +5608,29 @@ class _DatabaseSharingDialogState extends State<_DatabaseSharingDialog> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+
+    if (!_isProUser) {
+      return AlertDialog(
+        title: const Text('Pro Feature'),
+        content: const Text(
+          'Database sharing is a Pro feature. Upgrade to TeamSync Pro to share databases or get a public link.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(loc.close),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await SubscriptionService.instance.purchaseSubscription();
+            },
+            child: Text(loc.upgradeToPro),
+          ),
+        ],
+      );
+    }
+
     return AlertDialog(
       title: const Text('Share Database'),
       content: SizedBox(
