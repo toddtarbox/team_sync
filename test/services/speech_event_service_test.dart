@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:team_sync/models/game.dart';
-import 'package:team_sync/models/player.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/services/speech_event_service.dart';
+import 'package:team_sync/features/games/models/game.dart';
+import 'package:team_sync/features/players/models/player.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/features/game_events/services/speech_event_service.dart';
 
 void main() {
   group('SpeechEventService.parseEventTranscript', () {

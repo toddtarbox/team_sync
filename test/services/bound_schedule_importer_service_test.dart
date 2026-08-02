@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:team_sync/services/bound_schedule_importer_service.dart';
+import 'package:team_sync/features/data_import/services/bound_schedule_importer_service.dart';
 
 void main() {
   test('BoundScheduleImporterService parses HTML schedule correctly', () async {

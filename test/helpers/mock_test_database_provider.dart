@@ -1,5 +1,5 @@
 import 'package:sqflite/sqflite.dart';
-import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/core/services/database_service.dart';
 
 /// Mock DatabaseService provider for testing
 ///

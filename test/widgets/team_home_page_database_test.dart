@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/widgets/team_sync/team_home_page.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/features/teams/widgets/team_home_page.dart';
 
 import '../helpers/firebase_mocks.dart';
 import '../helpers/screen_size_helper.dart';

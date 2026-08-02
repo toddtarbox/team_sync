@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:team_sync/models/player.dart';
-import 'package:team_sync/services/player_merger_service.dart';
+import 'package:team_sync/features/players/models/player.dart';
+import 'package:team_sync/features/players/services/player_merger_service.dart';
 
 /// Test suite for Player Merger Service
 ///

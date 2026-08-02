@@ -22,16 +22,52 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.542457934179-huq726t2agepvcaa7fq2do3abob3eb1j</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<string>NO</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TeamSync needs microphone access to hear your dictated game events.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>TeamSync needs access to your photo library to allow you to select and upload profile pictures or team photos.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>TeamSync needs speech recognition to allow you to dictate game events.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>TeamSync needs microphone access to hear your dictated game events.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -51,21 +87,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-    <key>ITSAppUsesNonExemptEncryption</key>
-    <string>NO</string>
-    <key>GIDClientID</key>
-    <string>542457934179-huq726t2agepvcaa7fq2do3abob3eb1j.apps.googleusercontent.com</string>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleTypeRole</key>
-            <string>Editor</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <!-- Google Sign-In reversed client ID - must match CLIENT_ID in GoogleService-Info.plist -->
-                <string>com.googleusercontent.apps.542457934179-huq726t2agepvcaa7fq2do3abob3eb1j</string>
-            </array>
-        </dict>
-    </array>
 </dict>
 </plist>

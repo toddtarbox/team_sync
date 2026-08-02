@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/player.dart';
-import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
+import 'package:team_sync/features/players/models/player.dart';
+import 'package:team_sync/features/seasons/models/season.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/core/services/database_service.dart';
+import 'package:team_sync/features/players/widgets/player_profile_page.dart';
 
 import '../helpers/firebase_mocks.dart';
 import '../helpers/mock_helpers.dart';

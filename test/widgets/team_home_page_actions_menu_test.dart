@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/app_config.dart';
-import 'package:team_sync/services/database_service.dart';
+import 'package:team_sync/core/services/database_service.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/services/sport_strategy.dart';
-import 'package:team_sync/services/soccer_strategy.dart';
-import 'package:team_sync/widgets/team_sync/team_home_page.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/features/sports/services/sport_strategy.dart';
+import 'package:team_sync/features/sports/services/soccer_strategy.dart';
+import 'package:team_sync/features/teams/widgets/team_home_page.dart';
 
 import '../helpers/firebase_mocks.dart';
 import '../helpers/screen_size_helper.dart';

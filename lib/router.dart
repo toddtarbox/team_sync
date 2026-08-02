@@ -2,22 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/game.dart';
-import 'package:team_sync/models/player.dart';
-import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/data_import_page.dart';
-import 'package:team_sync/widgets/history_versus_page.dart';
-import 'package:team_sync/widgets/player_profile_page.dart';
-import 'package:team_sync/widgets/players_page.dart';
-import 'package:team_sync/widgets/record_holders_page.dart';
-import 'package:team_sync/widgets/responsive/game_page.dart';
-import 'package:team_sync/widgets/season_page.dart';
-import 'package:team_sync/widgets/season_stats_page.dart';
-import 'package:team_sync/widgets/settings_page.dart';
-import 'package:team_sync/widgets/team_sync/team_home_page.dart';
-import 'package:team_sync/widgets/common/page_skeleton.dart';
+import 'package:team_sync/features/games/models/game.dart';
+import 'package:team_sync/features/players/models/player.dart';
+import 'package:team_sync/features/seasons/models/season.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/core/services/database_service.dart';
+import 'package:team_sync/features/data_import/widgets/data_import_page.dart';
+import 'package:team_sync/features/seasons/widgets/history_versus_page.dart';
+import 'package:team_sync/features/players/widgets/player_profile_page.dart';
+import 'package:team_sync/features/players/widgets/players_page.dart';
+import 'package:team_sync/features/seasons/widgets/record_holders_page.dart';
+import 'package:team_sync/features/games/widgets/game_page.dart';
+import 'package:team_sync/features/seasons/widgets/season_page.dart';
+import 'package:team_sync/features/seasons/widgets/season_stats_page.dart';
+import 'package:team_sync/features/settings/widgets/settings_page.dart';
+import 'package:team_sync/features/teams/widgets/team_home_page.dart';
+import 'package:team_sync/core/widgets/common/page_skeleton.dart';
 
 /// Router for TeamSync app with distinct URLs for each page
 ///

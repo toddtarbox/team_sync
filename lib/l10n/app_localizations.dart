@@ -5,12 +5,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
-import 'app_localizations_de.dart';
-import 'app_localizations_en.dart';
-import 'app_localizations_es.dart';
-import 'app_localizations_fr.dart';
-import 'app_localizations_it.dart';
-import 'app_localizations_pt.dart';
+import 'package:team_sync/l10n/app_localizations_de.dart';
+import 'package:team_sync/l10n/app_localizations_en.dart';
+import 'package:team_sync/l10n/app_localizations_es.dart';
+import 'package:team_sync/l10n/app_localizations_fr.dart';
+import 'package:team_sync/l10n/app_localizations_it.dart';
+import 'package:team_sync/l10n/app_localizations_pt.dart';
 
 // ignore_for_file: type=lint
 
@@ -22,7 +22,7 @@ import 'app_localizations_pt.dart';
 /// `supportedLocales` list. For example:
 ///
 /// ```dart
-/// import 'l10n/app_localizations.dart';
+/// import 'package:team_sync/l10n/l10n/app_localizations.dart';
 ///
 /// return MaterialApp(
 ///   localizationsDelegates: AppLocalizations.localizationsDelegates,

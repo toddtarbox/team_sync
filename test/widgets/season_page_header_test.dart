@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
-import 'package:team_sync/models/season.dart';
-import 'package:team_sync/models/team.dart';
-import 'package:team_sync/services/database_service.dart';
-import 'package:team_sync/widgets/season_page.dart';
-import 'package:team_sync/widgets/season_record.dart';
+import 'package:team_sync/features/seasons/models/season.dart';
+import 'package:team_sync/features/teams/models/team.dart';
+import 'package:team_sync/core/services/database_service.dart';
+import 'package:team_sync/features/seasons/widgets/season_page.dart';
+import 'package:team_sync/features/seasons/widgets/season_record.dart';
 
 import '../helpers/firebase_mocks.dart';
 import '../helpers/mock_helpers.dart';

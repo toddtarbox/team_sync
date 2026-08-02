@@ -15,11 +15,11 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:team_sync/app_config.dart';
 import 'package:team_sync/router.dart';
-import 'package:team_sync/services/auth_service.dart';
-import 'package:team_sync/services/database_sharing_service.dart';
-import 'package:team_sync/services/locale_notifier.dart';
-import 'package:team_sync/services/subscription_service.dart';
-import 'package:team_sync/services/sport_strategy.dart';
+import 'package:team_sync/core/services/auth_service.dart';
+import 'package:team_sync/features/database_sharing/services/database_sharing_service.dart';
+import 'package:team_sync/core/services/locale_notifier.dart';
+import 'package:team_sync/core/services/subscription_service.dart';
+import 'package:team_sync/features/sports/services/sport_strategy.dart';
 import 'package:team_sync/l10n/app_localizations.dart';
 
 Future<void> mainCommon(
